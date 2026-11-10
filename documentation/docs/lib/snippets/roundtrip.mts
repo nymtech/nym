@@ -17,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { inlineMdxPartials, stripHeadingIds } from '../../packages/retrieval-indexer/mdx.mjs';
+import { inlineMdxPartials, stripHeadingIds } from '../../packages/retrieval-indexer/mdx.ts';
 import { splitFrontmatter } from './split.mts';
 import type { PageLink, Repo } from './repo.mts';
 import { openRepo, citationText, pageLinks, linkRoute, pageFiles, routeOf, sitePages } from './repo.mts';

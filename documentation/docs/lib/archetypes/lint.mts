@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseFrontmatter } from '../../packages/retrieval-indexer/mdx.mjs';
+import { parseFrontmatter } from '../../packages/retrieval-indexer/mdx.ts';
 import { openRepo } from '../snippets/repo.mts';
 import { inlinePage } from './inline.mts';
 import type { InlinedPage } from './inline.mts';

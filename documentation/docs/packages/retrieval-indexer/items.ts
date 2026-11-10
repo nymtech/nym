@@ -11,14 +11,14 @@
 // form, and it also answers to `Type::method`.
 
 import { createRequire } from 'node:module';
-import { Parser, Language } from 'web-tree-sitter';
+import { Parser, Language, type Node } from 'web-tree-sitter';
 
 const require = createRequire(import.meta.url);
-const GRAMMARS = { rust: 'tree-sitter-rust/tree-sitter-rust.wasm' };
+const GRAMMARS: Record<string, string> = { rust: 'tree-sitter-rust/tree-sitter-rust.wasm' };
 
 // Rust node type -> item kind. `impl_item` is not an item a citation names:
 // its methods are.
-const RUST_KINDS = {
+const RUST_KINDS: Record<string, string> = {
   function_item: 'fn',
   function_signature_item: 'fn',
   struct_item: 'struct',
@@ -33,9 +33,9 @@ const RUST_KINDS = {
   associated_type: 'type',
 };
 
-const parsers = new Map();
+const parsers = new Map<string, Parser>();
 
-async function parserFor(lang) {
+async function parserFor(lang: string): Promise<Parser> {
   if (parsers.has(lang)) return parsers.get(lang);
   if (!GRAMMARS[lang]) throw new Error(`no grammar for language "${lang}"`);
   await Parser.init();
@@ -50,7 +50,7 @@ async function parserFor(lang) {
  * at the brackets, one space after a comma. `W <T>` and `W<T>` read the same,
  * and `<W<T> as Clone>` keeps the spaces around `as`.
  */
-export const squash = (text) => text
+export const squash = (text: string): string => text
   .replace(/\s+/g, ' ')
   .replace(/(\w)\s+</g, '$1<')
   .replace(/<\s+/g, '<')
@@ -58,17 +58,17 @@ export const squash = (text) => text
   .replace(/\s*,\s*/g, ', ')
   .trim();
 /** A path with a leading `crate::`, `self::`, or `super::` removed: the item path is inside the file. */
-const local = (text) => text.replace(/^(?:(?:crate|self|super)::)+/, '');
+const local = (text: string): string => text.replace(/^(?:(?:crate|self|super)::)+/, '');
 /** A type with its generic arguments removed: `Foo<T>` -> `Foo`. */
-const bareType = (text) => local(squash(text)).replace(/<.*$/, '');
+const bareType = (text: string): string => local(squash(text)).replace(/<.*$/, '');
 /** A trait with its module path removed: `fmt::Display` -> `Display`, `From<A>` stays. */
-const lastSegment = (text) => { const t = squash(text); const head = t.replace(/<.*$/, ''); return head.split('::').pop() + t.slice(head.length); };
+const lastSegment = (text: string): string => { const t = squash(text); const head = t.replace(/<.*$/, ''); return head.split('::').pop() + t.slice(head.length); };
 
 /**
  * The start row of an item with the doc comments and attributes directly above
  * it. Plain `//` comments and blank lines end the run.
  */
-function startWithDocs(node) {
+function startWithDocs(node: Node): number {
   let start = node.startPosition.row;
   for (let prev = node.previousNamedSibling; prev; prev = prev.previousNamedSibling) {
     // A line comment ends at column 0 of the next row, because it holds its newline.
@@ -84,17 +84,23 @@ function startWithDocs(node) {
   return start;
 }
 
-/**
- * @param {string} text  source text
- * @param {string} lang  'rust'
- * @returns {Promise<{ name: string, qualifiedName: string, aliases: string[], kind: string, startLine: number, endLine: number }[]>}
- */
-export async function items(text, lang) {
+export interface Item {
+  name: string;
+  qualifiedName: string;
+  aliases: string[];
+  kind: string;
+  /** 1-indexed, inclusive */
+  startLine: number;
+  endLine: number;
+}
+
+/** The named items of `text`, a source file in `lang` (`'rust'`). */
+export async function items(text: string, lang: string): Promise<Item[]> {
   const parser = await parserFor(lang);
   const tree = parser.parse(text);
-  const found = [];
+  const found: Item[] = [];
 
-  const walk = (node, prefix) => {
+  const walk = (node: Node, prefix: string) => {
     for (const child of node.namedChildren) {
       if (child.type === 'impl_item') {
         const type = child.childForFieldName('type');
@@ -148,8 +154,8 @@ export async function items(text, lang) {
 }
 
 /** Split a path on `::`, but not inside `<...>`. */
-export function pathSegments(qualified) {
-  const out = [];
+export function pathSegments(qualified: string): string[] {
+  const out: string[] = [];
   let depth = 0;
   let current = '';
   for (let i = 0; i < qualified.length; i++) {
@@ -173,9 +179,9 @@ export function pathSegments(qualified) {
  * the symbol's path segments. `try_update_state` matches every method of that
  * name; `ClassicPeriodicAllowance::try_update_state` matches one.
  */
-export function matchSymbol(list, symbol) {
+export function matchSymbol(list: Item[], symbol: string): Item[] {
   const want = pathSegments(squash(symbol));
-  const endsWith = (qualified) => {
+  const endsWith = (qualified: string) => {
     const have = pathSegments(qualified);
     return have.length >= want.length && want.every((seg, i) => have[have.length - want.length + i] === seg);
   };

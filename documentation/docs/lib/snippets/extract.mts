@@ -8,8 +8,8 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { CITATION, fenceTracker } from '../../packages/retrieval-indexer/mdx.mjs';
-import { items, matchSymbol } from '../../packages/retrieval-indexer/items.mjs';
+import { CITATION, fenceTracker } from '../../packages/retrieval-indexer/mdx.ts';
+import { items, matchSymbol } from '../../packages/retrieval-indexer/items.ts';
 import type { Snippet } from '../retrieval/types.ts';
 import type { Repo } from './repo.mts';
 import { loadEdges } from './edges.mts';

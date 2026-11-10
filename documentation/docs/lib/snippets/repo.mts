@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseFrontmatter, HEADING_ANCHOR } from '../../packages/retrieval-indexer/mdx.mjs';
+import { parseFrontmatter, HEADING_ANCHOR } from '../../packages/retrieval-indexer/mdx.ts';
 import type { Snippet } from '../retrieval/types.ts';
 
 /** One site that imports snippets (`manifest.json` `sites`). */

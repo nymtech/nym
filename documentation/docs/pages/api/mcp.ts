@@ -21,7 +21,7 @@ import { buildMcpServer } from '../../lib/mcp/build-server';
 import { createTools, type McpTool } from '../../lib/mcp/tools';
 import type { DocIndex } from '../../packages/retrieval-indexer/types';
 // allowJs resolves the plain-ESM embed module; types are inferred from the .mjs.
-import { voyageProvider, embedQuery } from '../../packages/retrieval-indexer/embed.mjs';
+import { voyageProvider, embedQuery } from '../../packages/retrieval-indexer/embed.ts';
 
 // Heavy, immutable state: loaded once per serverless instance (cold start).
 const INDEX_PATH = path.join(process.cwd(), 'public/docs-index.json');

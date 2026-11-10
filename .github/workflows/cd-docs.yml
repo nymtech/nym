@@ -52,7 +52,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: documentation/docs/node_modules/.cache/nym-docs
-          key: nym-embed-${{ hashFiles('documentation/docs/content/**', 'documentation/docs/packages/retrieval-indexer/chunker.mjs', 'documentation/docs/packages/retrieval-indexer/code-chunker.mjs') }}
+          key: nym-embed-${{ hashFiles('documentation/docs/content/**', 'documentation/docs/packages/retrieval-indexer/chunker.ts', 'documentation/docs/packages/retrieval-indexer/code-chunker.ts') }}
           restore-keys: |
             nym-embed-
       - name: Generate llms-full.txt

@@ -19,12 +19,12 @@ import { fileURLToPath } from "url";
 import {
   chunkCodeFile,
   langOf,
-} from "../../docs/packages/retrieval-indexer/code-chunker.mjs";
+} from "../../docs/packages/retrieval-indexer/code-chunker.ts";
 import {
   voyageProvider,
   embedChunks,
   resolveEmbedKey,
-} from "../../docs/packages/retrieval-indexer/embed.mjs";
+} from "../../docs/packages/retrieval-indexer/embed.ts";
 import { ROOTS } from "../../indexed-sources.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

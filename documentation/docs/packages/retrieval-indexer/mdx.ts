@@ -10,17 +10,42 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 
+export type Frontmatter = Record<string, unknown>;
+
+export type FenceState = 'open' | 'inside' | 'close' | null;
+
+export interface FenceTracker {
+  (line: string): FenceState;
+  /** the info string of the open fence */
+  info: string;
+  isOpen(): boolean;
+}
+
+export interface InlineOptions {
+  filePath: string;
+  root: string;
+  /** the lines of frontmatter above `content`, so an error names the line in the file */
+  lineOffset?: number;
+  aliases?: Record<string, string>;
+  citation?: (id: string, attrs: string) => string;
+  link?: (id: string) => string;
+  seen?: Set<string>;
+}
+
+/** `(tagName, attrs, ctx) => text`, or null to drop the tag. */
+export type Expand = (tag: string, attrs: string, ctx: Record<string, unknown>) => string | null;
+
 /**
  * Parse frontmatter and body. Returns { data, content }. gray-matter only treats
  * a leading `---` block as frontmatter, so a `---` in the body is never eaten.
  */
-export function parseFrontmatter(raw) {
+export function parseFrontmatter(raw: string): { data: Frontmatter; content: string } {
   const { data, content } = matter(raw);
   return { data, content };
 }
 
 /** Title: frontmatter `title`, else the first H1 in the body, else humanised slug. */
-export function pageTitle(data, content, fallback) {
+export function pageTitle(data: Frontmatter, content: string, fallback: string): string {
   if (data && data.title != null) return String(data.title);
   const h1 = content.match(/^#\s+(.+)$/m);
   if (h1) return h1[1].trim();
@@ -28,7 +53,7 @@ export function pageTitle(data, content, fallback) {
 }
 
 /** Description from frontmatter, or ''. */
-export function pageDescription(data) {
+export function pageDescription(data: Frontmatter): string {
   return data && data.description != null ? String(data.description) : '';
 }
 
@@ -40,9 +65,9 @@ export function pageDescription(data) {
  * `tracker.info` holds the info string of the open fence (`mermaid`, `rust`),
  * and `tracker.isOpen()` tells whether a fence is still open after the last line.
  */
-export function fenceTracker() {
-  let open = null;
-  const tracker = (line) => {
+export function fenceTracker(): FenceTracker {
+  let open: { ch: string; len: number } | null = null;
+  const tracker = ((line: string): FenceState => {
     if (open) {
       const close = line.match(/^\s*(`{3,}|~{3,})\s*$/);
       if (close && close[1][0] === open.ch && close[1].length >= open.len) {
@@ -56,7 +81,7 @@ export function fenceTracker() {
     open = { ch: m[1][0], len: m[1].length };
     tracker.info = m[2].trim();
     return 'open';
-  };
+  }) as FenceTracker;
   tracker.info = '';
   tracker.isOpen = () => open !== null;
   return tracker;
@@ -74,7 +99,7 @@ export const HEADING_ANCHOR = /\s*(?:\{#([\w-]+)\}|\[#([^\]]+)\])\s*$/;
  * the anchor as the heading id and not as text, so a plain-text copy of the page
  * must not show it either.
  */
-export function stripHeadingIds(body) {
+export function stripHeadingIds(body: string): string {
   const fence = fenceTracker();
   return body.split('\n').map((line) => {
     if (fence(line) || !/^#{1,6}\s/.test(line)) return line;
@@ -107,16 +132,12 @@ export function stripHeadingIds(body) {
  * (a `mermaid` fence for a diagram, for example). With `link`, each
  * `](snippet:<id>)` becomes `](<link(id)>)`. Both skip code fences.
  *
- * @param {string} content   page body, frontmatter already removed
- * @param {{ filePath: string, root: string, lineOffset?: number, aliases?: Record<string, string>,
- *   citation?: (id: string, attrs: string) => string, link?: (id: string) => string,
- *   seen?: Set<string> }} opts  `lineOffset`: the lines of frontmatter above `content`,
- *   so an error names the line in the file
+ * `content` is the page body, with the frontmatter already removed.
  */
-export function inlineMdxPartials(content, opts) {
+export function inlineMdxPartials(content: string, opts: InlineOptions): string {
   const { filePath, root, lineOffset = 0, aliases = {}, citation, link, seen = new Set() } = opts;
   // Citations and links first, in this file's own text, so an error names its line.
-  const at = (line) => (fn) => {
+  const at = (line: number) => <T>(fn: () => T): T => {
     try {
       return fn();
     } catch (error) {
@@ -166,7 +187,7 @@ export function inlineMdxPartials(content, opts) {
 }
 
 /** The lines above `content` in `raw`: the frontmatter that parseFrontmatter removed. */
-export const frontmatterLines = (raw, content) => raw.split('\n').length - content.split('\n').length;
+export const frontmatterLines = (raw: string, content: string): number => raw.split('\n').length - content.split('\n').length;
 
 /**
  * `<Snippet id="..." view="..." />`, the citation form of a snippet body, with
@@ -174,12 +195,12 @@ export const frontmatterLines = (raw, content) => raw.split('\n').length - conte
  */
 export const CITATION = /<Snippet\s+(?=[^>]*?\bid="([^"]+)")([^>]*?)\s*\/>/g;
 
-const lineOf = (text, offset) => text.slice(0, offset).split('\n').length - 1;
+const lineOf = (text: string, offset: number): number => text.slice(0, offset).split('\n').length - 1;
 
 /** Apply `fn(text, firstLine)` to each run of lines outside a code fence. Lines are 1-indexed. */
-function outsideFences(text, fn) {
-  const out = [];
-  let run = [];
+function outsideFences(text: string, fn: (text: string, firstLine: number) => string): string {
+  const out: string[] = [];
+  let run: string[] = [];
   let runStart = 1;
   const fence = fenceTracker();
   const flush = () => { if (run.length) out.push(fn(run.join('\n'), runStart)); run = []; };
@@ -201,7 +222,7 @@ function outsideFences(text, fn) {
  * directory, `./` and `../` against the importing file, a bare path against the
  * docs root (tsconfig `baseUrl`).
  */
-export function resolveImport(spec, { filePath, root, aliases = {} }) {
+export function resolveImport(spec: string, { filePath, root, aliases = {} }: { filePath: string; root: string; aliases?: Record<string, string> }): string {
   const prefix = Object.keys(aliases).find((p) => spec.startsWith(p));
   if (prefix) return path.join(aliases[prefix], spec.slice(prefix.length));
   return spec.startsWith('.') ? path.resolve(path.dirname(filePath), spec) : path.resolve(root, spec);
@@ -211,8 +232,8 @@ export function resolveImport(spec, { filePath, root, aliases = {} }) {
  * The `.mdx` default imports of a body, outside code fences, with the 1-indexed
  * line of each. An import line inside a fence is example code, not an import.
  */
-function mdxImports(content) {
-  const found = [];
+function mdxImports(content: string): { name: string; spec: string; line: number }[] {
+  const found: { name: string; spec: string; line: number }[] = [];
   const fence = fenceTracker();
   content.split('\n').forEach((text, i) => {
     if (fence(text)) return;
@@ -235,9 +256,9 @@ function mdxImports(content) {
  * `ctx` is one object per call, so an expander can carry page-level state such as
  * which scenario the page declared.
  */
-export function stripMdx(content, { expand, values } = {}) {
-  const out = [];
-  let fence = null;
+export function stripMdx(content: string, { expand, values }: { expand?: Expand; values?: Record<string, string> } = {}): string {
+  const out: string[] = [];
+  let fence: string | null = null;
   let jsDepth = 0;
   let inComment = false;
   const ctx = { ...scenariosOf(content) };
@@ -311,7 +332,7 @@ export function stripMdx(content, { expand, values } = {}) {
 const JS_STATEMENT = /^(?:export\s|(?:const|let|var)\s+[\w$]+\s*=|(?:async\s+)?function\s|class\s)/;
 
 /** Net bracket depth a line opens, used to span multi-line statements. */
-function bracketDelta(line) {
+function bracketDelta(line: string): number {
   let d = 0;
   for (const ch of line) {
     if (ch === '{' || ch === '(' || ch === '[') d++;
@@ -321,8 +342,8 @@ function bracketDelta(line) {
 }
 
 /** Replace `{IDENT}` with its value where the identifier is one we loaded. */
-function substitute(line, values) {
-  const known = (name) => Object.prototype.hasOwnProperty.call(values, name);
+function substitute(line: string, values: Record<string, string>): string {
+  const known = (name: string) => Object.prototype.hasOwnProperty.call(values, name);
   return line
     // `<Version name="X" />` (components/version.tsx), and `<Version name="X" code />` as inline code.
     .replace(/<Version\s+name="([A-Za-z_$][\w$]*)"(\s+code)?\s*\/>/g, (whole, name, code) =>
@@ -340,8 +361,8 @@ function substitute(line, values) {
  * by a spread), `firstScenario`, `scenarioId` (the first generic one, for a page
  * that names it once), and `pageTitle`.
  */
-function scenariosOf(content) {
-  const scenarios = new Map();
+function scenariosOf(content: string) {
+  const scenarios = new Map<string, { source: string; id: string } | null>();
   for (const [, name, source, id] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*require(Generic|Browsing|Messaging|Wallet)Scenario\(\s*["']([^"']+)["']\s*\)/g)) {
     scenarios.set(name, { source: source.toLowerCase(), id });
   }

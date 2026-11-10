@@ -14,7 +14,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { PAGES_DIR, PUBLIC_DIR, collectPages, loadSnippets } from '../../docs/lib/retrieval/pages-source.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
-import { stripHeadingIds } from '../../docs/packages/retrieval-indexer/mdx.mjs';
+import { stripHeadingIds } from '../../docs/packages/retrieval-indexer/mdx.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_FILE = path.join(PUBLIC_DIR, 'llms-full.txt');

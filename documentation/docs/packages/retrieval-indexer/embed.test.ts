@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { embedChunks, contentHash, mockProvider, embedText } from './embed.mjs';
+import { embedChunks, contentHash, mockProvider, embedText } from './embed.ts';
 
 describe('embedText', () => {
   it('prepends the page title and section heading to the body', () => {

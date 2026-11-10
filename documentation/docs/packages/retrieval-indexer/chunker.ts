@@ -1,17 +1,19 @@
 // Heading-scoped chunker for the docs retrieval index.
 //
-// Plain ESM JS (not TS) so the build generator, which runs under bare `node`,
-// can import it directly; the co-located chunker.test.ts exercises it via
-// vitest. Types live in ./types.ts and are referenced through JSDoc.
-//
 // Source-agnostic: chunkPages() takes normalised PageRecord objects, so the
 // docs adapter and a future Confluence adapter feed the same pipeline.
-//
-/** @typedef {import('./types').PageRecord} PageRecord */
-/** @typedef {import('./types').Chunk} Chunk */
 
 import GithubSlugger, { slug } from 'github-slugger';
-import { HEADING_ANCHOR } from './mdx.mjs';
+import { HEADING_ANCHOR } from './mdx.ts';
+import type { Chunk, PageRecord } from './types.ts';
+
+export interface Section {
+  heading: string;
+  /** an explicit `{#id}` on the heading, or null */
+  anchor: string | null;
+  level: number;
+  text: string;
+}
 
 // Chunking targets. A chunk is one heading section; sections larger than
 // MAX_CHARS are split, first on paragraph boundaries and then, if a single
@@ -29,12 +31,12 @@ export const DEFAULT_SKIP_SLUGS = new Set(['generate-fig-spec']);
 // retrieval deep links match the real anchors exactly rather than approximating
 // them. This is the stateless form (no de-duplication); chunkPages() uses a
 // per-page GithubSlugger instance for the -1/-2 suffixes.
-export function slugify(heading) {
+export function slugify(heading: string): string {
   return slug(heading);
 }
 
 /** chars/4 is the standard rough token estimate; a real tokeniser comes later. */
-export function estimateTokens(text) {
+export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
@@ -43,16 +45,12 @@ export function estimateTokens(text) {
  * inside fenced code blocks (``` or ~~~) are treated as code, not headings, so
  * a `## foo` comment in a bash example never creates a false section boundary.
  * Content before the first heading attaches to the page title.
- *
- * @param {string} body
- * @param {string} pageTitle
- * @returns {{ heading: string, level: number, text: string }[]}
  */
-export function splitByHeadings(body, pageTitle) {
+export function splitByHeadings(body: string, pageTitle: string): Section[] {
   const lines = body.split('\n');
-  const sections = [];
-  let current = { heading: pageTitle, anchor: null, level: 1, lines: [] };
-  let fence = null; // the fence marker that opened the current code block
+  const sections: Section[] = [];
+  let current = { heading: pageTitle, anchor: null as string | null, level: 1, lines: [] as string[] };
+  let fence: string | null = null; // the fence marker that opened the current code block
 
   for (const line of lines) {
     const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/);
@@ -91,15 +89,11 @@ export function splitByHeadings(body, pageTitle) {
  * any single paragraph still over the cap (e.g. one long code block) is
  * hard-split on line then raw character boundaries. Guarantees every part is
  * <= maxChars.
- *
- * @param {string} text
- * @param {number} maxChars
- * @returns {string[]}
  */
-export function packSection(text, maxChars = MAX_CHARS) {
+export function packSection(text: string, maxChars = MAX_CHARS): string[] {
   if (text.length <= maxChars) return [text];
 
-  const units = [];
+  const units: string[] = [];
   for (const para of text.split(/\n\s*\n/)) {
     if (para.length <= maxChars) {
       units.push(para);
@@ -109,7 +103,7 @@ export function packSection(text, maxChars = MAX_CHARS) {
   }
 
   // Greedily pack units back up to the cap.
-  const out = [];
+  const out: string[] = [];
   let buf = '';
   for (const unit of units) {
     if (buf && buf.length + unit.length + 2 > maxChars) {
@@ -123,8 +117,8 @@ export function packSection(text, maxChars = MAX_CHARS) {
 }
 
 /** Hard-split a single oversized block on line, then raw-char, boundaries. */
-function hardSplit(block, maxChars) {
-  const out = [];
+function hardSplit(block: string, maxChars: number): string[] {
+  const out: string[] = [];
   let buf = '';
   for (const line of block.split('\n')) {
     if (line.length > maxChars) {
@@ -139,15 +133,12 @@ function hardSplit(block, maxChars) {
   return out;
 }
 
-/**
- * Turn normalised pages into retrievable chunks.
- *
- * @param {PageRecord[]} pages
- * @param {{ siteUrl: string, maxChars?: number, skipSlugs?: Set<string> }} opts
- * @returns {Chunk[]}
- */
-export function chunkPages(pages, { siteUrl, maxChars = MAX_CHARS, skipSlugs = DEFAULT_SKIP_SLUGS }) {
-  const chunks = [];
+/** Turn normalised pages into retrievable chunks. */
+export function chunkPages(
+  pages: PageRecord[],
+  { siteUrl, maxChars = MAX_CHARS, skipSlugs = DEFAULT_SKIP_SLUGS }: { siteUrl: string; maxChars?: number; skipSlugs?: Set<string> },
+): Chunk[] {
+  const chunks: Chunk[] = [];
 
   for (const page of pages) {
     const pagePath = page.url.replace(`${siteUrl}/`, '');

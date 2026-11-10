@@ -6,7 +6,7 @@
 //   add --misses to print the top k routes of each query with no expected page in the top k,
 //   so you can check its labels
 //
-// The chunker (packages/retrieval-indexer/chunker.mjs) cuts a page at its depth 2 to 4
+// The chunker (packages/retrieval-indexer/chunker.ts) cuts a page at its depth 2 to 4
 // headings, as split does, and then cuts a section over MAX_CHARS into pieces.
 // So on a split page, a section is a snippet, and the two indexes differ only
 // where a snippet is long:
@@ -27,9 +27,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { collectPages, loadSnippets, PAGES_DIR, SITE_URL } from '../retrieval/pages-source.mjs';
-import { chunkPages } from '../../packages/retrieval-indexer/chunker.mjs';
+import { chunkPages } from '../../packages/retrieval-indexer/chunker.ts';
 import { loadProjections, loadDocValues } from '../retrieval/projections.mjs';
-import { voyageProvider, mockProvider, embedChunks, embedQuery } from '../../packages/retrieval-indexer/embed.mjs';
+import { voyageProvider, mockProvider, embedChunks, embedQuery } from '../../packages/retrieval-indexer/embed.ts';
 import { pageFiles, snippetImports, routeOf } from './repo.mts';
 import type { Chunk, EmbeddedChunk } from '../../packages/retrieval-indexer/types.ts';
 

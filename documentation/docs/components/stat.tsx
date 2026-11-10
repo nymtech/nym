@@ -1,7 +1,7 @@
 // `<Stat name="nodes" />`: a count from the network scrape
 // (components/outputs/api-scraping-outputs/nodes-count.json, written by the
 // prebuild). A snippet imports nothing, so it names the value. The text outputs
-// substitute the same value (packages/retrieval-indexer/mdx.mjs, `substitute`).
+// substitute the same value (packages/retrieval-indexer/mdx.ts, `substitute`).
 
 import STATS from "./outputs/api-scraping-outputs/nodes-count.json";
 

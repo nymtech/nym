@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { chunkCode, chunkCodeFile, langOf, symbolOf } from './code-chunker.mjs';
+import { chunkCode, chunkCodeFile, langOf, symbolOf } from './code-chunker.ts';
 
 describe('langOf', () => {
   it('detects rust, typescript, kotlin, swift, go and python, skips the rest', () => {

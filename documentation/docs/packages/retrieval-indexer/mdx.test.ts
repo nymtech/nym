@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, stripHeadingIds, inlineMdxPartials } from './mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, stripHeadingIds, inlineMdxPartials } from './mdx.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

@@ -17,7 +17,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, stripHeadingIds, frontmatterLines } from '../../docs/packages/retrieval-indexer/mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, stripHeadingIds, frontmatterLines } from '../../docs/packages/retrieval-indexer/mdx.ts';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 // PAGES_DIR / SITE_URL / SKIP_DIRS are shared with the ordered generators. Only
 // the walk differs: this generator uses a flat file collector (below) so it also

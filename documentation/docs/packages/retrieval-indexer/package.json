@@ -5,11 +5,11 @@
   "description": "Chunks, embeds, and indexes docs and source code for the Nym retrieval index",
   "type": "module",
   "exports": {
-    "./chunker": "./chunker.mjs",
-    "./code-chunker": "./code-chunker.mjs",
-    "./embed": "./embed.mjs",
-    "./items": "./items.mjs",
-    "./mdx": "./mdx.mjs",
+    "./chunker": "./chunker.ts",
+    "./code-chunker": "./code-chunker.ts",
+    "./embed": "./embed.ts",
+    "./items": "./items.ts",
+    "./mdx": "./mdx.ts",
     "./types": "./types.ts"
   },
   "dependencies": {

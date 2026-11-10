@@ -2,7 +2,7 @@
 // text. A snippet imports nothing, so it names a version this way rather than
 // with `{RUST_MSRV}`. `code` shows it as inline code, which `{X}` inside
 // backticks cannot do: MDX does not evaluate an expression in inline code.
-// The text outputs substitute the same value (packages/retrieval-indexer/mdx.ts, `substitute`).
+// The text outputs substitute the same value (lib/retrieval/projections.mjs, `substituteComponents`).
 
 import { Code } from "nextra/components";
 import * as VERSIONS from "./versions";

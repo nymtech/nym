@@ -39,9 +39,21 @@ describe('pageTitle / pageDescription', () => {
 });
 
 describe('stripMdx (fence-aware)', () => {
-  it('drops a comment inside a line, and fills a Version tag with its value', () => {
-    const out = stripMdx('Read the files {/* add link */}. Rust <Version name="RUST_MSRV" />+, release <Version name="V" code />.', { values: { RUST_MSRV: '1.87', V: '1.2.3' } });
-    expect(out).toBe('Read the files . Rust 1.87+, release `1.2.3`.');
+  it('drops a comment inside a line, and fills a known value', () => {
+    const out = stripMdx('Read the files {/* add link */}. Rust {RUST_MSRV}+.', { values: { RUST_MSRV: '1.87' } });
+    expect(out).toBe('Read the files . Rust 1.87+.');
+  });
+
+  it('applies a producer rewrite before the values, and builds ctx from the page', () => {
+    const seen: unknown[] = [];
+    const out = stripMdx('<Tag />\nA <V /> and {X}.', {
+      values: { X: 'x' },
+      rewrite: (line) => line.replace('<V />', 'v'),
+      context: (content) => ({ lines: content.split('\n').length }),
+      expand: (tag, attrs, ctx) => { seen.push(ctx); return null; },
+    });
+    expect(out).toBe('A v and x.');
+    expect(seen).toEqual([{ lines: 2 }]);
   });
 
   it('strips imports and lone JSX tag lines outside fences, keeping children', () => {

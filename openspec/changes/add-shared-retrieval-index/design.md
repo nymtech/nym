@@ -41,7 +41,7 @@ Current state, verified against the code on 2026-09-08:
    | `code-chunker.mjs` | package | Generic; repo, source tag, and deep-link base are options |
    | `items.mjs` | package | The tree-sitter item finder (decision 10). The codex snippet extractor imports it too, so its Rust output shape (`<Type as Trait>::method`) is a contract with `lib/snippets` |
    | `chunker.mjs` | package | Heading-based docs chunker; site URL is an option |
-   | `mdx.mjs` | split | MDX stripping, heading anchors, and partial inlining go to the package. The nym rules (the `require*Scenario` declarations) stay in nym behind a seam. `lib/archetypes/inline.mts` imports it at MDX compile time |
+   | `mdx.mjs` | split | MDX stripping, heading anchors, and partial inlining go to the package. The nym rules (the `require*Scenario` declarations and the `<Version>`/`<Stat>` tags) stay in nym: `mdxOptions` in `projections.mjs` passes them through the `context` and `rewrite` hooks of `stripMdx`. `lib/archetypes/inline.mts` imports it at MDX compile time |
    | `embed.mjs` | package | Providers and the content-hash cache. `pages/api/mcp.ts` imports the query side, so Next compiles package code |
    | `types.ts` | package | Chunk and index types |
    | code walk in `generate-code-index.mjs` | package | Walk, excludes, size cap, and the fail-closed drop report (decision 10) |

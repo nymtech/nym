@@ -253,15 +253,25 @@ function mdxImports(content: string): { name: string; spec: string; line: number
  * from typed data gets into the index at all; see projections.mjs. Returning null
  * drops the tag, which is right for anything purely visual.
  *
- * `ctx` is one object per call, so an expander can carry page-level state such as
- * which scenario the page declared.
+ * `context(content)` builds the `ctx` an expander receives, one object per call,
+ * so an expander can carry page-level state such as which scenario the page
+ * declared. `rewrite(line)` lets a producer fill its own component tags before
+ * the `{IDENT}` values are substituted.
  */
-export function stripMdx(content: string, { expand, values }: { expand?: Expand; values?: Record<string, string> } = {}): string {
+export function stripMdx(
+  content: string,
+  { expand, values, context, rewrite }: {
+    expand?: Expand;
+    values?: Record<string, string>;
+    context?: (content: string) => Record<string, unknown>;
+    rewrite?: (line: string) => string;
+  } = {},
+): string {
   const out: string[] = [];
   let fence: string | null = null;
   let jsDepth = 0;
   let inComment = false;
-  const ctx = { ...scenariosOf(content) };
+  const ctx = context ? context(content) : {};
 
   for (const line of content.split('\n')) {
     const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/);
@@ -307,7 +317,8 @@ export function stripMdx(content: string, { expand, values }: { expand?: Expand;
     // Substitute the ones we know: emitting the source text states a fact the
     // reader cannot read, and a version requirement is exactly the kind of thing
     // someone comes to the docs for.
-    let text = values ? substitute(line, values) : line;
+    let text = rewrite ? rewrite(line) : line;
+    if (values) text = substitute(text, values);
     // A comment inside a line of prose renders as nothing too.
     text = text.replace(/\{\s*\/\*[^]*?\*\/\s*\}/g, '');
     // A bare expression line we could not resolve renders as nothing on the page,
@@ -343,34 +354,5 @@ function bracketDelta(line: string): number {
 
 /** Replace `{IDENT}` with its value where the identifier is one we loaded. */
 function substitute(line: string, values: Record<string, string>): string {
-  const known = (name: string) => Object.prototype.hasOwnProperty.call(values, name);
-  return line
-    // `<Version name="X" />` (components/version.tsx), and `<Version name="X" code />` as inline code.
-    .replace(/<Version\s+name="([A-Za-z_$][\w$]*)"(\s+code)?\s*\/>/g, (whole, name, code) =>
-      known(name) ? (code ? `\`${values[name]}\`` : values[name]) : whole,
-    )
-    // `<Stat name="X" />` (components/stat.tsx): a network count, as `stat.X`.
-    .replace(/<Stat\s+name="(\w+)"\s*\/>/g, (whole, name) => (known(`stat.${name}`) ? values[`stat.${name}`] : whole))
-    .replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (whole, name) => (known(name) ? values[name] : whole));
-}
-
-/**
- * The scenarios a page declares: `export const mixnet = requireWalletScenario('mixnet-ipr')`.
- * A component names one through its props (`<NetworkDiagram item={mixnet} />`).
- * Returns `scenarios` (const name -> { source, id }, or null for a const built
- * by a spread), `firstScenario`, `scenarioId` (the first generic one, for a page
- * that names it once), and `pageTitle`.
- */
-function scenariosOf(content: string) {
-  const scenarios = new Map<string, { source: string; id: string } | null>();
-  for (const [, name, source, id] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*require(Generic|Browsing|Messaging|Wallet)Scenario\(\s*["']([^"']+)["']\s*\)/g)) {
-    scenarios.set(name, { source: source.toLowerCase(), id });
-  }
-  // A const built by a spread (`{ ...requireGenericScenario('mixnet'), paths: ... }`)
-  // can override any field, so it names no scenario the projection can state.
-  for (const [, name] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*\{\s*\.\.\./g)) scenarios.set(name, null);
-  const firstScenario = [...scenarios.values()].find(Boolean) ?? null;
-  const generic = [...scenarios.values()].find((s) => s?.source === 'generic');
-  const pageTitle = content.match(/^# (.+)$/m)?.[1].trim() ?? null;
-  return { scenarios, firstScenario, scenarioId: generic?.id ?? null, pageTitle };
+  return line.replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (whole, name) => (Object.hasOwn(values, name) ? values[name] : whole));
 }

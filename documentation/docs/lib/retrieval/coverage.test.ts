@@ -6,7 +6,7 @@ import { parseFrontmatter, stripMdx, inlineMdxPartials, resolveImport } from '..
 import { loadSnippets, composeOptions } from './pages-source.mjs';
 import { openRepo } from '../snippets/repo.mts';
 // @ts-expect-error - plain ESM JS module
-import { loadProjections, loadDocValues } from './projections.mjs';
+import { loadProjections, loadDocValues, mdxOptions } from './projections.mjs';
 
 // A page's source file is not a page's content. Content that renders for a
 // reader can be invisible to retrieval by several routes:
@@ -48,7 +48,7 @@ beforeAll(async () => {
 
 const indexedBody = (page: string) => {
   const { content } = parseFrontmatter(fs.readFileSync(page, 'utf-8'));
-  return stripMdx(inlineMdxPartials(content, composeOptions(page, snippets)), { expand, values });
+  return stripMdx(inlineMdxPartials(content, composeOptions(page, snippets)), mdxOptions({ expand, values }));
 };
 
 /** Every `import X from '...mdx'` in the docs, with the file it points at. */
@@ -99,7 +99,7 @@ describe('MDX partials reach the index', () => {
       // Compare against a sentence from the partial rather than its whole text:
       // the partial is chunked and reflowed, so equality is the wrong test.
       const { content: partialBody } = parseFrontmatter(fs.readFileSync(resolved, 'utf-8'));
-      const probe = stripMdx(partialBody, { values })
+      const probe = stripMdx(partialBody, mdxOptions({ values }))
         .split('\n')
         .map((l) => l.trim())
         // No link: a snippet holds `snippet:` links, which the indexed page holds as routes.

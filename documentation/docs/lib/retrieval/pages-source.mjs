@@ -14,6 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, frontmatterLines } from '../../packages/retrieval-indexer/mdx.ts';
+import { mdxOptions } from './projections.mjs';
 import { openRepo, citationText, pageLinks, linkRoute, routeOf } from '../snippets/repo.mts';
 import { extractCode } from '../snippets/extract.mts';
 
@@ -131,7 +132,7 @@ export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, val
       // Partials first: their text is part of the page, so it must be present
       // before headings are split and components are expanded.
       const whole = inlineMdxPartials(content, { ...composeOptions(filePath, snippets), lineOffset: frontmatterLines(raw, content) });
-      const body = stripMdx(whole, { expand, values });
+      const body = stripMdx(whole, mdxOptions({ expand, values }));
       if (body.length > 0) {
         pages.push({
           source,

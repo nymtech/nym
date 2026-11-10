@@ -117,7 +117,7 @@ Claim: you can write the mixnet's privacy promises down as short requirements. T
 |---|---|
 | The three core mechanisms can be specified from the code as it is | 21 requirements (Sphinx 7, cover 8, delay 6). Each one comes from code that was read twice |
 | The specs can say what they do not promise | `design.md`: what each party sees, 14 conditions under which a protection is absent, the non-goals |
-| Code-to-spec links can live in the code | 60 Tracey markers. The docs reader (`tracey.mts`) turns them into records |
+| Code-to-spec links can live in the code | 60 Tracey markers. Tracey reads them, and the docs coverage report asks Tracey for them |
 | The gap can be measured | 20 of 21 requirements have code, but only 5 of 21 have a test. With the proposed edges applied, the chains from code to the threat model go from 0 to 12 |
 | Writing specs finds real faults | 5 findings, for example the replay filter comment that says the opposite of what the code does |
 

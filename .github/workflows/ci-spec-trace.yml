@@ -1,0 +1,63 @@
+name: ci-spec-trace
+
+# The spec trace gate on each PR (openspec/changes/add-spec-trace-gate, T6).
+# Tracey reads the specs and the code paths that .config/tracey/config.styx names. The job fails
+# on a marker that names an unknown id or an old version, and on an id that two specs define.
+# A requirement with no code or no test is reported and does not fail.
+#
+# There is no path filter. A workflow that a path filter skips sends no status, so a required
+# check on it stays pending and the PR cannot merge.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-spec-trace-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  TRACEY_VERSION: v1.4.0
+  TRACEY_SHA256: 41d1360015f670b5d985b296aa7e727e3dcdb7ca04fc7834eb35d969a82ca9e5
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Tracey
+        run: |
+          name=tracey-x86_64-unknown-linux-gnu
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$name.tar.xz" \
+            "https://github.com/bearcove/tracey/releases/download/$TRACEY_VERSION/$name.tar.xz"
+          echo "$TRACEY_SHA256  $RUNNER_TEMP/$name.tar.xz" | sha256sum -c -
+          tar -xf "$RUNNER_TEMP/$name.tar.xz" -C "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/bin"
+          install -m 755 "$RUNNER_TEMP/$name/tracey" "$RUNNER_TEMP/bin/tracey"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Spec trace gate
+        # Tracey 1.4.0 reports an id that two specs define as CONFIG ERROR, and exits 0.
+        run: |
+          tracey query validate --deny warnings > "$RUNNER_TEMP/gate.log" 2>&1 || { cat "$RUNNER_TEMP/gate.log"; exit 1; }
+          cat "$RUNNER_TEMP/gate.log"
+          ! grep -q 'CONFIG ERROR' "$RUNNER_TEMP/gate.log"
+
+      - name: Canary
+        # The gate must fail on a marker with an unknown id in a path that the config names (T8).
+        run: |
+          printf '%s\n' '// r[impl canary.unknown]' 'pub fn canary() {}' > common/nymsphinx/src/canary.rs
+          if tracey query validate --deny warnings > "$RUNNER_TEMP/canary.log" 2>&1; then
+            cat "$RUNNER_TEMP/canary.log"; echo "canary: the gate passed an unknown id"; exit 1
+          fi
+          grep -q canary.unknown "$RUNNER_TEMP/canary.log"
+
+      - name: Gaps
+        # Reported, not failed (T2).
+        run: |
+          tracey query uncovered || true
+          tracey query untested || true

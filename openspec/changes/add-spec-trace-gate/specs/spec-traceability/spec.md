@@ -2,7 +2,7 @@
 
 ### Requirement: Code links to a requirement come from markers only
 
-The links from code to a requirement in the scope SHALL come from Tracey markers in the code: `// r[impl <id>]` on the line above the item that keeps the requirement, and `// r[verify <id>]` on the line above the test that checks it. The docs records and the coverage report SHALL take their `realises` edges and witnesses from these markers. The records check SHALL fail on a hand-written `realises` edge from code to a requirement in the scope. The edges from a requirement to the threat model SHALL stay hand-written.
+The links from code to a requirement in the scope SHALL come from Tracey markers in the code: `// r[impl <id>]` on the line above the item that keeps the requirement, and `// r[verify <id>]` on the line above the test that checks it. The coverage report SHALL take the code and the tests of each such requirement from Tracey. The records check SHALL fail on a hand-written `realises` edge from code to a requirement in the scope. The edges from a requirement to the threat model SHALL stay hand-written.
 
 #### Scenario: A renamed function keeps its link
 
@@ -16,12 +16,17 @@ The links from code to a requirement in the scope SHALL come from Tracey markers
 
 ### Requirement: The gate fails a pull request with a broken reference
 
-A CI job SHALL run on each pull request that changes a spec in the scope, the Tracey config, or Rust code. It SHALL fail when a marker names an id that no spec in the config defines, when two requirements have the same id, or when a marker names an old version of a requirement. The job SHALL be a required check on `develop`.
+A CI job SHALL run Tracey on each pull request. It SHALL read only the spec files and the code paths that the Tracey config names. It SHALL fail when a marker names an id that no spec in the config defines, when two requirements have the same id, or when a marker names an old version of a requirement. The job SHALL be a required check on `develop`.
 
 #### Scenario: A marker names an unknown id
 
 - **WHEN** a pull request adds `// r[impl sphinx.size-clases]` and no spec defines `sphinx.size-clases`
 - **THEN** the job fails and names the file and line of the marker
+
+#### Scenario: Two specs define one id
+
+- **WHEN** a pull request adds `r[delay.node-holds]` to a second spec in the scope
+- **THEN** the job fails on the `CONFIG ERROR` that Tracey prints, although Tracey exits 0
 
 #### Scenario: A marker names an old version
 
@@ -53,26 +58,21 @@ The Tracey config SHALL list the specs `sphinx-packet-format`, `client-cover-tra
 
 ### Requirement: The gate fails on its own canary
 
-A test SHALL run the gate command on a fixture that holds a marker with an unknown id and a requirement with no marker. The test SHALL pass only when the gate fails on the marker and reports the requirement without failing on it.
+After the gate passes on the repository, the CI job SHALL add a marker with an unknown id to a code path in its own checkout, and run the gate again. The job SHALL fail unless the second run fails and names the planted id.
 
 #### Scenario: The gate stops catching unknown ids
 
 - **WHEN** a change to the gate command or its config makes it pass a marker with an unknown id
-- **THEN** the canary test fails
+- **THEN** the canary step fails
 
-### Requirement: A commit that changes marked code prints the requirements it touches
+### Requirement: A commit runs the reference check first
 
-A lefthook pre-commit job SHALL find each staged item whose lines changed and that carries a marker, and SHALL print the id, the verb and the first sentence of each requirement that the item names. The job SHALL exit 0 in each case, including when `node` is missing.
+A lefthook pre-commit job on staged Rust files SHALL run the Tracey reference check and print its result. The job SHALL exit 0 in each case, including when `tracey` is missing.
 
-#### Scenario: A commit changes a marked function
+#### Scenario: A commit adds a broken marker
 
-- **WHEN** a commit changes the body of `SurbAck::construct_legacy`, which carries markers for `sphinx.ack-packet` and `delay.acks-replies-cover`
-- **THEN** the job prints both ids with the first sentence of each requirement, and the commit goes ahead
-
-#### Scenario: A commit changes no marked code
-
-- **WHEN** a commit changes only items that carry no marker
-- **THEN** the job prints nothing
+- **WHEN** a commit adds `// r[impl sphinx.size-clases]`
+- **THEN** the job prints the unknown reference, and the commit goes ahead
 
 ### Requirement: Ids in an archived spec do not change its requirements
 

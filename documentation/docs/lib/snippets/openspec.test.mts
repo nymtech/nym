@@ -63,7 +63,7 @@ describe('edges.json and coverage', () => {
     expect(errors).toHaveLength(3);
     expect(requirement.refs).toEqual([{ id: prop.id, rel: 'realises' }]);
     const [line] = coverage({ requirement: [requirement], prose: [], code: [codeRecord], model: [model] });
-    expect(line).toEqual({ id: req.id, spec: 'x', threatModel: [prop.id], realisedBy: [code.id] });
+    expect(line).toEqual({ id: req.id, spec: 'x', threatModel: [prop.id], realisedBy: [code.id], tests: [] });
   });
 });
 

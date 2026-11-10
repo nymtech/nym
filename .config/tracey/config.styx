@@ -5,7 +5,7 @@ specs (
     impls (
       {
         name rust
-        include (common/**/*.rs nym-node/**/*.rs nym-registration-client/**/*.rs)
+        include (common/nymsphinx/**/*.rs common/topology/**/*.rs common/client-libs/mixnet-client/**/*.rs common/client-core/**/*.rs nym-node/**/*.rs gateway/**/*.rs nym-registration-client/**/*.rs)
         exclude (target/**)
       }
     )

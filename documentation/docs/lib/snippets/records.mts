@@ -417,7 +417,15 @@ export async function buildAll(repo: Repo): Promise<AllRecords> {
   ];
   const warnings = [...built.warnings, ...model.warnings.map((w) => `threat model: ${w}`)];
   const all = [...built.prose, ...requirements.records, ...built.diagram, ...built.code, ...model.records];
-  errors.push(...applyEdges(loadEdges(repo), all));
+  const authored = loadEdges(repo);
+  // The code links of a requirement with a Tracey id are its markers, which Tracey reads (add-spec-trace-gate, T1).
+  const traced = new Set(requirements.records.filter((r) => r.meta.tracey).map((r) => r.id));
+  for (const e of authored) {
+    if (e.rel === 'realises' && typeof e.from === 'string' && e.from.includes('#') && typeof e.to === 'string' && traced.has(e.to)) {
+      errors.push(`${e.at}: ${e.to} has a Tracey id, so its code links come from markers: put a // r[impl <id>] comment above ${e.from} and remove this edge`);
+    }
+  }
+  errors.push(...applyEdges(authored, all));
   // Inline source paths: a warning until stage 2 ends (D14).
   const paths = checkPaths(built.prose.map((p) => path.join(repo.root, p.path)), repo.root);
   for (const [p, where] of paths.missing) warnings.push(`${where[0]}: inline path ${p} does not exist${where.length > 1 ? ` (and ${where.length - 1} more)` : ''}`);

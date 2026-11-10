@@ -10,7 +10,7 @@ Claim: you can write the mixnet's privacy promises down as short requirements. T
 |---|---|
 | The three core mechanisms can be specified from the code as it is | 21 requirements (Sphinx 7, cover 8, delay 6). Each one comes from code that was read twice |
 | The specs can say what they do not promise | `design.md`: what each party sees, 14 conditions under which a protection is absent, the non-goals |
-| Code-to-spec links can live in the code | 60 Tracey markers. The docs reader (`tracey.mts`) turns them into records |
+| Code-to-spec links can live in the code | 60 Tracey markers. Tracey reads them, and the docs coverage report asks Tracey for them |
 | The gap can be measured | 20 of 21 requirements have code, but only 5 of 21 have a test. With the proposed edges applied, the chains from code to the threat model go from 0 to 12 |
 | Writing specs finds real faults | 5 findings, for example the replay filter comment that says the opposite of what the code does |
 
@@ -34,15 +34,15 @@ Claim: you can write the mixnet's privacy promises down as short requirements. T
   +---------------+     +------------------+    | (V2, P1)            |
                                                 +---------------------+
 
-  The same markers have two readers:
+  Tracey is the only reader of the markers:
 
-  markers --> tracey query status ------> has code? has a test? stale references?
-         \
-          +-> lib/snippets/tracey.mts --> docs records --> lib/snippets/coverage.mts
-                                                           code -> requirement -> threat model
+  markers --> tracey query validate ----------------> CI gate: unknown id? old version?
+         \--> tracey query --json rule <id> --+
+                                               +--> lib/snippets/coverage.mts
+  edges.proposed.json (requirement -> threat) -+    code -> requirement -> threat model
 ```
 
-A requirement in a spec file has a Tracey id on the line above its heading. A comment above a function or a test names that id with a verb. Tracey and the docs reader both read the comments, so the coverage report, the docs records and an agent see the same links. The link from a requirement to the threat model is not in the code. It is a proposed edge that the threat-model owner reviews.
+A requirement in a spec file has a Tracey id on the line above its heading. A comment above a function or a test names that id with a verb. Tracey reads the comments, and the coverage report and an agent ask Tracey, so they all see the same links. The link from a requirement to the threat model is not in the code. It is a proposed edge that the threat-model owner reviews.
 
 ## The markers
 
@@ -59,6 +59,13 @@ A marker sits above the code it names, so it moves with the code when the code m
 ## How to run it
 
 1. Install Tracey 1.4.0 from its [release page](https://github.com/bearcove/tracey/releases/tag/v1.4.0): download `tracey-x86_64-unknown-linux-gnu.tar.xz` and its `.sha256` file, check it with `sha256sum -c`, and put the binary on your `PATH`. `cargo install tracey` (1.3.0) fails to build without `--locked`.
-2. From the repository root, run `tracey query status` for the coverage, and `tracey query validate` for broken or duplicate references.
+2. From the repository root, run `tracey query status` for the coverage, and `tracey query validate --deny warnings` for broken references. For an id that two specs define, Tracey 1.4.0 prints `CONFIG ERROR` and exits 0, so read the output.
 3. Run `tracey web --open` for a dashboard of the specs with their coverage.
-4. In `documentation/docs`, run `node lib/snippets/tracey.mts --compare ../../openspec/changes/add-mixnet-core-specs/edges.proposed.json` to compare the markers with the hand-written edges.
+4. A lefthook pre-commit job runs `tracey query validate --deny warnings` when `tracey` is on your `PATH`. It prints the result and never fails the commit.
+5. In the editor, `tracey lsp` shows the requirement that a marker names. After a spec moves to `+2`, `tracey query stale` lists each marker whose code you must check against the new text.
+
+## In CI
+
+The `ci-spec-trace` workflow runs `tracey query validate --deny warnings` on each pull request, and also fails when the output holds `CONFIG ERROR`: Tracey 1.4.0 reports an id that two specs define that way, and exits 0. Then the workflow plants a marker with an unknown id in its checkout and checks that Tracey fails on it.
+
+Tracey 1.4.0 lets a marker with no code item below it pass, and nothing else checks it.

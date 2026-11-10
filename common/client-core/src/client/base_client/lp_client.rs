@@ -9,9 +9,11 @@
 
 use crate::client::base_client::BaseClientBuilder;
 use crate::client::base_client::storage::MixnetClientStorage;
-use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::lp::control::LpClientControlSetup;
 use crate::client::lp::data::LpDataSetup;
+use crate::client::lp::data::input::{
+    LpOutboundMessage, LpOutboundMessageReceiver, LpOutboundMessageSender, MAX_LP_MESSAGE_SIZE,
+};
 use crate::client::lp::data::shared::LpGatewaySessions;
 use crate::client::topology_control::{
     LpTopologyAccessor, LpTopologyProvider, LpTopologyRefresher, NymApiLpTopologyProvider,
@@ -35,19 +37,39 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};
 
+/// Why a message could not be handed to the LP path.
+#[derive(Debug, thiserror::Error)]
+pub enum LpSendError {
+    #[error("a message of {size} bytes is over the LP limit of {max}")]
+    TooLarge { size: usize, max: usize },
+
+    #[error("the LP client has shut down")]
+    Closed,
+}
+
 /// Where messages go to be sent over LP.
 #[derive(Clone)]
 pub struct LpClientInput {
-    pub input_sender: InputMessageSender,
+    sender: LpOutboundMessageSender,
 }
 
 impl LpClientInput {
-    #[expect(clippy::result_large_err)]
-    pub async fn send(
-        &self,
-        message: InputMessage,
-    ) -> Result<(), mpsc::error::SendError<InputMessage>> {
-        self.input_sender.send(message).await
+    /// Hand a message to the LP path.
+    ///
+    /// Refused outright if it is over [`MAX_LP_MESSAGE_SIZE`].
+    pub async fn send(&self, message: LpOutboundMessage) -> Result<(), LpSendError> {
+        let size = message.data.len();
+        if size > MAX_LP_MESSAGE_SIZE {
+            return Err(LpSendError::TooLarge {
+                size,
+                max: MAX_LP_MESSAGE_SIZE,
+            });
+        }
+
+        self.sender
+            .send(message)
+            .await
+            .map_err(|_| LpSendError::Closed)
     }
 }
 
@@ -228,7 +250,7 @@ where
         identity_keys: Arc<ed25519::KeyPair>,
         encryption_keys: Arc<x25519::KeyPair>,
         topology_accessor: LpTopologyAccessor,
-        input_receiver: InputMessageReceiver,
+        input_receiver: LpOutboundMessageReceiver,
         received_tx: mpsc::Sender<Vec<u8>>,
         shutdown_tracker: &ShutdownTracker,
     ) -> Result<(), ClientCoreError> {
@@ -325,7 +347,7 @@ where
         )
         .await?;
 
-        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
+        let (input_sender, input_receiver) = mpsc::channel(1);
         let (output_sender, output_receiver) = mpsc::channel(10_000);
 
         Self::build_lp_tasks(
@@ -345,7 +367,9 @@ where
         Ok(LpBaseClient {
             address: self_address,
             identity_keys,
-            client_input: LpClientInput { input_sender },
+            client_input: LpClientInput {
+                sender: input_sender,
+            },
             output_receiver: ReceiverStream::new(output_receiver),
             bandwidth_provider,
             shutdown_handle: shutdown_tracker,

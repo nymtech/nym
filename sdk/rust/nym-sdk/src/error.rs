@@ -63,6 +63,12 @@ pub enum Error {
     #[error("socks5 mode is not available over LP")]
     Socks5OverLp,
 
+    #[error("{0} cannot be sent over LP")]
+    UnsupportedOverLp(&'static str),
+
+    #[error(transparent)]
+    LpSend(#[from] nym_client_core::client::base_client::lp_client::LpSendError),
+
     #[error("socks5 channel could not be started")]
     Socks5NotStarted,
 

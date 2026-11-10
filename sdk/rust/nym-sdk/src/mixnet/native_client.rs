@@ -8,8 +8,9 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use futures::{ready, Stream, StreamExt};
 use log::{debug, error};
-use nym_client_core::client::base_client::lp_client::LpBaseClient;
+use nym_client_core::client::base_client::lp_client::{LpBaseClient, LpClientInput};
 use nym_client_core::client::base_client::GatewayConnection;
+use nym_client_core::client::lp::data::input::LpOutboundMessage;
 use nym_client_core::client::mix_traffic::ClientRequestSender;
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
@@ -225,10 +226,12 @@ impl MixnetClient {
         .expect("only a legacy client supports this, not one over LP")
     }
 
-    fn input_sender(&self) -> &InputMessageSender {
+    fn message_input(&self) -> MessageInput {
         match &self.inner {
-            MixnetClientInner::Legacy(legacy) => &legacy.client_input.input_sender,
-            MixnetClientInner::Lp(lp) => &lp.client_input.input_sender,
+            MixnetClientInner::Legacy(legacy) => {
+                MessageInput::Legacy(legacy.client_input.input_sender.clone())
+            }
+            MixnetClientInner::Lp(lp) => MessageInput::Lp(lp.client_input.clone()),
         }
     }
 
@@ -300,7 +303,7 @@ impl MixnetClient {
     /// receive logic in different locations.
     pub fn split_sender(&self) -> MixnetClientSender {
         MixnetClientSender {
-            input_sender: self.input_sender().clone(),
+            input: self.message_input(),
             packet_type: self.packet_type,
             stream_mode: self.stream_mode.clone(),
         }
@@ -576,7 +579,7 @@ impl MixnetClient {
 /// Obtained via [`MixnetClient::split_sender`]. Implements [`MixnetMessageSender`]
 /// so it can send messages independently while another task handles receiving.
 pub struct MixnetClientSender {
-    input_sender: InputMessageSender,
+    input: MessageInput,
     packet_type: Option<PacketType>,
     stream_mode: Arc<AtomicBool>,
 }
@@ -584,9 +587,47 @@ pub struct MixnetClientSender {
 impl Clone for MixnetClientSender {
     fn clone(&self) -> Self {
         Self {
-            input_sender: self.input_sender.clone(),
+            input: self.input.clone(),
             packet_type: self.packet_type,
             stream_mode: self.stream_mode.clone(),
+        }
+    }
+}
+
+/// Where a client's messages go, for whichever kind of client it is.
+#[derive(Clone)]
+enum MessageInput {
+    Legacy(InputMessageSender),
+    Lp(LpClientInput),
+}
+
+impl MessageInput {
+    async fn send(&self, message: InputMessage) -> Result<()> {
+        match self {
+            MessageInput::Legacy(sender) => sender
+                .send(message)
+                .await
+                .map_err(|_| Error::MessageSendingFailure),
+            MessageInput::Lp(input) => Ok(input.send(lp_message(message)?).await?),
+        }
+    }
+}
+
+/// The LP message an [`InputMessage`] stands for, if LP can carry it.
+///
+/// Lanes, retransmissions and packet types have no meaning on LP and are ignored.
+fn lp_message(message: InputMessage) -> Result<LpOutboundMessage> {
+    match message {
+        InputMessage::Regular {
+            recipient, data, ..
+        } => Ok(LpOutboundMessage::to_recipient(recipient, data)),
+        InputMessage::MessageWrapper { message, .. } => lp_message(*message),
+        InputMessage::Anonymous { .. } => {
+            Err(Error::UnsupportedOverLp("a message carrying reply SURBs"))
+        }
+        InputMessage::Reply { .. } => Err(Error::UnsupportedOverLp("a reply over a SURB")),
+        InputMessage::Premade { .. } => {
+            Err(Error::UnsupportedOverLp("an already-built sphinx packet"))
         }
     }
 }
@@ -649,10 +690,7 @@ impl MixnetMessageSender for MixnetClient {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);
         }
-        self.input_sender()
-            .send(message)
-            .await
-            .map_err(|_| Error::MessageSendingFailure)
+        self.message_input().send(message).await
     }
 }
 
@@ -667,9 +705,6 @@ impl MixnetMessageSender for MixnetClientSender {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);
         }
-        self.input_sender
-            .send(message)
-            .await
-            .map_err(|_| Error::MessageSendingFailure)
+        self.input.send(message).await
     }
 }

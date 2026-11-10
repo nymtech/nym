@@ -90,3 +90,14 @@ export function assertNoSilentDrops(dropped: Record<string, string[]>, accepted:
       'Give code-chunker a rule for the language, or add the extension to ACCEPTED_DROP in walk.ts.',
   );
 }
+
+/**
+ * Throw if a root holds chunkable source files but produced no chunk, so a run
+ * never publishes an empty-but-valid shard for it. A root with no source files
+ * (absent on this checkout, or prose only) passes.
+ */
+export function assertRootsYieldChunks(roots: string[], files: SourceFile[], chunkPaths: string[]): void {
+  const under = (p: string, root: string) => p === root || p.startsWith(`${root}/`);
+  const empty = roots.filter((root) => files.some((f) => under(f.path, root)) && !chunkPaths.some((p) => under(p, root)));
+  if (empty.length) throw new Error(`these roots hold source files but produced no chunks: ${empty.join(', ')}`);
+}

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertNoSilentDrops, collectSourceFiles } from './walk.ts';
+import { assertNoSilentDrops, assertRootsYieldChunks, collectSourceFiles } from './walk.ts';
 
 describe('collectSourceFiles', () => {
   it('keeps chunkable files under the roots and skips excludes, oversized files, and missing roots', () => {
@@ -33,5 +33,21 @@ describe('assertNoSilentDrops', () => {
 
   it('fails on a dropped language that is not accepted, naming the files', () => {
     expect(() => assertNoSilentDrops({ c: ['a.c'], rb: ['app/x.rb', 'app/y.rb'] })).toThrow(/\.rb \(2\): app\/x\.rb, app\/y\.rb/);
+  });
+});
+
+describe('assertRootsYieldChunks', () => {
+  const files = [{ path: 'a/src/lib.rs', content: '' }, { path: 'b/x.rs', content: '' }];
+
+  it('passes when every root with source has a chunk, and ignores a root with none', () => {
+    expect(() => assertRootsYieldChunks(['a', 'b', 'docs-only'], files, ['a/src/lib.rs', 'b/x.rs'])).not.toThrow();
+  });
+
+  it('fails on a root whose source produced no chunks', () => {
+    expect(() => assertRootsYieldChunks(['a', 'b'], files, ['a/src/lib.rs'])).toThrow(/produced no chunks: b$/);
+  });
+
+  it('does not count a sibling with a shared prefix as under the root', () => {
+    expect(() => assertRootsYieldChunks(['a'], files, ['ab/lib.rs'])).toThrow(/: a$/);
   });
 });

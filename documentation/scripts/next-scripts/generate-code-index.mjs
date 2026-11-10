@@ -26,6 +26,7 @@ import {
 } from "../../docs/packages/retrieval-indexer/embed.ts";
 import {
   assertNoSilentDrops,
+  assertRootsYieldChunks,
   collectSourceFiles,
   MAX_FILE_BYTES,
 } from "../../docs/packages/retrieval-indexer/walk.ts";
@@ -66,6 +67,7 @@ if (oversized.length) {
 }
 
 const chunks = files.flatMap((f) => chunkCodeFile(f.content, f.path, SHARD));
+assertRootsYieldChunks(ROOTS, files, chunks.map((c) => c.title));
 console.log(`Chunked into ${chunks.length} code chunks.`);
 
 const index = {

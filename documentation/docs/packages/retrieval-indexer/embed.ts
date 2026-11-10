@@ -43,9 +43,16 @@ export function loadCache(file: string): EmbedCache {
   }
 }
 
+/**
+ * Write the cache through a temporary file and a rename, so a build killed in
+ * the middle of a save leaves the previous cache, not a truncated one that
+ * loadCache then refuses.
+ */
 export function saveCache(file: string, cache: EmbedCache): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(Object.fromEntries(cache)));
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(cache)));
+  fs.renameSync(tmp, file);
 }
 
 export interface EmbedStats {
@@ -171,6 +178,15 @@ export function mockProvider({ dim = 8 }: { dim?: number } = {}): EmbedProvider 
 }
 
 /**
+ * The key a chunk's vector is cached and stored under: the model, the dimension,
+ * and the hash of the embedded text. A model or dimension change changes every
+ * key, so vectors from two models never mix.
+ */
+export function chunkHash(chunk: Embeddable, provider: Pick<EmbedProvider, 'model' | 'dim'>): string {
+  return `${provider.model}:${provider.dim}:${contentHash(embedText(chunk))}`;
+}
+
+/**
  * Embed chunks, reusing cached vectors by content hash. Only cache-miss chunks
  * are sent to the provider, in batches, with at most `concurrency` batches in
  * flight. `cache` is mutated and returned.
@@ -189,11 +205,7 @@ export async function embedChunks<C extends Embeddable>(
     onProgress?: (p: { done: number; total: number; cache: EmbedCache }) => void;
   } = {},
 ): Promise<{ embedded: (C & { vector: number[] })[]; cache: EmbedCache; stats: EmbedStats }> {
-  // Key on model + dim as well as content: vectors from different models live in
-  // different spaces, so a model change must invalidate the cache rather than
-  // silently reuse the old model's vectors for unchanged chunks.
-  const keyPrefix = `${provider.model}:${provider.dim}:`;
-  const hashes = chunks.map((c) => keyPrefix + contentHash(embedText(c)));
+  const hashes = chunks.map((c) => chunkHash(c, provider));
 
   const missIdx: number[] = [];
   hashes.forEach((h, i) => {

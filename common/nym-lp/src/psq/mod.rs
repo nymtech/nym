@@ -145,6 +145,7 @@ mod tests {
     use crate::peer::mock_peers;
     use crate::peer_config::{LP_PEER_CONFIG_SIZE, LpPeerConfig};
     use crate::test_helpers::assert_frame_delivered;
+    use crate::transport::LpTransportError;
     use libcrux_psq::handshake::types::Authenticator;
     use libcrux_psq::session::{Session, SessionBinding};
     use libcrux_psq::{Channel, IntoSession};
@@ -379,7 +380,15 @@ mod tests {
         // the initiator is left waiting for a response that never comes; only the responder's
         // verdict matters here
         let (_, session_resp) = join!(init_fut, resp_fut);
-        assert!(matches!(session_resp??, Err(LpError::KKTFailure { .. })));
+
+        // at version 2 the opener's declared length already gives it away as mutual, so it is
+        // refused before a byte of it is read; the KKT digest check behind that would refuse it too
+        assert!(matches!(
+            session_resp??,
+            Err(LpError::TransportFailure(
+                LpTransportError::MalformedPacket(_)
+            ))
+        ));
 
         Ok(())
     }

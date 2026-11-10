@@ -10,7 +10,8 @@
     "./embed": "./embed.ts",
     "./items": "./items.ts",
     "./mdx": "./mdx.ts",
-    "./types": "./types.ts"
+    "./types": "./types.ts",
+    "./walk": "./walk.ts"
   },
   "dependencies": {
     "github-slugger": "^2.0.0",

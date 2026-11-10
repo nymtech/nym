@@ -24,7 +24,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { chunkPages } from '../../docs/packages/retrieval-indexer/chunker.ts';
-import { voyageProvider, embedChunks, resolveEmbedKey } from '../../docs/packages/retrieval-indexer/embed.ts';
+import { voyageProvider, embedChunks, resolveEmbedKey, loadCache, saveCache } from '../../docs/packages/retrieval-indexer/embed.ts';
 import { PAGES_DIR, PUBLIC_DIR, SITE_URL, collectPages, loadSnippets } from '../../docs/lib/retrieval/pages-source.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 
@@ -34,23 +34,6 @@ const OUTPUT_FILE = path.join(PUBLIC_DIR, 'docs-index.json');
 // between deploys; otherwise every deploy re-embeds the whole corpus from scratch.
 const CACHE_FILE = path.resolve(__dirname, '../../docs/node_modules/.cache/nym-docs/embed-cache.json');
 const STATS_ONLY = process.argv.includes('--stats');
-
-// ---------------------------------------------------------------------------
-// Embed cache (hash -> vector), persisted so only changed chunks re-embed
-// ---------------------------------------------------------------------------
-
-function loadCache() {
-  try {
-    return new Map(Object.entries(JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'))));
-  } catch {
-    return new Map();
-  }
-}
-
-function saveCache(cache) {
-  fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
-  fs.writeFileSync(CACHE_FILE, JSON.stringify(Object.fromEntries(cache)));
-}
 
 // ---------------------------------------------------------------------------
 // Stats
@@ -97,9 +80,9 @@ const index = {
 const apiKey = resolveEmbedKey('the docs index');
 if (apiKey) {
   const provider = voyageProvider({ apiKey });
-  const cache = loadCache();
+  const cache = loadCache(CACHE_FILE);
   const { embedded, cache: updated, stats } = await embedChunks(chunks, provider, cache);
-  saveCache(updated);
+  saveCache(CACHE_FILE, updated);
   index.embedding = { provider: provider.name, model: provider.model, dim: provider.dim };
   index.chunks = embedded;
   console.log(`Embedded ${stats.embedded} new chunk(s), reused ${stats.cached} from cache.`);

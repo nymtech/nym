@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-// @ts-expect-error - plain ESM JS module, no type declarations
 import { items, matchSymbol, pathSegments } from './items.ts';
 
 const SOURCE = `use std::fmt;

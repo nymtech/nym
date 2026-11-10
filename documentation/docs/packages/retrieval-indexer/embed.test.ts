@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { embedChunks, contentHash, mockProvider, embedText } from './embed.ts';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { embedChunks, contentHash, mockProvider, embedText, loadCache, saveCache } from './embed.ts';
 
 describe('embedText', () => {
   it('prepends the page title and section heading to the body', () => {
@@ -93,5 +95,25 @@ describe('embedChunks', () => {
     const [x] = await p.embed(['same']);
     const [y] = await p.embed(['same']);
     expect(x).toEqual(y);
+  });
+});
+
+describe('loadCache / saveCache', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'embed-cache-'));
+
+  it('reads a missing file as an empty cache', () => {
+    expect(loadCache(path.join(dir, 'none.json')).size).toBe(0);
+  });
+
+  it('round-trips a saved cache', () => {
+    const file = path.join(dir, 'nested', 'cache.json');
+    saveCache(file, new Map([['k', [0.5, -0.5]]]));
+    expect([...loadCache(file)]).toEqual([['k', [0.5, -0.5]]]);
+  });
+
+  it('refuses a corrupt cache instead of starting empty', () => {
+    const file = path.join(dir, 'corrupt.json');
+    fs.writeFileSync(file, '{not json');
+    expect(() => loadCache(file)).toThrow(/unreadable/);
   });
 });

@@ -16,15 +16,18 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import {
-  chunkCodeFile,
-  langOf,
-} from "../../docs/packages/retrieval-indexer/code-chunker.ts";
+import { chunkCodeFile } from "../../docs/packages/retrieval-indexer/code-chunker.ts";
 import {
   voyageProvider,
   embedChunks,
   resolveEmbedKey,
+  loadCache,
+  saveCache,
 } from "../../docs/packages/retrieval-indexer/embed.ts";
+import {
+  collectSourceFiles,
+  MAX_FILE_BYTES,
+} from "../../docs/packages/retrieval-indexer/walk.ts";
 import { ROOTS } from "../../indexed-sources.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -40,46 +43,15 @@ const CACHE_FILE = path.resolve(
   "../../docs/node_modules/.cache/nym-docs/code-embed-cache.json",
 );
 const CODE_MODEL = "voyage-code-3";
+const SHARD = {
+  source: "nym-code",
+  github: "https://github.com/nymtech/nym/blob/develop",
+};
 
 // The canonical scope lives at the root of documentation/ rather than here, so
 // the list that decides what the docs can be held to is not buried in a build
 // script. See that file for what adding a root costs.
-
-
-const EXCLUDE =
-  /(^|\/)(node_modules|target|dist|build|out|\.next|pkg|coverage|__pycache__)(\/|$)|\.d\.ts$/;
-
-// No hand-written source approaches this (the largest is ~76KB), but gitignored
-// build bundles that live under src/ (e.g. a 30MB rollup `src/worker/worker.js`)
-// slip past the directory EXCLUDE, carry near-zero retrieval value, and would
-// explode the index (one 30MB file is ~13k chunks). Skip anything above the cap.
-const MAX_FILE_BYTES = 256 * 1024;
-const oversized = [];
-
-function walk(dir, acc) {
-  let entries;
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return acc; // root may not exist on every checkout
-  }
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    const rel = path.relative(REPO, full);
-    if (EXCLUDE.test(rel)) continue;
-    if (e.isDirectory()) walk(full, acc);
-    else if (langOf(e.name)) {
-      if (fs.statSync(full).size > MAX_FILE_BYTES) {
-        oversized.push(rel);
-        continue;
-      }
-      acc.push(full);
-    }
-  }
-  return acc;
-}
-
-const files = ROOTS.flatMap((r) => walk(path.join(REPO, r), []));
+const { files, oversized } = collectSourceFiles(REPO, ROOTS);
 console.log(
   `Scanning ${ROOTS.length} roots (documentation/indexed-sources.mjs) -> ${files.length} source files ...`,
 );
@@ -89,12 +61,7 @@ if (oversized.length) {
   );
 }
 
-const chunks = [];
-for (const file of files) {
-  const rel = path.relative(REPO, file).split(path.sep).join("/");
-  const content = fs.readFileSync(file, "utf-8");
-  chunks.push(...chunkCodeFile(content, rel));
-}
+const chunks = files.flatMap((f) => chunkCodeFile(f.content, f.path, SHARD));
 console.log(`Chunked into ${chunks.length} code chunks.`);
 
 const index = {
@@ -107,13 +74,7 @@ const index = {
 const apiKey = resolveEmbedKey("the code index");
 if (apiKey) {
   const provider = voyageProvider({ apiKey, model: CODE_MODEL });
-  const cache = fs.existsSync(CACHE_FILE)
-    ? new Map(Object.entries(JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"))))
-    : new Map();
-  const saveCache = (c) => {
-    fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(Object.fromEntries(c)));
-  };
+  const cache = loadCache(CACHE_FILE);
   // Log progress and persist the cache as we go, so a kill/re-run resumes.
   let logged = 0;
   const {
@@ -125,11 +86,11 @@ if (apiKey) {
       if (done - logged >= 200 || done === total) {
         console.log(`  embedded ${done}/${total} chunks ...`);
         logged = done;
-        saveCache(c);
+        saveCache(CACHE_FILE, c);
       }
     },
   });
-  saveCache(updated);
+  saveCache(CACHE_FILE, updated);
   index.embedding = {
     provider: provider.name,
     model: provider.model,

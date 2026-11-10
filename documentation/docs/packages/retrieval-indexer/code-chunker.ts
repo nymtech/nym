@@ -25,7 +25,6 @@ const MAX_CHARS = 2400;
 // Lower than the docs floor: small code items (a one-line fn, a tiny struct) are
 // legitimate and worth indexing; we only want to drop empty/near-empty blocks.
 const MIN_CHARS = 16;
-const GITHUB = 'https://github.com/nymtech/nym/blob/develop';
 
 // Top-level item starts, anchored at column 0 (not indented = top-level).
 const RUST_ITEM =
@@ -227,21 +226,19 @@ export function chunkCode(content: string, lang: Lang): CodeBlock[] {
 }
 
 /**
- * Chunk one file into retrieval records.
+ * Chunk one file into retrieval records. `repoPath` is repo-relative, e.g.
+ * common/nymsphinx/src/lib.rs.
  *
- * Defaults reproduce the single-repo nym behaviour exactly (source 'nym-code',
- * nymtech/nym deep links, unprefixed ids), so the existing docs build and tests
- * are unaffected. A multi-repo caller passes `opts` to tag the shard: `repo`
- * namespaces the id so two repos cannot mint the same one, `source` labels the
- * shard, and `github` is that repo's deep-link base. `repoPath` is repo-relative,
- * e.g. common/nymsphinx/src/lib.rs.
+ * `source` labels the shard and `github` is the repo's deep-link base
+ * (`https://github.com/<org>/<repo>/blob/<ref>`). `repo`, when set, namespaces
+ * the id so two repos in one store cannot mint the same one; a single-repo index
+ * leaves it unset and keeps unprefixed ids.
  */
 export function chunkCodeFile(
   content: string,
   repoPath: string,
-  opts: { repo?: string; source?: string; github?: string } = {},
+  { repo, source, github }: { repo?: string; source: string; github: string },
 ): CodeChunk[] {
-  const { repo, source = 'nym-code', github = GITHUB } = opts;
   const lang = langOf(repoPath);
   if (!lang) return [];
   const idPrefix = repo ? `${repo}/` : '';

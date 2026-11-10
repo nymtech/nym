@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-// @ts-expect-error - plain ESM JS module, no type declarations
 import { chunkCode, chunkCodeFile, langOf, symbolOf } from './code-chunker.ts';
 
 describe('langOf', () => {
@@ -231,8 +230,10 @@ describe('chunkCode (python)', () => {
 });
 
 describe('chunkCodeFile', () => {
-  it('tags source nym-code and builds a GitHub deep link with the line', () => {
-    const [chunk] = chunkCodeFile('pub fn only() {}', 'common/nymsphinx/src/lib.rs');
+  const shard = { source: 'nym-code', github: 'https://github.com/nymtech/nym/blob/develop' };
+
+  it('tags the source and builds a GitHub deep link with the line', () => {
+    const [chunk] = chunkCodeFile('pub fn only() {}', 'common/nymsphinx/src/lib.rs', shard);
     expect(chunk.source).toBe('nym-code');
     expect(chunk.title).toBe('common/nymsphinx/src/lib.rs');
     expect(chunk.heading).toBe('only');
@@ -241,7 +242,12 @@ describe('chunkCodeFile', () => {
   });
 
   it('returns nothing for non-code files', () => {
-    expect(chunkCodeFile('# readme', 'a/b.md')).toEqual([]);
+    expect(chunkCodeFile('# readme', 'a/b.md', shard)).toEqual([]);
+  });
+
+  it('namespaces the id with the repo when one is set', () => {
+    const [chunk] = chunkCodeFile('pub fn only() {}', 'src/lib.rs', { ...shard, repo: 'nym' });
+    expect(chunk.id).toBe('nym/src/lib.rs#0');
   });
 });
 

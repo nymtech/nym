@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 // @ts-expect-error - plain ESM JS modules, no type declarations
 import { loadProjections, loadDocValues } from './projections.mjs';
-// @ts-expect-error - plain ESM JS module
 import { stripMdx } from '../../packages/retrieval-indexer/mdx.ts';
 
 // The threat-model pages are two sentences of prose plus a component that holds

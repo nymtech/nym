@@ -7,6 +7,8 @@
 // uptime (an outage reuses cached vectors instead of failing).
 
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 
 /** What `embedText` reads from a chunk. */
 export interface Embeddable {
@@ -26,6 +28,25 @@ export interface EmbedProvider {
 
 /** hash -> vector */
 export type EmbedCache = Map<string, number[]>;
+
+/**
+ * Read a vector cache written by `saveCache`. A missing file is an empty cache;
+ * an unreadable one is an error, so a corrupt cache is not silently replaced by a
+ * full, paid re-embed.
+ */
+export function loadCache(file: string): EmbedCache {
+  if (!fs.existsSync(file)) return new Map();
+  try {
+    return new Map(Object.entries(JSON.parse(fs.readFileSync(file, 'utf-8'))));
+  } catch (error) {
+    throw new Error(`embed cache ${file} is unreadable; delete it to re-embed from scratch`, { cause: error });
+  }
+}
+
+export function saveCache(file: string, cache: EmbedCache): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(Object.fromEntries(cache)));
+}
 
 export interface EmbedStats {
   total: number;

@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-// @ts-expect-error - plain ESM JS module, no type declarations
 import { chunkPages, splitByHeadings, packSection, slugify, MAX_CHARS } from './chunker.ts';
 
 const SITE = 'https://nym.com/docs';

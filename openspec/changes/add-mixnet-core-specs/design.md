@@ -104,9 +104,9 @@ The tests do not prove:
 - what a mix does with a packet on the wire: the hold for its delay, the 10 s cap, the MAC check. The replay test covers the filter, not the packet handler.
 - that the network is private. They pin facts that the privacy argument depends on. The argument itself is in the threat model.
 
-Five of the 21 requirements have a witness now. Under `add-codex-assurance` (A2), they can become `enforced` when a person promotes them and adds a canary date. The other 16 stay `asserted`.
+Five of the 21 requirements had a witness on 2026-11-04. On 2026-11-10, `add-spec-trace-gate` made the CI job fail on each requirement with no `verify` marker, and witness tests were added for the other 16. `tracey query rule <id>` lists the tests of each one. Each requirement can now become `enforced` under `add-codex-assurance` (A2) when a person promotes it and adds a canary date. The limits in "What the tests prove, and what they do not" still apply to the five tests above. The new tests have the same kind of limit: for example, the cover tests do not check the loop stream's timing, because tokio's paused clock is not available to `nym-client-core`, and the `delay.only-hop-reads` test checks that no delay is in clear on a link, which does not prove that the encryption keeps it secret.
 
-So almost every requirement starts as `asserted` under `add-codex-assurance` (A1). That change asks for a witness and a canary before a statement becomes `enforced` (A2). These specs are its first input.
+So each requirement starts as `asserted` under `add-codex-assurance` (A1). That change asks for a witness and a canary before a statement becomes `enforced` (A2). These specs are its first input.
 
 ## Tracey references
 

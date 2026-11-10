@@ -21,4 +21,4 @@ This change is task 6e.5 of `add-codex-snippets`. Owner: TBD(stage 5 owner).
 
 ## 4. Witnesses
 
-- [ ] 4.1 For each requirement with no test, decide whether it needs one before its statement can become `enforced` (`add-codex-assurance`, A2). Start with the replay drop, the three-mix route, and the cover-slot behaviour of the main stream
+- [x] 4.1 Each requirement has a witness test. Done 2026-11-10: the gate of `add-spec-trace-gate` fails on a requirement with no `verify` marker, so no requirement is left without one.

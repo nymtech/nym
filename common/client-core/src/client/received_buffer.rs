@@ -590,3 +590,63 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         (self.fragmented_message_receiver, self.request_receiver)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::cover_traffic_stream::tests::TestNetwork;
+    use nym_sphinx::receiver::SphinxMessageReceiver;
+    use nym_statistics_common::clients::ClientStatsEvents;
+    use tokio::sync::mpsc::UnboundedReceiver;
+
+    fn buffer_inner(
+        network: &TestNetwork,
+    ) -> (
+        ReceivedMessagesBufferInner<SphinxMessageReceiver>,
+        UnboundedReceiver<ClientStatsEvents>,
+    ) {
+        let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
+        let inner = ReceivedMessagesBufferInner {
+            messages: Vec::new(),
+            local_encryption_keypair: network.client_keys.clone(),
+            message_receiver: SphinxMessageReceiver::new(),
+            message_sender: None,
+            recently_reconstructed: HashSet::new(),
+            stats_tx: ClientStatsSender::new(Some(stats_tx), ShutdownToken::new()),
+            last_stale_check: get_time_now(),
+        };
+        (inner, stats_rx)
+    }
+
+    // r[verify cover.drop-own-loop]
+    #[test]
+    fn returning_loop_cover_packet_is_decrypted_and_dropped_as_cover() {
+        let network = TestNetwork::new();
+        let (mut inner, mut stats_rx) = buffer_inner(&network);
+        let (_, hop_data) = network.unwrap_all_hops(network.loop_cover_packet().into_packet());
+        let (_, message) = TestNetwork::split_surb_ack(hop_data);
+
+        assert!(inner.process_received_regular_packet(message).is_none());
+        assert!(matches!(
+            stats_rx.try_recv(),
+            Ok(ClientStatsEvents::PacketStatistics(
+                PacketStatisticsEvent::CoverPacketReceived(_)
+            ))
+        ));
+    }
+
+    // r[verify cover.drop-own-loop]
+    #[test]
+    fn data_without_the_cover_prefix_is_not_treated_as_cover() {
+        let network = TestNetwork::new();
+        let (mut inner, mut stats_rx) = buffer_inner(&network);
+
+        inner.recover_from_fragment(&[42; 64], 64);
+        assert!(matches!(
+            stats_rx.try_recv(),
+            Ok(ClientStatsEvents::PacketStatistics(
+                PacketStatisticsEvent::RealPacketReceived(_)
+            ))
+        ));
+    }
+}

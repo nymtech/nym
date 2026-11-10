@@ -877,6 +877,9 @@ mod tests {
 
     // r[verify cover.defaults-and-settings]
     // r[verify delay.per-hop-exponential]
+    // r[verify cover.loop-exponential]
+    // r[verify cover.main-stream-slots]
+    // r[verify cover.same-format]
     #[test]
     fn traffic_defaults() {
         let traffic = Traffic::default();

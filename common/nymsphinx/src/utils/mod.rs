@@ -21,3 +21,32 @@ pub fn sample_poisson_duration<R: Rng + ?Sized>(
     let exp = Exp::new(1.0 / average_duration.as_nanos() as f64).unwrap();
     time::Duration::from_nanos(exp.sample(rng).round() as u64)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha8Rng;
+
+    // r[verify cover.loop-exponential]
+    #[test]
+    fn poisson_durations_follow_an_exponential_distribution_with_the_given_mean() {
+        let mut rng = ChaCha8Rng::seed_from_u64(42);
+        let mean = time::Duration::from_millis(200);
+        let samples: Vec<_> = (0..10_000)
+            .map(|_| sample_poisson_duration(&mut rng, mean))
+            .collect();
+
+        let sample_mean = samples.iter().sum::<time::Duration>() / samples.len() as u32;
+        assert!(sample_mean > mean * 95 / 100 && sample_mean < mean * 105 / 100);
+
+        // for an exponential distribution, P(X < mean) = 1 - 1/e, about 0.632. A constant
+        // interval or a uniform draw around the mean gives a different fraction.
+        let below_mean = samples.iter().filter(|sample| **sample < mean).count();
+        let fraction = below_mean as f64 / samples.len() as f64;
+        assert!(
+            (fraction - 0.632).abs() < 0.03,
+            "fraction below mean: {fraction}"
+        );
+    }
+}

@@ -69,3 +69,54 @@ impl PacketToForward {
         Self::new(packet, None, false, PacketTrace::Off)
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
+    use nym_sphinx::params::{PacketSize, PacketType, SphinxKeyRotation};
+    use nym_sphinx::{
+        Delay, Destination, DestinationAddressBytes, Node, NodeAddressBytes, NymPacket, PrivateKey,
+        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+    };
+
+    fn mix_packet() -> MixPacket {
+        let route = [Node::new(
+            NodeAddressBytes::from_bytes([1u8; NODE_ADDRESS_LENGTH]),
+            (&PrivateKey::random()).into(),
+        )];
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([3u8; DESTINATION_ADDRESS_LENGTH]),
+            [4u8; IDENTIFIER_LENGTH],
+        );
+        let packet = NymPacket::sphinx_build_legacy(
+            PacketSize::RegularPacket.payload_size(),
+            b"x",
+            &route,
+            &destination,
+            &[Delay::new_from_nanos(0)],
+        )
+        .expect("failed to build test sphinx packet");
+
+        MixPacket::new(
+            NymNodeRoutingAddress::Node("127.0.0.1:1789".parse().unwrap()),
+            packet,
+            PacketType::Mix,
+            SphinxKeyRotation::Unknown,
+        )
+    }
+
+    // r[verify delay.gateways-no-delay]
+    #[test]
+    fn a_client_packet_is_forwarded_with_no_delay() {
+        let (sender, mut receiver) = mix_forwarding_channels();
+
+        sender
+            .forward_client_packet_without_delay(mix_packet())
+            .unwrap();
+
+        let forwarded = receiver.try_recv().expect("the packet must be forwarded");
+        assert!(forwarded.forward_delay_target.is_none());
+    }
+}

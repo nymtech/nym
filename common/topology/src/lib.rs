@@ -637,3 +637,62 @@ impl NymTopology {
             .filter(|n| self.rewarded_set.is_active_mixnode(&n.node_id))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_crypto::asymmetric::x25519;
+    use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    fn routing_node(node_id: NodeId) -> RoutingNode {
+        let seed = [node_id as u8; 32];
+        RoutingNode {
+            node_id,
+            mix_host: format!("10.0.0.{node_id}:1789").parse().unwrap(),
+            entry: None,
+            identity_key: ed25519::PrivateKey::from_bytes(&seed).unwrap().public_key(),
+            sphinx_key: x25519::PrivateKey::from_secret(seed).public_key(),
+            supported_roles: SupportedRoles {
+                mixnode: true,
+                mixnet_entry: true,
+                mixnet_exit: true,
+            },
+        }
+    }
+
+    fn sphinx_address(node: &RoutingNode) -> nym_sphinx_types::NodeAddressBytes {
+        NymNodeRoutingAddress::from(node.mix_host)
+            .try_into()
+            .unwrap()
+    }
+
+    // r[verify sphinx.route]
+    #[test]
+    fn a_route_has_one_mix_per_layer_in_order_then_the_egress() {
+        let mut rewarded_set = CachedEpochRewardedSet::default();
+        rewarded_set.layer1.insert(1);
+        rewarded_set.layer2.insert(2);
+        rewarded_set.layer3.insert(3);
+        rewarded_set.exit_gateways.insert(4);
+        let nodes: Vec<_> = (1..=4).map(routing_node).collect();
+        let egress = nodes[3].identity_key;
+        let provider = NymRouteProvider::from(NymTopology::new(
+            NymTopologyMetadata::default(),
+            rewarded_set,
+            nodes.clone(),
+        ));
+
+        let route = provider
+            .random_route_to_egress(&mut StdRng::seed_from_u64(42), egress)
+            .unwrap();
+        let route_addresses: Vec<_> = route.iter().map(|hop| hop.address).collect();
+        let expected: Vec<_> = nodes.iter().map(sphinx_address).collect();
+        assert_eq!(route_addresses, expected);
+
+        let empty_route = provider.empty_route_to_egress(egress).unwrap();
+        assert_eq!(empty_route.len(), 1);
+        assert_eq!(empty_route[0].address, sphinx_address(&nodes[3]));
+    }
+}

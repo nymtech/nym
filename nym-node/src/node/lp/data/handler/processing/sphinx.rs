@@ -18,6 +18,7 @@ use crate::node::lp::data::{
     shared::{SharedGatewayLpDataState, SharedLpDataState},
 };
 
+// r[impl delay.node-holds]
 pub(crate) fn process(
     shared_state: &SharedLpDataState,
     sphinx_packet: TimedPayload,

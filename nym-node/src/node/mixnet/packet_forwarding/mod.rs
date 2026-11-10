@@ -322,3 +322,79 @@ impl<C, F> PacketForwarder<C, F> {
         trace!("PacketForwarder: Exiting");
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use crate::node::mixnet::handler::tests::mix_packet;
+    use crate::node::routing_filter::OpenFilter;
+    use nym_mixnet_client::metrics::PacketTrace;
+    use std::cell::Cell;
+    use std::time::Duration;
+
+    #[derive(Default)]
+    struct CountingClient {
+        sent: Cell<usize>,
+    }
+
+    impl SendWithoutResponse for CountingClient {
+        fn send_without_response(&self, _: Traced<MixPacket>) -> io::Result<()> {
+            self.sent.set(self.sent.get() + 1);
+            Ok(())
+        }
+    }
+
+    fn forwarder() -> PacketForwarder<CountingClient, OpenFilter> {
+        PacketForwarder::new(
+            CountingClient::default(),
+            OpenFilter,
+            NymNodeMetrics::default(),
+        )
+    }
+
+    fn packet_released_at(release: Option<Instant>) -> PacketToForward {
+        PacketToForward::new(mix_packet(), release, false, PacketTrace::Off)
+    }
+
+    // r[verify delay.node-holds]
+    #[tokio::test(start_paused = true)]
+    async fn a_packet_is_held_until_its_release_time() {
+        let mut forwarder = forwarder();
+        let release = Instant::now() + Duration::from_secs(1);
+
+        forwarder.handle_new_packet(packet_released_at(Some(release)));
+        assert_eq!(forwarder.mixnet_client.sent.get(), 0);
+        assert_eq!(forwarder.delay_queue.len(), 1);
+
+        // the paused clock jumps to the next timer, so this returns at the release time
+        let expired = forwarder.delay_queue.next().await.unwrap();
+        assert!(Instant::now() >= release);
+        forwarder.handle_done_delaying(expired);
+        assert_eq!(forwarder.mixnet_client.sent.get(), 1);
+    }
+
+    // r[verify delay.node-holds]
+    #[tokio::test(start_paused = true)]
+    async fn a_packet_whose_release_time_has_passed_is_forwarded_at_once() {
+        let mut forwarder = forwarder();
+        let release = Instant::now();
+        tokio::time::advance(Duration::from_millis(1)).await;
+
+        forwarder.handle_new_packet(packet_released_at(Some(release)));
+
+        assert_eq!(forwarder.mixnet_client.sent.get(), 1);
+        assert!(forwarder.delay_queue.is_empty());
+    }
+
+    // r[verify delay.gateways-no-delay]
+    #[tokio::test]
+    async fn a_packet_with_no_release_time_is_forwarded_at_once() {
+        let mut forwarder = forwarder();
+
+        forwarder.handle_new_packet(packet_released_at(None));
+
+        assert_eq!(forwarder.mixnet_client.sent.get(), 1);
+        assert!(forwarder.delay_queue.is_empty());
+    }
+}

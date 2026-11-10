@@ -254,3 +254,230 @@ impl LoopCoverTrafficStream<OsRng> {
         error!("cover traffic stream has been exhausted!")
     }
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+    use nym_crypto::asymmetric::{ed25519, x25519};
+    use nym_sphinx::acknowledgements::identifier::recover_identifier;
+    use nym_sphinx::acknowledgements::surb_ack::SurbAck;
+    use nym_sphinx::chunking::fragment::COVER_FRAG_ID;
+    use nym_sphinx::cover::LOOP_COVER_MESSAGE_PAYLOAD;
+    use nym_sphinx::forwarding::packet::MixPacket;
+    use nym_sphinx::receiver::{MessageReceiver, SphinxMessageReceiver};
+    use nym_sphinx::{DestinationAddressBytes, NymPacket, ProcessedPacketData};
+    use nym_task::ShutdownToken;
+    use nym_topology::{
+        CachedEpochRewardedSet, NymRouteProvider, NymTopology, NymTopologyMetadata, RoutingNode,
+        SupportedRoles,
+    };
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha8Rng;
+
+    /// One mix node on each layer and one gateway, with the private keys of every party.
+    pub(crate) struct TestNetwork {
+        pub(crate) topology: NymTopology,
+        /// Sphinx keys of the layer 1, 2 and 3 mix nodes and of the gateway, in route order.
+        pub(crate) node_keys: Vec<x25519::PrivateKey>,
+        pub(crate) client_keys: Arc<x25519::KeyPair>,
+        pub(crate) address: Recipient,
+        pub(crate) ack_key: Arc<AckKey>,
+    }
+
+    impl TestNetwork {
+        pub(crate) fn new() -> Self {
+            let mut rng = ChaCha8Rng::seed_from_u64(42);
+            let mut nodes = Vec::new();
+            let mut node_keys = Vec::new();
+            for node_id in 1..=4 {
+                let sphinx_key = x25519::PrivateKey::new(&mut rng);
+                nodes.push(RoutingNode {
+                    node_id,
+                    mix_host: format!("10.0.0.{node_id}:1789").parse().unwrap(),
+                    entry: None,
+                    identity_key: *ed25519::KeyPair::new(&mut rng).public_key(),
+                    sphinx_key: sphinx_key.public_key(),
+                    supported_roles: SupportedRoles {
+                        mixnode: true,
+                        mixnet_entry: true,
+                        mixnet_exit: true,
+                    },
+                });
+                node_keys.push(sphinx_key);
+            }
+
+            let mut rewarded_set = CachedEpochRewardedSet::default();
+            rewarded_set.layer1.insert(1);
+            rewarded_set.layer2.insert(2);
+            rewarded_set.layer3.insert(3);
+            rewarded_set.entry_gateways.insert(4);
+
+            let client_keys = x25519::KeyPair::new(&mut rng);
+            let address = Recipient::new(
+                *ed25519::KeyPair::new(&mut rng).public_key(),
+                *client_keys.public_key(),
+                nodes[3].identity_key,
+            );
+
+            TestNetwork {
+                topology: NymTopology::new(NymTopologyMetadata::default(), rewarded_set, nodes),
+                node_keys,
+                client_keys: Arc::new(client_keys),
+                address,
+                ack_key: Arc::new(AckKey::new(&mut rng)),
+            }
+        }
+
+        pub(crate) fn topology_accessor(&self) -> TopologyAccessor {
+            let accessor = TopologyAccessor::new(false);
+            accessor.update_global_topology(Some(self.topology.clone()));
+            accessor
+        }
+
+        pub(crate) fn loop_cover_packet(&self) -> MixPacket {
+            generate_loop_cover_packet(
+                &mut ChaCha8Rng::seed_from_u64(1),
+                &NymRouteProvider::from(self.topology.clone()),
+                &self.ack_key,
+                &self.address,
+                Duration::ZERO,
+                Duration::ZERO,
+                PacketSize::RegularPacket,
+                PacketType::Mix,
+            )
+            .unwrap()
+        }
+
+        /// Removes every Sphinx layer with the node keys, as the mix nodes and the gateway do,
+        /// and returns the destination and the plaintext of the final hop.
+        pub(crate) fn unwrap_all_hops(
+            &self,
+            packet: NymPacket,
+        ) -> (DestinationAddressBytes, Vec<u8>) {
+            let mut packet = packet.to_sphinx_packet().unwrap();
+            for key in &self.node_keys {
+                let key = nym_sphinx::PrivateKey::from(key.to_bytes());
+                match packet.process(&key).unwrap().data {
+                    ProcessedPacketData::ForwardHop {
+                        next_hop_packet, ..
+                    } => packet = next_hop_packet,
+                    ProcessedPacketData::FinalHop {
+                        destination,
+                        payload,
+                        ..
+                    } => return (destination, payload.recover_plaintext().unwrap()),
+                }
+            }
+            panic!("the packet did not reach its final hop")
+        }
+
+        /// Splits the final hop plaintext of a regular packet into the SURB-ACK and the message,
+        /// as the gateway does.
+        pub(crate) fn split_surb_ack(mut hop_data: Vec<u8>) -> (Vec<u8>, Vec<u8>) {
+            let message = hop_data.split_off(SurbAck::len(Some(PacketType::Mix)));
+            (hop_data, message)
+        }
+
+        /// Sends the SURB-ACK of a regular packet through every hop and returns its destination
+        /// and the ack content that the gateway passes to the client.
+        pub(crate) fn unwrap_surb_ack(
+            &self,
+            ack_data: &[u8],
+        ) -> (DestinationAddressBytes, Vec<u8>) {
+            let (_, ack_packet) =
+                SurbAck::try_recover_first_hop_packet(ack_data, PacketType::Mix).unwrap();
+            self.unwrap_all_hops(ack_packet)
+        }
+    }
+
+    fn loop_stream(
+        network: &TestNetwork,
+        topology_access: TopologyAccessor,
+        mix_tx: BatchMixMessageSender,
+    ) -> LoopCoverTrafficStream<OsRng> {
+        LoopCoverTrafficStream::new(
+            network.ack_key.clone(),
+            Duration::ZERO,
+            mix_tx,
+            network.address,
+            topology_access,
+            config::Traffic::default(),
+            config::CoverTraffic::default(),
+            ClientStatsSender::new(None, ShutdownToken::new()),
+        )
+    }
+
+    async fn next_loop_cover_packet(network: &TestNetwork) -> MixPacket {
+        let (mix_tx, mut mix_rx) = tokio::sync::mpsc::channel(1);
+        let mut stream = loop_stream(network, network.topology_accessor(), mix_tx);
+        stream.on_new_message().await;
+        mix_rx.try_recv().unwrap().pop().unwrap()
+    }
+
+    // r[verify cover.loop-own-address]
+    // r[verify cover.same-format]
+    #[tokio::test]
+    async fn loop_cover_packet_is_a_regular_packet_addressed_to_ourselves() {
+        let network = TestNetwork::new();
+        let packet = next_loop_cover_packet(&network).await;
+        assert_eq!(packet.packet().len(), PacketSize::RegularPacket.size());
+
+        let (destination, hop_data) = network.unwrap_all_hops(packet.into_packet());
+        assert_eq!(destination, network.address.as_sphinx_destination().address);
+
+        let (_, mut message) = TestNetwork::split_surb_ack(hop_data);
+        let plaintext = SphinxMessageReceiver::new()
+            .recover_plaintext_from_regular_packet(network.client_keys.private_key(), &mut message)
+            .unwrap();
+        let (prefix, rest) = plaintext.split_at(LOOP_COVER_MESSAGE_PAYLOAD.len());
+        assert_eq!(prefix, LOOP_COVER_MESSAGE_PAYLOAD);
+        assert_eq!(rest[0], 1);
+        assert!(rest[1..].iter().all(|byte| *byte == 0));
+    }
+
+    // r[verify cover.loop-own-address]
+    #[tokio::test]
+    async fn loop_cover_surb_ack_returns_to_ourselves_with_the_cover_fragment_id() {
+        let network = TestNetwork::new();
+        let packet = next_loop_cover_packet(&network).await;
+        let (_, hop_data) = network.unwrap_all_hops(packet.into_packet());
+        let (ack_data, _) = TestNetwork::split_surb_ack(hop_data);
+
+        let (ack_destination, ack_content) = network.unwrap_surb_ack(&ack_data);
+        assert_eq!(
+            ack_destination,
+            network.address.as_sphinx_destination().address
+        );
+        assert_eq!(
+            recover_identifier(&network.ack_key, &ack_content),
+            Some(COVER_FRAG_ID.to_bytes())
+        );
+    }
+
+    // r[verify cover.rate-can-drop]
+    #[tokio::test]
+    async fn loop_cover_stream_skips_its_packet_when_the_topology_is_invalid() {
+        let network = TestNetwork::new();
+        let (mix_tx, mut mix_rx) = tokio::sync::mpsc::channel(1);
+        let mut stream = loop_stream(&network, TopologyAccessor::new(false), mix_tx);
+
+        stream.on_new_message().await;
+        assert!(mix_rx.try_recv().is_err());
+    }
+
+    // r[verify cover.rate-can-drop]
+    #[tokio::test]
+    async fn loop_cover_stream_drops_its_packet_when_the_gateway_channel_is_full() {
+        let network = TestNetwork::new();
+        let (mix_tx, mut mix_rx) = tokio::sync::mpsc::channel(1);
+        mix_tx.try_send(Vec::new()).unwrap();
+        let mut stream = loop_stream(&network, network.topology_accessor(), mix_tx);
+
+        // a send that waits for space would never finish, because nothing reads the channel
+        tokio::time::timeout(Duration::from_secs(5), stream.on_new_message())
+            .await
+            .expect("the loop cover stream waited for space in a full channel");
+        assert!(mix_rx.try_recv().unwrap().is_empty());
+        assert!(mix_rx.try_recv().is_err());
+    }
+}

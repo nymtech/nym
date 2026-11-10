@@ -31,7 +31,7 @@ None.
 
 - New spec files only. No product code changes.
 - After the owner reviews the edges and the change is archived, the coverage report can show 21 new requirements. 13 have a proposed `realises` or `mitigates` edge to the threat model, and 8 state that they serve none. 20 of the 21 have `impl` markers (50 links). The 21st, the delay-encoding requirement, cites only the `sphinx-packet` crate, which is not in this repository. A trial run on 2026-11-04 applied the specs and the edges, built the records with no error, and ran the coverage report: 13 requirements link to the threat model, 20 have code that realises them, and 12 complete chains go from code to the threat model, from 0 today. On 2026-11-04, the extractor's own matcher (`items()` and `matchSymbol()` in `documentation/docs/lib/retrieval/items.mjs`) resolved each of the 44 distinct code anchors to exactly one item. The full records check runs when the accepted edges move into `edges.json`.
-- `add-codex-assurance` uses these requirements for its first statements with a witness and a canary. Most of them have no test today (see `design.md`), so most start as `asserted`.
+- `add-codex-assurance` uses these requirements for its first statements with a witness and a canary. Each one has a witness test (see `design.md`), and each starts as `asserted` until a person promotes it.
 
 ## Non-Goals
 

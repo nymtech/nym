@@ -149,6 +149,7 @@ impl Decoder for NymCodec {
 mod packet_encoding {
     use super::*;
     use nym_sphinx_params::PacketType;
+    use nym_sphinx_params::key_rotation::SphinxKeyRotation;
     use nym_sphinx_params::packet_version::CURRENT_PACKET_VERSION;
     use nym_sphinx_types::{
         DESTINATION_ADDRESS_LENGTH, Delay as SphinxDelay, Destination, DestinationAddressBytes,
@@ -304,6 +305,42 @@ mod packet_encoding {
                 // assert!(bytes.capacity() >= Header::VERSIONED_SIZE + packet_size.size())
             }
         }
+    }
+
+    // r[verify sphinx.frame-rejection]
+    #[test]
+    #[allow(deprecated)]
+    fn decoding_will_reject_an_outfox_frame() {
+        let packet = FramedNymPacket {
+            header: Header {
+                packet_type: PacketType::Outfox,
+                ..dummy_header()
+            },
+            packet: make_valid_sphinx_packet(Default::default()),
+        };
+
+        let mut bytes = BytesMut::new();
+        NymCodec.encode(packet, &mut bytes).unwrap();
+        assert!(matches!(
+            NymCodec.decode(&mut bytes),
+            Err(NymCodecError::OutfoxNotSupported)
+        ));
+    }
+
+    // r[verify sphinx.frame-rejection]
+    #[test]
+    fn legacy_encoding_emits_the_three_byte_version_7_header() {
+        let packet = FramedNymPacket::new(
+            make_valid_sphinx_packet(Default::default()),
+            PacketType::Mix,
+            SphinxKeyRotation::EvenRotation,
+            true,
+        );
+
+        let mut bytes = BytesMut::new();
+        NymCodec.encode(packet, &mut bytes).unwrap();
+        assert_eq!(bytes.len(), 3 + PacketSize::default().size());
+        assert_eq!(bytes[0], 7);
     }
 
     #[test]

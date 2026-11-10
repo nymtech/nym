@@ -206,6 +206,7 @@ mod header_encoding {
         assert_eq!(decoded, header);
     }
 
+    // r[verify sphinx.frame-rejection]
     #[test]
     fn decoding_will_fail_for_unknown_packet_size() {
         let unknown_packet_size: u8 = 255;
@@ -226,6 +227,7 @@ mod header_encoding {
         assert!(Header::decode(&mut bytes).is_err())
     }
 
+    // r[verify sphinx.frame-rejection]
     #[test]
     fn decoding_will_fail_for_unknown_packet_type() {
         let unknown_packet_type: u8 = 255;
@@ -243,6 +245,44 @@ mod header_encoding {
             .as_ref(),
         );
         assert!(Header::decode(&mut bytes).is_err())
+    }
+
+    // r[verify sphinx.frame-rejection]
+    #[test]
+    fn decoding_will_fail_for_a_version_below_the_initial_one() {
+        let mut bytes = BytesMut::from(
+            [
+                INITIAL_PACKET_VERSION_NUMBER - 1,
+                PacketSize::default() as u8,
+                PacketType::default() as u8,
+            ]
+            .as_ref(),
+        );
+        assert!(matches!(
+            Header::decode(&mut bytes),
+            Err(NymCodecError::InvalidPacketVersion(_))
+        ));
+    }
+
+    // r[verify sphinx.frame-rejection]
+    #[test]
+    fn decoding_will_fail_for_unknown_key_rotation() {
+        let unknown_key_rotation: u8 = 255;
+        assert!(SphinxKeyRotation::try_from(unknown_key_rotation).is_err());
+
+        let mut bytes = BytesMut::from(
+            [
+                PacketVersion::new().as_u8(),
+                PacketSize::default() as u8,
+                PacketType::default() as u8,
+                unknown_key_rotation,
+            ]
+            .as_ref(),
+        );
+        assert!(matches!(
+            Header::decode(&mut bytes),
+            Err(NymCodecError::InvalidSphinxKeyRotation(_))
+        ));
     }
 
     #[test]
@@ -279,6 +319,7 @@ mod header_encoding {
         }
     }
 
+    // r[verify sphinx.frame-rejection]
     #[test]
     fn header_decoding_will_reject_future_versions() {
         let future_version = PacketVersion::try_from(123).unwrap();

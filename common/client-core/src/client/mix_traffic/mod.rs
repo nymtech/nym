@@ -178,3 +178,47 @@ impl MixTrafficController {
         debug!("MixTrafficController: Exiting");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::cover_traffic_stream::tests::TestNetwork;
+    use crate::client::mix_traffic::transceiver::LocalGateway;
+    use futures::FutureExt;
+    use futures::channel::{mpsc, oneshot};
+    use nym_mixnet_client::forwarder::mix_forwarding_channels;
+
+    // r[verify cover.stops-with-client]
+    #[tokio::test]
+    async fn twenty_failed_sends_in_a_row_cancel_the_shutdown_token() {
+        let network = TestNetwork::new();
+        let (packet_forwarder, forwarding_rx) = mix_forwarding_channels();
+        // with the receiving end gone, each send to the gateway fails
+        drop(forwarding_rx);
+        let (router_tx, _router_rx) = oneshot::channel();
+        let gateway = LocalGateway::new(network.address.gateway(), packet_forwarder, router_tx);
+        let (event_tx, mut event_rx) = mpsc::unbounded();
+        let shutdown_token = ShutdownToken::new();
+        let mut controller =
+            MixTrafficController::new(gateway, shutdown_token.clone(), EventSender(event_tx));
+
+        for _ in 0..21 {
+            controller
+                .mix_tx
+                .try_send(vec![network.loop_cover_packet()])
+                .unwrap();
+        }
+        assert!(controller.run().now_or_never().is_some());
+
+        assert!(shutdown_token.is_cancelled());
+        assert!(matches!(
+            event_rx.try_recv(),
+            Ok(MixnetClientEvent::Traffic(
+                MixTrafficEvent::FailedSendingSphinx
+            ))
+        ));
+        // the controller stopped at the 20th failure, so the 21st packet is still queued
+        assert!(controller.mix_rx.try_recv().is_ok());
+        assert!(controller.mix_rx.try_recv().is_err());
+    }
+}

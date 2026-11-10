@@ -180,11 +180,13 @@ mod tests {
     use super::*;
     use std::iter::repeat_n;
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_works_for_identical_input() {
         assert!(is_cover(LOOP_COVER_MESSAGE_PAYLOAD))
     }
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_works_for_longer_input() {
         let input: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
@@ -195,6 +197,7 @@ mod tests {
         assert!(is_cover(&input))
     }
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_returns_false_for_unrelated_input() {
         // make sure the length checks out
@@ -202,6 +205,7 @@ mod tests {
         assert!(!is_cover(&input))
     }
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_returns_false_for_part_of_correct_input() {
         let input: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
@@ -213,6 +217,7 @@ mod tests {
         assert!(!is_cover(&input))
     }
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_returns_false_for_empty_input() {
         let empty = Vec::new();

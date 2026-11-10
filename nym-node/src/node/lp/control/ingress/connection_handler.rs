@@ -14,7 +14,7 @@ use nym_lp::transport::{LpHandshakeChannel, LpTransportChannel};
 use nym_metrics::inc;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
-use tracing::debug;
+use tracing::{debug, warn};
 
 /// Handler for an accepted LP control connection: one handshake, then whatever the opener was.
 pub struct LpIngressConnectionHandler<S = TcpStream> {
@@ -57,9 +57,49 @@ where
         self.known_node.is_some()
     }
 
+    /// What a client on this connection is served with, logging why if there is nothing.
+    fn admit_client(&self) -> Option<&SharedGatewayLpControlState> {
+        let remote = self.remote_addr;
+
+        // Without gateway state there is nothing this node could do for them: serving the
+        // connection would mean completing a handshake and accepting a registration only to drop
+        // everything that followed. Refusing is what makes that visible to the caller instead of
+        // looking like a dead network.
+        let Some(gateway_state) = &self.gateway_state else {
+            debug!(
+                "refusing LP client connection from {remote}: this node forwards no client traffic"
+            );
+            inc!("lp_client_connections_refused");
+            return None;
+        };
+
+        let active = self
+            .state
+            .metrics
+            .network
+            .active_lp_client_connections_count();
+        let max = self.state.lp_config.debug.max_connections;
+        if active >= max {
+            warn!(
+                "LP connection limit exceeded ({active}/{max}), rejecting connection from {remote}"
+            );
+            return None;
+        }
+
+        Some(gateway_state)
+    }
+
     pub async fn handle(self) -> Result<(), LpHandlerError> {
         let metrics = self.state.metrics.clone();
         let from_node_address = self.is_from_node_address();
+
+        // only a plain client can be turned away before the handshake, and it is checked before it
+        // counts or it would count against the limit itself; a node's address is always taken
+        // through the handshake, since only its opener tells the node apart from a client it
+        // forwards
+        if !from_node_address && self.admit_client().is_none() {
+            return Ok(());
+        }
 
         // the limit reads the client gauge, so a plain client counts from here on; a node's
         // address counts on the node gauge until its handler ends, as it did before
@@ -182,7 +222,7 @@ where
         // a plain client was admitted at the door, before its handshake; a forwarded one is
         // admitted only now, and counted as a client from here
         let gateway_state = if forwarded {
-            self.state.admit_client(remote, self.gateway_state.as_ref())
+            self.admit_client()
         } else {
             self.gateway_state.as_ref()
         };

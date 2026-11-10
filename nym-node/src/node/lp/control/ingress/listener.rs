@@ -85,19 +85,6 @@ impl LpControlListener {
         }
 
         let known_node = self.shared_state.nodes.get_node_details(remote_addr.ip());
-
-        // Only a plain client can be turned away before the handshake. A connection from a node's
-        // address is always taken through it, since only its opener tells the node apart from a
-        // client it forwards.
-        if known_node.is_none()
-            && self
-                .shared_state
-                .admit_client(remote_addr, self.gateway_state.as_ref())
-                .is_none()
-        {
-            return;
-        }
-
         let handler = LpIngressConnectionHandler::new(
             stream,
             remote_addr,
@@ -153,7 +140,8 @@ mod tests {
         let (accepted, remote_addr) = listener.accept().await?;
         control.handle_connection(accepted, remote_addr);
 
-        // nothing is spawned to serve it, so the client reads end-of-stream rather than a reply
+        // the handler turns it away before the handshake, so the client reads end-of-stream
+        // rather than a reply
         let mut buf = [0u8; 1];
         assert_eq!(client.read(&mut buf).await?, 0);
 

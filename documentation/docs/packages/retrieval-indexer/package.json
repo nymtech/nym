@@ -10,6 +10,7 @@
     "./embed": "./embed.ts",
     "./items": "./items.ts",
     "./mdx": "./mdx.ts",
+    "./store": "./store.ts",
     "./types": "./types.ts",
     "./walk": "./walk.ts"
   },

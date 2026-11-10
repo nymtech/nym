@@ -17,20 +17,12 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 /// An in-memory transport: one end of a `MockIOStream` pair, plus the connections it will open.
+#[derive(Default)]
 pub struct MockTransport {
     stream: MockIOStream,
 
     /// What `connect_to` from either end of this pair returns, by endpoint.
     expected_connections: Arc<Mutex<HashMap<SocketAddr, MockTransport>>>,
-}
-
-impl Default for MockTransport {
-    fn default() -> Self {
-        MockTransport {
-            stream: MockIOStream::default(),
-            expected_connections: Default::default(),
-        }
-    }
 }
 
 impl MockTransport {

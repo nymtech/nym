@@ -1096,18 +1096,9 @@ impl StorageManager {
             .collect())
     }
 
-    /// Returns the number of rows currently in `testrun_in_progress` - i.e. the number of
-    /// test runs that have been assigned to an agent but not yet submitted back.
-    pub(crate) async fn count_testruns_in_progress(&self) -> anyhow::Result<i64> {
-        let total = sqlx::query_scalar!("SELECT COUNT(*) FROM testrun_in_progress")
-            .fetch_one(&self.connection_pool)
-            .await?;
-        Ok(total)
-    }
-
-    /// The same count broken down by kind, for the per-kind in-flight gauges. Kinds with no rows are
-    /// absent from the map rather than present as zero, so a caller publishing gauges has to decide
-    /// what an absent kind means - it means zero.
+    /// The rows in `testrun_in_progress` counted by kind, for the in-flight gauge family. Kinds
+    /// with no rows are absent from the map rather than present as zero, so a caller publishing
+    /// gauges has to decide what an absent kind means - it means zero.
     pub(crate) async fn count_testruns_in_progress_by_kind(
         &self,
     ) -> anyhow::Result<HashMap<TestKind, i64>> {
@@ -1125,6 +1116,339 @@ impl StorageManager {
             .into_iter()
             .map(|row| (row.test_kind, row.count))
             .collect())
+    }
+
+    /// The predicate of [`select_candidates`] for mixnode liveness, counted rather than limited.
+    ///
+    /// Written out per kind, as the selection itself is: a count taken over anything but the
+    /// assignment's own predicate could report a population the assignment would not draw from.
+    pub(crate) async fn count_due_mixnode_liveness_candidates(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            LEFT JOIN node_test_state s       ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.mixnode_enabled
+              AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
+            "#,
+            TestKind::MixnodeLiveness,
+            last_tested_before,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    /// The predicate of [`select_candidates`] for gateway liveness, counted rather than limited.
+    pub(crate) async fn count_due_gateway_liveness_candidates(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            LEFT JOIN node_test_state s       ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.gateway_enabled
+              AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
+            "#,
+            TestKind::GatewayLiveness,
+            last_tested_before,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    /// The predicate of [`select_candidates`] for mixnode stress, counted rather than limited.
+    pub(crate) async fn count_due_mixnode_stress_candidates(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            LEFT JOIN node_test_state s       ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.mixnode_enabled
+              AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
+            "#,
+            TestKind::MixnodeStress,
+            last_tested_before,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    /// The in-flight rows whose lease has already passed `now`, counted by kind. Absent means zero,
+    /// as in [`Self::count_testruns_in_progress_by_kind`].
+    ///
+    /// These rows are counted by that method too: a dispatch past its deadline is still holding its
+    /// node, which is the point of reporting it separately rather than deducting it.
+    pub(crate) async fn count_expired_testruns_in_progress_by_kind(
+        &self,
+        now: OffsetDateTime,
+    ) -> anyhow::Result<HashMap<TestKind, i64>> {
+        let counts = sqlx::query!(
+            r#"
+            SELECT test_kind AS "test_kind: TestKind", COUNT(*) AS "count!: i64"
+            FROM testrun_in_progress
+            WHERE expires_at < ?
+            GROUP BY test_kind
+            "#,
+            now,
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(counts
+            .into_iter()
+            .map(|row| (row.test_kind, row.count))
+            .collect())
+    }
+
+    /// When the longest-running dispatch of each kind was handed out. Kinds holding nothing in
+    /// flight are absent rather than carrying a sentinel, so a caller reports them as idle rather
+    /// than as holding a very old dispatch.
+    pub(crate) async fn oldest_testrun_in_progress_by_kind(
+        &self,
+    ) -> anyhow::Result<HashMap<TestKind, OffsetDateTime>> {
+        let oldest = sqlx::query!(
+            r#"
+            SELECT
+                test_kind       AS "test_kind!: TestKind",
+                MIN(started_at) AS "started_at!: OffsetDateTime"
+            FROM testrun_in_progress
+            GROUP BY test_kind
+            "#
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(oldest
+            .into_iter()
+            .map(|row| (row.test_kind, row.started_at))
+            .collect())
+    }
+
+    /// The bonded, described nodes reporting the mixnode role, which is what the two mixnode kinds
+    /// can test. The scheduler's own denominator, which the bonded count is not.
+    pub(crate) async fn count_mixnode_role_population(&self) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b ON b.node_id = d.node_id
+            WHERE d.mixnode_enabled
+            "#
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    /// The bonded, described nodes reporting the entry-gateway role.
+    pub(crate) async fn count_gateway_role_population(&self) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b ON b.node_id = d.node_id
+            WHERE d.gateway_enabled
+            "#
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    /// Bonded nodes that no kind can test, because they never answered a refresh with a description
+    /// or answered one reporting no role at all.
+    ///
+    /// Both cases are counted together because both have the same consequence: the node is absent
+    /// from every kind's population, so work that can never exist never shows up as backlog.
+    pub(crate) async fn count_excluded_nodes(&self) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_bond b
+            LEFT JOIN nym_node_description d ON d.node_id = b.node_id
+            WHERE d.node_id IS NULL
+               OR (NOT d.mixnode_enabled AND NOT d.gateway_enabled)
+            "#
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    /// The nodes mixnode liveness could test but holds no result for.
+    ///
+    /// Counted rather than folded into head lateness: the assignment order puts never-tested nodes
+    /// ahead of every measured one, so a network that keeps gaining nodes would otherwise leave the
+    /// overdue figure permanently undefined.
+    pub(crate) async fn count_never_tested_mixnode_liveness(&self) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b        ON b.node_id = d.node_id
+            LEFT JOIN node_test_state s ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE d.mixnode_enabled
+              AND s.last_tested_at IS NULL
+            "#,
+            TestKind::MixnodeLiveness,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    /// The nodes gateway liveness could test but holds no result for.
+    pub(crate) async fn count_never_tested_gateway_liveness(&self) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b        ON b.node_id = d.node_id
+            LEFT JOIN node_test_state s ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE d.gateway_enabled
+              AND s.last_tested_at IS NULL
+            "#,
+            TestKind::GatewayLiveness,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    /// The nodes mixnode stress could test but holds no result for.
+    pub(crate) async fn count_never_tested_mixnode_stress(&self) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b        ON b.node_id = d.node_id
+            LEFT JOIN node_test_state s ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE d.mixnode_enabled
+              AND s.last_tested_at IS NULL
+            "#,
+            TestKind::MixnodeStress,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    /// When the oldest MEASURED node mixnode liveness would assign next was last measured, or
+    /// `None` if every node it has measured is still within its cadence.
+    ///
+    /// This is [`select_candidates`] restricted to nodes carrying a measurement, which is why it is
+    /// a query of its own rather than a reuse of the peek: that one orders `NULLS FIRST`, so its
+    /// head is a never-tested node whenever one exists and carries no time to be overdue against.
+    pub(crate) async fn peek_measured_mixnode_liveness_head(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<Option<OffsetDateTime>> {
+        let head = sqlx::query_scalar!(
+            r#"
+            SELECT s.last_tested_at AS "last_tested_at!: OffsetDateTime"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            JOIN node_test_state s            ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.mixnode_enabled
+              AND s.last_tested_at IS NOT NULL
+              AND s.last_tested_at < ?
+            ORDER BY s.last_tested_at ASC
+            LIMIT 1
+            "#,
+            TestKind::MixnodeLiveness,
+            last_tested_before,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+
+        Ok(head)
+    }
+
+    /// When the oldest measured node gateway liveness would assign next was last measured.
+    pub(crate) async fn peek_measured_gateway_liveness_head(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<Option<OffsetDateTime>> {
+        let head = sqlx::query_scalar!(
+            r#"
+            SELECT s.last_tested_at AS "last_tested_at!: OffsetDateTime"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            JOIN node_test_state s            ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.gateway_enabled
+              AND s.last_tested_at IS NOT NULL
+              AND s.last_tested_at < ?
+            ORDER BY s.last_tested_at ASC
+            LIMIT 1
+            "#,
+            TestKind::GatewayLiveness,
+            last_tested_before,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+
+        Ok(head)
+    }
+
+    /// When the oldest measured node mixnode stress would assign next was last measured.
+    pub(crate) async fn peek_measured_mixnode_stress_head(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<Option<OffsetDateTime>> {
+        let head = sqlx::query_scalar!(
+            r#"
+            SELECT s.last_tested_at AS "last_tested_at!: OffsetDateTime"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            JOIN node_test_state s            ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.mixnode_enabled
+              AND s.last_tested_at IS NOT NULL
+              AND s.last_tested_at < ?
+            ORDER BY s.last_tested_at ASC
+            LIMIT 1
+            "#,
+            TestKind::MixnodeStress,
+            last_tested_before,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+
+        Ok(head)
     }
 
     /// Atomically selects the most stale idle nodes eligible for one kind and marks each of them as
@@ -1825,7 +2149,7 @@ impl StorageManager {
 mod tests {
     use super::*;
     use crate::storage::models::{
-        FIXTURE_SEEN_AT, NodeTestState, described_node, gateway, minimal_measurement,
+        FIXTURE_SEEN_AT, NodeTestState, bond_only, described_node, gateway, minimal_measurement,
         minimal_measurements, minimal_test_run, mixnode,
     };
     use nym_network_monitor_orchestrator_requests::models::LatencyDistribution;
@@ -1993,14 +2317,6 @@ mod tests {
                 ..node.bond
             },
             description: node.description,
-        }
-    }
-
-    /// `node`'s bond alone, i.e. what a refresh stores for a node whose describe failed.
-    fn bond_only(node: NymNode) -> NymNode {
-        NymNode {
-            bond: node.bond,
-            description: None,
         }
     }
 

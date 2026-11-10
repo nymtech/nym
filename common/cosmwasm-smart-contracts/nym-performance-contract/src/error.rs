@@ -4,6 +4,7 @@
 use crate::{EpochId, NodeId};
 use cosmwasm_std::{Addr, Decimal};
 use cw_controllers::AdminError;
+use nym_contracts_common::digest::CorruptDigestState;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -55,4 +56,10 @@ pub enum NymPerformanceContractError {
 
     #[error("the weights sum to {total} rather than 1")]
     WeightsDoNotSumToOne { total: Decimal },
+
+    #[error("address {sender} is not authorised to invoke the mixnet-contract callback")]
+    UnauthorisedMixnetCallback { sender: Addr },
+
+    #[error(transparent)]
+    CorruptDigestState(#[from] CorruptDigestState),
 }

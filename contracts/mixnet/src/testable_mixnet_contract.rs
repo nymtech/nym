@@ -90,6 +90,7 @@ impl TestableNymContract for MixnetContract {
                 .to_string(),
             geolocation_contract_address: deps.api.addr_make("geolocation").to_string(),
             directory_contract_address: deps.api.addr_make("directory-contract").to_string(),
+            performance_contract_address: deps.api.addr_make("performance-contract").to_string(),
             rewarding_denom: TEST_DENOM.to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),
@@ -118,6 +119,7 @@ pub struct MixnetContractSiblings {
     pub directory_contract: EmbeddedContractAddressUpdate,
     pub geolocation_contract: EmbeddedContractAddressUpdate,
     pub node_families_contract: EmbeddedContractAddressUpdate,
+    pub performance_contract: EmbeddedContractAddressUpdate,
 }
 
 impl MixnetContractSiblings {
@@ -146,10 +148,19 @@ impl MixnetContractSiblings {
     }
 
     #[must_use]
+    pub fn with_performance_contract(mut self, performance_contract_address: Addr) -> Self {
+        self.performance_contract = EmbeddedContractAddressUpdate::Update {
+            new: Some(performance_contract_address),
+        };
+        self
+    }
+
+    #[must_use]
     pub fn with_clear_all(mut self) -> Self {
         self.node_families_contract = EmbeddedContractAddressUpdate::Update { new: None };
         self.directory_contract = EmbeddedContractAddressUpdate::Update { new: None };
         self.geolocation_contract = EmbeddedContractAddressUpdate::Update { new: None };
+        self.performance_contract = EmbeddedContractAddressUpdate::Update { new: None };
         self
     }
 }
@@ -220,6 +231,9 @@ pub trait EmbeddedMixnetContractExt:
         }
         if let EmbeddedContractAddressUpdate::Update { new } = siblings.directory_contract {
             state.directory_contract_address = new;
+        }
+        if let EmbeddedContractAddressUpdate::Update { new } = siblings.performance_contract {
+            state.performance_contract_address = new;
         }
         self.write_to_mixnet_contract_storage_value(crate::constants::CONTRACT_STATE_KEY, &state)
     }

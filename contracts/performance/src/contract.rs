@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::queries::{
-    query_admin, query_current_weights, query_epoch_measurements_paged,
+    query_admin, query_current_weights, query_digest, query_epoch_measurements_paged,
     query_epoch_performance_paged, query_full_historical_performance_paged, query_last_known_epoch,
-    query_last_submission, query_network_monitor_details, query_network_monitors_paged,
-    query_node_measurements, query_node_performance, query_node_performance_paged,
-    query_retired_network_monitors_paged, query_rewarding_inputs, query_rewarding_score,
-    query_weights_at,
+    query_last_submission, query_latest_performance_paged, query_network_monitor_details,
+    query_network_monitors_paged, query_node_measurements, query_node_performance,
+    query_node_performance_paged, query_retired_network_monitors_paged, query_rewarding_inputs,
+    query_rewarding_score, query_weights_at,
 };
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use crate::transactions::{
-    try_authorise_network_monitor, try_batch_submit_performance_results,
-    try_remove_epoch_measurements, try_remove_node_measurements, try_retire_network_monitor,
-    try_submit_performance_results, try_update_contract_admin, try_update_weights,
+    try_authorise_network_monitor, try_batch_submit_performance_results, try_handle_node_unbonding,
+    try_retire_network_monitor, try_submit_performance_results, try_update_contract_admin,
+    try_update_weights,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -72,12 +72,7 @@ pub fn execute(
         ExecuteMsg::RetireNetworkMonitor { address } => {
             try_retire_network_monitor(deps, env, info, address)
         }
-        ExecuteMsg::RemoveNodeMeasurements { epoch_id, node_id } => {
-            try_remove_node_measurements(deps, info, epoch_id, node_id)
-        }
-        ExecuteMsg::RemoveEpochMeasurements { epoch_id } => {
-            try_remove_epoch_measurements(deps, info, epoch_id)
-        }
+        ExecuteMsg::OnNymNodeUnbond { node_id } => try_handle_node_unbonding(deps, info, node_id),
     }
 }
 
@@ -111,6 +106,10 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, NymPerformance
         QueryMsg::FullHistoricalPerformancePaged { start_after, limit } => Ok(to_json_binary(
             &query_full_historical_performance_paged(deps, start_after, limit)?,
         )?),
+        QueryMsg::LatestPerformancePaged { start_after, limit } => Ok(to_json_binary(
+            &query_latest_performance_paged(deps, start_after, limit)?,
+        )?),
+        QueryMsg::Digest {} => Ok(to_json_binary(&query_digest(deps)?)?),
         QueryMsg::RewardingInputs { epoch_id, node_id } => Ok(to_json_binary(
             &query_rewarding_inputs(deps, epoch_id, node_id)?,
         )?),

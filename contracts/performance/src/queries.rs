@@ -6,13 +6,13 @@ use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_performance_contract_common::{
-    EpochId, EpochMeasurementsPagedResponse, EpochPerformancePagedResponse, EpochWeights,
-    FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastKnownEpochResponse,
-    LastSubmission, NetworkMonitorInformation, NetworkMonitorResponse,
-    NetworkMonitorsPagedResponse, NodeId, NodeMeasurements, NodeMeasurementsResponse,
-    NodePerformance, NodePerformancePagedResponse, NodePerformanceResponse,
-    NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse, RewardingInputsResponse,
-    RewardingScoreResponse, WeightsResponse,
+    DigestResponse, EpochId, EpochMeasurementsPagedResponse, EpochPerformancePagedResponse,
+    EpochWeights, FullHistoricalPerformancePagedResponse, HistoricalPerformance,
+    LastKnownEpochResponse, LastSubmission, LatestPerformancePagedResponse,
+    NetworkMonitorInformation, NetworkMonitorResponse, NetworkMonitorsPagedResponse, NodeId,
+    NodeMeasurements, NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
+    NodePerformanceResponse, NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse,
+    RewardingInputsResponse, RewardingScoreResponse, WeightsResponse,
 };
 
 pub fn query_admin(deps: Deps) -> Result<AdminResponse, NymPerformanceContractError> {
@@ -227,6 +227,34 @@ pub fn query_full_historical_performance_paged(
     })
 }
 
+/// Every node's latest entry, exactly as the digest commits it, in ascending node order.
+pub fn query_latest_performance_paged(
+    deps: Deps,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> Result<LatestPerformancePagedResponse, NymPerformanceContractError> {
+    let limit = limit
+        .unwrap_or(retrieval_limits::LATEST_PERFORMANCE_DEFAULT_LIMIT)
+        .min(retrieval_limits::LATEST_PERFORMANCE_MAX_LIMIT) as usize;
+
+    let performance =
+        NYM_PERFORMANCE_CONTRACT_STORAGE.latest_entries(deps.storage, start_after, limit)?;
+    let start_next_after = performance.last().map(|last| last.node_id);
+
+    Ok(LatestPerformancePagedResponse {
+        performance,
+        start_next_after,
+    })
+}
+
+/// The 32-byte collapse of the stored accumulator. Unproven: a client that needs a proof reads
+/// the raw digest key instead.
+pub fn query_digest(deps: Deps) -> Result<DigestResponse, NymPerformanceContractError> {
+    Ok(NYM_PERFORMANCE_CONTRACT_STORAGE
+        .digest
+        .query(deps.storage)?)
+}
+
 pub fn query_rewarding_inputs(
     deps: Deps,
     epoch_id: EpochId,
@@ -439,10 +467,15 @@ mod tests {
             let mut test = init_contract_tester();
             let nm = test.new_authorised_network_monitor();
             let node_id = test.bond_dummy_nymnode()?;
+            let other = test.bond_dummy_nymnode()?;
             test.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.8", "1"));
 
-            // a direct hit, a fallback, and a request with nothing within the lookback
+            // the lookback counts back from the newest epoch with any data, so another node's
+            // later bundle is what leaves this one's out of reach
             let beyond_lookback = 10 + MAX_FALLBACK_LOOKBACK_EPOCHS + 1;
+            test.submit_at_epoch(&nm, beyond_lookback, scored_submission(other, "1", "1"));
+
+            // a direct hit, a fallback, and a request with nothing within the lookback
             for (epoch_id, source) in [(10, Some(10)), (12, Some(10)), (beyond_lookback, None)] {
                 let inputs = query_rewarding_inputs(test.deps(), epoch_id, node_id)?;
                 assert_eq!(inputs.source.as_ref().map(|source| source.epoch_id), source);
@@ -1054,6 +1087,141 @@ mod tests {
                 }
             );
             assert_eq!(query_last_submission(test.deps())?, after_second);
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod latest_performance {
+        use super::*;
+        use crate::testing::{
+            init_contract_tester, p, scored_entry, scored_submission, stressed_submission,
+            PerformanceContractTesterExt,
+        };
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::{AdminExt, ContractOpts};
+        use nym_performance_contract_common::{ExecuteMsg, Weights};
+
+        fn node_ids(page: &LatestPerformancePagedResponse) -> Vec<NodeId> {
+            page.performance.iter().map(|entry| entry.node_id).collect()
+        }
+
+        #[test]
+        fn every_committed_entry_is_returned_once() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let nodes = test.bond_dummy_nymnodes(5);
+            test.set_mixnet_epoch(10)?;
+            for node_id in nodes.clone() {
+                test.submit_scored(&nm, node_id, "0.9");
+            }
+            test.deliver_unbond_callback(nodes[1]);
+
+            let deps = test.deps();
+            let page = query_latest_performance_paged(deps, None, Some(2))?;
+            assert_eq!(node_ids(&page), vec![nodes[0], nodes[2]]);
+            assert_eq!(page.start_next_after, Some(nodes[2]));
+
+            let page = query_latest_performance_paged(deps, page.start_next_after, Some(2))?;
+            assert_eq!(node_ids(&page), vec![nodes[3], nodes[4]]);
+            assert_eq!(page.start_next_after, Some(nodes[4]));
+
+            let page = query_latest_performance_paged(deps, page.start_next_after, Some(2))?;
+            assert!(page.performance.is_empty());
+            assert_eq!(page.start_next_after, None);
+
+            Ok(())
+        }
+
+        #[test]
+        fn each_entry_carries_its_own_source_epoch_and_weights() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let nodes = test.bond_dummy_nymnodes(2);
+
+            // epoch 10 under the creation weights, then 50/50 from epoch 11 onwards
+            test.submit_at_epoch(&nm, 10, stressed_submission(nodes[0]));
+            let fifty_fifty = Weights {
+                liveness: p("0.5"),
+                stress: p("0.5"),
+            };
+            test.execute_raw(
+                test.admin_unchecked(),
+                ExecuteMsg::UpdateWeights {
+                    weights: fifty_fifty,
+                },
+            )?;
+            test.submit_at_epoch(&nm, 12, stressed_submission(nodes[1]));
+
+            assert_eq!(
+                test.all_latest_performance(),
+                vec![
+                    scored_entry(nodes[0], 10, "1"),
+                    scored_entry(nodes[1], 12, "0.75"),
+                ]
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn a_limit_above_the_maximum_is_capped() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let max = retrieval_limits::LATEST_PERFORMANCE_MAX_LIMIT as usize;
+            let nodes = test.bond_dummy_nymnodes(max + 5);
+            let batch = nodes
+                .iter()
+                .map(|&node_id| scored_submission(node_id, "0.5", "1"))
+                .collect();
+            test.batch_submit_for_epoch(&nm, 0, batch);
+
+            let page = query_latest_performance_paged(test.deps(), None, Some(10_000))?;
+            assert_eq!(page.performance.len(), max);
+            assert_eq!(page.start_next_after, Some(nodes[max - 1]));
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod digest {
+        use super::*;
+        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::ContractOpts;
+        use nym_lthash::{LtHash16, DIGEST_LEN};
+        use nym_performance_contract_common::constants::storage_keys;
+
+        #[test]
+        fn a_fresh_contract_has_the_empty_digest() -> anyhow::Result<()> {
+            let test = init_contract_tester();
+            assert_eq!(
+                query_digest(test.deps())?.digest.to_vec(),
+                LtHash16::new().out().to_vec()
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn the_raw_key_holds_the_accumulator_and_the_query_its_collapse() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let node_id = test.bond_dummy_nymnode()?;
+            test.submit_scored(&nm, node_id, "0.9");
+
+            let raw = test
+                .deps()
+                .storage
+                .get(storage_keys::DIGEST_STATE.as_bytes())
+                .expect("a submission writes the accumulator");
+            let accumulator: &[u8; DIGEST_LEN] = raw.as_slice().try_into()?;
+            assert_eq!(
+                query_digest(test.deps())?.digest.to_vec(),
+                LtHash16::from_bytes(accumulator).out().to_vec()
+            );
 
             Ok(())
         }

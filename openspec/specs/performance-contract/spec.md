@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The on-chain per-epoch performance store. Authorised network monitors submit, for the current mixnet epoch only, one bundle per node carrying any subset of the measurement kinds (liveness, stress, config). The contract keeps every monitor's value per kind, serves the per-kind medians and their combined score under the weights in force at each epoch, and resolves deterministically what rewarding used for a node in an epoch, with a bounded fallback to the node's newest earlier bundle.
+The on-chain per-epoch performance store. Authorised network monitors submit, for the current mixnet epoch only, one bundle per node carrying any subset of the measurement kinds (liveness, stress, config), and bundles are append-only. The contract keeps every monitor's value per kind, serves the per-kind medians and their combined score under the weights in force at each epoch, and resolves deterministically what rewarding used for a node in an epoch, with a fallback to the node's newest earlier bundle bounded below the newest epoch that holds any data, so that a global outage of any length leaves every node at its last value. It also commits each node's latest entry, the score of its newest bundle under that epoch's weights, to an LtHash digest stored raw for ICS23 proofs, which a client verifies by folding the bulk enumeration of those entries; the mixnet contract's unbond callback takes a node out of this routing view for good.
 
 ## Requirements
 
@@ -165,7 +165,7 @@ Bundles SHALL be stored as `Map<(EpochId, NodeId), EpochNodeMeasurements>` under
 
 ### Requirement: A per-node last-known-epoch pointer is written when a bundle is created
 
-The contract SHALL keep `Map<NodeId, EpochId>` under the namespace `last-known-epoch`. When a submission creates the bundle for `(epoch, node)`, meaning no bundle existed for that key before the insert, the handler MUST set the pointer for that node to the greater of its stored value and `epoch`. A submission that merges into an existing bundle MUST NOT write the pointer. `RemoveNodeMeasurements` and `RemoveEpochMeasurements` MUST NOT modify the pointer. `QueryMsg::LastKnownEpoch { node_id }` SHALL return `LastKnownEpochResponse { epoch_id: Option<EpochId> }`, `None` for a node that has never had a bundle.
+The contract SHALL keep `Map<NodeId, EpochId>` under the namespace `last-known-epoch`. When a submission creates the bundle for `(epoch, node)`, meaning no bundle existed for that key before the insert, the handler MUST set the pointer for that node to the greater of its stored value and `epoch`. A submission that merges into an existing bundle MUST NOT write the pointer. The unbond callback MUST delete the node's pointer, and nothing else deletes it, so the pointer map holds exactly the nodes in the routing view and every pointer names an existing bundle. `QueryMsg::LastKnownEpoch { node_id }` SHALL return `LastKnownEpochResponse { epoch_id: Option<EpochId> }`, `None` for a node that has never had a bundle or that the mixnet contract has called back for.
 
 #### Scenario: The first monitor to report a node in an epoch advances the pointer
 - **WHEN** node 7 has no bundle for epoch 10, monitor A submits it, and then monitor B submits it in the same epoch
@@ -175,9 +175,9 @@ The contract SHALL keep `Map<NodeId, EpochId>` under the namespace `last-known-e
 - **WHEN** node 8 has never been submitted
 - **THEN** `LastKnownEpoch { 8 }` returns `None`
 
-#### Scenario: The pointer survives a purge of its epoch
-- **WHEN** the pointer for node 7 is 10 and the admin executes `RemoveEpochMeasurements { epoch_id: 10 }` to completion
-- **THEN** `LastKnownEpoch { 7 }` still returns `Some(10)` and `NodeMeasurements { 10, 7 }` returns no bundle
+#### Scenario: The unbond callback deletes the pointer
+- **WHEN** node 7's pointer is 10 and the mixnet contract calls back for it
+- **THEN** `LastKnownEpoch { 7 }` returns `None` and the bundle at `(10, 7)` is still stored
 
 ### Requirement: The last submission is recorded on every successful submission
 
@@ -260,7 +260,7 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routi
 
 ### Requirement: RewardingInputs resolves a bundle deterministically with per-bundle fallback and scores it with the weights of the requested epoch
 
-`QueryMsg::RewardingInputs { epoch_id: X, node_id }` SHALL resolve a source bundle as follows: the bundle at `(X, node)` if it exists; otherwise, with `p` the node's last-known-epoch pointer, `None` if `p` is absent; if `p <= X`, the bundle at `(p, node)` when `p >= X.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS)` and it still exists, else `None` (the pointer names the newest bundle the node ever had, so nothing older is consulted); if `p > X`, the first existing bundle at epochs from `X - 1` down to and including `X.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS)`, else `None`. `MAX_FALLBACK_LOOKBACK_EPOCHS` SHALL be the contract constant `24`. The response SHALL be `RewardingInputsResponse { requested_epoch_id: X, source: Option<ResolvedMedians { epoch_id, medians }>, weights: Option<EpochWeights>, score: Option<Percent> }` where `medians` are the per-kind medians of the source bundle, `weights` are `WeightsAt { X }`, and `score` is computed from the source medians and those weights per the score requirement, `None` when either is absent. The resolution MUST depend only on stored bundles, the pointer and the weights map, so that repeated calls after the epoch's transition has begun return identical results.
+`QueryMsg::RewardingInputs { epoch_id: X, node_id }` SHALL resolve a source bundle as follows. The bundle at `(X, node)` is the source if it exists. Otherwise let `R` be the newest epoch not after `X` that holds a bundle for any node, found by one descending step over the bundle keys from `(X, u32::MAX)`, let `floor = R.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS)`, and let `p` be the node's last-known-epoch pointer. The source is `None` if `R` is absent. If `p` is present and `p <= X`, the source is the bundle at `(p, node)` when `p >= floor`, else `None` (the pointer names the newest bundle the node ever had, so nothing older is consulted). Otherwise, when `p` is absent (the node was never measured, or the unbond callback deleted its pointer) or `p > X` (data arrived after `X`), the source is the first existing bundle at the epochs `e` with `floor <= e <= R` and `e < X`, newest first, else `None`. Because bundles are never removed, that walk finds exactly the bundle a deleted pointer would have named whenever it lies within the lookback. `MAX_FALLBACK_LOOKBACK_EPOCHS` SHALL be the contract constant `24`. Anchoring the lookback at `R` rather than `X` means that a node left unmeasured while other nodes are measured loses its fallback 24 epochs after `R` moves past its last bundle, while epochs in which no node was measured at all do not count against the lookback, so a global outage of any length leaves every node at its last bundle until data resumes. The response SHALL be `RewardingInputsResponse { requested_epoch_id: X, source: Option<ResolvedMedians { epoch_id, medians }>, weights: Option<EpochWeights>, score: Option<Percent> }` where `medians` are the per-kind medians of the source bundle, `weights` are `WeightsAt { X }`, and `score` is computed from the source medians and those weights per the score requirement, `None` when either is absent. The resolution MUST depend only on stored bundles, the pointer and the weights map. Bundles are never removed and a bundle for an epoch is frozen once its transition begins, so repeated calls after that point return identical results, and an audit of a past epoch always reproduces what was resolved while that epoch was current.
 
 #### Scenario: An existing bundle is used directly
 - **WHEN** node 7 has a bundle at epoch 10
@@ -271,8 +271,20 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routi
 - **THEN** `RewardingInputs { 10, 7 }` and `RewardingInputs { 11, 7 }` both return `source.epoch_id = 8`
 
 #### Scenario: Data older than the lookback is not used
-- **WHEN** node 7's only bundle is at epoch 10
+- **WHEN** node 7's only bundle is at epoch 10 and node 8 has a bundle at every epoch from 10 to 35
 - **THEN** `RewardingInputs { 34, 7 }` returns `source.epoch_id = 10` and `RewardingInputs { 35, 7 }` returns `source = None` and `score = None`
+
+#### Scenario: A global outage freezes every node at its last bundle
+- **WHEN** nodes 7 and 8 have bundles at epoch 10 and no bundle exists at any later epoch
+- **THEN** `RewardingInputs { 100, 7 }` returns `source.epoch_id = 10` and a score under `WeightsAt { 100 }`
+
+#### Scenario: An audit across a long outage reproduces what was resolved at the time
+- **WHEN** node 7 has bundles at epochs 10 and 60 and no node has a bundle at any epoch from 11 to 59
+- **THEN** `RewardingInputs { 40, 7 }` returns `source.epoch_id = 10`, the same source it resolved while epoch 40 was current
+
+#### Scenario: A node's last epoch resolves after it began unbonding
+- **WHEN** node 7's latest bundle is at epoch 9, other nodes are measured in epoch 10, and node 7 begins unbonding during epoch 10 before any monitor has reported it
+- **THEN** `RewardingInputs { 10, 7 }` returns `source.epoch_id = 9`, found by the walk now that the callback has deleted the pointer
 
 #### Scenario: Fallback is per bundle, so a kind that stopped applying is not borrowed
 - **WHEN** node 7's bundle at epoch 10 holds `{ Liveness, Stress, Config }`, its bundle at epoch 12 holds `{ Liveness, Config }` only, and weights are `{ Liveness: 70%, Stress: 30% }`
@@ -281,10 +293,6 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routi
 #### Scenario: The score uses the weights of the requested epoch, not the source epoch
 - **WHEN** node 7's only bundle is at epoch 10, `{ Liveness: 100% }` is effective from 0 and `{ Liveness: 50%, Stress: 50% }` from 11
 - **THEN** `RewardingInputs { 12, 7 }` returns `source.epoch_id = 10`, `weights.effective_from = 11`, and a score computed with the `50%/50%` weights
-
-#### Scenario: A removed newest bundle yields nothing
-- **WHEN** node 7 has bundles at epochs 9 and 10, the admin purges epoch 10, and the pointer still says 10
-- **THEN** `RewardingInputs { 10, 7 }` and `RewardingInputs { 11, 7 }` return `source = None` and `score = None`, while `RewardingInputs { 9, 7 }` still returns the bundle at 9
 
 #### Scenario: Repeated calls agree
 - **WHEN** `RewardingInputs { 10, 7 }` is called, the mixnet advances several epochs and further submissions land, and it is called again
@@ -299,7 +307,7 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routi
 - **THEN** `RewardingScore.score` equals `RewardingInputs.score` in every case
 
 #### Scenario: No usable data yields no score
-- **WHEN** node `Y` has no bundle at `X` nor at any epoch before it within `MAX_FALLBACK_LOOKBACK_EPOCHS`
+- **WHEN** node `Y` has no bundle at `X`, and its newest bundle at or before `X` lies more than `MAX_FALLBACK_LOOKBACK_EPOCHS` before the newest epoch not after `X` that holds any bundle
 - **THEN** `RewardingScore { X, Y }` returns `score: None`
 
 ### Requirement: Exact-epoch queries return the raw bundle and the per-kind medians without fallback
@@ -367,33 +375,21 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routi
 - **WHEN** M has submitted node 9 for epoch 10
 - **THEN** `NetworkMonitor { M }` returns its details and `current_submission_metadata = { 10, 9 }`
 
-### Requirement: Admin removals are an escape hatch that does not touch the pointer or the weights
-
-`ExecuteMsg::RemoveNodeMeasurements { epoch_id, node_id }` MUST call `Admin::assert_admin` and remove that bundle, succeeding as a no-op when none exists. `ExecuteMsg::RemoveEpochMeasurements { epoch_id }` MUST call `Admin::assert_admin`, clear up to `EPOCH_PERFORMANCE_PURGE_LIMIT` bundles from that epoch's prefix, and return `RemoveEpochMeasurementsResponse { additional_entries_to_remove_remaining }` as response data, `false` for an already-empty epoch. Neither MUST modify the last-known-epoch pointer or the weights map. Removal is documented as an intentional loss of the audit trail for the removed data.
-
-#### Scenario: Removing a missing bundle is a no-op
-- **WHEN** the admin executes `RemoveNodeMeasurements` for a key with no bundle
-- **THEN** the call succeeds and storage is unchanged
-
-#### Scenario: Epoch removal pages until empty
-- **WHEN** epoch 10 holds more than `EPOCH_PERFORMANCE_PURGE_LIMIT` bundles and the admin executes `RemoveEpochMeasurements { 10 }` repeatedly
-- **THEN** each call but the last reports `additional_entries_to_remove_remaining: true`, the last reports `false`, and the prefix is then empty
-
-#### Scenario: Only the admin may remove
-- **WHEN** a non-admin executes either removal
-- **THEN** the call fails with `Admin(AdminError::NotAdmin {})`
-
 ### Requirement: Paged queries apply the existing default and maximum limits
 
-Every paged query SHALL use `limit.unwrap_or(DEFAULT).min(MAX)` with the existing `retrieval_limits`: node performance 100/200, epoch performance 100/200, epoch measurements 50/100, full historical performance 100/200, network monitors 50/100, retired network monitors 50/100, and `EPOCH_PERFORMANCE_PURGE_LIMIT = 200`.
+Every paged query SHALL use `limit.unwrap_or(DEFAULT).min(MAX)` with the `retrieval_limits`: node performance 100/200, epoch performance 100/200, epoch measurements 50/100, full historical performance 100/200, latest performance 100/200, network monitors 50/100, and retired network monitors 50/100.
 
 #### Scenario: A limit above the maximum is capped
 - **WHEN** `EpochPerformancePaged` is called with `limit: Some(10_000)`
 - **THEN** at most 200 entries are returned
 
+#### Scenario: The latest-performance page is capped
+- **WHEN** `LatestPerformancePaged` is called with `limit: Some(10_000)` while more than 200 nodes are in the committed set
+- **THEN** the page holds 200 entries and `start_next_after` is the 200th node
+
 ### Requirement: The validator-client exposes one method per execute and query variant
 
-`PerformanceSigningClient` SHALL gain `update_weights` and its `submit_performance` / `batch_submit_performance` SHALL take `NodeSubmission` payloads. `PerformanceQueryClient` SHALL gain `get_rewarding_inputs`, `get_rewarding_score`, `get_last_known_epoch`, `get_weights_at` and `get_current_weights`, and `PagedPerformanceQueryClient` SHALL keep a collector per paged query. The existing `all_execute_variants_are_covered` and `all_query_variants_are_covered` tests MUST enumerate every variant, so a message variant without a client method fails compilation.
+`PerformanceSigningClient` SHALL expose `update_weights` and `on_nym_node_unbond`, and its `submit_performance` / `batch_submit_performance` SHALL take `NodeSubmission` payloads. `PerformanceQueryClient` SHALL expose `get_rewarding_inputs`, `get_rewarding_score`, `get_last_known_epoch`, `get_weights_at`, `get_current_weights`, `get_latest_performance_paged` and `get_performance_digest` (named apart from the directory query client's `get_digest`, since a verifier imports both traits), and `PagedPerformanceQueryClient` SHALL keep a collector per paged query, including `get_all_latest_performance`. The existing `all_execute_variants_are_covered` and `all_query_variants_are_covered` tests MUST enumerate every variant, so a message variant without a client method fails compilation.
 
 #### Scenario: Every message variant has a client method
 - **WHEN** the validator-client crate is compiled with its tests
@@ -401,15 +397,15 @@ Every paged query SHALL use `limit.unwrap_or(DEFAULT).min(MAX)` with the existin
 
 ### Requirement: Public storage layout
 
-The contract's persistent state SHALL consist of exactly: cw2's `contract_info` and the build information item; a cw-controllers `Admin` under `contract-admin`; `Item<EpochId>` under `initial-epoch-id`; `Item<LastSubmission>` under `last-submission`; `Item<Addr>` under `mixnet-contract`; `Item<u32>` under `authorised-count`; `Map<&Addr, NetworkMonitorDetails>` under `authorised`; `Map<&Addr, RetiredNetworkMonitor>` under `retired`; `Map<&Addr, NetworkMonitorSubmissionMetadata>` under `submission-metadata`; `Map<(EpochId, NodeId), EpochNodeMeasurements>` under `pr`; `Map<NodeId, EpochId>` under `last-known-epoch`; and `Map<EpochId, Weights>` under `weights`. Only the bundle map's namespace is abbreviated, because it is the only one paid once per `(epoch, node)`.
+The contract's persistent state SHALL consist of exactly: cw2's `contract_info` and the build information item; a cw-controllers `Admin` under `contract-admin`; `Item<EpochId>` under `initial-epoch-id`; `Item<LastSubmission>` under `last-submission`; `Item<Addr>` under `mixnet-contract`; `Item<u32>` under `authorised-count`; `Map<&Addr, NetworkMonitorDetails>` under `authorised`; `Map<&Addr, RetiredNetworkMonitor>` under `retired`; `Map<&Addr, NetworkMonitorSubmissionMetadata>` under `submission-metadata`; `Map<(EpochId, NodeId), EpochNodeMeasurements>` under `pr`; `Map<NodeId, EpochId>` under `last-known-epoch`; `Map<EpochId, Weights>` under `weights`; and the raw accumulator bytes under the unprefixed key `digest_state`. Only the bundle map's namespace is abbreviated, because it is the only one paid once per `(epoch, node)`.
 
 #### Scenario: Namespaces are as declared
 - **WHEN** the storage-key constants are read
-- **THEN** they equal the names above, and the bundle map's is `pr`
+- **THEN** they equal the names above, the bundle map's is `pr`, and the digest key is `digest_state`
 
 ### Requirement: Public event and response-data surface
 
-`BatchSubmit` SHALL set `BatchSubmissionResult` as response data and emit an event `batch_performance_submission` with attributes `accepted_scores` and `non_existent_nodes` (the `Debug` rendering of the list). `RemoveEpochMeasurements` SHALL set `RemoveEpochMeasurementsResponse` as response data. `UpdateWeights` SHALL emit `weights_update` with `effective_from` and `weights`. `UpdateAdmin` SHALL carry the cw-controllers admin-update attributes. `Submit`, `AuthoriseNetworkMonitor`, `RetireNetworkMonitor` and `RemoveNodeMeasurements` SHALL return an empty response.
+`BatchSubmit` SHALL set `BatchSubmissionResult` as response data and emit an event `batch_performance_submission` with attributes `accepted_scores` and `non_existent_nodes` (the `Debug` rendering of the list). `UpdateWeights` SHALL emit `weights_update` with `effective_from` and `weights`. `UpdateAdmin` SHALL carry the cw-controllers admin-update attributes. `Submit`, `AuthoriseNetworkMonitor`, `RetireNetworkMonitor` and `OnNymNodeUnbond` SHALL return an empty response.
 
 #### Scenario: Batch submission is observable from the response
 - **WHEN** a batch is accepted with two bonded and one non-bonded node
@@ -417,8 +413,130 @@ The contract's persistent state SHALL consist of exactly: cw2's `contract_info` 
 
 ### Requirement: Public error variants
 
-`NymPerformanceContractError` SHALL expose exactly: `FailedMigration { comment }`, `Admin(AdminError)`, `StdErr(StdError)`, `AlreadyAuthorised { address }`, `NotAuthorised { address }`, `StalePerformanceSubmission { epoch_id, node_id, last_epoch_id, last_node_id }`, `UnsortedBatchSubmission`, `NodeNotBonded { node_id }`, `EpochNotCurrent { epoch_id, current_epoch_id }`, `EpochInTransition { epoch_id }`, `EmptyNodeSubmission { node_id }` and `WeightsDoNotSumToOne { total: Decimal }`. Each condition named in this specification MUST surface as its own variant rather than through an opaque catch-all.
+`NymPerformanceContractError` SHALL expose exactly: `FailedMigration { comment }`, `Admin(AdminError)`, `StdErr(StdError)`, `AlreadyAuthorised { address }`, `NotAuthorised { address }`, `StalePerformanceSubmission { epoch_id, node_id, last_epoch_id, last_node_id }`, `UnsortedBatchSubmission`, `NodeNotBonded { node_id }`, `EpochNotCurrent { epoch_id, current_epoch_id }`, `EpochInTransition { epoch_id }`, `EmptyNodeSubmission { node_id }`, `WeightsDoNotSumToOne { total: Decimal }`, `UnauthorisedMixnetCallback { sender: Addr }` and `CorruptDigestState(CorruptDigestState)`, wrapping the error type `nym-contracts-common` shares with the directory and geolocation contracts. Each condition named in this specification MUST surface as its own variant rather than through an opaque catch-all.
 
 #### Scenario: Errors are distinguishable
 - **WHEN** a handler rejects a call for any reason listed above
 - **THEN** the returned error compares equal to the named variant with the stated fields
+
+### Requirement: The digest commits to every node's latest performance entry
+
+The contract SHALL maintain an LtHash16 accumulator (`nym-lthash`) that, after every successful execute message, equals the sum of one leaf per node in the committed set and nothing else. The committed set SHALL be every node with an entry `p` in `last-known-epoch`, and its entry SHALL be `LatestPerformance { node_id, epoch_id: p, score }`, where `score` is the score of the per-kind medians of the bundle at `(p, node)` under `WeightsAt { epoch_id: p }` per the score requirement, `None` when the score is. The entry MUST NOT commit the medians themselves. Bundles are never removed, so that bundle always exists. Older bundles of a node MUST NOT contribute to the digest, and a node the mixnet contract has called back for has no pointer and so is not in the committed set. Only submissions and the unbond callback SHALL change the committed set.
+
+#### Scenario: Recomputing the committed entries reproduces the digest
+- **WHEN** any sequence of single and batch submissions by several monitors across several epochs, `UpdateWeights` and unbond callbacks executes
+- **THEN** after every step, folding the leaf of every entry that `LatestPerformancePaged` returns, paged to the end, into an empty accumulator yields exactly the stored accumulator
+
+#### Scenario: Older bundles are not committed
+- **WHEN** node 7 is the only node and has bundles at epochs 9 and 10
+- **THEN** the stored accumulator equals the empty accumulator with only the leaf of node 7's epoch 10 entry added
+
+#### Scenario: An unscoreable bundle is committed without a score
+- **WHEN** node 7's only bundle holds `Liveness: [90%]` and no `Config`
+- **THEN** its committed entry carries `score: None`
+
+### Requirement: The leaf encoding is fixed, exact and shared with verifiers
+
+`LatestPerformance::digest_leaf` in the common crate SHALL be the one leaf encoding, used by the contract and by every verifier. The leaf SHALL be exactly 26 bytes: the tag byte `1`; `node_id` as 4 bytes big-endian; `epoch_id` as 4 bytes big-endian; then the score as a presence byte (`0` absent, `1` present) followed by the 16 bytes big-endian of the `u128` atomics of its `Decimal` value, all zero when absent. The encoding MUST be lossless, so that a served entry differing from the committed one in any field, by any amount, yields a different leaf. It is a frozen wire format: changing it is a breaking migration that re-folds the whole accumulator and takes a new tag byte. It commits no per-kind values, so adding or removing a measurement kind leaves it unchanged. Because the contract recomputes an entry's score from its stored bundle when subtracting it, a change to the score computation MUST leave the score of every stored bundle under its epoch's weights unchanged, or re-fold the accumulator. The accumulator holds a single entry class, so the tag versions the format rather than separating classes, and leaves need not be distinguishable from another contract's, because each contract has its own accumulator and a proof binds to one contract address and key.
+
+#### Scenario: The layout is as documented
+- **WHEN** the leaves of `{ node_id: 7, epoch_id: 10, score: 50% }` and `{ node_id: 7, epoch_id: 10, score: None }` are computed
+- **THEN** the first is the 26 bytes `01`, `00000007`, `0000000a`, `01` followed by the atomics of `0.5`, and the second ends in `00` followed by 16 zero bytes instead
+
+#### Scenario: Every field is committed
+- **WHEN** two entries differ only in the node id, only in the epoch, or only in the score
+- **THEN** their leaves differ
+
+#### Scenario: An absent score differs from a present zero
+- **WHEN** two entries differ only in that one has `score: None` and the other a score of `0%`
+- **THEN** their leaves differ
+
+#### Scenario: A served value cannot drift within a rounding slack
+- **WHEN** two entries differ only in that one carries a score of `0.85` and the other `0.8549`
+- **THEN** their leaves differ
+
+### Requirement: The accumulator is stored raw at a fixed key and touched at most once per transaction
+
+The contract SHALL persist the full accumulator, `DIGEST_LEN` (2048) raw bytes, at the storage key `digest_state`, the common crate constant `storage_keys::DIGEST_STATE`, written with `store.set` directly rather than through a `cw-storage-plus` item, so that the proven key is exactly those bytes under the contract's prefix. The key MUST never change. An absent key SHALL read as the empty accumulator, and a stored value of any other length MUST fail with `CorruptDigestState`. `QueryMsg::Digest {}` SHALL return `DigestResponse { digest: Binary }` holding the 32-byte collapse `LtHash::out()` of the stored accumulator, as an unproven convenience; the collapse MUST NOT be persisted. Every `Submit`, `BatchSubmit` and `OnNymNodeUnbond` MUST load the accumulator at most once and save it at most once.
+
+#### Scenario: The raw key holds the accumulator and the query its collapse
+- **WHEN** a submission has landed and a raw read of `digest_state` and the `Digest {}` query are performed at the same height
+- **THEN** the raw read returns 2048 bytes and the query returns the BLAKE3 collapse of exactly those bytes
+
+#### Scenario: A fresh contract has the empty digest
+- **WHEN** nothing has been submitted since instantiation
+- **THEN** `Digest {}` returns the collapse of the empty accumulator
+
+#### Scenario: Batching does not change the digest
+- **WHEN** the same nodes are submitted as one `BatchSubmit` and, against identical starting state, as one `Submit` per node
+- **THEN** the resulting accumulators are identical
+
+### Requirement: Submissions keep the digest in step with each node's latest entry
+
+For every bundle a submission writes at `(X, node)`, the contract MUST update the accumulator as follows. When the bundle already existed, because another monitor reported the node in `X` first, it MUST subtract the leaf of the entry for the bundle as stored and add the leaf for the merged bundle. When the submission creates the bundle, it MUST subtract the node's previous entry if the node has an entry `p` in `last-known-epoch`, and add the leaf for the new bundle, while the pointer advances to `X` as before. A previous entry at epoch `p` MUST be subtracted with its score recomputed under `WeightsAt { epoch_id: p }`, the weights it was added with. When `p` is at or after the `effective_from` of `WeightsAt { epoch_id: X }`, those are the weights already loaded for `X`; otherwise `WeightsAt { epoch_id: p }` is read. A node the mixnet contract has called back for never reaches this step, because the mixnet contract reports it as not bonded.
+
+#### Scenario: A node's first bundle adds its entry
+- **WHEN** node 7 has never been measured and an authorised monitor submits it for epoch 10
+- **THEN** the leaf of its epoch 10 entry is added and nothing is subtracted
+
+#### Scenario: A node's next epoch replaces its entry
+- **WHEN** node 7 is the only node, has a bundle at epoch 10, and an authorised monitor submits it for epoch 11
+- **THEN** the accumulator equals the empty accumulator with only the leaf of node 7's epoch 11 entry added, and the bundle at epoch 10 is still stored
+
+#### Scenario: A second monitor in the same epoch updates the entry
+- **WHEN** weights are `{ Liveness: 100% }`, monitor A submits node 7 with `{ Liveness: 90%, Config: 100% }` for epoch 10 and monitor B submits node 7 with `{ Liveness: 80%, Config: 100% }` for epoch 10
+- **THEN** the accumulator equals the empty accumulator with only the leaf of `{ node_id: 7, epoch_id: 10, score: 85% }` added
+
+#### Scenario: An entry added under earlier weights is subtracted exactly
+- **WHEN** node 7's latest bundle is at epoch 10 under `{ Liveness: 100% }`, the admin sets `{ Liveness: 50%, Stress: 50% }` effective from epoch 11, and node 7 is submitted for epoch 12
+- **THEN** the accumulator equals the empty accumulator with only the leaf of node 7's epoch 12 entry, scored under the new weights, added
+
+### Requirement: The mixnet contract's unbond callback removes a node from the digest permanently
+
+`ExecuteMsg::OnNymNodeUnbond { node_id }` MUST fail with `UnauthorisedMixnetCallback { sender }` unless the sender is the stored mixnet contract address. Otherwise, when the node has a pointer `p`, the handler MUST subtract the leaf of its entry at `p` and delete the pointer; when it has none, because it was never measured, the handler MUST change nothing. It MUST NOT remove bundles or touch the weights. `RewardingInputs` and `RewardingScore` therefore answer for the node exactly as before the callback, through the walk their resolution takes for a node without a pointer, so rewarding for the epoch in which the node began unbonding still resolves its data. `LastKnownEpoch` and `NodePerformancePaged` treat the node as never measured, and its bundles stay readable through `NodePerformance`, `NodeMeasurements` and the epoch and full-history pages. The mixnet contract sends the callback once per node, when the node begins unbonding, and from then on reports the node as not bonded; node ids are never reused, so every later submission for the node fails or is skipped as `NodeNotBonded` and it never re-enters the committed set.
+
+The mixnet contract SHALL hold `performance_contract_address: Option<Addr>` in its `ContractState`, set at instantiation from the required `InstantiateMsg.performance_contract_address` and by its migration from the required `MigrateMsg.performance_contract_address`, each validated as an `Addr`, the latter applied unless `unsafe_skip_state_updates` is set. When it is set, `try_remove_nym_node` MUST send `OnNymNodeUnbond { node_id }` to it as a plain message beside the node-families, geolocation and directory callbacks, so that a failing handler reverts the unbond.
+
+#### Scenario: A real unbond removes the node from the digest
+- **WHEN** node 7's latest bundle is at epoch 10, the mixnet contract holds the performance contract's address, and node 7's owner executes `UnbondNymNode` on the mixnet contract
+- **THEN** the callback runs, `LatestPerformancePaged` omits node 7, the digest equals the recompute, `LastKnownEpoch { 7 }` returns `None`, and node 7's bundles are unchanged
+
+#### Scenario: Rewarding and per-epoch reads of an unbonded node are unchanged
+- **WHEN** node 7 has bundles at epochs 9 and 10 and has been called back
+- **THEN** `RewardingInputs` and `RewardingScore` return for node 7, at every epoch, exactly what they returned before the callback, `NodePerformance { 10, 7 }` still returns the epoch 10 medians, and `NodePerformancePaged` for node 7 returns an empty page
+
+#### Scenario: Only the mixnet contract may call back
+- **WHEN** any address other than the stored mixnet contract sends `OnNymNodeUnbond { node_id: 7 }`
+- **THEN** the call fails with `UnauthorisedMixnetCallback { sender }` and nothing changes
+
+#### Scenario: A never-measured node changes nothing
+- **WHEN** node 8 has never been measured and the callback arrives for it
+- **THEN** the call succeeds, nothing is written, and the accumulator is unchanged
+
+#### Scenario: An unbonded node cannot return
+- **WHEN** node 7 has begun unbonding through the mixnet contract, which called back, and an authorised monitor submits it for the current epoch
+- **THEN** `Submit` fails with `NodeNotBonded { node_id: 7 }`, `BatchSubmit` lists it in `non_existent_nodes`, and the accumulator is unchanged
+
+#### Scenario: Instantiation sets the address
+- **WHEN** the mixnet contract is instantiated with `performance_contract_address: P`
+- **THEN** its `ContractState.performance_contract_address` is `Some(P)`
+
+#### Scenario: The mixnet migration sets the address
+- **WHEN** the mixnet contract is migrated with `performance_contract_address: P`
+- **THEN** its `ContractState.performance_contract_address` is `Some(P)`, and a migration with `unsafe_skip_state_updates: true` leaves it unchanged
+
+#### Scenario: Without the address no callback is sent
+- **WHEN** the mixnet contract's `performance_contract_address` is `None` and a measured node unbonds
+- **THEN** the unbond succeeds and the performance contract's committed set still holds the node
+
+### Requirement: LatestPerformancePaged enumerates exactly the committed entries
+
+`QueryMsg::LatestPerformancePaged { start_after: Option<NodeId>, limit: Option<u32> }` SHALL return `LatestPerformancePagedResponse { performance: Vec<LatestPerformance>, start_next_after: Option<NodeId> }`. It SHALL range over `last-known-epoch` in ascending node order with an exclusive lower bound at `start_after`, and return the entry of every node it visits, each `score` under the weights of the entry's own `epoch_id`. `start_next_after` SHALL be the last node returned, or `None` for an empty page. A caller verifying the digest MUST pin every page and the digest read to one block height.
+
+#### Scenario: Every committed entry is returned once
+- **WHEN** nodes 1 to 5 have been measured, node 2 has been called back, and the query pages with `limit: 2`
+- **THEN** the pages hold nodes `[1, 3]` with `start_next_after: Some(3)`, then `[4, 5]` with `Some(5)`, then nothing with `None`
+
+#### Scenario: Each entry carries its own source epoch and weights
+- **WHEN** node 1's latest bundle is at epoch 10, node 2's at epoch 12, and new weights took effect from epoch 11
+- **THEN** node 1's entry has `epoch_id: 10` and a score under the epoch 10 weights, and node 2's has `epoch_id: 12` and a score under the new weights

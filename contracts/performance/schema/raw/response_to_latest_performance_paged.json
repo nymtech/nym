@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LatestPerformancePagedResponse",
+  "type": "object",
+  "required": [
+    "performance"
+  ],
+  "properties": {
+    "performance": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/LatestPerformance"
+      }
+    },
+    "start_next_after": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "LatestPerformance": {
+      "description": "A node's newest bundle as the digest commits it: its score under the weights of its own epoch.",
+      "type": "object",
+      "required": [
+        "epoch_id",
+        "node_id"
+      ],
+      "properties": {
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "node_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "score": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Percent": {
+      "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        }
+      ]
+    }
+  }
+}

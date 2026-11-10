@@ -18,6 +18,15 @@
     "mixnet_contract_address": {
       "description": "Mixnet contract address, used to resolve node bonds and identity keys.",
       "type": "string"
+    },
+    "snapshot_interval": {
+      "description": "The number of blocks between each snapshot of the directory content. If not provided, default value will be used instead",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
     }
   },
   "additionalProperties": false,

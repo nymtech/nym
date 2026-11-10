@@ -40,6 +40,9 @@ pub struct Args {
     pub geolocation_contract_address: Option<AccountId>,
 
     #[clap(long)]
+    pub performance_contract_address: Option<AccountId>,
+
+    #[clap(long)]
     pub rewarding_denom: Option<String>,
 
     #[clap(long)]
@@ -161,6 +164,13 @@ pub async fn generate(args: Args) {
             .expect("Failed converting geolocation contract address to AccountId")
     });
 
+    let performance_contract_address = args.performance_contract_address.unwrap_or_else(|| {
+        let address = std::env::var(nym_network_defaults::var_names::PERFORMANCE_CONTRACT_ADDRESS)
+            .expect("performance contract address has to be set");
+        AccountId::from_str(address.as_str())
+            .expect("Failed converting performance contract address to AccountId")
+    });
+
     let rewarding_denom = args.rewarding_denom.unwrap_or_else(|| {
         std::env::var(nym_network_defaults::var_names::MIX_DENOM)
             .expect("Rewarding (mix) denom has to be set")
@@ -176,6 +186,7 @@ pub async fn generate(args: Args) {
         node_families_contract_address: node_families_contract_address.to_string(),
         directory_contract_address: directory_contract_address.to_string(),
         geolocation_contract_address: geolocation_contract_address.to_string(),
+        performance_contract_address: performance_contract_address.to_string(),
         rewarding_denom,
         epochs_in_interval: args.epochs_in_interval,
         epoch_duration: Duration::from_secs(args.epoch_duration),

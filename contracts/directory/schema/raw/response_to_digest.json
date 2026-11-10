@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "DigestResponse",
-  "description": "The compact 32-byte digest: the BLAKE3 collapse of the LtHash accumulator.",
+  "description": "The 32-byte collapse of the LtHash accumulator. Unproven: smart queries carry no proof, so a client that needs one performs a raw store read at the digest key instead.",
   "type": "object",
   "required": [
     "digest"

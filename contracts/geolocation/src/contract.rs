@@ -347,7 +347,7 @@ mod tests {
             // authorisation is only sound if a client can verify which writers were authorised
             assert_digest_is_refold(&deps.storage);
             assert_ne!(
-                GEOLOCATION_CONTRACT_STORAGE.load_digest(&deps.storage)?,
+                GEOLOCATION_CONTRACT_STORAGE.digest.load(&deps.storage)?,
                 LtHash16::new(),
                 "initial agents must actually move the digest"
             );

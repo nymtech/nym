@@ -3,7 +3,7 @@
 
 use crate::EpochId;
 
-/// How many epochs before a missing one the fallback may reach for an earlier bundle.
+/// How many epochs the fallback may reach below the newest epoch with any data.
 pub const MAX_FALLBACK_LOOKBACK_EPOCHS: EpochId = 24;
 
 pub mod storage_keys {
@@ -19,4 +19,9 @@ pub mod storage_keys {
     pub const SUBMISSION_METADATA: &str = "submission-metadata";
     pub const LAST_KNOWN_EPOCH: &str = "last-known-epoch";
     pub const WEIGHTS: &str = "weights";
+
+    /// The raw key of the full LtHash accumulator, written through
+    /// `nym_contracts_common::digest::DigestItem`, whose doc says why the key and its raw format
+    /// must never change. [`crate::QueryMsg::Digest`] serves the collapse of the same value.
+    pub const DIGEST_STATE: &str = "digest_state";
 }

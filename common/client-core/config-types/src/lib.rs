@@ -937,5 +937,33 @@ mod tests {
             config.debug.acknowledgements.average_ack_delay,
             Duration::from_millis(15)
         );
+
+        let mut config = Config::new("test", "0.0.0");
+        config.set_experimental_medium_toggle();
+        assert!(config.debug.traffic.average_packet_delay.is_zero());
+        assert!(config.debug.acknowledgements.average_ack_delay.is_zero());
+    }
+
+    // r[verify cover.defaults-and-settings]
+    #[test]
+    fn keepalive_settings_turn_the_main_stream_off_and_slow_the_loop() {
+        for set in [
+            Config::set_no_cover_traffic_with_keepalive,
+            Config::set_experimental_medium_toggle,
+        ] {
+            let mut config = Config::new("test", "0.0.0");
+            set(&mut config);
+            assert!(
+                config
+                    .debug
+                    .traffic
+                    .disable_main_poisson_packet_distribution
+            );
+            assert!(!config.debug.cover_traffic.disable_loop_cover_traffic_stream);
+            assert_eq!(
+                config.debug.cover_traffic.loop_cover_traffic_average_delay,
+                Duration::from_secs(5)
+            );
+        }
     }
 }

@@ -306,4 +306,18 @@ mod tests {
         assert_eq!(config.min_mixnode_performance, None);
         assert_eq!(config.min_gateway_performance, None);
     }
+
+    // r[verify delay.named-settings]
+    // r[verify cover.defaults-and-settings]
+    #[test]
+    fn the_two_hop_config_has_no_mix_hops_and_no_cover() {
+        let debug_config = two_hop_debug_config(&MixnetClientConfig::default());
+        assert!(debug_config.traffic.disable_mix_hops);
+        assert!(
+            debug_config
+                .traffic
+                .disable_main_poisson_packet_distribution
+        );
+        assert!(debug_config.cover_traffic.disable_loop_cover_traffic_stream);
+    }
 }

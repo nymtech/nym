@@ -225,6 +225,7 @@ where
     }
 
     // r[impl cover.main-stream-slots]
+    // r[impl cover.rate-can-drop]
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
@@ -349,6 +350,7 @@ where
             * self.sending_delay_controller.current_multiplier()
     }
 
+    // r[impl cover.rate-can-drop]
     fn adjust_current_average_message_sending_delay(&mut self) {
         let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
         tracing::trace!(
@@ -668,6 +670,20 @@ mod tests {
         topology_access: TopologyAccessor,
         shutdown_token: ShutdownToken,
     ) -> TestQueue {
+        out_queue_control_with(
+            network,
+            topology_access,
+            shutdown_token,
+            config::Traffic::default(),
+        )
+    }
+
+    fn out_queue_control_with(
+        network: &TestNetwork,
+        topology_access: TopologyAccessor,
+        shutdown_token: ShutdownToken,
+        traffic: config::Traffic,
+    ) -> TestQueue {
         let (real_tx, real_rx) = tokio::sync::mpsc::channel(8);
         let (mix_tx, mix_rx) = tokio::sync::mpsc::channel(8);
         let (sent_tx, _) = futures::channel::mpsc::unbounded();
@@ -677,7 +693,7 @@ mod tests {
                 network.ack_key.clone(),
                 network.address,
                 Duration::ZERO,
-                config::Traffic::default(),
+                traffic,
                 0.7,
             ),
             ChaCha8Rng::seed_from_u64(42),
@@ -802,14 +818,69 @@ mod tests {
         );
     }
 
+    // r[verify cover.rate-can-drop]
+    #[tokio::test]
+    async fn a_full_gateway_channel_raises_the_mean_interval() {
+        let network = TestNetwork::new();
+        let mut queue =
+            out_queue_control(&network, network.topology_accessor(), ShutdownToken::new());
+        let configured = config::Traffic::default().message_sending_average_delay;
+        while queue.control.mix_tx.try_send(Vec::new()).is_ok() {}
+
+        // the controller changes its multiplier at most once a second, on the real clock
+        tokio::time::sleep(Duration::from_millis(1100)).await;
+        queue.control.adjust_current_average_message_sending_delay();
+
+        assert_eq!(
+            queue.control.current_average_message_sending_delay(),
+            configured * 2
+        );
+    }
+
+    // r[verify cover.defaults-and-settings]
+    #[tokio::test]
+    async fn with_no_poisson_distribution_real_messages_go_at_once_and_no_cover() {
+        let network = TestNetwork::new();
+        let traffic = config::Traffic {
+            disable_main_poisson_packet_distribution: true,
+            ..Default::default()
+        };
+        let mut queue = out_queue_control_with(
+            &network,
+            network.topology_accessor(),
+            ShutdownToken::new(),
+            traffic,
+        );
+
+        assert!(queue.control.next().now_or_never().is_none());
+
+        let real = RealMessage::new(network.loop_cover_packet(), None);
+        queue
+            .real_tx
+            .try_send((vec![real], TransmissionLane::General))
+            .unwrap();
+        assert!(matches!(
+            queue.control.next().now_or_never(),
+            Some(Some(StreamMessage::Real(_)))
+        ));
+        assert!(queue.control.next().now_or_never().is_none());
+    }
+
     // r[verify cover.stops-with-client]
     #[tokio::test]
     async fn main_stream_stops_when_the_shutdown_token_is_cancelled() {
         let network = TestNetwork::new();
         let shutdown_token = ShutdownToken::new();
-        shutdown_token.cancel();
-        let mut queue = out_queue_control(&network, network.topology_accessor(), shutdown_token);
+        let mut queue = out_queue_control(
+            &network,
+            network.topology_accessor(),
+            shutdown_token.clone(),
+        );
+        let run = queue.control.run();
+        tokio::pin!(run);
 
-        assert!(queue.control.run().now_or_never().is_some());
+        assert!(futures::poll!(&mut run).is_pending());
+        shutdown_token.cancel();
+        assert!(futures::poll!(&mut run).is_ready());
     }
 }

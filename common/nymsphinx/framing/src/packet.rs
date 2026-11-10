@@ -186,7 +186,9 @@ impl Header {
 #[cfg(test)]
 mod header_encoding {
     use super::*;
-    use nym_sphinx_params::packet_version::INITIAL_PACKET_VERSION_NUMBER;
+    use nym_sphinx_params::packet_version::{
+        CURRENT_PACKET_VERSION_NUMBER, INITIAL_PACKET_VERSION_NUMBER,
+    };
 
     fn dummy_header() -> Header {
         Header {
@@ -322,7 +324,7 @@ mod header_encoding {
     // r[verify sphinx.frame-rejection]
     #[test]
     fn header_decoding_will_reject_future_versions() {
-        let future_version = PacketVersion::try_from(123).unwrap();
+        let future_version = PacketVersion::try_from(CURRENT_PACKET_VERSION_NUMBER + 1).unwrap();
 
         let unchecked_header = Header {
             packet_version: future_version,

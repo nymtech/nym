@@ -394,6 +394,7 @@ where
 
     // future constantly pumping loop cover traffic at some specified average rate
     // the pumped traffic goes to the MixTrafficController
+    // r[impl cover.stops-with-client]
     fn start_cover_traffic_stream(
         debug_config: &DebugConfig,
         ack_key: Arc<AckKey>,
@@ -1156,6 +1157,7 @@ where
             &shutdown_tracker.clone(),
         );
 
+        // r[impl cover.defaults-and-settings]
         if !self
             .config
             .debug

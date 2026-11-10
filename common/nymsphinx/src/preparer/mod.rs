@@ -645,6 +645,19 @@ mod tests {
         }
     }
 
+    // r[verify sphinx.route]
+    #[test]
+    fn with_mix_hops_disabled_the_surb_ack_goes_to_the_egress_only() {
+        let mut preparer = preparer(Duration::ZERO, Duration::ZERO, true);
+        let (_, prepared) = prepare_short_message(&mut preparer, &ack_key());
+
+        let forward_ack = deliver(prepared.mix_packet)
+            .final_hop
+            .forward_ack
+            .expect("the egress did not forward a SURB-ACK");
+        assert_eq!(deliver(forward_ack).hops, vec![mix_address(EGRESS)]);
+    }
+
     // r[verify sphinx.payload-fills]
     #[test]
     fn a_short_message_travels_in_one_full_regular_packet() {

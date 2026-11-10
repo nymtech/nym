@@ -340,7 +340,10 @@ mod packet_encoding {
         let mut bytes = BytesMut::new();
         NymCodec.encode(packet, &mut bytes).unwrap();
         assert_eq!(bytes.len(), 3 + PacketSize::default().size());
-        assert_eq!(bytes[0], 7);
+        assert_eq!(
+            bytes[..3],
+            [7, PacketSize::default() as u8, PacketType::Mix as u8]
+        );
     }
 
     #[test]

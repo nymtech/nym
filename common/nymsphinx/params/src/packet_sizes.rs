@@ -292,4 +292,21 @@ mod tests {
         assert!(PacketSize::try_from(6u8).is_err());
         assert!(PacketSize::try_from(7u8).is_err());
     }
+
+    // r[verify sphinx.size-classes]
+    #[test]
+    fn each_size_tag_names_its_class() {
+        let classes = [
+            (1, PacketSize::RegularPacket),
+            (2, PacketSize::AckPacket),
+            (3, PacketSize::ExtendedPacket32),
+            (4, PacketSize::ExtendedPacket8),
+            (5, PacketSize::ExtendedPacket16),
+        ];
+        for (tag, class) in classes {
+            assert!(PacketSize::try_from(tag).ok() == Some(class), "tag {tag}");
+            assert_eq!(class as u8, tag);
+        }
+        assert!(PacketSize::try_from(0u8).is_err());
+    }
 }

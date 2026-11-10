@@ -456,9 +456,9 @@ mod tests {
         assert_eq!(filters.batch_check_and_set(&tags).unwrap()[&7], vec![true]);
     }
 
-    // r[related sphinx.replay-drop]: pins finding 1 of add-mixnet-core-specs, where a tag whose rotation has no filter is
-
-    // reported as not seen, which the comment in batch_check_and_set contradicts
+    // r[related sphinx.replay-drop]
+    // The batch check treats a tag whose rotation has no filter as not seen, although the comment
+    // in batch_check_and_set says such a tag is marked as replayed. This test pins the behaviour.
     #[test]
     fn a_tag_with_no_filter_for_its_rotation_is_reported_as_not_seen() {
         let filters = filters_for_rotation(7);

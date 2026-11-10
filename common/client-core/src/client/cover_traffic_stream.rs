@@ -354,18 +354,33 @@ pub(crate) mod tests {
             &self,
             packet: NymPacket,
         ) -> (DestinationAddressBytes, Vec<u8>) {
+            let (destination, plaintext, _) = self.unwrap_all_hops_with_delays(packet);
+            (destination, plaintext)
+        }
+
+        /// As `unwrap_all_hops`, and also returns the delay that each forward hop read.
+        pub(crate) fn unwrap_all_hops_with_delays(
+            &self,
+            packet: NymPacket,
+        ) -> (DestinationAddressBytes, Vec<u8>, Vec<Duration>) {
             let mut packet = packet.to_sphinx_packet().unwrap();
+            let mut delays = Vec::new();
             for key in &self.node_keys {
                 let key = nym_sphinx::PrivateKey::from(key.to_bytes());
                 match packet.process(&key).unwrap().data {
                     ProcessedPacketData::ForwardHop {
-                        next_hop_packet, ..
-                    } => packet = next_hop_packet,
+                        next_hop_packet,
+                        delay,
+                        ..
+                    } => {
+                        delays.push(delay.to_duration());
+                        packet = next_hop_packet;
+                    }
                     ProcessedPacketData::FinalHop {
                         destination,
                         payload,
                         ..
-                    } => return (destination, payload.recover_plaintext().unwrap()),
+                    } => return (destination, payload.recover_plaintext().unwrap(), delays),
                 }
             }
             panic!("the packet did not reach its final hop")
@@ -452,6 +467,76 @@ pub(crate) mod tests {
             recover_identifier(&network.ack_key, &ack_content),
             Some(COVER_FRAG_ID.to_bytes())
         );
+    }
+
+    // r[verify cover.same-format]
+    // r[verify delay.acks-replies-cover]
+    #[tokio::test]
+    async fn loop_cover_takes_the_packet_delay_and_its_ack_takes_the_ack_delay() {
+        let network = TestNetwork::new();
+        let (mix_tx, mut mix_rx) = tokio::sync::mpsc::channel(1);
+        let traffic = config::Traffic {
+            average_packet_delay: Duration::from_secs(3600),
+            ..Default::default()
+        };
+        let mut stream = LoopCoverTrafficStream::new(
+            network.ack_key.clone(),
+            Duration::ZERO,
+            mix_tx,
+            network.address,
+            network.topology_accessor(),
+            traffic,
+            config::CoverTraffic::default(),
+            ClientStatsSender::new(None, ShutdownToken::new()),
+        );
+        stream.on_new_message().await;
+        let packet = mix_rx.try_recv().unwrap().pop().unwrap();
+
+        let (_, hop_data, data_delays) = network.unwrap_all_hops_with_delays(packet.into_packet());
+        assert_eq!(data_delays.len(), 3);
+        assert!(data_delays.iter().all(|delay| !delay.is_zero()));
+
+        let (ack_data, _) = TestNetwork::split_surb_ack(hop_data);
+        let (_, ack_packet) =
+            SurbAck::try_recover_first_hop_packet(&ack_data, PacketType::Mix).unwrap();
+        let (_, _, ack_delays) = network.unwrap_all_hops_with_delays(ack_packet);
+        assert_eq!(ack_delays.len(), 3);
+        assert!(ack_delays.iter().all(Duration::is_zero));
+    }
+
+    // r[verify cover.defaults-and-settings]
+    #[tokio::test]
+    #[should_panic(expected = "explicitly disabled")]
+    async fn a_disabled_loop_cover_stream_refuses_to_run() {
+        let network = TestNetwork::new();
+        let (mix_tx, _mix_rx) = tokio::sync::mpsc::channel(1);
+        let cover = config::CoverTraffic {
+            disable_loop_cover_traffic_stream: true,
+            ..Default::default()
+        };
+        let mut stream = LoopCoverTrafficStream::new(
+            network.ack_key.clone(),
+            Duration::ZERO,
+            mix_tx,
+            network.address,
+            network.topology_accessor(),
+            config::Traffic::default(),
+            cover,
+            ClientStatsSender::new(None, ShutdownToken::new()),
+        );
+        stream.run().await;
+    }
+
+    // r[verify cover.stops-with-client]
+    #[tokio::test]
+    async fn loop_cover_stream_continues_when_a_send_fails() {
+        let network = TestNetwork::new();
+        let (mix_tx, mix_rx) = tokio::sync::mpsc::channel(1);
+        drop(mix_rx);
+        let mut stream = loop_stream(&network, network.topology_accessor(), mix_tx);
+
+        stream.on_new_message().await;
+        stream.on_new_message().await;
     }
 
     // r[verify cover.rate-can-drop]

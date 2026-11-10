@@ -38,6 +38,7 @@ impl AcknowledgementListener {
         }
     }
 
+    // r[impl cover.drop-own-loop]
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
         trace!("Received an ack");
         self.stats_tx
@@ -130,7 +131,12 @@ mod tests {
         assert!(action_receiver.try_recv().is_err());
 
         // an ack that failed to decrypt would also send no action, so check that it was read as cover
-        let _ack_received = stats_rx.try_recv().unwrap();
+        assert!(matches!(
+            stats_rx.try_recv(),
+            Ok(ClientStatsEvents::PacketStatistics(
+                PacketStatisticsEvent::AckReceived(_)
+            ))
+        ));
         assert!(matches!(
             stats_rx.try_recv(),
             Ok(ClientStatsEvents::PacketStatistics(

@@ -38,4 +38,31 @@ mod tests {
     fn one_delay_for_each_hop() {
         assert_eq!(generate_hop_delays(Duration::from_millis(15), 4).len(), 4);
     }
+
+    // r[verify delay.per-hop-exponential]
+    #[test]
+    fn delays_are_fresh_samples_with_the_configured_mean() {
+        let mean = Duration::from_millis(15);
+        // no generator goes in, so two calls cannot repeat each other's samples
+        assert_ne!(
+            generate_hop_delays(mean, 4)
+                .iter()
+                .map(Delay::to_nanos)
+                .collect::<Vec<_>>(),
+            generate_hop_delays(mean, 4)
+                .iter()
+                .map(Delay::to_nanos)
+                .collect::<Vec<_>>()
+        );
+
+        // an exponential sample has a standard deviation equal to its mean, so the mean of
+        // 10,000 samples is within 5 % of 15 ms with a margin of 5 standard errors
+        let samples = generate_hop_delays(mean, 10_000);
+        let sample_mean = samples.iter().map(Delay::to_nanos).sum::<u64>() / 10_000;
+        let expected = mean.as_nanos() as u64;
+        assert!(
+            sample_mean.abs_diff(expected) < expected / 20,
+            "{sample_mean} ns"
+        );
+    }
 }

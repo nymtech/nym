@@ -9,17 +9,12 @@ use crate::ecash::dkg::controller::keys::{
 };
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
-use crate::epoch_operations::{EpochAdvancer, PerformanceSource};
 use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2 as NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_performance::contract_window::refresher::PerformanceContractWindowRefresher;
-use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
-use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
-use crate::node_status_api::NodeStatusCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::attested_snapshots;
 use crate::support::caching::cache::SharedCache;
@@ -30,22 +25,16 @@ use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
-use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
-use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::http::state::AppState;
 use crate::support::http::{RouterBuilder, TASK_MANAGER_TIMEOUT_S};
 use crate::support::nyxd;
 use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::migrate_to_directory_services_v2_1;
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
-use crate::{
-    ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
-    node_families, node_status_api, signers_cache,
-};
+use crate::{ecash, mixnet_contract_cache, node_describe_cache, node_families, signers_cache};
 use anyhow::{bail, Context};
 use nym_config::defaults::v2::NymNetworkDetails;
 use nym_crypto::asymmetric::ed25519;
-use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::Coin;
 use std::net::SocketAddr;
@@ -60,28 +49,12 @@ pub(crate) struct Args {
     #[clap(long, default_value = "default", env = "NYMAPI_ID_ARG")]
     pub(crate) id: String,
 
-    /// Specifies whether network monitoring is enabled on this API
-    /// default: None - config value will be used instead
-    #[clap(short = 'm', long, env = "NYMAPI_ENABLE_MONITOR_ARG")]
-    pub(crate) enable_monitor: Option<bool>,
-
-    /// Specifies whether network rewarding is enabled on this API
-    /// default: None - config value will be used instead
-    #[clap(
-        short = 'r',
-        long,
-        requires = "enable_monitor",
-        requires = "mnemonic",
-        env = "NYMAPI_ENABLE_REWARDING_ARG"
-    )]
-    pub(crate) enable_rewarding: Option<bool>,
-
     /// Endpoint to nyxd instance used for contract information.
     /// default: None - config value will be used instead
     #[clap(long, env = "NYMAPI_NYXD_VALIDATOR_ARG")]
     pub(crate) nyxd_validator: Option<url::Url>,
 
-    /// Mnemonic of the network monitor used for sending rewarding and zk-nyms transactions
+    /// Mnemonic used for the ecash signer's DKG and multisig transactions
     /// default: None - config value will be used instead
     #[clap(long, env = "NYMAPI_MNEMONIC_ARG")]
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
@@ -102,11 +75,6 @@ pub(crate) struct Args {
     /// default: None - config value will be used instead
     #[clap(long, env = "NYMAPI_ANNOUNCE_ADDRESS_ARG")]
     pub(crate) announce_address: Option<url::Url>,
-
-    /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
-    /// default: None - config value will be used instead
-    #[clap(long, env = "NYMAPI_MONITOR_CREDENTIALS_MODE_ARG")]
-    pub(crate) monitor_credentials_mode: Option<bool>,
 
     /// Socket address this api will use for binding its http API.
     /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
@@ -204,8 +172,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         described_path,
     );
     let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
-    let describe_cache_watcher =
-        describe_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
+    describe_cache_refresher.start(shutdown_manager.clone_shutdown_token());
 
     // NODE FAMILIES
     let node_families_path = storage_cfg.cache_file("node_families");
@@ -221,19 +188,9 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     )
     .start(shutdown_manager.clone_shutdown_token());
 
-    // NODE ANNOTATIONS: its refresher starts below, after the attested snapshots. each mode
-    // persists its own file, so that neither loads, or carries over, what the other built
-    let annotations_file = if config.performance_provider.use_performance_contract_data {
-        "contract_node_annotations"
-    } else {
-        "node_annotations"
-    };
-    let annotations_path = storage_cfg.cache_file(annotations_file);
-    let ttl = config.node_status_api.debug.caching_interval;
-    let node_status_cache_state = NodeStatusCache::new(&annotations_path, ttl);
-
     // ATTESTED SNAPSHOTS
-    // every attested contract's, produced together under one chain anchor
+    // every attested contract's, produced together under one chain anchor; the routes read each
+    // node's published performance from the latest settled one
     let contract_snapshots = attested_snapshots::start(
         &config.directory.debug,
         nyxd_client.query_client(),
@@ -244,30 +201,14 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     )
     .await?;
 
-    // NODE ANNOTATIONS' REFRESHER
-    // after the attested snapshots, which contract mode builds them from
-    let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
-        &config,
-        &nyxd_client,
-        &mixnet_contract_cache_state,
-        &described_nodes_cache,
-        &contract_snapshots,
-        &node_status_cache_state,
-        &storage,
-        contract_cache_watcher.clone(),
-        describe_cache_watcher,
-        annotations_path,
-        &shutdown_manager,
-    )
-    .await;
-
     // ===== WAIT: nothing else is spawned and nothing is served until the startup caches hold
-    // values, so that no route, reward or selection reads one that was never built
+    // values and a performance snapshot has settled, so that no route reads one that was never
+    // built
     let startup_caches = StartupCaches {
         mixnet_contract: mixnet_contract_cache_state.clone(),
         described_nodes: described_nodes_cache.clone(),
         node_families: node_families_cache.clone(),
-        node_annotations: node_status_cache_state.clone(),
+        contract_snapshots: contract_snapshots.clone(),
     };
     if startup_caches
         .wait_until_built(&shutdown_manager.clone_shutdown_token())
@@ -279,23 +220,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     }
 
     // ===== TASKS AND HTTP
-    // held only where rewarding runs: contract-mode rewarding and selection and, with the switch
-    // off, the contract-divergence route are its only readers; loaded, in contract mode, before
-    // the epoch operations start
-    let performance_contract_window = if config.rewarding.enabled {
-        Some(
-            start_performance_contract_window(
-                &config,
-                &nyxd_client,
-                &mixnet_contract_cache_state,
-                &shutdown_manager,
-            )
-            .await?,
-        )
-    } else {
-        None
-    };
-
     // start dkg task
     if config.ecash_signer.enabled {
         let dkg_bte_keypair = load_bte_keypair(&config.ecash_signer)?;
@@ -312,44 +236,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     }
 
     ecash_state.spawn_background_cleaner();
-
-    // the network monitor and its uptime updater, where monitoring is enabled
-    if config.network_monitor.enabled {
-        network_monitor::start::<SphinxMessageReceiver>(
-            &config,
-            &mixnet_contract_cache_state,
-            described_nodes_cache.clone(),
-            node_status_cache_state.clone(),
-            &storage,
-            nyxd_client.clone(),
-            &shutdown_manager,
-        )
-        .await;
-
-        HistoricalUptimeUpdater::start(storage.to_owned(), &shutdown_manager);
-    }
-
-    // rewarding, where enabled and there is a source of performance data
-    let has_performance_data =
-        config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
-    if config.rewarding.enabled && has_performance_data {
-        epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-        let performance_source = match &performance_contract_window {
-            Some(window) if config.performance_provider.use_performance_contract_data => {
-                PerformanceSource::ContractWindow(window.clone())
-            }
-            _ => PerformanceSource::Annotations(node_status_cache_state.clone()),
-        };
-        EpochAdvancer::start(
-            nyxd_client.clone(),
-            &mixnet_contract_cache_state,
-            mixnet_contract_cache_refresh_requester.clone(),
-            performance_source,
-            described_nodes_cache.clone(),
-            &storage,
-            &shutdown_manager,
-        );
-    }
 
     // a background task watching the contract changes and requesting self-described cache
     // refresh upon being close to key rotation rollover
@@ -375,42 +261,32 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         mixnet_contract_cache_state,
         mixnet_contract_cache_refresh_requester,
     );
-    let node_annotations_cache =
-        NodeAnnotationsCache::new(node_status_cache_state, node_status_cache_refresh_requester);
 
-    let router = RouterBuilder::with_default_routes(
-        config.network_monitor.enabled,
-        config.base.utility_routes_bearer.take(),
-    )
-    .with_state(AppState {
-        identity_keypair,
-        nyxd_client,
-        chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
-        ecash_signers_cache,
-        address_info_cache: AddressInfoCache::new(
-            config.address_cache.time_to_live,
-            config.address_cache.capacity,
-        ),
-        forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
-        network_monitor_submissions: LastNMSubmissions::new(),
-        mixnet_contract_cache,
-        network_monitors_cache: NetworkMonitorsCache::new(
-            config.network_monitors_cache.time_to_live,
-        ),
-        node_families_cache,
-        node_annotations_cache,
-        storage,
-        described_nodes_cache,
-        network_details,
-        // filled on demand from the database, for the unstable test-run routes
-        node_info_cache: unstable::NodeInfoCache::default(),
-        contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
-        api_status: ApiStatusState::new(signer_information),
-        ecash_state: Arc::new(ecash_state),
-        contract_snapshots,
-        performance_contract_window,
-        use_performance_contract_data: config.performance_provider.use_performance_contract_data,
-    });
+    let router = RouterBuilder::with_default_routes(config.base.utility_routes_bearer.take())
+        .with_state(AppState {
+            identity_keypair,
+            nyxd_client,
+            chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
+            ecash_signers_cache,
+            address_info_cache: AddressInfoCache::new(
+                config.address_cache.time_to_live,
+                config.address_cache.capacity,
+            ),
+            forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
+            mixnet_contract_cache,
+            node_families_cache,
+            storage,
+            described_nodes_cache,
+            network_details,
+            // filled on demand from the database, for the unstable test-run routes
+            node_info_cache: unstable::NodeInfoCache::default(),
+            contract_info_cache: ContractDetailsCache::new(
+                config.contracts_info_cache.time_to_live,
+            ),
+            api_status: ApiStatusState::new(signer_information),
+            ecash_state: Arc::new(ecash_state),
+            contract_snapshots,
+        });
 
     let bind_address = config.base.bind_address.to_owned();
     let server = router.build_server(&bind_address).await?;
@@ -527,31 +403,6 @@ async fn load_signer_information(
         announce_address,
         ecash_keypair: ecash_keypair.clone(),
     }))
-}
-
-/// Starts the window over the performance contract, loaded up front in contract mode.
-async fn start_performance_contract_window(
-    config: &Config,
-    nyxd_client: &nyxd::Client,
-    mixnet_contract_cache: &MixnetContractCache,
-    shutdown_manager: &ShutdownManager,
-) -> anyhow::Result<PerformanceContractWindow> {
-    let window = PerformanceContractWindow::default();
-    let refresher = PerformanceContractWindowRefresher::new(
-        window.clone(),
-        nyxd_client.query_client(),
-        mixnet_contract_cache.clone(),
-        config.performance_provider.debug.contract_polling_interval,
-    );
-    if config.performance_provider.use_performance_contract_data {
-        refresher
-            .load_initial_values()
-            .await
-            .context("failed to load the performance contract window")?;
-    }
-    refresher.start(shutdown_manager.clone_shutdown_token());
-
-    Ok(window)
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {

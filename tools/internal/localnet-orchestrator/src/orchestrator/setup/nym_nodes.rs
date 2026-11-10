@@ -16,7 +16,6 @@ use crate::orchestrator::context::LocalnetContext;
 use crate::orchestrator::nym_node::LocalnetNymNode;
 use crate::orchestrator::state::LocalnetState;
 use anyhow::{Context, bail};
-use itertools::Itertools;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{NodeId, RoleAssignment};
@@ -27,9 +26,7 @@ use nym_validator_client::nyxd::contract_traits::{
 };
 use std::collections::BTreeMap;
 use std::fs;
-use std::ops::Range;
 use std::path::PathBuf;
-use time::OffsetDateTime;
 use tokio::task::JoinSet;
 use tracing::info;
 
@@ -589,172 +586,6 @@ curl --fail-with-body -s -X POST {refresh_described_route} \
         Ok(())
     }
 
-    async fn insert_fake_network_monitor_runs(
-        &self,
-        ctx: &LocalnetContext<NymNodeSetup>,
-        timestamps: Range<i64>,
-    ) -> anyhow::Result<()> {
-        let mut query = r#"
-        BEGIN;
-
-        INSERT INTO monitor_run(timestamp)
-        VALUES
-        "#
-        .to_string();
-
-        let values = timestamps
-            .map(|result_ts| format!("({result_ts})"))
-            .join(",\n");
-
-        query.push_str(&values);
-        query.push_str(";\nCOMMIT;");
-
-        exec_container(
-            ctx,
-            [
-                &self.nym_api_container_name(),
-                "sqlite3",
-                "/root/.nym/nym-api/default/data/db.sqlite",
-                &query,
-            ],
-        )
-        .await?;
-
-        Ok(())
-    }
-
-    async fn insert_fake_network_monitor_results_for_node(
-        &self,
-        ctx: &LocalnetContext<NymNodeSetup>,
-        node: &LocalnetNymNode,
-        timestamps: Range<i64>,
-    ) -> anyhow::Result<()> {
-        // target result (for node_id = 1, identity = 'DwxvqcjzCfvBWECZcW38Zf767CoFkcqxPKzSJZC4nSG4'):
-        /*
-        BEGIN;
-
-        INSERT OR IGNORE INTO gateway_details (node_id, identity)
-        VALUES (1, 'DwxvqcjzCfvBWECZcW38Zf767CoFkcqxPKzSJZC4nSG4');
-
-        INSERT INTO gateway_status (gateway_details_id, reliability, timestamp)
-        VALUES ((SELECT id FROM gateway_details WHERE node_id = 1), 100, 1764782010);
-
-        INSERT INTO gateway_status (gateway_details_id, reliability, timestamp)
-        VALUES ((SELECT id FROM gateway_details WHERE node_id = 1), 100, 1764782011);
-
-        COMMIT;
-                 */
-
-        let node_id = node.id;
-        let identity = node.identity.public_key().to_base58_string();
-
-        let insert_details = if node.gateway {
-            "INSERT OR IGNORE INTO gateway_details (node_id, identity)"
-        } else {
-            "INSERT OR IGNORE INTO mixnode_details (mix_id, identity_key)"
-        };
-        let id_select = if node.gateway {
-            format!("SELECT id FROM gateway_details WHERE node_id = {node_id}")
-        } else {
-            format!("SELECT id FROM mixnode_details WHERE mix_id = {node_id}")
-        };
-        let insert_status = if node.gateway {
-            "INSERT INTO gateway_status (gateway_details_id, reliability, timestamp)\n"
-        } else {
-            "INSERT INTO mixnode_status (mixnode_details_id, reliability, timestamp)\n"
-        };
-
-        let mut query = format!(
-            r#"
-BEGIN;
-{insert_details}
-VALUES ({node_id}, '{identity}');
-
-"#
-        );
-
-        for result_ts in timestamps {
-            query.push_str(insert_status);
-            query.push_str(&format!("VALUES (({id_select}), 100, {result_ts});\n"))
-        }
-
-        query.push_str("\nCOMMIT;");
-
-        exec_container(
-            ctx,
-            [
-                &self.nym_api_container_name(),
-                "sqlite3",
-                "/root/.nym/nym-api/default/data/db.sqlite",
-                &query,
-            ],
-        )
-        .await?;
-
-        Ok(())
-    }
-
-    async fn insert_fake_network_monitor_results(
-        &self,
-        ctx: &mut LocalnetContext<NymNodeSetup>,
-    ) -> anyhow::Result<()> {
-        ctx.begin_next_step("inserting fake network monitor measurements...", "🥷");
-
-        let now = OffsetDateTime::now_utc().unix_timestamp();
-        let start = now - 100;
-        let ts_range = start..now;
-
-        ctx.set_pb_message("inserting base monitor results...");
-        self.insert_fake_network_monitor_runs(ctx, ts_range.clone())
-            .await?;
-
-        for node in ctx.data.nodes.values() {
-            ctx.set_pb_message(format!("inserting fake results for node {}...", node.id));
-            self.insert_fake_network_monitor_results_for_node(ctx, node, ts_range.clone())
-                .await?;
-        }
-
-        Ok(())
-    }
-
-    async fn force_refresh_nym_api_annotations_cache(
-        &self,
-        ctx: &mut LocalnetContext<NymNodeSetup>,
-    ) -> anyhow::Result<()> {
-        ctx.begin_next_step("refreshing nym-api state [annotations]...", "⏳");
-
-        // we need to do the following:
-        // 1. call `/v1/utility/node-annotations-cache-timestamp` to get current cache ts
-        // 2. call `/v1/utility/refresh-node-annotations-cache` to make the api start refreshing the cache
-        // 3. poll `/v1/utility/node-annotations-cache-timestamp` until the timestamp changes
-
-        let nym_api_endpoint = self.localnet_details.nym_api_endpoint()?;
-        let cache_timestamp_route =
-            nym_api_endpoint.join("/v1/utility/node-annotations-cache-timestamp")?;
-        let cache_refresh_route =
-            nym_api_endpoint.join("/v1/utility/refresh-node-annotations-cache")?;
-
-        let refresh_cache =
-            nym_api_cache_refresh_script(cache_timestamp_route, cache_refresh_route);
-
-        run_container(
-            ctx,
-            [
-                "--network",
-                CONTAINER_NETWORK_NAME,
-                "--rm",
-                &ctx.data.nym_binaries_image_tag()?,
-                "sh",
-                "-c",
-                &refresh_cache,
-            ],
-            ctx.data.custom_dns.clone(),
-        )
-        .await?;
-
-        Ok(())
-    }
-
     async fn setup_gateway_forwarding(
         &self,
         ctx: &mut LocalnetContext<NymNodeSetup>,
@@ -828,7 +659,7 @@ iptables -C INPUT -p tcp --dport 53 -j ACCEPT 2>/dev/null || iptables -A INPUT -
 
     pub(crate) async fn initialise_nym_nodes(&mut self, config: Config) -> anyhow::Result<()> {
         let setup = NymNodeSetup::new(config)?;
-        let mut ctx = LocalnetContext::new(setup, 11, "\ninitialising nym nodes");
+        let mut ctx = LocalnetContext::new(setup, 9, "\ninitialising nym nodes");
 
         // 0 check if we have to do anything
         if self.check_nym_node_containers_are_running(&ctx).await? {
@@ -860,19 +691,11 @@ iptables -C INPUT -p tcp --dport 53 -j ACCEPT 2>/dev/null || iptables -A INPUT -
         self.force_refresh_nym_api_mixnet_and_describe_caches(&mut ctx)
             .await?;
 
-        // 8. insert some fake monitoring results to bump up nodes performance without waiting
-        // for NM to go around
-        self.insert_fake_network_monitor_results(&mut ctx).await?;
-
-        // 9. force refresh node annotations to update node scores served
-        self.force_refresh_nym_api_annotations_cache(&mut ctx)
-            .await?;
-
-        // 10. set forwarding rules on gateways (at this point the nodes must have been running
+        // 8. set forwarding rules on gateways (at this point the nodes must have been running
         // for sufficiently long for the relevant interfaces to have been created)
         self.setup_gateway_forwarding(&mut ctx).await?;
 
-        // 11. persist relevant information and update local state
+        // 9. persist relevant information and update local state
         self.finalize_nym_nodes_setup(ctx).await?;
 
         Ok(())

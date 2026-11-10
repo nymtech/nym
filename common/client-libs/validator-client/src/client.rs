@@ -258,6 +258,7 @@ impl<C, S> Client<C, S> {
         self.nym_api.change_base_urls(vec![new_endpoint.into()])
     }
 
+    #[deprecated]
     pub async fn get_full_node_performance_history(
         &self,
         node_id: NodeId,

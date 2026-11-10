@@ -1,7 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::orchestrator::config::NyxdConnection;
 use async_trait::async_trait;
+use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use nym_validator_client::nyxd::bip39;
 use nym_validator_client::nyxd::contract_traits::performance_query_client::PerformanceQueryMsg;
 use nym_validator_client::nyxd::contract_traits::{
@@ -11,7 +13,6 @@ use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::nym_performance_contract_common::ExecuteMsg as PerformanceExecuteMsg;
 use nym_validator_client::nyxd::{Coin, Fee};
-use nym_validator_client::{DirectSigningHttpRpcValidatorClient, ValidatorClientError, client};
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError};
@@ -21,28 +22,32 @@ use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError};
 /// A transaction takes the write lock until it is included, so two never race for the account
 /// sequence; the contract traits implemented here take the lock for that one call.
 #[derive(Clone)]
-pub(crate) struct SigningClient(Arc<RwLock<DirectSigningHttpRpcValidatorClient>>);
+pub(crate) struct SigningClient(Arc<RwLock<DirectSigningHttpRpcNyxdClient>>);
 
 impl SigningClient {
     pub(crate) fn new(
-        config: client::Config,
+        connection: NyxdConnection,
         mnemonic: bip39::Mnemonic,
-    ) -> Result<Self, ValidatorClientError> {
-        let client = DirectSigningHttpRpcValidatorClient::new_signing(config, mnemonic)?;
+    ) -> Result<Self, NyxdError> {
+        let client = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+            connection.config,
+            connection.endpoint.as_str(),
+            mnemonic,
+        )?;
         Ok(SigningClient(Arc::new(RwLock::new(client))))
     }
 
-    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcValidatorClient> {
+    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
         self.0.read().await
     }
 
-    pub(crate) async fn write(&self) -> RwLockWriteGuard<'_, DirectSigningHttpRpcValidatorClient> {
+    pub(crate) async fn write(&self) -> RwLockWriteGuard<'_, DirectSigningHttpRpcNyxdClient> {
         self.0.write().await
     }
 
     pub(crate) fn try_read(
         &self,
-    ) -> Result<RwLockReadGuard<'_, DirectSigningHttpRpcValidatorClient>, TryLockError> {
+    ) -> Result<RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient>, TryLockError> {
         self.0.try_read()
     }
 }
@@ -56,11 +61,7 @@ impl PerformanceQueryClient for SigningClient {
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.read()
-            .await
-            .nyxd
-            .query_performance_contract(query)
-            .await
+        self.read().await.query_performance_contract(query).await
     }
 }
 
@@ -75,7 +76,6 @@ impl PerformanceSigningClient for SigningClient {
     ) -> Result<ExecuteResult, NyxdError> {
         self.write()
             .await
-            .nyxd
             .execute_performance_contract(fee, msg, memo, funds)
             .await
     }

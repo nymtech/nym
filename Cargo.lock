@@ -3379,12 +3379,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fallible-iterator"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
-
-[[package]]
 name = "fancy_constructor"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3461,12 +3455,6 @@ name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
-
-[[package]]
-name = "fixedbitset"
-version = "0.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
 
 [[package]]
 name = "flate2"
@@ -5720,7 +5708,6 @@ dependencies = [
  "futures",
  "humantime",
  "indicatif",
- "itertools 0.14.0",
  "nym-bin-common",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
@@ -6359,26 +6346,21 @@ dependencies = [
  "cw2",
  "cw3",
  "cw4",
- "dashmap",
  "dotenvy",
  "futures",
  "humantime-serde",
  "moka",
  "nym-api-requests",
- "nym-bandwidth-controller",
- "nym-bandwidth-fetcher",
  "nym-bin-common",
  "nym-cache",
  "nym-coconut-dkg",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
- "nym-config-score",
  "nym-contract-anchor",
  "nym-contract-attestation",
  "nym-contracts-common",
  "nym-contracts-common-testing",
- "nym-credential-storage",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
@@ -6388,37 +6370,29 @@ dependencies = [
  "nym-ecash-contract-common",
  "nym-ecash-signer-check",
  "nym-ecash-time",
- "nym-gateway-client",
  "nym-geolocation-client",
  "nym-geolocation-contract-common",
  "nym-group-contract-common",
  "nym-http-api-client",
  "nym-http-api-common",
- "nym-lthash",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
  "nym-node-families-contract-common",
  "nym-node-requests",
- "nym-node-tester-utils",
  "nym-pemstore",
- "nym-performance-client",
  "nym-performance-contract-common",
  "nym-serde-helpers",
- "nym-sphinx",
- "nym-statistics-common",
  "nym-task",
  "nym-test-utils",
  "nym-ticketbooks-merkle",
  "nym-topology",
- "nym-types",
  "nym-validator-client",
  "pin-project",
  "rand 0.10.2",
  "rand_chacha 0.10.0",
  "reqwest 0.13.4",
  "schemars 0.8.22",
- "semver 1.0.28",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -6429,12 +6403,9 @@ dependencies = [
  "thiserror 2.0.21",
  "time",
  "tokio",
- "tokio-stream",
- "tokio-util",
  "toml 0.8.23",
  "tower-http",
  "tracing",
- "ts-rs",
  "url",
  "utoipa",
  "utoipa-swagger-ui",
@@ -7449,6 +7420,7 @@ dependencies = [
  "nym-contract-attestation",
  "nym-crypto",
  "nym-directory-contract-common",
+ "nym-directory-types",
  "nym-http-api-client",
  "nym-lthash",
  "nym-mixnet-contract-common",
@@ -7479,6 +7451,7 @@ dependencies = [
 name = "nym-directory-types"
 version = "2.0.0"
 dependencies = [
+ "nym-directory-contract-common",
  "prost 0.13.5",
  "serde",
  "thiserror 2.0.21",
@@ -7558,6 +7531,40 @@ version = "2.0.0"
 dependencies = [
  "nym-compact-ecash",
  "time",
+]
+
+[[package]]
+name = "nym-epoch-driver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "bip39",
+ "clap",
+ "cosmwasm-std",
+ "humantime",
+ "humantime-serde",
+ "nym-bin-common",
+ "nym-config",
+ "nym-contract-anchor",
+ "nym-contracts-common",
+ "nym-directory-client",
+ "nym-directory-types",
+ "nym-http-api-common",
+ "nym-metrics",
+ "nym-mixnet-contract-common",
+ "nym-task",
+ "nym-test-utils",
+ "nym-validator-client",
+ "rand 0.10.2",
+ "serde",
+ "strum 0.28.0",
+ "time",
+ "tokio",
+ "tracing",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -8360,41 +8367,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-network-monitor"
-version = "1.0.2"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "dashmap",
- "futures",
- "log",
- "nym-bin-common",
- "nym-client-core",
- "nym-crypto",
- "nym-gateway-requests",
- "nym-http-api-client",
- "nym-mixnet-contract-common",
- "nym-network-defaults",
- "nym-sdk",
- "nym-sphinx",
- "nym-topology",
- "nym-types",
- "nym-validator-client",
- "petgraph",
- "rand 0.10.2",
- "rand_chacha 0.10.0",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "tokio",
- "tokio-postgres",
- "tokio-util",
- "utoipa",
- "utoipa-swagger-ui",
-]
-
-[[package]]
 name = "nym-network-monitor-agent"
 version = "1.1.2"
 dependencies = [
@@ -8442,7 +8414,6 @@ dependencies = [
  "cosmwasm-std",
  "futures",
  "humantime",
- "nym-api-requests",
  "nym-bin-common",
  "nym-config-score",
  "nym-contracts-common",
@@ -8766,6 +8737,7 @@ dependencies = [
  "nym-credential-proxy-lib",
  "nym-credentials",
  "nym-crypto",
+ "nym-directory-client",
  "nym-ecash-time",
  "nym-gateway-probe",
  "nym-geolocation-client",
@@ -9782,7 +9754,6 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "nym-config",
- "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-validator-client",
  "nym-vesting-contract-common",
@@ -9797,7 +9768,6 @@ dependencies = [
  "thiserror 2.0.21",
  "ts-rs",
  "url",
- "utoipa",
  "x25519-dalek 3.0.0",
 ]
 
@@ -10301,15 +10271,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "objc2-system-configuration"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7216bd11cbda54ccabcab84d523dc93b858ec75ecfb3a7d89513fa22464da396"
-dependencies = [
- "objc2-core-foundation",
-]
-
-[[package]]
 name = "oid-registry"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10727,18 +10688,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "petgraph"
-version = "0.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8701b58ea97060d5e5b155d383a69952a60943f0e6dfe30b04c287beb0b27455"
-dependencies = [
- "fixedbitset",
- "hashbrown 0.15.5",
- "indexmap 2.14.0",
- "serde",
-]
-
-[[package]]
 name = "phc"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11046,35 +10995,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a106d1259c23fac8e543272398ae0e3c0b8d33c88ed73d0cc71b0f1d902618"
 dependencies = [
  "portable-atomic",
-]
-
-[[package]]
-name = "postgres-protocol"
-version = "0.6.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08808e3c483c46e999108051c78334f473d5adb59d78bb80a1268c7e6aa6c514"
-dependencies = [
- "base64 0.22.1",
- "byteorder",
- "bytes",
- "fallible-iterator",
- "hmac 0.13.0",
- "md-5",
- "memchr",
- "rand 0.10.2",
- "sha2 0.11.0",
- "stringprep",
-]
-
-[[package]]
-name = "postgres-types"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "851ca9db4932932d69f3ea811b1abe63087a0f740a47692619dd40d4899b68be"
-dependencies = [
- "bytes",
- "fallible-iterator",
- "postgres-protocol",
 ]
 
 [[package]]
@@ -14160,32 +14080,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio-postgres"
-version = "0.7.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a528f7d280f6d5b9cd149635c8705b0dd049754bc67d81d31fa25169a93809d3"
-dependencies = [
- "async-trait",
- "byteorder",
- "bytes",
- "fallible-iterator",
- "futures-channel",
- "futures-util",
- "log",
- "parking_lot",
- "percent-encoding",
- "phf",
- "pin-project-lite",
- "postgres-protocol",
- "postgres-types",
- "rand 0.10.2",
- "socket2 0.6.4",
- "tokio",
- "tokio-util",
- "whoami",
-]
-
-[[package]]
 name = "tokio-rustls"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15506,15 +15400,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasite"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66fe902b4a6b8028a753d5424909b764ccf79b7a209eac9bf97e59cda9f71a42"
-dependencies = [
- "wasi 0.14.7+wasi-0.2.4",
-]
-
-[[package]]
 name = "wasix"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15751,13 +15636,6 @@ name = "whoami"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "998767ef88740d1f5b0682a9c53c24431453923962269c2db68ee43788c5a40d"
-dependencies = [
- "libc",
- "libredox",
- "objc2-system-configuration",
- "wasite",
- "web-sys",
-]
 
 [[package]]
 name = "widestring"

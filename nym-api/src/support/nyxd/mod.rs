@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::error::EcashError;
-use crate::epoch_operations::RewardedNodeWithParams;
 use crate::support::config::Config;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -22,34 +21,31 @@ use nym_coconut_dkg_common::{
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use nym_compact_ecash::{Base58, VerificationKeyAuth};
-use nym_config::defaults::{ChainDetails, NymNetworkDetails};
+use nym_config::defaults::NymNetworkDetails;
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
 use nym_http_api_client::UserAgent;
 use nym_mixnet_contract_common::gateway::PreassignedId;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, CurrentIntervalResponse, Delegation, EpochRewardedSet, EpochStatus,
-    ExecuteMsg, GatewayBond, HistoricalNymNodeVersionEntry, IdentityKey, KeyRotationState,
-    NymNodeDetails, RewardedSet, RoleAssignment,
+    ConfigScoreParams, CurrentIntervalResponse, Delegation, EpochRewardedSet, GatewayBond,
+    HistoricalNymNodeVersionEntry, IdentityKey, KeyRotationState, NymNodeDetails,
 };
 use nym_node_families_contract_common::msg::QueryMsg as NodeFamiliesQueryMsg;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::{
-    NetworkMonitorsQueryClient, NodeFamiliesQueryClient, PagedDkgQueryClient, TypedNymContracts,
+    NodeFamiliesQueryClient, PagedDkgQueryClient, TypedNymContracts,
 };
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitorOrchestrator;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
     contract_traits::{
         DkgQueryClient, DkgSigningClient, EcashQueryClient, GroupQueryClient, MixnetQueryClient,
-        MixnetSigningClient, MultisigQueryClient, MultisigSigningClient, NymContractsProvider,
-        PagedMixnetQueryClient, PagedMultisigQueryClient,
+        MultisigQueryClient, MultisigSigningClient, NymContractsProvider, PagedMixnetQueryClient,
+        PagedMultisigQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
     BlockResponse, Fee, TendermintRpcClient,
@@ -158,48 +154,11 @@ impl Client {
         self.query.get_nym_contracts()
     }
 
-    pub(crate) async fn chain_details(&self) -> ChainDetails {
-        self.query.get_chain_details()
-    }
-
     pub(crate) async fn get_ecash_contract_address(&self) -> Result<AccountId, EcashError> {
         self.query
             .ecash_contract_address()
             .cloned()
             .ok_or_else(|| NyxdError::unavailable_contract_address("ecash contract").into())
-    }
-
-    /// Return the configured network-monitors contract address.
-    ///
-    /// Returns [`NyxdError::UnavailableContractAddress`] if the address is not configured - this
-    /// is the signal used upstream (e.g. in `NetworkMonitorsCache`) to warn that stress-test
-    /// submissions cannot be accepted.
-    pub(crate) async fn get_network_monitors_contract_address(
-        &self,
-    ) -> Result<AccountId, NyxdError> {
-        self.query
-            .network_monitors_contract_address()
-            .cloned()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("network monitors contract"))
-    }
-
-    pub(crate) async fn get_rewarding_validator_address(&self) -> Result<AccountId, NyxdError> {
-        let cosmwasm_addr = self
-            .query
-            .get_mixnet_contract_state()
-            .await?
-            .rewarding_validator_address
-            .into_string();
-
-        // this should never fail otherwise it implies either
-        // 1) our mixnet contract state is invalid
-        // 2) cosmwasm accepts invalid addresses
-        // 3) cosmrs fails to parse valid addresses
-        // all of those options are BAD
-        cosmwasm_addr
-            .clone()
-            .parse()
-            .map_err(|_| NyxdError::MalformedAccountAddress(cosmwasm_addr))
     }
 
     // a helper function for the future to obtain the current block timestamp
@@ -284,10 +243,6 @@ impl Client {
         self.query.get_mixnet_contract_state().await
     }
 
-    pub(crate) async fn get_current_epoch_status(&self) -> Result<EpochStatus, NyxdError> {
-        self.query.get_current_epoch_status().await
-    }
-
     pub(crate) async fn get_current_rewarding_parameters(
         &self,
     ) -> Result<RewardingParams, NyxdError> {
@@ -296,114 +251,6 @@ impl Client {
 
     pub(crate) async fn get_rewarded_set_nodes(&self) -> Result<EpochRewardedSet, NyxdError> {
         self.query.get_rewarded_set().await
-    }
-
-    pub(crate) async fn get_pending_events_count(&self) -> Result<u32, NyxdError> {
-        let pending = self.query.get_number_of_pending_events().await?;
-        Ok(pending.epoch_events + pending.interval_events)
-    }
-
-    pub(crate) async fn begin_epoch_transition(&self) -> Result<(), NyxdError> {
-        nyxd_signing!(self, begin_epoch_transition(None).await?);
-        Ok(())
-    }
-
-    fn generate_reward_messages(
-        &self,
-        rewarded_set: &[RewardedNodeWithParams],
-    ) -> Vec<(ExecuteMsg, Vec<Coin>)> {
-        rewarded_set
-            .iter()
-            .map(|node| (*node).into())
-            .zip(std::iter::repeat(Vec::new()))
-            .collect()
-    }
-
-    pub(crate) async fn send_rewarding_messages(
-        &self,
-        rewarded_set: &[RewardedNodeWithParams],
-    ) -> Result<(), NyxdError> {
-        let mixnet_contract = self
-            .query
-            .mixnet_contract_address()
-            .cloned()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
-
-        let msgs = self.generate_reward_messages(rewarded_set);
-
-        // "technically" we don't need a write access to the client,
-        // but we REALLY don't want to accidentally send any transactions while we're sending rewarding messages
-        // as that would have messed up sequence numbers
-        nyxd_signing!(
-            self,
-            execute_multiple(
-                &mixnet_contract,
-                msgs,
-                Default::default(),
-                format!("rewarding {} nodes", rewarded_set.len()),
-            )
-            .await?
-        );
-        Ok(())
-    }
-
-    fn generate_role_assignment_messages(
-        &self,
-        rewarded_set: RewardedSet,
-    ) -> Vec<(ExecuteMsg, Vec<Coin>)> {
-        // currently we just assign all of them together,
-        // but the contract is ready to handle them separately should we need it
-        // if the tx is too big
-        let mut msgs = Vec::new();
-        for (role, nodes) in [
-            (Role::ExitGateway, rewarded_set.exit_gateways),
-            (Role::EntryGateway, rewarded_set.entry_gateways),
-            (Role::Layer1, rewarded_set.layer1),
-            (Role::Layer2, rewarded_set.layer2),
-            (Role::Layer3, rewarded_set.layer3),
-            (Role::Standby, rewarded_set.standby),
-        ] {
-            msgs.push((
-                ExecuteMsg::AssignRoles {
-                    assignment: RoleAssignment { role, nodes },
-                },
-                Vec::new(),
-            ));
-        }
-        msgs
-    }
-
-    pub(crate) async fn send_role_assignment_messages(
-        &self,
-        rewarded_set: RewardedSet,
-    ) -> Result<(), NyxdError> {
-        let mixnet_contract = self
-            .query
-            .mixnet_contract_address()
-            .cloned()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
-
-        let msgs = self.generate_role_assignment_messages(rewarded_set);
-
-        // "technically" we don't need a write access to the client,
-        // but we REALLY don't want to accidentally send any transactions while we're sending rewarding messages
-        // as that would have messed up sequence numbers
-        nyxd_signing!(
-            self,
-            execute_multiple(
-                &mixnet_contract,
-                msgs,
-                Default::default(),
-                "assigning all the rewarded set roles",
-            )
-            .await?
-        );
-        Ok(())
-    }
-
-    pub(crate) async fn reconcile_epoch_events(&self, limit: Option<u32>) -> Result<(), NyxdError> {
-        nyxd_signing!(self, reconcile_epoch_events(limit, None).await?);
-        Ok(())
     }
 
     pub(crate) async fn get_all_delegator_delegations(
@@ -421,21 +268,6 @@ impl Client {
         denom: impl Into<String>,
     ) -> Result<Option<Coin>, NyxdError> {
         self.query.get_balance(address, denom.into()).await
-    }
-
-    /// Query the network-monitors contract for the full set of authorised orchestrators.
-    ///
-    /// This returns every orchestrator registered in the contract regardless of whether they
-    /// have announced an identity key yet - callers are responsible for filtering entries with
-    /// `identity_key == None`.
-    pub(crate) async fn get_all_network_monitor_orchestrators(
-        &self,
-    ) -> Result<Vec<AuthorisedNetworkMonitorOrchestrator>, NyxdError> {
-        Ok(self
-            .query
-            .get_network_monitor_orchestrators()
-            .await?
-            .authorised)
     }
 }
 

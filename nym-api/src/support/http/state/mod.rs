@@ -6,12 +6,11 @@ use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
-use crate::node_status_api::NodeStatusCache;
 use crate::signers_cache::cache::SignersCacheData;
 use crate::status::ApiStatusState;
+use crate::support::attested_snapshots::data::RetainedHeight;
 use crate::support::attested_snapshots::state::ContractSnapshots;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
@@ -19,8 +18,6 @@ use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
-use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
-use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::nyxd::Client;
 use crate::support::storage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
@@ -36,8 +33,6 @@ pub(crate) mod contract_details;
 pub(crate) mod force_refresh;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_contract_cache;
-pub(crate) mod network_monitors;
-pub(crate) mod node_annotations_cache;
 #[cfg(test)]
 pub(crate) mod test_helpers;
 
@@ -66,24 +61,11 @@ pub(crate) struct AppState {
     /// It is used to prevent DoS by nodes constantly requesting the refresh.
     pub(crate) forced_refresh: ForcedRefresh,
 
-    /// Holds information on when the last submission was made by a network monitor, tracked
-    /// separately per ingest endpoint.
-    /// It is used to prevent replay attacks by attempting to re-use request timestamps
-    /// Timestamps are used instead of nonces to avoid NM having to keep state with the expected values.
-    pub(crate) network_monitor_submissions: LastNMSubmissions,
-
     /// Holds cached state of the Nym Mixnet contract, e.g. bonded nym-nodes, rewarded set, current interval.
     pub(crate) mixnet_contract_cache: MixnetContractCacheState,
 
-    /// Holds information on known network monitors that are permitted to submit stress testing results.
-    pub(crate) network_monitors_cache: NetworkMonitorsCache,
-
     /// Hold cached state of node families, e.g. membership, invitations, age, etc.
     pub(crate) node_families_cache: SharedCache<NodeFamiliesCacheData>,
-
-    /// Holds processed information on network nodes, i.e. performance, config scores, etc.
-    // TODO: also perhaps redundant?
-    pub(crate) node_annotations_cache: NodeAnnotationsCache,
 
     /// Holds reference to the persistent storage of this nym-api.
     pub(crate) storage: storage::NymApiStorage,
@@ -113,12 +95,6 @@ pub(crate) struct AppState {
 
     /// Verified snapshots of every contract this nym-api attests.
     pub(crate) contract_snapshots: ContractSnapshots,
-
-    /// The performance contract's window, present exactly when this nym-api rewards.
-    pub(crate) performance_contract_window: Option<PerformanceContractWindow>,
-
-    /// Contract mode: nym-api publishes the performance contract's figure and computes none of its own.
-    pub(crate) use_performance_contract_data: bool,
 }
 
 impl FromRef<AppState> for ApiStatusState {
@@ -133,12 +109,6 @@ impl FromRef<AppState> for Arc<EcashState> {
     }
 }
 
-impl FromRef<AppState> for NetworkMonitorsCache {
-    fn from_ref(app_state: &AppState) -> Self {
-        app_state.network_monitors_cache.clone()
-    }
-}
-
 impl FromRef<AppState> for MixnetContractCache {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.mixnet_contract_cache.inner_cache.clone()
@@ -148,18 +118,6 @@ impl FromRef<AppState> for MixnetContractCache {
 impl FromRef<AppState> for MixnetContractCacheState {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.mixnet_contract_cache.clone()
-    }
-}
-
-impl FromRef<AppState> for NodeAnnotationsCache {
-    fn from_ref(app_state: &AppState) -> Self {
-        app_state.node_annotations_cache.clone()
-    }
-}
-
-impl FromRef<AppState> for NodeStatusCache {
-    fn from_ref(app_state: &AppState) -> Self {
-        app_state.node_annotations_cache.inner_cache.clone()
     }
 }
 
@@ -180,21 +138,12 @@ impl AppState {
         &self.mixnet_contract_cache.inner_cache
     }
 
-    pub(crate) fn node_status_cache(&self) -> &NodeStatusCache {
-        &self.node_annotations_cache.inner_cache
-    }
-
     pub(crate) fn network_details(&self) -> &NetworkDetailsV2 {
         &self.network_details
     }
 
     pub(crate) fn described_nodes_cache(&self) -> &SharedCache<DescribedNodes> {
         &self.described_nodes_cache
-    }
-
-    /// Access the cache of authorised network-monitor orchestrators.
-    pub(crate) fn network_monitors(&self) -> &NetworkMonitorsCache {
-        &self.network_monitors_cache
     }
 
     pub(crate) fn storage(&self) -> &storage::NymApiStorage {
@@ -218,6 +167,15 @@ impl AppState {
         &self,
     ) -> Result<Cache<CachedEpochRewardedSet>, AxumErrorResponse> {
         Ok(self.nym_contract_cache().cached_rewarded_set().await?)
+    }
+
+    /// The latest settled snapshot, which every node's published performance is read from.
+    pub(crate) async fn latest_snapshot(
+        &self,
+    ) -> Result<RwLockReadGuard<'_, RetainedHeight>, AxumErrorResponse> {
+        self.contract_snapshots.latest_entry().await.ok_or_else(|| {
+            AxumErrorResponse::service_unavailable("no performance snapshots available")
+        })
     }
 
     pub(crate) async fn get_address_info(

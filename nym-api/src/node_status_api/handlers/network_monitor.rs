@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::unstable;
-use crate::node_status_api::handlers::unstable::{latest_monitor_run_report, monitor_run_report};
 use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::helpers::{
     _gateway_core_status_count, _gateway_uptime_history, _mixnode_core_status_count,
@@ -61,15 +60,16 @@ pub(super) fn network_monitor_routes() -> Router<AppState> {
             Router::new()
                 .route(
                     "/run/{monitor_run_id}/details",
-                    axum::routing::get(monitor_run_report),
+                    axum::routing::get(unstable::monitor_run_report),
                 )
                 .route(
                     "/run/latest/details",
-                    axum::routing::get(latest_monitor_run_report),
+                    axum::routing::get(unstable::latest_monitor_run_report),
                 ),
         )
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
@@ -101,6 +101,7 @@ struct SinceQueryParams {
     output: Option<Output>,
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
@@ -127,6 +128,7 @@ async fn gateway_core_status_count(
         .to_response(_gateway_core_status_count(state.storage(), &identity, since).await?))
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
@@ -151,6 +153,7 @@ async fn mixnode_uptime_history(
     Ok(output.to_response(_mixnode_uptime_history(state.storage(), mix_id).await?))
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "network-monitor-status",
     get,

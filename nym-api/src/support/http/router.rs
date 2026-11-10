@@ -40,12 +40,12 @@ pub(crate) struct RouterBuilder {
 }
 
 impl RouterBuilder {
-    fn v1_routes(network_monitor: bool, bearer_token: Option<String>) -> Router<AppState> {
+    fn v1_routes(bearer_token: Option<String>) -> Router<AppState> {
         let base = Router::new()
             // unfortunately some routes didn't use correct prefix and were attached to the root
             .nest("/epoch", epoch_routes())
             .nest("/circulating-supply", circulating_supply_routes())
-            .nest("/status", status_routes(network_monitor))
+            .nest("/status", status_routes())
             .nest("/network", network::handlers::v1::routes())
             .nest("/api-status", status::handlers::api_status_routes())
             .nest("/nym-nodes", nym_nodes::handlers::v1::routes())
@@ -83,7 +83,7 @@ impl RouterBuilder {
 
     /// All routes should be, if possible, added here. Exceptions are e.g.
     /// routes which are added conditionally in other places based on some `if`.
-    pub(crate) fn with_default_routes(network_monitor: bool, bearer_token: Option<String>) -> Self {
+    pub(crate) fn with_default_routes(bearer_token: Option<String>) -> Self {
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
         // TODO rocket use tracing instead of env_logger
         // https://github.com/tokio-rs/axum/blob/main/examples/tracing-aka-logging/src/main.rs
@@ -97,7 +97,7 @@ impl RouterBuilder {
         let default_routes = Router::new()
             .merge(SwaggerUi::new("/swagger").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .route("/", get(|| async { Redirect::to("/swagger") }))
-            .nest("/v1", Self::v1_routes(network_monitor, bearer_token))
+            .nest("/v1", Self::v1_routes(bearer_token))
             .nest("/v2", Self::v2_routes())
             .nest("/v3", Self::v3_routes());
 
@@ -184,6 +184,6 @@ mod tests {
     /// to catch such regressions in CI.
     #[test]
     fn default_router_builds_without_panic() {
-        let _ = RouterBuilder::with_default_routes(false, None);
+        let _ = RouterBuilder::with_default_routes(None);
     }
 }

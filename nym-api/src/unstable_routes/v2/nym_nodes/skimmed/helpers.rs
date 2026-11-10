@@ -62,8 +62,8 @@ where
     // 1. get the rewarded set
     let rewarded_set = state.rewarded_set().await?;
 
-    // 2. grab all annotations so that we could attach scores to the [nym] nodes
-    let status_cache = state.node_status_cache().cache().await?;
+    // 2. grab the latest settled performance snapshot so that we could attach scores to the [nym] nodes
+    let snapshot = state.latest_snapshot().await?;
 
     // 3. implicitly grab the relevant described nodes
     // (ideally it'd be tied directly to the NI iterator, but I couldn't defeat the compiler)
@@ -90,7 +90,7 @@ where
     let nodes = build_nym_nodes_response(
         &rewarded_set,
         nym_nodes_subset,
-        &status_cache.node_annotations,
+        &snapshot,
         current_key_rotation,
         active_only,
     );
@@ -100,7 +100,7 @@ where
         // min of all caches
         let refreshed_at = refreshed_at([
             rewarded_set.timestamp(),
-            status_cache.timestamp(),
+            snapshot.performance_auxiliary.block_time(),
             describe_cache.timestamp(),
         ]);
 
@@ -117,7 +117,7 @@ where
     // min of all caches
     let refreshed_at = refreshed_at([
         rewarded_set.timestamp(),
-        status_cache.timestamp(),
+        snapshot.performance_auxiliary.block_time(),
         describe_cache.timestamp(),
     ]);
 
@@ -145,7 +145,7 @@ pub(crate) async fn nodes_basic(
 
     let describe_cache = state.describe_nodes_cache_data().await?;
     let all_nym_nodes = describe_cache.all_nym_nodes();
-    let status_cache = state.node_status_cache().cache().await?;
+    let snapshot = state.latest_snapshot().await?;
 
     let interval = state.nym_contract_cache().current_interval().await?;
     let current_key_rotation = state.nym_contract_cache().current_key_rotation_id().await?;
@@ -153,7 +153,7 @@ pub(crate) async fn nodes_basic(
     let nodes = build_nym_nodes_response(
         &rewarded_set,
         all_nym_nodes,
-        &status_cache.node_annotations,
+        &snapshot,
         current_key_rotation,
         active_only,
     );
@@ -161,7 +161,7 @@ pub(crate) async fn nodes_basic(
     // min of all caches
     let refreshed_at = refreshed_at([
         rewarded_set.timestamp(),
-        status_cache.timestamp(),
+        snapshot.performance_auxiliary.block_time(),
         describe_cache.timestamp(),
     ]);
 

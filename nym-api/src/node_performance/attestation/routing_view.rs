@@ -1,33 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::support::attested_snapshots::data::{AttestedSnapshot, RetainedHeight};
+use crate::support::attested_snapshots::data::RetainedHeight;
 use nym_api_requests::models::performance::{DetailedNodePerformanceV3, NodePerformanceResponseV3};
-use nym_performance_contract_common::{LatestPerformance, NodeId};
-
-// the routing view of a performance snapshot: bonded nodes only
-impl AttestedSnapshot<LatestPerformance> {
-    /// Every bonded node's committed entry, in node order.
-    pub(crate) fn bonded_entries(&self) -> impl Iterator<Item = &LatestPerformance> + '_ {
-        self.records()
-            .iter()
-            .filter(|committed| self.node_identities().contains_key(&committed.node_id))
-    }
-
-    /// `node_id`'s committed entry, if it is bonded.
-    pub(crate) fn bonded_entry(&self, node_id: NodeId) -> Option<&LatestPerformance> {
-        if !self.node_identities().contains_key(&node_id) {
-            return None;
-        }
-
-        // the records are in node order, as the producer sorts them
-        let records = self.records();
-        let index = records
-            .binary_search_by_key(&node_id, |record| record.node_id)
-            .ok()?;
-        records.get(index)
-    }
-}
+use nym_performance_contract_common::NodeId;
 
 impl RetainedHeight {
     /// `node_id`'s committed entry, with the medians held for its epoch.
@@ -53,7 +29,7 @@ mod tests {
     use crate::node_performance::attestation::test_helpers::{
         block_time, committed, kind_medians, percent, retained_entry,
     };
-    use nym_performance_contract_common::KindMedians;
+    use nym_performance_contract_common::{KindMedians, LatestPerformance};
     use std::collections::BTreeMap;
 
     fn measured() -> KindMedians {
@@ -117,18 +93,20 @@ mod tests {
 
     #[test]
     fn an_unbonded_node_is_left_out_of_the_routing_view() {
-        // 9 has a committed entry but is not bonded
+        // 9 has a committed entry but is not bonded, 8 is bonded without one
         let entry = entry(vec![
             committed(7, 100, Some(85)),
             committed(9, 100, Some(60)),
         ]);
 
+        assert_eq!(
+            entry
+                .performance
+                .bonded_entry(7)
+                .map(|committed| committed.node_id),
+            Some(7)
+        );
+        assert!(entry.performance.bonded_entry(8).is_none());
         assert!(entry.performance.bonded_entry(9).is_none());
-        let bonded = entry
-            .performance
-            .bonded_entries()
-            .map(|committed| committed.node_id)
-            .collect::<Vec<_>>();
-        assert_eq!(bonded, vec![7]);
     }
 }

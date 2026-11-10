@@ -72,7 +72,7 @@ pub(crate) fn retained_entry(
         .map(|&node_id| (node_id, *dummy_ed25519_keypair(node_id.into()).public_key()))
         .collect();
     RetainedHeight {
-        performance: snapshot(height, records, node_identities),
+        performance: snapshot(height, records, node_identities).into(),
         performance_auxiliary: PerformanceAuxiliary::new_for_tests(
             weights(),
             block_time(height),

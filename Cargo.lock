@@ -4959,6 +4959,7 @@ dependencies = [
  "nym-kkt",
  "nym-kkt-ciphersuite",
  "nym-lp",
+ "nym-lp-data",
  "nym-node",
  "nym-registration-client",
  "nym-test-utils",

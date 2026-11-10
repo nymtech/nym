@@ -2,5 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub mod client_handler;
+pub mod connection_handler;
+pub(crate) mod handshake;
 pub(crate) mod listener;
-pub mod node_handler;
+pub(crate) mod node_handler;

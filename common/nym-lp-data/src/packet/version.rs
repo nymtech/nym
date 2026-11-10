@@ -6,8 +6,11 @@
 /// The initial version of the Lewes Protocol, and the only inner-header layout implemented.
 pub const V1: u8 = 1;
 
+/// Same packet layout as [`V1`]; the KKT opener carries the length of its encrypted frame.
+pub const V2: u8 = 2;
+
 /// The current version of the Lewes Protocol that is put into each new constructed header.
-pub const CURRENT: u8 = V1;
+pub const CURRENT: u8 = V2;
 
 /// Every version this build can still speak, and therefore everything a responder will accept
 /// during negotiation. Must contain [`CURRENT`].
@@ -19,7 +22,7 @@ pub const CURRENT: u8 = V1;
 /// context and AAD constants with arms in both `build_psq_principal` functions, which
 /// otherwise reject it right after negotiation succeeds, and an [`super::InnerHeader::parse`]
 /// branch if it changes the header layout.
-pub const SUPPORTED: &[u8] = &[V1];
+pub const SUPPORTED: &[u8] = &[V1, V2];
 
 /// The version to speak with a node advertising `advertised`, or `None` when there is none both
 /// ends know.
@@ -39,6 +42,10 @@ pub mod node_compatibility {
     /// handshake it is built on.
     /// 1.27.0 Raclette release
     pub const INTRODUCTION: semver::Version = semver::Version::new(1, 27, 0);
+
+    /// First build whose KKT opener carries its frame length, i.e. speaks [`super::V2`].
+    /// 1.44.0 Istanbul release
+    pub const LENGTH_PREFIXED_OPENER: semver::Version = semver::Version::new(1, 44, 0);
 }
 
 /// Determine the LP protocol version spoken by a node of the given build version.
@@ -50,10 +57,10 @@ pub fn from_node_version(semver: semver::Version) -> Option<u8> {
         // node can't possibly speak LP
         return None;
     }
-    // currently there are no other branches known to the client
-    // once a new version is introduced, follow the pattern implemented in
-    // `common/authenticator-requests/src/version.rs`
-    Some(V1)
+    if semver < node_compatibility::LENGTH_PREFIXED_OPENER {
+        return Some(V1);
+    }
+    Some(V2)
 }
 
 #[cfg(test)]
@@ -96,10 +103,22 @@ mod tests {
     }
 
     #[test]
-    fn nodes_from_the_introduction_onwards_speak_v1() {
-        for supported in ["1.27.0", "1.38.0", "2.0.0"] {
-            assert_eq!(Some(V1), from_node_version(supported.parse().unwrap()));
+    fn nodes_before_the_length_prefixed_opener_speak_v1() {
+        for v1_only in ["1.27.0", "1.38.0", "1.43.9"] {
+            assert_eq!(Some(V1), from_node_version(v1_only.parse().unwrap()));
         }
+    }
+
+    #[test]
+    fn nodes_from_the_length_prefixed_opener_onwards_speak_v2() {
+        for v2 in ["1.44.0", "1.50.0", "2.0.0"] {
+            assert_eq!(Some(V2), from_node_version(v2.parse().unwrap()));
+        }
+    }
+
+    #[test]
+    fn an_older_supported_version_is_met_at_its_own() {
+        assert_eq!(Some(V1), negotiate(V1));
     }
 
     #[test]

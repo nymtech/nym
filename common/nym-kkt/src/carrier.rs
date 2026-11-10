@@ -125,7 +125,12 @@ impl Carrier {
                 info: "Ciphertext too large",
             });
         }
-        let mut output_buffer = vec![0; ciphertext.len() - TAG_LEN];
+        let Some(plaintext_len) = ciphertext.len().checked_sub(TAG_LEN) else {
+            return Err(KKTError::AEADError {
+                info: "Ciphertext shorter than the tag",
+            });
+        };
+        let mut output_buffer = vec![0; plaintext_len];
         libcrux_chacha20poly1305::decrypt(
             &self.rx_key,
             &mut output_buffer,
@@ -188,5 +193,16 @@ mod tests {
         let ct5 = i_carrier.encrypt(test5).unwrap();
         let pt5 = r_carrier.decrypt(&ct5).unwrap();
         assert_eq!(pt5, test5);
+    }
+
+    #[test]
+    fn a_ciphertext_shorter_than_the_tag_is_rejected() {
+        let mut rng = nym_test_utils::helpers::deterministic_rng();
+        let keypair = generate_lp_keypair_x25519(&mut rng);
+        let shared_secret = keypair.sk().diffie_hellman(&keypair.pk).unwrap();
+        let mut carrier = Carrier::from_secret_slice(shared_secret.as_ref(), &[0u8; 32], false);
+
+        assert!(carrier.decrypt(&[0u8; 5]).is_err());
+        assert!(carrier.decrypt(&[]).is_err());
     }
 }

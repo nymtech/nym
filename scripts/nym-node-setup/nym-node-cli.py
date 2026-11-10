@@ -16,6 +16,317 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional, Mapping, Tuple
 
+
+# ---------------------------------------------------------------------------
+# ISO 3166-1 country table, used to validate the node LOCATION before it ever
+# reaches nym-node.
+#
+# nym-node types --location as a real country (celes::Country), not a string,
+# so an unparseable value makes the binary exit during --init-only, i.e. AFTER
+# the whole install has already run. Worse, the bad value has by then been
+# written to env.sh, and a re-run reuses it without prompting. Validating here
+# turns that into an immediate, correctable prompt.
+#
+# Format: alpha2|alpha3|numeric|english short name
+# ---------------------------------------------------------------------------
+_ISO_3166 = """\
+AD|AND|020|Andorra
+AE|ARE|784|United Arab Emirates
+AF|AFG|004|Afghanistan
+AG|ATG|028|Antigua and Barbuda
+AI|AIA|660|Anguilla
+AL|ALB|008|Albania
+AM|ARM|051|Armenia
+AO|AGO|024|Angola
+AQ|ATA|010|Antarctica
+AR|ARG|032|Argentina
+AS|ASM|016|American Samoa
+AT|AUT|040|Austria
+AU|AUS|036|Australia
+AW|ABW|533|Aruba
+AX|ALA|248|Åland Islands
+AZ|AZE|031|Azerbaijan
+BA|BIH|070|Bosnia and Herzegovina
+BB|BRB|052|Barbados
+BD|BGD|050|Bangladesh
+BE|BEL|056|Belgium
+BF|BFA|854|Burkina Faso
+BG|BGR|100|Bulgaria
+BH|BHR|048|Bahrain
+BI|BDI|108|Burundi
+BJ|BEN|204|Benin
+BL|BLM|652|Saint Barthélemy
+BM|BMU|060|Bermuda
+BN|BRN|096|Brunei Darussalam
+BO|BOL|068|Bolivia, Plurinational State of
+BQ|BES|535|Bonaire, Sint Eustatius and Saba
+BR|BRA|076|Brazil
+BS|BHS|044|Bahamas
+BT|BTN|064|Bhutan
+BV|BVT|074|Bouvet Island
+BW|BWA|072|Botswana
+BY|BLR|112|Belarus
+BZ|BLZ|084|Belize
+CA|CAN|124|Canada
+CC|CCK|166|Cocos (Keeling) Islands
+CD|COD|180|Congo, The Democratic Republic of the
+CF|CAF|140|Central African Republic
+CG|COG|178|Congo
+CH|CHE|756|Switzerland
+CI|CIV|384|Côte d'Ivoire
+CK|COK|184|Cook Islands
+CL|CHL|152|Chile
+CM|CMR|120|Cameroon
+CN|CHN|156|China
+CO|COL|170|Colombia
+CR|CRI|188|Costa Rica
+CU|CUB|192|Cuba
+CV|CPV|132|Cabo Verde
+CW|CUW|531|Curaçao
+CX|CXR|162|Christmas Island
+CY|CYP|196|Cyprus
+CZ|CZE|203|Czechia
+DE|DEU|276|Germany
+DJ|DJI|262|Djibouti
+DK|DNK|208|Denmark
+DM|DMA|212|Dominica
+DO|DOM|214|Dominican Republic
+DZ|DZA|012|Algeria
+EC|ECU|218|Ecuador
+EE|EST|233|Estonia
+EG|EGY|818|Egypt
+EH|ESH|732|Western Sahara
+ER|ERI|232|Eritrea
+ES|ESP|724|Spain
+ET|ETH|231|Ethiopia
+FI|FIN|246|Finland
+FJ|FJI|242|Fiji
+FK|FLK|238|Falkland Islands (Malvinas)
+FM|FSM|583|Micronesia, Federated States of
+FO|FRO|234|Faroe Islands
+FR|FRA|250|France
+GA|GAB|266|Gabon
+GB|GBR|826|United Kingdom
+GD|GRD|308|Grenada
+GE|GEO|268|Georgia
+GF|GUF|254|French Guiana
+GG|GGY|831|Guernsey
+GH|GHA|288|Ghana
+GI|GIB|292|Gibraltar
+GL|GRL|304|Greenland
+GM|GMB|270|Gambia
+GN|GIN|324|Guinea
+GP|GLP|312|Guadeloupe
+GQ|GNQ|226|Equatorial Guinea
+GR|GRC|300|Greece
+GS|SGS|239|South Georgia and the South Sandwich Islands
+GT|GTM|320|Guatemala
+GU|GUM|316|Guam
+GW|GNB|624|Guinea-Bissau
+GY|GUY|328|Guyana
+HK|HKG|344|Hong Kong
+HM|HMD|334|Heard Island and McDonald Islands
+HN|HND|340|Honduras
+HR|HRV|191|Croatia
+HT|HTI|332|Haiti
+HU|HUN|348|Hungary
+ID|IDN|360|Indonesia
+IE|IRL|372|Ireland
+IL|ISR|376|Israel
+IM|IMN|833|Isle of Man
+IN|IND|356|India
+IO|IOT|086|British Indian Ocean Territory
+IQ|IRQ|368|Iraq
+IR|IRN|364|Iran, Islamic Republic of
+IS|ISL|352|Iceland
+IT|ITA|380|Italy
+JE|JEY|832|Jersey
+JM|JAM|388|Jamaica
+JO|JOR|400|Jordan
+JP|JPN|392|Japan
+KE|KEN|404|Kenya
+KG|KGZ|417|Kyrgyzstan
+KH|KHM|116|Cambodia
+KI|KIR|296|Kiribati
+KM|COM|174|Comoros
+KN|KNA|659|Saint Kitts and Nevis
+KP|PRK|408|Korea, Democratic People's Republic of
+KR|KOR|410|Korea, Republic of
+KW|KWT|414|Kuwait
+KY|CYM|136|Cayman Islands
+KZ|KAZ|398|Kazakhstan
+LA|LAO|418|Lao People's Democratic Republic
+LB|LBN|422|Lebanon
+LC|LCA|662|Saint Lucia
+LI|LIE|438|Liechtenstein
+LK|LKA|144|Sri Lanka
+LR|LBR|430|Liberia
+LS|LSO|426|Lesotho
+LT|LTU|440|Lithuania
+LU|LUX|442|Luxembourg
+LV|LVA|428|Latvia
+LY|LBY|434|Libya
+MA|MAR|504|Morocco
+MC|MCO|492|Monaco
+MD|MDA|498|Moldova, Republic of
+ME|MNE|499|Montenegro
+MF|MAF|663|Saint Martin (French part)
+MG|MDG|450|Madagascar
+MH|MHL|584|Marshall Islands
+MK|MKD|807|North Macedonia
+ML|MLI|466|Mali
+MM|MMR|104|Myanmar
+MN|MNG|496|Mongolia
+MO|MAC|446|Macao
+MP|MNP|580|Northern Mariana Islands
+MQ|MTQ|474|Martinique
+MR|MRT|478|Mauritania
+MS|MSR|500|Montserrat
+MT|MLT|470|Malta
+MU|MUS|480|Mauritius
+MV|MDV|462|Maldives
+MW|MWI|454|Malawi
+MX|MEX|484|Mexico
+MY|MYS|458|Malaysia
+MZ|MOZ|508|Mozambique
+NA|NAM|516|Namibia
+NC|NCL|540|New Caledonia
+NE|NER|562|Niger
+NF|NFK|574|Norfolk Island
+NG|NGA|566|Nigeria
+NI|NIC|558|Nicaragua
+NL|NLD|528|Netherlands
+NO|NOR|578|Norway
+NP|NPL|524|Nepal
+NR|NRU|520|Nauru
+NU|NIU|570|Niue
+NZ|NZL|554|New Zealand
+OM|OMN|512|Oman
+PA|PAN|591|Panama
+PE|PER|604|Peru
+PF|PYF|258|French Polynesia
+PG|PNG|598|Papua New Guinea
+PH|PHL|608|Philippines
+PK|PAK|586|Pakistan
+PL|POL|616|Poland
+PM|SPM|666|Saint Pierre and Miquelon
+PN|PCN|612|Pitcairn
+PR|PRI|630|Puerto Rico
+PS|PSE|275|Palestine, State of
+PT|PRT|620|Portugal
+PW|PLW|585|Palau
+PY|PRY|600|Paraguay
+QA|QAT|634|Qatar
+RE|REU|638|Réunion
+RO|ROU|642|Romania
+RS|SRB|688|Serbia
+RU|RUS|643|Russian Federation
+RW|RWA|646|Rwanda
+SA|SAU|682|Saudi Arabia
+SB|SLB|090|Solomon Islands
+SC|SYC|690|Seychelles
+SD|SDN|729|Sudan
+SE|SWE|752|Sweden
+SG|SGP|702|Singapore
+SH|SHN|654|Saint Helena, Ascension and Tristan da Cunha
+SI|SVN|705|Slovenia
+SJ|SJM|744|Svalbard and Jan Mayen
+SK|SVK|703|Slovakia
+SL|SLE|694|Sierra Leone
+SM|SMR|674|San Marino
+SN|SEN|686|Senegal
+SO|SOM|706|Somalia
+SR|SUR|740|Suriname
+SS|SSD|728|South Sudan
+ST|STP|678|Sao Tome and Principe
+SV|SLV|222|El Salvador
+SX|SXM|534|Sint Maarten (Dutch part)
+SY|SYR|760|Syrian Arab Republic
+SZ|SWZ|748|Eswatini
+TC|TCA|796|Turks and Caicos Islands
+TD|TCD|148|Chad
+TF|ATF|260|French Southern Territories
+TG|TGO|768|Togo
+TH|THA|764|Thailand
+TJ|TJK|762|Tajikistan
+TK|TKL|772|Tokelau
+TL|TLS|626|Timor-Leste
+TM|TKM|795|Turkmenistan
+TN|TUN|788|Tunisia
+TO|TON|776|Tonga
+TR|TUR|792|Türkiye
+TT|TTO|780|Trinidad and Tobago
+TV|TUV|798|Tuvalu
+TW|TWN|158|Taiwan, Province of China
+TZ|TZA|834|Tanzania, United Republic of
+UA|UKR|804|Ukraine
+UG|UGA|800|Uganda
+UM|UMI|581|United States Minor Outlying Islands
+US|USA|840|United States
+UY|URY|858|Uruguay
+UZ|UZB|860|Uzbekistan
+VA|VAT|336|Holy See (Vatican City State)
+VC|VCT|670|Saint Vincent and the Grenadines
+VE|VEN|862|Venezuela, Bolivarian Republic of
+VG|VGB|092|Virgin Islands, British
+VI|VIR|850|Virgin Islands, U.S.
+VN|VNM|704|Viet Nam
+VU|VUT|548|Vanuatu
+WF|WLF|876|Wallis and Futuna
+WS|WSM|882|Samoa
+YE|YEM|887|Yemen
+YT|MYT|175|Mayotte
+ZA|ZAF|710|South Africa
+ZM|ZMB|894|Zambia
+ZW|ZWE|716|Zimbabwe
+"""
+
+# Names operators actually type that ISO 3166 does not carry.
+_LOCATION_ALIASES = {
+    "uk": "GB", "england": "GB", "scotland": "GB", "wales": "GB",
+    "northern ireland": "GB", "great britain": "GB", "britain": "GB",
+    "usa": "US", "u.s.": "US", "u.s.a.": "US", "america": "US",
+    "united states of america": "US",
+    "czech republic": "CZ", "czechrepublic": "CZ",
+    "south korea": "KR", "republic of korea": "KR", "north korea": "KP",
+    "russia": "RU", "holland": "NL", "uae": "AE", "emirates": "AE",
+    "vietnam": "VN", "laos": "LA", "syria": "SY", "iran": "IR",
+    "bolivia": "BO", "tanzania": "TZ", "venezuela": "VE", "moldova": "MD",
+    "macedonia": "MK", "north macedonia": "MK", "brunei": "BN",
+    "cape verde": "CV", "ivory coast": "CI", "cote d ivoire": "CI",
+    "swaziland": "SZ", "burma": "MM", "east timor": "TL", "vatican": "VA",
+    "palestine": "PS", "turkey": "TR", "turkiye": "TR",
+    "hong kong": "HK", "macau": "MO", "taiwan": "TW",
+}
+
+
+def _normalize_location_key(value):
+    """Canonical lookup key: lowercase, punctuation to spaces, whitespace folded.
+
+    The index and the user input MUST go through this same function, otherwise
+    entries such as "u.s." are stored under one spelling and looked up under
+    another and can never match.
+    """
+    return " ".join(str(value).lower().replace(",", " ").replace(".", " ").split())
+
+
+def _build_location_index():
+    """alpha2 -> name, plus every accepted spelling -> alpha2."""
+    names = {}
+    lookup = {}
+    for line in _ISO_3166.strip().splitlines():
+        a2, a3, num, name = line.split("|")
+        names[a2] = name
+        for key in (a2, a3, num, name):
+            lookup[_normalize_location_key(key)] = a2
+    for alias, a2 in _LOCATION_ALIASES.items():
+        lookup[_normalize_location_key(alias)] = a2
+    return names, lookup
+
+
+_LOCATION_NAMES, _LOCATION_LOOKUP = _build_location_index()
+
+
 class NodeSetupCLI:
     """All CLI main functions"""
 
@@ -112,36 +423,105 @@ class NodeSetupCLI:
         if not sval:
             sval = "22"
         if not sval.isdigit():
-            print(f"Invalid SSH port: {sval!r}. Expected integer 1..65535.")
-            raise SystemExit(1)
+            raise ValueError(f"Invalid SSH port: {sval!r}. Expected integer 1..65535.")
         port = int(sval, 10)
         if not 1 <= port <= 65535:
-            print(f"Invalid SSH port: {port}. Expected integer 1..65535.")
-            raise SystemExit(1)
+            raise ValueError(f"Invalid SSH port: {port}. Expected integer 1..65535.")
         return str(port)
+
+    def _coerce_location(self, value) -> str:
+        """Validate LOCATION against ISO 3166-1 and normalise to alpha-2.
+
+        nym-node parses --location into a real country type, so anything it
+        cannot resolve aborts the node during init. Catch it here, while the
+        operator can still fix it.
+        """
+        raw = str(value).strip() if value is not None else ""
+        if not raw:
+            # nym-node-install.sh passes --location conditionally for mixnode and
+            # entry-gateway, but hard-requires it for exit-gateway. Mirror that:
+            # blank is legitimate everywhere except exit-gateway.
+            if getattr(self, "mode", "") == "exit-gateway":
+                raise ValueError(
+                    "Location is required for an exit-gateway. Give an ISO "
+                    "country code or name, e.g. 'CH', 'CHE' or 'Switzerland'."
+                )
+            return ""
+
+        key = _normalize_location_key(raw)
+        a2 = _LOCATION_LOOKUP.get(key)
+        if a2:
+            return a2
+
+        # Not a country. Offer the closest matches rather than just refusing.
+        import difflib
+        candidates = difflib.get_close_matches(
+            key, [n.lower() for n in _LOCATION_NAMES.values()], n=2, cutoff=0.75
+        )
+        hint = ""
+        if candidates:
+            suggestions = []
+            for cand in candidates:
+                for code, name in _LOCATION_NAMES.items():
+                    if name.lower() == cand:
+                        suggestions.append(f"{code} ({name})")
+                        break
+            hint = " Did you mean: " + ", ".join(suggestions) + "?"
+
+        raise ValueError(
+            f"'{raw}' is not an ISO 3166 country.{hint}\n"
+            "  LOCATION is the node's physical COUNTRY, not a city or region.\n"
+            "  Accepted: alpha-2 'CH', alpha-3 'CHE', numeric '756', "
+            "or the country name 'Switzerland'."
+        )
 
     def _resolve_field(self, args, existing, arg_name, env_key, prompt, *, default=None, validator=None):
         cli_val = getattr(args, arg_name, None)
 
         if cli_val is not None:
+            source = "cli"
             value = str(cli_val).strip()
         elif existing.get(env_key):
+            source = "env"
             value = str(existing[env_key]).strip()
         else:
+            source = "prompt"
             entered = input(prompt).strip()
             value = entered if entered else (default if default is not None else "")
 
-        if validator:
-            value = validator(value)
+        if not validator:
+            return value
 
-        return value
+        # Re-prompt on a bad value instead of persisting it. A value that came
+        # from env.sh or a CLI flag used to be reused verbatim on every re-run,
+        # so a typo could only be fixed by hand-editing env.sh.
+        while True:
+            try:
+                return validator(value)
+            except ValueError as err:
+                print(f"\n[ERROR] {err}\n")
+                if not sys.stdin.isatty():
+                    raise SystemExit(1)
+                if source == "env":
+                    print(f"  (the invalid value came from env.sh: {env_key}=\"{value}\")\n")
+                value = input(prompt).strip()
+                if not value and default is not None:
+                    value = default
+                source = "prompt"
 
     def ensure_env_values(self, args):
         """Collect env vars from args or prompt interactively, then save to env.sh."""
         env_file = Path("env.sh")
+
+        location_prompt = (
+            "Enter node location - ISO country code or name (e.g. CH, CHE or Switzerland): "
+            if getattr(self, "mode", "") == "exit-gateway"
+            else "Enter node location - ISO country code or name (e.g. CH), or press enter to skip: "
+        )
+
         fields = [
             ("hostname", "HOSTNAME", "Enter hostname (if you don't use a DNS, press enter): ", None, None),
-            ("location", "LOCATION", "Enter node location (country code or name): ", None, None),
+            ("location", "LOCATION", location_prompt, None, self._coerce_location),
             ("email", "EMAIL", "Enter your email: ", None, None),
             ("moniker", "MONIKER", "Enter node public moniker (visible in explorer & NymVPN app): ", None, None),
             ("description", "DESCRIPTION", "Enter short node public description: ", None, None),
@@ -794,7 +1174,10 @@ class ArgParser:
             help="WireGuard functionality switch: true / false"
         )
         install_parser.add_argument("--hostname", help="Node domain / hostname")
-        install_parser.add_argument("--location", help="Node location (country code or name)")
+        install_parser.add_argument(
+            "--location",
+            help="Node physical country: ISO 3166 alpha-2 (CH), alpha-3 (CHE), numeric (756) or name (Switzerland)",
+        )
         install_parser.add_argument("--email", help="Contact email for the node operator")
         install_parser.add_argument("--moniker", help="Public moniker displayed in explorer & NymVPN app")
         install_parser.add_argument("--description", help="Short public description of the node")

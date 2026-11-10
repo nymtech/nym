@@ -360,7 +360,7 @@ mod tests {
         use mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance};
         use mixnet_contract_common::rewarding::helpers::truncate_reward;
         use mixnet_contract_common::RoleAssignment;
-        use rand::RngCore;
+        use rand::Rng;
 
         #[test]
         fn with_no_delegation() {

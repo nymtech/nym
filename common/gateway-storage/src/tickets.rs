@@ -183,7 +183,7 @@ impl TicketStorageManager {
         sqlx::query_as!(
             UnverifiedTicketData,
             r#"
-                SELECT t1.ticket_id, t1.data as "data!"
+                SELECT t1.ticket_id as "ticket_id!", t1.data as "data!"
                     FROM ticket_data as t1
                 LEFT JOIN verified_tickets as t2
                 ON t1.ticket_id = t2.ticket_id

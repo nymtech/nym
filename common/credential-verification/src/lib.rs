@@ -66,7 +66,7 @@ impl CredentialVerifier {
 
         let spent = self
             .bandwidth_storage_manager
-            .storage
+            .storage()?
             .contains_ticket(serial_number)
             .await?;
         if spent {
@@ -95,9 +95,9 @@ impl CredentialVerifier {
         trace!("storing received ticket");
         let ticket_id = self
             .bandwidth_storage_manager
-            .storage
+            .storage()?
             .insert_received_ticket(
-                self.bandwidth_storage_manager.client_id,
+                self.bandwidth_storage_manager.client_id()?,
                 received_at,
                 self.credential.encoded_serial_number(),
                 self.credential.to_bytes(),
@@ -133,6 +133,12 @@ impl CredentialVerifier {
         if self.credential.data.payment.spend_value != 1 {
             nym_metrics::inc!("ecash_verification_failures_multiple_tickets");
             return Err(Error::MultipleTickets);
+        }
+
+        // proofs from provers that predate the coin-index binding carry no responses_r_k; the verifier
+        // may only start requiring it once this counter stops moving
+        if !self.credential.data.payment.proves_coin_index_binding() {
+            nym_metrics::inc!("ecash_verification_legacy_proofs_without_coin_index_binding");
         }
 
         if let Err(e) = self.check_credential_spending_date(spend_date.ecash_date()) {

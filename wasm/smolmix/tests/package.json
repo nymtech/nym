@@ -2,7 +2,8 @@
   "name": "smolmix-wasm-playwright-tests",
   "private": true,
   "scripts": {
-    "test": "playwright test",
+    "test": "playwright test --project=smoke-chromium --project=smoke-firefox --project=smoke-webkit --project=suite-chromium --project=suite-firefox --project=suite-webkit",
+    "test:probe": "playwright test --project=connection-probe",
     "test:smoke": "playwright test --project=smoke-chromium --project=smoke-firefox --project=smoke-webkit",
     "test:suite": "playwright test --project=suite-chromium --project=suite-firefox --project=suite-webkit",
     "test:chromium": "playwright test --project=smoke-chromium --project=suite-chromium",

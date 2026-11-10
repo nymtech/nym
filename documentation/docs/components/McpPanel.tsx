@@ -1,3 +1,5 @@
+"use client";
+
 // The "Ask AI" button opens this: instructions for pointing a coding agent at
 // the docs MCP server, rather than an in-page chat.
 

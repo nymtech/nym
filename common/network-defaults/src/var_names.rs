@@ -36,6 +36,11 @@ pub const NYXD_WS_LITE: &str = "NYXD_WS_LITE";
 pub const EXIT_POLICY_URL: &str = "EXIT_POLICY";
 pub const NYM_VPN_API: &str = "NYM_VPN_API";
 pub const NYM_VPN_APIS: &str = "NYM_VPN_APIS";
+
+// JSON-encoded `Vec<nym_network_defaults::v2::DnsFallback>`. If unset (or empty), the
+// compiled-in default static addresses for the selected network (`NETWORK_NAME`) are used
+// - currently only mainnet and sandbox have any; other networks get an empty list.
+pub const DNS_FALLBACKS: &str = "DNS_FALLBACKS";
 pub const CLIENT_STATS_COLLECTION_PROVIDER: &str = "CLIENT_STATS_COLLECTION_PROVIDER";
 pub const UPGRADE_MODE_ATTESTATION_URL: &str = "UPGRADE_MODE_ATTESTATION_URL";
 
@@ -45,6 +50,9 @@ pub const UPGRADE_MODE_ATTESTATION_URL: &str = "UPGRADE_MODE_ATTESTATION_URL";
 pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str = "UPGRADE_MODE_ATTESTER_ED25519_PUBKEY";
 pub const ROOT_ATTESTER_ED25519_BS58_PUBKEY: &str = "ROOT_ATTESTER_ED25519_PUBKEY";
 pub const NYX_TRUSTED_CHECKPOINT_URL: &str = "NYX_TRUSTED_CHECKPOINT_URL";
+/// Keeps its deployed spelling even though the Rust-side constant is now
+/// `mainnet::CONTRACT_ATTESTATION_SOURCES`: the list is one trust root for every attested
+/// contract, but renaming the variable would break every environment already setting it.
 pub const DIRECTORY_ATTESTATION_SOURCES: &str = "DIRECTORY_ATTESTATION_SOURCES";
 pub const DIRECTORY_CHECKPOINT: &str = "DIRECTORY_CHECKPOINT";
 

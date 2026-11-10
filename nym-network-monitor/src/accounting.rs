@@ -162,7 +162,7 @@ impl NetworkAccount {
     fn new() -> Self {
         let topology = TOPOLOGY.get().expect("Topology not set yet!").clone();
         let mut account = NetworkAccount {
-            topology: NymRouteProvider::new(topology, true),
+            topology: NymRouteProvider::new(Arc::new(topology), true),
             ..Default::default()
         };
         for fragment_set in monitoring::FRAGMENTS_SENT.iter() {

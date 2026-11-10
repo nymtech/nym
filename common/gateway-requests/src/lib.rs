@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #![allow(deprecated)] // silences clippy warning: deprecated associated function `nym_crypto::generic_array::GenericArray::<T, N>::clone_from_slice`: please upgrade to generic-array 1.x - TODO
 
-pub use nym_crypto::generic_array;
+pub use nym_crypto::hybrid_array;
 use nym_crypto::OutputSizeUser;
 use nym_sphinx::params::GatewayIntegrityHmacAlgorithm;
 

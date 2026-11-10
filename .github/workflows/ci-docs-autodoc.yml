@@ -1,0 +1,48 @@
+name: ci-docs-autodoc
+
+# Regenerates the committed command-output snippets (build-info and --help) that the docs
+# import, and commits them back to the branch it runs on. This replaces the old in-script
+# git checkout/commit/push in autodoc.sh: predev and `pnpm dev` now only read the committed
+# files and never build Rust.
+#
+# It runs only on demand (Actions > ci-docs-autodoc > Run workflow, on the branch to update).
+
+on:
+  workflow_dispatch:
+
+env:
+  CI_BOT_AUTHOR: "Nym bot"
+  CI_BOT_EMAIL: "nym-bot@users.noreply.github.com"
+
+jobs:
+  autodoc:
+    runs-on: arc-linux-latest
+    env:
+      RUSTUP_PERMIT_COPY_RENAME: 1
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Configure git identity
+        run: |
+          git config --global user.name "${{ env.CI_BOT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_BOT_EMAIL }}"
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler git
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
+      - name: Generate command snippets
+        run: ../scripts/next-scripts/autodoc.sh
+        working-directory: documentation/docs
+      - name: Commit regenerated snippets
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- documentation/docs/components/outputs/command-outputs/; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git add documentation/docs/components/outputs/command-outputs/
+          git commit -m "chore(docs): regenerate command snippets"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

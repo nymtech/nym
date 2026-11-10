@@ -7,11 +7,11 @@ use crate::support::{config, nyxd};
 use anyhow::{anyhow, bail, Context};
 use nym_coconut_dkg_common::types::{EpochId, EpochState};
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use std::path::Path;
 use tracing::{debug, warn};
 
-pub(crate) fn init_bte_keypair<R: RngCore + CryptoRng>(
+pub(crate) fn init_bte_keypair<R: CryptoRng>(
     rng: &mut R,
     config: &config::EcashSigner,
 ) -> anyhow::Result<()> {

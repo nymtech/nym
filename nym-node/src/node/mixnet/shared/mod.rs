@@ -5,9 +5,9 @@ use crate::config::Config;
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::handler::ConnectionHandler;
+use crate::node::mixnet::shared::final_hop::FinalHopResult;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
-use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
 use nym_mixnet_client::metrics::PacketTrace;
 use nym_node_metrics::NymNodeMetrics;
@@ -257,21 +257,14 @@ impl SharedData {
         }
     }
 
-    pub(super) fn try_push_message_to_client(
+    pub(super) async fn deliver_final_hop(
         &self,
         client: DestinationAddressBytes,
         message: Vec<u8>,
-    ) -> Result<(), Vec<u8>> {
-        self.final_hop.try_push_message_to_client(client, message)
-    }
-
-    pub(crate) async fn store_processed_packet_payload(
-        &self,
-        client_address: DestinationAddressBytes,
-        message: Vec<u8>,
-    ) -> Result<bool, GatewayStorageError> {
+        network_monitor_packet: bool,
+    ) -> FinalHopResult {
         self.final_hop
-            .store_processed_packet_payload(client_address, message)
+            .deliver_final_hop(client, message, network_monitor_packet)
             .await
     }
 }

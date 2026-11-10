@@ -1,3 +1,5 @@
+"use client";
+
 // Injects PageActions at the top of the page content via a client-side portal.
 // Done this way, not the theme.config `main` wrapper (which caused a hydration
 // mismatch) and not fixed positioning (which hid behind the navbar/banner): a
@@ -6,19 +8,15 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from 'next/router';
+import { usePathname } from 'next/navigation';
 import PageActions from 'components/PageActions';
 
 function contentEl(): HTMLElement | null {
-  return (
-    (document.querySelector('main') as HTMLElement | null) ||
-    (document.querySelector('.nextra-content') as HTMLElement | null) ||
-    (document.querySelector('article') as HTMLElement | null)
-  );
+  return document.querySelector('main');
 }
 
 export default function PageActionsMount() {
-  const router = useRouter();
+  const pathname = usePathname();
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -47,7 +45,7 @@ export default function PageActionsMount() {
       obs.disconnect();
       node.remove();
     };
-  }, [router.asPath]);
+  }, [pathname]);
 
   return host ? createPortal(<PageActions />, host) : null;
 }

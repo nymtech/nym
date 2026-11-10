@@ -1,12 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::requests::v1::{AdditionalSurbsV1, DataV1, HeartbeatV1};
 use crate::requests::v2::{AdditionalSurbsV2, DataV2, HeartbeatV2};
 use crate::{ReplySurbError, ReplySurbWithKeyRotation};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use std::fmt::{Display, Formatter};
 use std::mem;
 use thiserror::Error;
@@ -14,7 +13,6 @@ use thiserror::Error;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-pub(crate) mod v1;
 pub(crate) mod v2;
 
 pub const SENDER_TAG_SIZE: usize = 16;
@@ -47,7 +45,7 @@ impl Display for AnonymousSenderTag {
 }
 
 impl AnonymousSenderTag {
-    pub fn new_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+    pub fn new_random<R: CryptoRng>(rng: &mut R) -> Self {
         let mut bytes = [0u8; SENDER_TAG_SIZE];
         rng.fill_bytes(&mut bytes);
         AnonymousSenderTag(bytes)
@@ -112,15 +110,6 @@ pub struct RepliableMessage {
 impl Display for RepliableMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.content {
-            RepliableMessageContent::Data(content) => {
-                write!(f, "{content} from {}", self.sender_tag)
-            }
-            RepliableMessageContent::AdditionalSurbs(content) => {
-                write!(f, "{content} from {}", self.sender_tag)
-            }
-            RepliableMessageContent::Heartbeat(content) => {
-                write!(f, "{content} from {}", self.sender_tag)
-            }
             RepliableMessageContent::DataV2(content) => {
                 write!(f, "{content} from {}", self.sender_tag)
             }
@@ -136,22 +125,14 @@ impl Display for RepliableMessage {
 
 impl RepliableMessage {
     pub fn new_data(
-        use_legacy_surb_format: bool,
         data: Vec<u8>,
         sender_tag: AnonymousSenderTag,
         reply_surbs: Vec<ReplySurbWithKeyRotation>,
     ) -> Self {
-        let content = if use_legacy_surb_format {
-            RepliableMessageContent::Data(DataV1 {
-                message: data,
-                reply_surbs,
-            })
-        } else {
-            RepliableMessageContent::DataV2(DataV2 {
-                message: data,
-                reply_surbs,
-            })
-        };
+        let content = RepliableMessageContent::DataV2(DataV2 {
+            message: data,
+            reply_surbs,
+        });
 
         RepliableMessage {
             sender_tag,
@@ -160,15 +141,10 @@ impl RepliableMessage {
     }
 
     pub fn new_additional_surbs(
-        use_legacy_surb_format: bool,
         sender_tag: AnonymousSenderTag,
         reply_surbs: Vec<ReplySurbWithKeyRotation>,
     ) -> Self {
-        let content = if use_legacy_surb_format {
-            RepliableMessageContent::AdditionalSurbs(AdditionalSurbsV1 { reply_surbs })
-        } else {
-            RepliableMessageContent::AdditionalSurbsV2(AdditionalSurbsV2 { reply_surbs })
-        };
+        let content = RepliableMessageContent::AdditionalSurbsV2(AdditionalSurbsV2 { reply_surbs });
 
         RepliableMessage {
             sender_tag,
@@ -213,10 +189,6 @@ impl RepliableMessage {
 #[derive(Debug)]
 #[repr(u8)]
 enum RepliableMessageContentTag {
-    Data = 0,
-    AdditionalSurbs = 1,
-    Heartbeat = 2,
-
     // updated variants that slightly change SURB encoding
     // to allow for variable number of hops as well as using payload key seeds
     DataV2 = 3,
@@ -229,11 +201,6 @@ impl TryFrom<u8> for RepliableMessageContentTag {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            _ if value == (RepliableMessageContentTag::Data as u8) => Ok(Self::Data),
-            _ if value == (RepliableMessageContentTag::AdditionalSurbs as u8) => {
-                Ok(Self::AdditionalSurbs)
-            }
-            _ if value == (RepliableMessageContentTag::Heartbeat as u8) => Ok(Self::Heartbeat),
             _ if value == (RepliableMessageContentTag::DataV2 as u8) => Ok(Self::DataV2),
             _ if value == (RepliableMessageContentTag::AdditionalSurbsV2 as u8) => {
                 Ok(Self::AdditionalSurbsV2)
@@ -247,10 +214,6 @@ impl TryFrom<u8> for RepliableMessageContentTag {
 // sent by original sender that initialised the communication that knows address of the remote
 #[derive(Debug)]
 pub enum RepliableMessageContent {
-    Data(DataV1),
-    AdditionalSurbs(AdditionalSurbsV1),
-    Heartbeat(HeartbeatV1),
-
     DataV2(DataV2),
     AdditionalSurbsV2(AdditionalSurbsV2),
     HeartbeatV2(HeartbeatV2),
@@ -259,9 +222,6 @@ pub enum RepliableMessageContent {
 impl RepliableMessageContent {
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
-            RepliableMessageContent::Data(content) => content.into_bytes(),
-            RepliableMessageContent::AdditionalSurbs(content) => content.into_bytes(),
-            RepliableMessageContent::Heartbeat(content) => content.into_bytes(),
             RepliableMessageContent::DataV2(content) => content.into_bytes(),
             RepliableMessageContent::AdditionalSurbsV2(content) => content.into_bytes(),
             RepliableMessageContent::HeartbeatV2(content) => content.into_bytes(),
@@ -277,15 +237,6 @@ impl RepliableMessageContent {
         }
 
         match tag {
-            RepliableMessageContentTag::Data => {
-                Ok(RepliableMessageContent::Data(DataV1::from_bytes(bytes)?))
-            }
-            RepliableMessageContentTag::AdditionalSurbs => Ok(
-                RepliableMessageContent::AdditionalSurbs(AdditionalSurbsV1::from_bytes(bytes)?),
-            ),
-            RepliableMessageContentTag::Heartbeat => Ok(RepliableMessageContent::Heartbeat(
-                HeartbeatV1::from_bytes(bytes)?,
-            )),
             RepliableMessageContentTag::DataV2 => {
                 Ok(RepliableMessageContent::DataV2(DataV2::from_bytes(bytes)?))
             }
@@ -300,11 +251,6 @@ impl RepliableMessageContent {
 
     fn tag(&self) -> RepliableMessageContentTag {
         match self {
-            RepliableMessageContent::Data { .. } => RepliableMessageContentTag::Data,
-            RepliableMessageContent::AdditionalSurbs { .. } => {
-                RepliableMessageContentTag::AdditionalSurbs
-            }
-            RepliableMessageContent::Heartbeat { .. } => RepliableMessageContentTag::Heartbeat,
             RepliableMessageContent::DataV2(_) => RepliableMessageContentTag::DataV2,
             RepliableMessageContent::AdditionalSurbsV2(_) => {
                 RepliableMessageContentTag::AdditionalSurbsV2
@@ -315,9 +261,6 @@ impl RepliableMessageContent {
 
     fn serialized_size(&self) -> usize {
         match self {
-            RepliableMessageContent::Data(content) => content.serialized_len(),
-            RepliableMessageContent::AdditionalSurbs(content) => content.serialized_len(),
-            RepliableMessageContent::Heartbeat(content) => content.serialized_len(),
             RepliableMessageContent::DataV2(content) => content.serialized_len(),
             RepliableMessageContent::AdditionalSurbsV2(content) => content.serialized_len(),
             RepliableMessageContent::HeartbeatV2(content) => content.serialized_len(),
@@ -484,7 +427,6 @@ mod tests {
     use super::*;
 
     mod fixtures {
-        use crate::requests::v1::{AdditionalSurbsV1, DataV1, HeartbeatV1};
         use crate::requests::v2::{AdditionalSurbsV2, DataV2, HeartbeatV2};
         use crate::requests::{AnonymousSenderTag, RepliableMessageContent, ReplyMessageContent};
         use crate::{ReplySurb, ReplySurbWithKeyRotation, SurbEncryptionKey};
@@ -493,11 +435,10 @@ mod tests {
         use nym_sphinx_params::SphinxKeyRotation;
         use nym_sphinx_types::{
             Delay, Destination, DestinationAddressBytes, NODE_ADDRESS_LENGTH, Node,
-            NodeAddressBytes, PrivateKey, SURBMaterial, X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
+            NodeAddressBytes, PAYLOAD_KEYS_SEEDS_VERSION, PrivateKey, SURBMaterial,
         };
-        use rand::{Rng, RngCore};
+        use rand::{Rng, RngExt, SeedableRng};
         use rand_chacha::ChaCha20Rng;
-        use rand_chacha::rand_core::SeedableRng;
 
         pub(crate) const LEGACY_HOPS: u8 = 4;
 
@@ -509,7 +450,7 @@ mod tests {
         pub(super) fn random_vec_u8(rng: &mut ChaCha20Rng, n: usize) -> Vec<u8> {
             let mut vec = Vec::with_capacity(n);
             for _ in 0..n {
-                vec.push(rng.r#gen())
+                vec.push(rng.random())
             }
             vec
         }
@@ -542,7 +483,7 @@ mod tests {
             }
         }
 
-        pub(super) fn reply_surb(rng: &mut ChaCha20Rng, legacy: bool, hops: u8) -> ReplySurb {
+        pub(super) fn reply_surb(rng: &mut ChaCha20Rng, hops: u8) -> ReplySurb {
             let route = (0..hops).map(|_| node(rng)).collect();
             let delays = (0..hops)
                 .map(|_| Delay::new_from_nanos(rng.next_u64()))
@@ -558,11 +499,8 @@ mod tests {
                 identifier_bytes,
             );
 
-            let mut surb_material = SURBMaterial::new(route, delays, destination);
-            if legacy {
-                surb_material =
-                    surb_material.with_version(X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION);
-            }
+            let surb_material =
+                SURBMaterial::new(route, delays, destination, PAYLOAD_KEYS_SEEDS_VERSION);
 
             ReplySurb {
                 surb: surb_material.construct_SURB().unwrap(),
@@ -573,45 +511,13 @@ mod tests {
         pub(super) fn reply_surbs(
             rng: &mut ChaCha20Rng,
             n: usize,
-            legacy: bool,
             hops: u8,
         ) -> Vec<ReplySurbWithKeyRotation> {
             let mut surbs = Vec::with_capacity(n);
             for _ in 0..n {
-                surbs.push(
-                    reply_surb(rng, legacy, hops).with_key_rotation(SphinxKeyRotation::Unknown),
-                )
+                surbs.push(reply_surb(rng, hops).with_key_rotation(SphinxKeyRotation::Unknown))
             }
             surbs
-        }
-
-        pub(super) fn repliable_content_data_v1(
-            rng: &mut ChaCha20Rng,
-            msg_len: usize,
-            surbs: usize,
-        ) -> RepliableMessageContent {
-            RepliableMessageContent::Data(DataV1 {
-                message: random_vec_u8(rng, msg_len),
-                reply_surbs: reply_surbs(rng, surbs, true, LEGACY_HOPS),
-            })
-        }
-
-        pub(super) fn repliable_content_surbs_v1(
-            rng: &mut ChaCha20Rng,
-            surbs: usize,
-        ) -> RepliableMessageContent {
-            RepliableMessageContent::AdditionalSurbs(AdditionalSurbsV1 {
-                reply_surbs: reply_surbs(rng, surbs, true, LEGACY_HOPS),
-            })
-        }
-
-        pub(super) fn repliable_content_heartbeat_v1(
-            rng: &mut ChaCha20Rng,
-            surbs: usize,
-        ) -> RepliableMessageContent {
-            RepliableMessageContent::Heartbeat(HeartbeatV1 {
-                additional_reply_surbs: reply_surbs(rng, surbs, true, LEGACY_HOPS),
-            })
         }
 
         pub(super) fn reply_content_data(
@@ -641,7 +547,7 @@ mod tests {
         ) -> RepliableMessageContent {
             RepliableMessageContent::DataV2(DataV2 {
                 message: random_vec_u8(rng, msg_len),
-                reply_surbs: reply_surbs(rng, surbs, false, surb_hops),
+                reply_surbs: reply_surbs(rng, surbs, surb_hops),
             })
         }
 
@@ -651,7 +557,7 @@ mod tests {
             surb_hops: u8,
         ) -> RepliableMessageContent {
             RepliableMessageContent::AdditionalSurbsV2(AdditionalSurbsV2 {
-                reply_surbs: reply_surbs(rng, surbs, false, surb_hops),
+                reply_surbs: reply_surbs(rng, surbs, surb_hops),
             })
         }
 
@@ -661,7 +567,7 @@ mod tests {
             surb_hops: u8,
         ) -> RepliableMessageContent {
             RepliableMessageContent::HeartbeatV2(HeartbeatV2 {
-                additional_reply_surbs: reply_surbs(rng, surbs, false, surb_hops),
+                additional_reply_surbs: reply_surbs(rng, surbs, surb_hops),
             })
         }
     }
@@ -670,59 +576,6 @@ mod tests {
     mod repliable_message {
         use super::*;
         use crate::requests::tests::fixtures::LEGACY_HOPS;
-
-        #[test]
-        fn serialized_size_matches_actual_serialization_for_v1_messages() {
-            let mut rng = fixtures::test_rng();
-
-            let data1 = RepliableMessage {
-                sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_data_v1(&mut rng, 10000, 0),
-            };
-            assert_eq!(data1.serialized_size(), data1.into_bytes().len());
-
-            let data2 = RepliableMessage {
-                sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_data_v1(&mut rng, 10, 100),
-            };
-            assert_eq!(data2.serialized_size(), data2.into_bytes().len());
-
-            let data3 = RepliableMessage {
-                sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_data_v1(&mut rng, 100000, 1000),
-            };
-            assert_eq!(data3.serialized_size(), data3.into_bytes().len());
-
-            let additional_surbs1 = RepliableMessage {
-                sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_surbs_v1(&mut rng, 1),
-            };
-            assert_eq!(
-                additional_surbs1.serialized_size(),
-                additional_surbs1.into_bytes().len()
-            );
-
-            let additional_surbs2 = RepliableMessage {
-                sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_surbs_v1(&mut rng, 1000),
-            };
-            assert_eq!(
-                additional_surbs2.serialized_size(),
-                additional_surbs2.into_bytes().len()
-            );
-
-            let heartbeat1 = RepliableMessage {
-                sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_heartbeat_v1(&mut rng, 1),
-            };
-            assert_eq!(heartbeat1.serialized_size(), heartbeat1.into_bytes().len());
-
-            let heartbeat2 = RepliableMessage {
-                sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_heartbeat_v1(&mut rng, 1000),
-            };
-            assert_eq!(heartbeat2.serialized_size(), heartbeat2.into_bytes().len());
-        }
 
         #[test]
         fn serialized_size_matches_actual_serialization_for_v2_messages() {
@@ -803,38 +656,6 @@ mod tests {
     mod repliable_message_content {
         use super::*;
         use crate::requests::tests::fixtures::LEGACY_HOPS;
-
-        #[test]
-        fn serialized_size_matches_actual_serialization_for_v1_messages() {
-            let mut rng = fixtures::test_rng();
-
-            let data1 = fixtures::repliable_content_data_v1(&mut rng, 10000, 0);
-            assert_eq!(data1.serialized_size(), data1.into_bytes().len());
-
-            let data2 = fixtures::repliable_content_data_v1(&mut rng, 10, 100);
-            assert_eq!(data2.serialized_size(), data2.into_bytes().len());
-
-            let data3 = fixtures::repliable_content_data_v1(&mut rng, 100000, 1000);
-            assert_eq!(data3.serialized_size(), data3.into_bytes().len());
-
-            let additional_surbs1 = fixtures::repliable_content_surbs_v1(&mut rng, 1);
-            assert_eq!(
-                additional_surbs1.serialized_size(),
-                additional_surbs1.into_bytes().len()
-            );
-
-            let additional_surbs2 = fixtures::repliable_content_surbs_v1(&mut rng, 1000);
-            assert_eq!(
-                additional_surbs2.serialized_size(),
-                additional_surbs2.into_bytes().len()
-            );
-
-            let heartbeat1 = fixtures::repliable_content_heartbeat_v1(&mut rng, 1);
-            assert_eq!(heartbeat1.serialized_size(), heartbeat1.into_bytes().len());
-
-            let heartbeat2 = fixtures::repliable_content_heartbeat_v1(&mut rng, 1000);
-            assert_eq!(heartbeat2.serialized_size(), heartbeat2.into_bytes().len());
-        }
 
         #[test]
         fn serialized_size_matches_actual_serialization_for_v2_messages() {

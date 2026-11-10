@@ -6,6 +6,7 @@ use dashmap::DashMap;
 use futures::{Sink, SinkExt, StreamExt};
 use nym_noise::config::NoiseConfig;
 use nym_noise::upgrade_noise_initiator;
+use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -608,7 +609,13 @@ impl Client {
 
 impl SendWithoutResponse for Client {
     fn send_without_response(&self, packet: Traced<MixPacket>) -> io::Result<()> {
-        let address = packet.inner.next_hop_address();
+        let address = match packet.inner.next_hop() {
+            NymNodeRoutingAddress::Client(_) => {
+                warn!("mix packet addressed to a client in the legacy send_without_response path. This should never happen!");
+                return Ok(());
+            }
+            NymNodeRoutingAddress::Node(address) => address,
+        };
         trace!("Sending packet to {address}");
 
         // capture the sample state before the trace is moved into `queued`
@@ -687,10 +694,9 @@ mod tests {
     use super::*;
     use nym_crypto::asymmetric::x25519;
     use nym_noise::config::NoiseNetworkView;
-    use rand::rngs::OsRng;
 
     fn dummy_client() -> Client {
-        let mut rng = OsRng; //for test only, so we don't care if rng source isn't crypto grade
+        let mut rng = rand::rng(); //for test only, so we don't care if rng source isn't crypto grade
         Client::new(
             Config {
                 initial_reconnection_backoff: Duration::from_millis(10_000),

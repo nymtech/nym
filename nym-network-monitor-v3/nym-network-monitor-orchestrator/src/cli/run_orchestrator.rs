@@ -3,19 +3,26 @@
 
 use super::env::vars::*;
 use crate::orchestrator::NetworkMonitorOrchestrator;
-use crate::orchestrator::config::Config;
+use crate::orchestrator::config::{AggregationWindows, Config, LivenessConfig};
 use anyhow::{Context, anyhow, bail};
 use nym_crypto::asymmetric::ed25519;
-use nym_validator_client::nyxd::bip39;
+use nym_validator_client::nyxd::{Coin, bip39};
 use std::mem;
 use std::net::SocketAddr;
 use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::info;
 use url::Url;
 use zeroize::Zeroizing;
+
+/// Parses a CLI/env value like `1000000unym` into a [`Coin`], surfacing the parse error as a string
+/// so clap can report it.
+fn parse_minimum_balance(raw: &str) -> Result<Coin, String> {
+    Coin::from_str(raw).map_err(|err| err.to_string())
+}
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -32,9 +39,34 @@ pub(crate) struct Args {
     test_interval: Duration,
 
     /// Maximum time a single test run is allowed to run before being considered timed out
-    /// (e.g. `5m`).
+    /// (e.g. `5m`). Used as the stress kind's lease budget.
     #[clap(long, env = NYM_NETWORK_MONITOR_TEST_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "5m")]
     test_timeout: Duration,
+
+    /// Whether liveness testing may be assigned to agents (e.g. `--liveness-enabled false`).
+    /// Takes an explicit value rather than being a bare flag, so that a deployment can switch
+    /// liveness off through the environment without a redeploy.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_ENABLED_ARG, action = clap::ArgAction::Set, default_value_t = true)]
+    liveness_enabled: bool,
+
+    /// How often each node should be liveness-tested, per role (e.g. `15m`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_TEST_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
+    liveness_test_interval: Duration,
+
+    /// Maximum time a single liveness wave is allowed to run before its targets are released for
+    /// reassignment (e.g. `1m`). Bounds ONE concurrent wave, not the sum over its targets, and has
+    /// to cover the slower of the two probes, which is the gateway one.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_TEST_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "1m")]
+    liveness_test_timeout: Duration,
+
+    /// Maximum number of targets handed out in a single mixnode liveness assignment.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_MIXNODE_WAVE_SIZE_ARG, default_value = "100")]
+    liveness_mixnode_wave_size: NonZeroUsize,
+
+    /// Maximum number of targets handed out in a single gateway liveness assignment. Lower than
+    /// the mixnode wave, since each target costs the agent a live client session.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_GATEWAY_WAVE_SIZE_ARG, default_value = "50")]
+    liveness_gateway_wave_size: NonZeroUsize,
 
     /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
     #[clap(long, env = NYM_NETWORK_MONITOR_HTTP_SERVER_BIND_ADDRESS_ARG, default_value = "0.0.0.0:8080")]
@@ -68,7 +100,7 @@ pub(crate) struct Args {
     node_refresh_rate: Duration,
 
     /// Timeout for querying a single node for its detailed information (sphinx key, noise key,
-    /// etc.). Queries that exceed this budget leave the corresponding fields as `NULL`
+    /// etc.). A node that exceeds this budget keeps whatever an earlier cycle learned about it
     /// (e.g. `10s`).
     #[clap(long, env = NYM_NETWORK_MONITOR_NODE_INFO_QUERY_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "10s")]
     node_info_query_timeout: Duration,
@@ -85,7 +117,8 @@ pub(crate) struct Args {
 
     /// Maximum age of a completed test run row before it is evicted from the local database.
     /// Rows older than this are assumed to have already been submitted to the nym-api
-    /// (e.g. `7d`, `24h`).
+    /// (e.g. `7d`, `24h`). Must exceed the longest aggregation window, since aggregates are
+    /// computed from these rows.
     #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration, default_value = "7d",)]
     testrun_eviction_age: Duration,
 
@@ -110,9 +143,51 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
     result_submission_interval: Duration,
 
-    /// Maximum number of stress testing results to submit in a single POST request
+    /// Maximum number of results to submit in a single POST request, applied per stream
     #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_BATCH_SIZE_ARG, default_value = "50")]
     result_submission_batch_size: NonZeroUsize,
+
+    /// How far back a stress aggregate reaches from the start of the epoch it is filed under
+    /// (e.g. `24h`). Longer than the liveness window because the stress cadence is an order of
+    /// magnitude slower, so it needs the span to collect comparable evidence.
+    #[clap(long, env = NYM_NETWORK_MONITOR_STRESS_AGGREGATION_WINDOW_ARG, value_parser = humantime::parse_duration, default_value = "24h")]
+    stress_aggregation_window: Duration,
+
+    /// How far back a liveness aggregate reaches from the start of the epoch it is filed under
+    /// (e.g. `6h`). Shorter than the stress window, which keeps the figure responsive to a node
+    /// that has just broken.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_AGGREGATION_WINDOW_ARG, value_parser = humantime::parse_duration, default_value = "6h")]
+    liveness_aggregation_window: Duration,
+
+    /// Maximum age of a materialised epoch aggregate or config score before it is evicted from the
+    /// local database (e.g. `30d`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_AGGREGATE_RETENTION_ARG, value_parser = humantime::parse_duration, default_value = "30d")]
+    aggregate_retention: Duration,
+
+    /// How long a node's cached on-chain standing (balance + feegrant) stays valid before it is due
+    /// to be re-queried, before jitter (e.g. `24h`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_CAPABILITY_REFRESH_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "24h")]
+    chain_capability_refresh_interval: Duration,
+
+    /// Upper bound on the random jitter added to each node's capability re-query time, so a population
+    /// cached together does not all fall due at once (e.g. `1h`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_CAPABILITY_REFRESH_JITTER_ARG, value_parser = humantime::parse_duration, default_value = "1h")]
+    chain_capability_refresh_jitter: Duration,
+
+    /// Maximum number of nodes whose on-chain standing is queried concurrently by the capability
+    /// sweep.
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_CAPABILITY_QUERY_CONCURRENCY_ARG, default_value = "8")]
+    chain_capability_query_concurrency: NonZeroUsize,
+
+    /// Minimum on-chain balance a node must hold to count as able to transact for config scoring
+    /// (e.g. `1000000unym`). Its denom is also the denom the capability sweep queries balances in.
+    #[clap(long, env = NYM_NETWORK_MONITOR_MINIMUM_ON_CHAIN_BALANCE_ARG, value_parser = parse_minimum_balance, default_value = "1000000unym")]
+    minimum_on_chain_balance: Coin,
+
+    /// Config-score penalty for a node that cannot transact on chain (balance below the minimum and
+    /// no feegrant), as a fraction in [0, 1]. Default 0.2 keeps 80% of the score.
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_INTERACTIONS_PENALTY_ARG, default_value_t = 0.2)]
+    chain_interactions_penalty: f64,
 }
 
 impl Args {
@@ -123,12 +198,19 @@ impl Args {
     /// Note: `orchestrator_token`, `mnemonic`, and `private_key` are not part of [`Config`]
     /// and must be handled separately by the caller.
     pub(crate) fn build_orchestrator_config(&self) -> anyhow::Result<Config> {
-        Ok(Config {
+        let config = Config {
             nyxd_rpc_endpoint: self.rpc_url.clone(),
             nym_api_endpoint: self.nym_api_endpoint.clone(),
             http_server_bind_address: self.http_server_bind_address,
             test_interval: self.test_interval,
             test_timeout: self.test_timeout,
+            liveness: LivenessConfig {
+                enabled: self.liveness_enabled,
+                test_interval: self.liveness_test_interval,
+                test_timeout: self.liveness_test_timeout,
+                mixnode_wave_size: self.liveness_mixnode_wave_size.get(),
+                gateway_wave_size: self.liveness_gateway_wave_size.get(),
+            },
             database_path: self.database_path.clone(),
             node_refresh_rate: self.node_refresh_rate,
             node_info_query_timeout: self.node_info_query_timeout,
@@ -150,7 +232,22 @@ impl Args {
             chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
             result_submission_interval: self.result_submission_interval,
             result_submission_batch_size: self.result_submission_batch_size.get(),
-        })
+            aggregation_windows: AggregationWindows {
+                stress: self.stress_aggregation_window,
+                liveness: self.liveness_aggregation_window,
+            },
+            aggregate_retention: self.aggregate_retention,
+            chain_capability_refresh_interval: self.chain_capability_refresh_interval,
+            chain_capability_refresh_jitter: self.chain_capability_refresh_jitter,
+            chain_capability_query_concurrency: self.chain_capability_query_concurrency,
+            minimum_on_chain_balance: self.minimum_on_chain_balance.clone(),
+            chain_interactions_penalty: self.chain_interactions_penalty,
+        };
+
+        // built, then checked: a config that cannot produce sound aggregates is rejected here rather
+        // than discovered once the first materialisation truncates
+        config.validate()?;
+        Ok(config)
     }
 
     /// Moves the orchestrator agents token out of `self`, zeroizing the original.
@@ -216,4 +313,137 @@ pub(crate) async fn execute(mut args: Args) -> anyhow::Result<()> {
     .await?;
     orchestrator.run().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    // `Args` is a subcommand's argument group, so it needs a parser root to be exercised on its own
+    #[derive(Parser)]
+    struct TestCli {
+        #[clap(flatten)]
+        args: Args,
+    }
+
+    /// The arguments with no default, which every parse has to supply. The mnemonic is the
+    /// all-zeros bip39 test vector - it still has to pass checksum validation to parse.
+    const REQUIRED: &[&str] = &[
+        "run-orchestrator",
+        "--agents-token",
+        "agents-token",
+        "--metrics-and-results-token",
+        "metrics-token",
+        "--nym-api-endpoint",
+        "https://nym-api.example.com/api",
+        "--mnemonic",
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "--database-path",
+        "/var/lib/nym-network-monitor/db.sqlite",
+        "--private-key",
+        "6HRy7XkUqDPr1JdKPKGdBnDaKvbNJhCTAqrnQNVJEmS7",
+    ];
+
+    /// Parses the arguments and builds the config, surfacing the build error rather than unwrapping
+    /// it, for the cases that are about a config being rejected.
+    fn try_build_config(overrides: &[&str]) -> anyhow::Result<Config> {
+        let argv: Vec<&str> = REQUIRED.iter().chain(overrides.iter()).copied().collect();
+        TestCli::try_parse_from(argv)
+            .expect("failed to parse arguments")
+            .args
+            .build_orchestrator_config()
+    }
+
+    fn parse_config(overrides: &[&str]) -> Config {
+        try_build_config(overrides).expect("failed to build the config")
+    }
+
+    fn parse(overrides: &[&str]) -> LivenessConfig {
+        parse_config(overrides).liveness
+    }
+
+    #[test]
+    fn liveness_knobs_carry_their_documented_defaults() {
+        let liveness = parse(&[]);
+        assert!(liveness.enabled);
+        assert_eq!(liveness.test_interval, Duration::from_secs(15 * 60));
+        assert_eq!(liveness.test_timeout, Duration::from_secs(60));
+
+        // the two waves are sized independently, the gateway one lower because each of its targets
+        // costs a live client session rather than a Noise connection
+        assert_eq!(liveness.mixnode_wave_size, 100);
+        assert_eq!(liveness.gateway_wave_size, 50);
+    }
+
+    // every one of these values is provisional, so being able to move it without a code change is
+    // itself a requirement. the enable flag is the load-bearing case: as a bare presence flag it
+    // would parse and then be impossible to switch off, which is the one thing it exists to do
+    #[test]
+    fn every_liveness_knob_is_overridable() {
+        let liveness = parse(&[
+            "--liveness-enabled",
+            "false",
+            "--liveness-test-interval",
+            "3m",
+            "--liveness-test-timeout",
+            "30s",
+            "--liveness-mixnode-wave-size",
+            "7",
+            "--liveness-gateway-wave-size",
+            "3",
+        ]);
+
+        assert!(!liveness.enabled);
+        assert_eq!(liveness.test_interval, Duration::from_secs(3 * 60));
+        assert_eq!(liveness.test_timeout, Duration::from_secs(30));
+        assert_eq!(liveness.mixnode_wave_size, 7);
+        assert_eq!(liveness.gateway_wave_size, 3);
+    }
+
+    // the shipped defaults have to be a configuration that starts, or the binary is dead on arrival
+    #[test]
+    fn shipped_defaults_pass_validation() {
+        assert!(try_build_config(&[]).is_ok());
+    }
+
+    // a window reaching further back than retention would be materialised over truncated evidence,
+    // so the relationship is checked rather than left to surface as quietly wrong aggregates. the
+    // boundary is equality: a margin of exactly zero leaves no room for the run at the window's far
+    // edge to survive until materialisation reads it
+    #[test]
+    fn testrun_retention_not_exceeding_the_longest_window_is_rejected() {
+        // below the 24h stress window
+        let err = try_build_config(&["--testrun-eviction-age", "12h"])
+            .expect_err("a retention below the longest window was accepted");
+        // humantime renders 24h as "1day"
+        let message = err.to_string();
+        assert!(
+            message.contains("12h") && message.contains("1day"),
+            "the error should name both values, got: {message}"
+        );
+
+        // and equal to it, since the check is strict
+        assert!(
+            try_build_config(&["--testrun-eviction-age", "24h"]).is_err(),
+            "a retention equal to the longest window was accepted"
+        );
+    }
+
+    // an assignment with no targets is not a valid assignment, so an empty wave is rejected at
+    // parse time rather than producing one at dispatch. asserted per flag: the two waves are
+    // separate knobs, so one of them keeping its NonZero parser proves nothing about the other
+    #[test]
+    fn a_zero_wave_size_is_rejected() {
+        for flag in [
+            "--liveness-mixnode-wave-size",
+            "--liveness-gateway-wave-size",
+        ] {
+            let argv: Vec<&str> = REQUIRED.iter().copied().chain([flag, "0"]).collect();
+            assert!(
+                TestCli::try_parse_from(argv).is_err(),
+                "{flag} accepted an empty wave"
+            );
+        }
+    }
 }

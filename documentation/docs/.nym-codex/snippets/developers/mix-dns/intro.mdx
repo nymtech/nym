@@ -1,0 +1,20 @@
+---
+title: "mix-dns"
+aspect: design
+aspect_review: true
+---
+
+[`@nymproject/mix-dns`](https://www.npmjs.com/package/@nymproject/mix-dns) resolves hostnames to IPs through the Nym mixnet. Each lookup is a DNS-over-HTTPS (DoH) request to a public resolver via the [IPR (Internet Packet Router)](snippet:nym/network/infrastructure/exit-services/ip-packet-router) exit gateway, not through the browser or OS resolver.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your browser app                                            │
+│    └─ mixDNS('example.com')                                  │
+│         └─ mix-tunnel (smolmix-wasm, Web Worker)             │
+│              └─ DoH request (TCP + TLS) via the IPR          │
+│                   └─ DoH resolver (default Quad9, then       │
+│                      Cloudflare, then Google)                │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The TLS session runs from the WASM client to the resolver, so the IPR forwards only ciphertext. The resolver sees a query from the IPR's IP, not yours, and the browser's own resolver path (the OS stub resolver, any local DoH) is bypassed entirely.

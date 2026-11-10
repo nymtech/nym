@@ -5,7 +5,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 publish = false
@@ -37,3 +36,5 @@ nym-bin-common = { workspace = true, features = [
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 futures = { workspace = true }
 tempfile.workspace = true
+
+[lints]

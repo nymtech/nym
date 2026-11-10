@@ -20,6 +20,7 @@ mod mixnet_stream;
 pub(crate) mod protocol;
 
 pub use mixnet_stream::MixnetStream;
+use nym_topology::NymTopologyError;
 pub use protocol::StreamId;
 
 use std::collections::{BTreeMap, HashMap};
@@ -47,9 +48,6 @@ use protocol::{decode_stream_message, encode_stream_message};
 
 use crate::mixnet::native_client::MixnetClient;
 use crate::{Error, Result};
-
-/// Default idle timeout before a stream is considered stale and cleaned up.
-pub(crate) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 /// Maximum interval between stale-stream checks. The actual check interval
 /// is `min(idle_timeout, MAX_CLEANUP_INTERVAL)` so that short idle timeouts
@@ -830,15 +828,12 @@ pub(crate) async fn open_stream(
     // otherwise the Open dies in the send task with only a warn log. The
     // empty check separates "our view is gone" from "unknown gateway".
     {
-        let permit = client
+        client
             .client_state
             .topology_accessor
-            .get_read_permit()
-            .await;
-        permit
-            .topology
-            .ensure_not_empty()
-            .and_then(|()| permit.egress_by_identity(recipient.gateway()).map(|_| ()))
+            .current_route_provider()
+            .ok_or(NymTopologyError::EmptyNetworkTopology)
+            .and_then(|topology| topology.egress_by_identity(recipient.gateway()).map(|_| ()))
     }
     .map_err(|source| Error::UnroutableRecipient {
         recipient: Box::new(recipient),

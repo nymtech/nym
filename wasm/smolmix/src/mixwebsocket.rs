@@ -85,7 +85,10 @@ pub fn mix_websocket(
             let handle_id = WS_NEXT_ID.fetch_add(1, Ordering::Relaxed);
 
             let handles = WS_HANDLES.get_or_init(|| Mutex::new(HashMap::new()));
-            handles.lock().unwrap().insert(handle_id, WsHandle { tx });
+            handles
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .insert(handle_id, WsHandle { tx });
 
             // Fire "open" before spawning the recv loop so JS sees it first.
             fire_ws_event(
@@ -117,7 +120,7 @@ pub fn ws_send(handle_id: u32, data: JsValue) -> Result<(), JsValue> {
             &s[..util::floor_char_boundary(&s, 120)]
         };
         util::debug_log!("[ws:{handle_id}] send text ({} bytes): {preview}", s.len());
-        Message::Text(s)
+        Message::Text(s.into())
     } else if let Some(arr) = data.dyn_ref::<js_sys::Uint8Array>() {
         let v = arr.to_vec();
         util::debug_log!(
@@ -125,7 +128,7 @@ pub fn ws_send(handle_id: u32, data: JsValue) -> Result<(), JsValue> {
             v.len(),
             util::hex_preview(&v, 32)
         );
-        Message::Binary(v)
+        Message::Binary(v.into())
     } else if let Some(buf) = data.dyn_ref::<js_sys::ArrayBuffer>() {
         let v = js_sys::Uint8Array::new(buf).to_vec();
         util::debug_log!(
@@ -133,7 +136,7 @@ pub fn ws_send(handle_id: u32, data: JsValue) -> Result<(), JsValue> {
             v.len(),
             util::hex_preview(&v, 32)
         );
-        Message::Binary(v)
+        Message::Binary(v.into())
     } else {
         return Err(JsValue::from_str(
             "unsupported data type (expected string, Uint8Array, or ArrayBuffer)",
@@ -153,7 +156,9 @@ fn send_ws_command(handle_id: u32, cmd: WsCommand) -> Result<(), JsValue> {
     let handles = WS_HANDLES
         .get()
         .ok_or_else(|| JsValue::from_str("no active WebSocket connections"))?;
-    let guard = handles.lock().unwrap();
+    let guard = handles
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let handle = guard
         .get(&handle_id)
         .ok_or_else(|| JsValue::from_str(&format!("WebSocket handle {handle_id} not found")))?;
@@ -173,7 +178,7 @@ async fn ws_task(
     on_event: js_sys::Function,
 ) {
     use async_tungstenite::tungstenite::Message;
-    use futures::{SinkExt, StreamExt, select};
+    use futures::{StreamExt, select};
 
     util::debug_log!("[ws:{handle_id}] background task started");
 
@@ -195,7 +200,7 @@ async fn ws_task(
                         &on_event,
                         handle_id,
                         "binary",
-                        &js_sys::Uint8Array::from(b.as_slice()).into(),
+                        &js_sys::Uint8Array::from(&b[..]).into(),
                     );
                 }
                 Some(Ok(Message::Close(frame))) => {
@@ -244,7 +249,7 @@ async fn ws_task(
                 }
                 None => {
                     util::debug_log!("[ws:{handle_id}] command channel dropped, closing");
-                    let _ = sink.close().await;
+                    let _ = sink.close(None).await;
                     ws_cleanup(handle_id);
                     return;
                 }
@@ -285,6 +290,9 @@ fn fire_ws_event(on_event: &js_sys::Function, handle_id: u32, event_type: &str, 
 fn ws_cleanup(handle_id: u32) {
     util::debug_log!("[ws:{handle_id}] cleanup");
     if let Some(handles) = WS_HANDLES.get() {
-        handles.lock().unwrap().remove(&handle_id);
+        handles
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&handle_id);
     }
 }

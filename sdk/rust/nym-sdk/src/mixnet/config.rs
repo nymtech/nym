@@ -1,6 +1,5 @@
-use nym_client_core::config::{Client as ClientConfig, DebugConfig};
+use nym_client_core::config::{Client as ClientConfig, Config as BaseClientConfig, DebugConfig};
 use nym_network_defaults::NymNetworkDetails;
-use nym_socks5_client_core::config::BaseClientConfig;
 use url::Url;
 
 const DEFAULT_SDK_CLIENT_ID: &str = "_default-nym-sdk-client";

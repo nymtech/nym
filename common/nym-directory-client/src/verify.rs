@@ -6,8 +6,8 @@
 //! attribute each node entry to its signing node.
 
 use crate::error::DirectoryClientError;
+use nym_contract_attestation::node_identities_hash;
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::node_identities_hash;
 use nym_directory_contract_common::{
     DirectoryEntryRecord, KnownLabel, NodeEntry, node_signing_payload,
 };
@@ -236,8 +236,8 @@ pub fn verify_directory_offline(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_contract_attestation::node_identities_hash;
     use nym_crypto::asymmetric::ed25519::KeyPair;
-    use nym_directory_attestation::node_identities_hash;
     use nym_directory_contract_common::CuratedEntry;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
 

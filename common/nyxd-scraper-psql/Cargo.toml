@@ -5,7 +5,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -17,7 +16,7 @@ base64 = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "migrate", "time"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing.workspace = true
@@ -28,7 +27,7 @@ nyxd-scraper-shared = { workspace = true }
 cosmrs = { workspace = true }
 
 [build-dependencies]
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "migrate"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [lints]

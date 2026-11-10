@@ -18,8 +18,8 @@
 //! The entry gateway sees the client's IP but doesn't know the final destination.
 //! The exit gateway processes the LP handshake but only sees the entry gateway's IP.
 
-use super::client::LpGatewayClient;
-use super::error::{LpClientError, Result};
+use crate::control::LpGatewayControlClient;
+use crate::error::{LpClientError, Result};
 use crate::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::psq::initiator::HandshakeMode;
@@ -36,7 +36,7 @@ pub mod connection;
 
 /// A session with an exit gateway, reached by forwarding packets through an entry gateway.
 ///
-/// Has no connection of its own: an established [`LpGatewayClient`] carries its frames, so that
+/// Has no connection of its own: an established [`LpGatewayControlClient`] carries its frames, so that
 /// channel has to stay alive and is passed back in on every exchange - starting with
 /// [`Self::perform_handshake`].
 ///
@@ -44,7 +44,7 @@ pub mod connection;
 ///
 /// ```ignore
 /// // Outer session already established with entry gateway
-/// let mut outer_client = LpGatewayClient::new(...);
+/// let mut outer_client = LpGatewayControlClient::new(...);
 /// outer_client.perform_handshake().await?;
 ///
 /// // Now establish inner session with exit gateway
@@ -172,7 +172,7 @@ impl NestedLpSession {
     /// - Cryptographic operations fail
     pub async fn perform_handshake<S>(
         &mut self,
-        outer_client: &mut LpGatewayClient<S>,
+        outer_client: &mut LpGatewayControlClient<S>,
     ) -> Result<()>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,

@@ -6,7 +6,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -27,7 +26,6 @@ bs58 = { workspace = true }
 
 rand = { workspace = true }
 rand_chacha = { workspace = true }
-rand_core = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
@@ -54,3 +52,5 @@ harness = false
 [features]
 default = []
 cw-types = ["nym-contracts-common"]
+
+[lints]

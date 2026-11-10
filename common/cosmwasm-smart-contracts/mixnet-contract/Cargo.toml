@@ -6,7 +6,6 @@ authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-homepage.workspace = true
 documentation.workspace = true
 rust-version = "1.85"
 readme.workspace = true
@@ -34,6 +33,7 @@ time = { workspace = true, features = ["parsing", "formatting"] }
 ts-rs = { workspace = true, optional = true }
 
 [dev-dependencies]
+rand = { workspace = true }
 rand_chacha = { workspace = true }
 time = { workspace = true, features = ["serde", "macros"] }
 

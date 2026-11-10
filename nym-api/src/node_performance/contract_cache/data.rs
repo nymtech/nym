@@ -23,7 +23,13 @@ impl PerformanceContractEpochCacheData {
     ) -> Self {
         let median_performance = performance
             .into_iter()
-            .map(|node_performance| (node_performance.node_id, node_performance.performance))
+            // a node the contract could not score (no weighted kind measured, or no config)
+            // is absent from the cache, exactly as a node without any bundle would be
+            .filter_map(|node_performance| {
+                node_performance
+                    .score
+                    .map(|score| (node_performance.node_id, score))
+            })
             .collect();
         PerformanceContractEpochCacheData {
             epoch_id,

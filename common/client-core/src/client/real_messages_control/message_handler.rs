@@ -8,7 +8,7 @@ use crate::client::real_messages_control::real_traffic_stream::{
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_controller::MaxRetransmissions;
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
-use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
+use crate::client::topology_control::TopologyAccessor;
 use nym_client_core_surb_storage::RetrievedReplySurb;
 use nym_sphinx::Delay;
 use nym_sphinx::acknowledgements::AckKey;
@@ -106,9 +106,6 @@ pub(crate) struct Config {
     /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
     /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
     /// from the entry gateway to the exit gateway, bypassing the mix nodes.
-    ///
-    /// This overrides the `use_legacy_sphinx_format` setting as reduced mix hops
-    /// requires use of the updated SURB packet format.
     disable_mix_hops: bool,
 
     /// Average delay a data packet is going to get delay at a single mixnode.
@@ -122,10 +119,6 @@ pub(crate) struct Config {
 
     /// Optional secondary predefined packet size used for the encapsulated messages.
     secondary_packet_size: Option<PacketSize>,
-
-    /// Specify whether any constructed reply surbs should use the legacy format,
-    /// where the payload keys are explicitly attached rather than using the seeds
-    use_legacy_sphinx_format: bool,
 }
 
 impl Config {
@@ -135,7 +128,6 @@ impl Config {
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         deterministic_route_selection: bool,
-        use_legacy_reply_surb_format: bool,
     ) -> Self {
         Config {
             ack_key,
@@ -145,7 +137,6 @@ impl Config {
             average_ack_delay,
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
-            use_legacy_sphinx_format: use_legacy_reply_surb_format,
             disable_mix_hops: false,
         }
     }
@@ -163,12 +154,8 @@ impl Config {
     }
 
     /// Configure whether messages senders using this config should use mix hops or not when sending messages.
-    ///
-    /// This overrides the `use_legacy_sphinx_format` setting as disabled mix hops
-    /// requires use of the updated SURB packet format.
     pub fn disable_mix_hops(mut self, disable_mix_hops: bool) -> Self {
         self.disable_mix_hops = disable_mix_hops;
-        self.use_legacy_sphinx_format = false;
         self
     }
 }
@@ -216,7 +203,6 @@ where
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
-            config.use_legacy_sphinx_format,
             config.disable_mix_hops,
         );
         MessageHandler {
@@ -249,12 +235,12 @@ where
         }
     }
 
-    fn get_topology<'a>(
-        &self,
-        permit: &'a TopologyReadPermit<'a>,
-    ) -> Result<&'a NymRouteProvider, PreparationError> {
-        match permit.try_get_valid_topology_ref(&self.config.sender_address, None) {
-            Ok(topology_ref) => Ok(topology_ref),
+    fn get_topology(&self) -> Result<NymRouteProvider, PreparationError> {
+        match self
+            .topology_access
+            .try_get_valid_topology(&self.config.sender_address, None)
+        {
+            Ok(route_provider) => Ok(route_provider),
             Err(err) => {
                 warn!("Could not process the packet - the network topology is invalid - {err}");
                 Err(err.into())
@@ -285,18 +271,14 @@ where
         }
     }
 
-    async fn generate_reply_surbs(
+    fn generate_reply_surbs(
         &mut self,
+        topology: &NymRouteProvider,
         amount: usize,
     ) -> Result<Vec<ReplySurbWithKeyRotation>, PreparationError> {
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
-
-        let reply_surbs = self.message_preparer.generate_reply_surbs(
-            self.config.use_legacy_sphinx_format,
-            amount,
-            topology,
-        )?;
+        let reply_surbs = self
+            .message_preparer
+            .generate_reply_surbs(amount, topology)?;
 
         Ok(reply_surbs)
     }
@@ -487,7 +469,9 @@ where
         max_retransmissions: Option<u32>,
     ) -> Result<(), PreparationError> {
         let message = NymMessage::new_plain(message);
+        let topology = self.get_topology()?;
         self.try_split_and_send_non_reply_message(
+            &topology,
             message,
             recipient,
             lane,
@@ -499,6 +483,7 @@ where
 
     pub(crate) async fn try_split_and_send_non_reply_message(
         &mut self,
+        topology: &NymRouteProvider,
         message: NymMessage,
         recipient: Recipient,
         lane: TransmissionLane,
@@ -508,10 +493,6 @@ where
         debug!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
         debug_assert!(!matches!(message, NymMessage::Reply(_)));
-
-        // TODO2: it's really annoying we have to get topology permit again here due to borrow-checker
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
 
         let packet_size = if packet_type == PacketType::Outfox {
             PacketSize::OutfoxRegularPacket
@@ -550,7 +531,6 @@ where
             pending_acks.push(pending_ack);
         }
 
-        drop(topology_permit);
         self.insert_pending_acks(pending_acks);
         self.forward_messages(real_messages, lane).await;
 
@@ -565,7 +545,10 @@ where
     ) -> Result<(), PreparationError> {
         debug!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
-        let reply_surbs = self.generate_reply_surbs(amount as usize).await?;
+
+        // the surbs and the message carrying them are built against the same view of the network
+        let topology = self.get_topology()?;
+        let reply_surbs = self.generate_reply_surbs(&topology, amount as usize)?;
 
         let reply_keys = reply_surbs
             .iter()
@@ -573,7 +556,6 @@ where
             .collect::<Vec<_>>();
 
         let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
-            self.config.use_legacy_sphinx_format,
             sender_tag,
             reply_surbs,
         ));
@@ -582,6 +564,7 @@ where
         let max_retransmissions = None;
 
         self.try_split_and_send_non_reply_message(
+            &topology,
             message,
             recipient,
             TransmissionLane::AdditionalReplySurbs,
@@ -607,21 +590,21 @@ where
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
-        let reply_surbs = self.generate_reply_surbs(num_reply_surbs as usize).await?;
+
+        // the surbs and the message carrying them are built against the same view of the network
+        let topology = self.get_topology()?;
+        let reply_surbs = self.generate_reply_surbs(&topology, num_reply_surbs as usize)?;
 
         let reply_keys = reply_surbs
             .iter()
             .map(|s| *s.encryption_key())
             .collect::<Vec<_>>();
 
-        let message = NymMessage::new_repliable(RepliableMessage::new_data(
-            self.config.use_legacy_sphinx_format,
-            message,
-            sender_tag,
-            reply_surbs,
-        ));
+        let message =
+            NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 
         self.try_split_and_send_non_reply_message(
+            &topology,
             message,
             recipient,
             lane,
@@ -643,12 +626,11 @@ where
         packet_type: PacketType,
     ) -> Result<PreparedFragment, PreparationError> {
         debug!("Sending single chunk with packet type {packet_type}");
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
+        let topology = self.get_topology()?;
 
         let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
             chunk,
-            topology,
+            &topology,
             &self.config.ack_key,
             &recipient,
             packet_type,
@@ -662,8 +644,7 @@ where
         fragments: Vec<Fragment>,
         reply_surbs: impl IntoIterator<Item = RetrievedReplySurb>,
     ) -> Result<Vec<PreparedFragment>, SurbWrappedPreparationError> {
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = match self.get_topology(&topology_permit) {
+        let topology = match self.get_topology() {
             Ok(topology) => topology,
             Err(err) => return Err(err.return_surbs(reply_surbs.into_iter().collect())),
         };
@@ -677,7 +658,7 @@ where
                 self.message_preparer
                     .prepare_reply_chunk_for_sending(
                         fragment,
-                        topology,
+                        &topology,
                         &self.config.ack_key,
                         reply_surb.into(),
                         PacketType::Mix,
@@ -692,15 +673,14 @@ where
         reply_surb: RetrievedReplySurb,
         chunk: Fragment,
     ) -> Result<PreparedFragment, SurbWrappedPreparationError> {
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = match self.get_topology(&topology_permit) {
+        let topology = match self.get_topology() {
             Ok(topology) => topology,
             Err(err) => return Err(err.return_surbs(vec![reply_surb])),
         };
 
         let prepared_fragment = self.message_preparer.prepare_reply_chunk_for_sending(
             chunk,
-            topology,
+            &topology,
             &self.config.ack_key,
             reply_surb.into(),
             PacketType::Mix,

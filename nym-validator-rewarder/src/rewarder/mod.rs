@@ -63,9 +63,9 @@ pub fn extract_rewarding_results(
             },
         },
         Err(err) => ExtractedRewardingResults {
-            rewarding_tx: Some(err.to_string()),
+            rewarding_tx: None,
             total_spent: Coin::new(0, rewarding_denom),
-            rewarding_err: None,
+            rewarding_err: Some(err.to_string()),
             monitor_only: false,
         },
     }
@@ -160,6 +160,18 @@ impl Rewarder {
 
         let nyxd_client = NyxdClient::new(&config)?;
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
+
+        for epoch_id in storage.load_unsettled_block_signing_epochs().await? {
+            warn!(
+                "block signing epoch {epoch_id} was started but never settled; a rewarding transaction may or may not have been broadcast for it. check the chain before paying it by hand"
+            );
+        }
+        for date in storage.load_unsettled_ticketbook_issuance_dates().await? {
+            warn!(
+                "ticketbook issuance for expiration date {date} was started but never settled; a rewarding transaction may or may not have been broadcast for it. check the chain before paying it by hand"
+            );
+        }
+
         let current_block_signing_epoch =
             if let Some(last_epoch) = storage.load_last_block_signing_rewarding_epoch().await? {
                 last_epoch.next()
@@ -282,6 +294,7 @@ impl Rewarder {
     #[instrument(skip(self))]
     async fn send_block_signing_rewards(
         &self,
+        epoch: Epoch,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Option<Hash>, NymRewarderError> {
         if self.config.block_signing.monitor_only {
@@ -295,14 +308,9 @@ impl Rewarder {
         }
 
         info!("sending rewards");
-        // warn!("here be tx sending");
-        // Ok(Some(Hash::Sha256([0u8; 32])))
 
         self.nyxd_client
-            .send_rewards(
-                format!("sending rewards for {}", self.last_processed_issuance_date),
-                amounts,
-            )
+            .send_rewards(format!("block signing rewards for epoch {epoch}"), amounts)
             .await
             .map(Some)
     }
@@ -310,6 +318,7 @@ impl Rewarder {
     #[instrument(skip(self))]
     async fn send_ticketbook_issuance_rewards(
         &self,
+        expiration_date: Date,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Option<Hash>, NymRewarderError> {
         if self.config.ticketbook_issuance.monitor_only {
@@ -323,14 +332,9 @@ impl Rewarder {
         }
 
         info!("sending rewards");
-        // warn!("here be tx sending");
-        // Ok(Some(Hash::Sha256([0u8; 32])))
         self.nyxd_client
             .send_rewards(
-                format!(
-                    "sending rewards issuing ticketbooks with expiration on {}",
-                    self.last_processed_issuance_date
-                ),
+                format!("ticketbook issuance rewards for expiration date {expiration_date}"),
                 amounts,
             )
             .await
@@ -345,7 +349,9 @@ impl Rewarder {
         let denom = &self.config.rewarding.daily_budget.denom;
         let total_spent = total_spent(&rewarding_amounts, denom);
 
-        let rewarding_tx = self.send_block_signing_rewards(rewarding_amounts).await?;
+        let rewarding_tx = self
+            .send_block_signing_rewards(signed_blocks.epoch, rewarding_amounts)
+            .await?;
 
         Ok(RewardingResult {
             total_spent,
@@ -370,8 +376,11 @@ impl Rewarder {
         // if we're below the minimum threshold for rewarding, don't attempt to send the tx
         let rewarding_tx = if let Some(Ok(approximate_deposits)) = approximate_deposits {
             if approximate_deposits as usize >= self.min_deposits() {
-                self.send_ticketbook_issuance_rewards(rewarding_amounts)
-                    .await?
+                self.send_ticketbook_issuance_rewards(
+                    issued_ticketbooks.expiration_date,
+                    rewarding_amounts,
+                )
+                .await?
             } else {
                 None
             }
@@ -392,6 +401,21 @@ impl Rewarder {
         info!("handling the block signing epoch end");
 
         let details = self.block_signing_details().await;
+
+        // the epoch is on record before any money moves, so a crash from here on
+        // resumes past it instead of paying it twice
+        if let Err(err) = self
+            .storage
+            .begin_block_signing_epoch(details.epoch, &details.budget)
+            .await
+        {
+            error!(
+                "failed to record epoch {} before settling it: {err}. its rewards are not being sent; it will be replayed on restart",
+                details.epoch
+            );
+            self.current_block_signing_epoch = self.current_block_signing_epoch.next();
+            return;
+        }
 
         let rewarding_result = self
             .calculate_and_send_block_signing_epoch_rewards(&details)
@@ -450,6 +474,24 @@ impl Rewarder {
         }
 
         let details = self.ticketbook_issuance_details(yesterday).await;
+
+        // same as for epochs: on record before any money moves
+        if let Err(err) = self
+            .storage
+            .begin_ticketbook_issuance_day(
+                yesterday,
+                &details.total_budget,
+                details.whitelist_size,
+                &details.per_operator_budget,
+            )
+            .await
+        {
+            error!(
+                "failed to record issuance day {yesterday} before settling it: {err}. its rewards are not being sent"
+            );
+            self.last_processed_issuance_date = yesterday;
+            return;
+        }
 
         let rewarding_result = self
             .calculate_and_send_ticketbook_issuance_rewards(&details)
@@ -610,5 +652,23 @@ impl Rewarder {
         self.main_loop(shutdown_manager, scraper_cancellation).await;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_settlement_is_recorded_as_an_error_not_a_transaction() {
+        let extracted = extract_rewarding_results(Err(NymRewarderError::NoSignersToReward), "unym");
+
+        assert_eq!(extracted.rewarding_tx, None);
+        assert_eq!(
+            extracted.rewarding_err.as_deref(),
+            Some(NymRewarderError::NoSignersToReward.to_string().as_str())
+        );
+        assert_eq!(extracted.total_spent.amount, 0);
+        assert!(!extracted.monitor_only);
     }
 }

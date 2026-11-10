@@ -5,8 +5,8 @@ use crate::error::MixnetContractError;
 use crate::mixnode::PendingMixNodeChanges;
 use crate::nym_node::NodeOwnershipResponse;
 use crate::{
-    EpochEventId, EpochId, Interval, IntervalEventId, MixNodeBond, MixNodeDetails, NodeId,
-    NodeRewarding, NymNodeBond, NymNodeDetails, PendingNodeChanges, QueryMsg,
+    EpochEventId, EpochId, EpochStatus, Interval, IntervalEventId, MixNodeBond, MixNodeDetails,
+    NodeId, NodeRewarding, NymNodeBond, NymNodeDetails, PendingNodeChanges, QueryMsg,
 };
 use cosmwasm_std::{
     Addr, Binary, Coin, CustomQuery, Decimal, QuerierWrapper, StdError, StdResult, Uint128,
@@ -55,6 +55,17 @@ pub trait MixnetContractQuerier {
     ) -> StdResult<EpochId> {
         self.query_current_mixnet_interval(address)
             .map(|interval| interval.current_epoch_absolute_id())
+    }
+
+    /// Whether the current epoch is in progress or being advanced; a raw read like the interval.
+    fn query_current_mixnet_epoch_status(
+        &self,
+        address: impl Into<String>,
+    ) -> StdResult<EpochStatus> {
+        self.query_mixnet_contract_storage_value(address, b"ces")?
+            .ok_or(StdError::not_found(
+                "unable to retrieve epoch status information from the mixnet contract storage",
+            ))
     }
 
     fn check_node_existence(&self, address: impl Into<String>, node_id: NodeId) -> StdResult<bool> {

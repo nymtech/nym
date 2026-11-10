@@ -5,7 +5,8 @@ use crate::epoch_state::storage::{load_current_epoch, save_epoch, EPOCH_THRESHOL
 use crate::epoch_state::transactions::reset_dkg_state;
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
-use cosmwasm_std::{Deps, DepsMut, Env, Response};
+use crate::state::storage::DKG_ADMIN;
+use cosmwasm_std::{Deps, DepsMut, Env, MessageInfo, Response};
 use nym_coconut_dkg_common::types::{Epoch, EpochState};
 
 fn ensure_can_advance_state(
@@ -29,7 +30,7 @@ fn ensure_can_advance_state(
     }
 
     // check if we completed the state, so we could short circuit the deadline
-    if check_state_completion(deps.storage, current_epoch)? {
+    if check_state_completion(deps, current_epoch)? {
         return Ok(());
     }
 
@@ -55,6 +56,85 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
     // checks whether the given phase has either completed or reached its deadline
     ensure_can_advance_state(deps.as_ref(), &env, &current_epoch)?;
 
+    advance_epoch_state(deps, env, current_epoch)
+}
+
+/// The admin's lever for the phases the contract cannot see the end of.
+///
+/// Registration completes only against a group that is exactly the participant set, and the
+/// multisig vote is invisible from here altogether, so both otherwise burn their whole timer even
+/// when the operator can see the work is done. This skips the completion-or-deadline gate and
+/// nothing else: the transition is the ordinary one, so the threshold is still fixed on entering
+/// the exchange and a sub-threshold finish still resets.
+pub(crate) fn try_force_advance_epoch_state(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    DKG_ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+    let current_epoch = load_current_epoch(deps.storage)?;
+
+    // forcing moves a ceremony along; it neither starts one nor rotates keys
+    if current_epoch.state == EpochState::WaitingInitialisation {
+        return Err(ContractError::WaitingInitialisation);
+    }
+    if current_epoch.state.is_in_progress() {
+        return Err(ContractError::EpochAlreadyInProgress);
+    }
+
+    // forcing says "the work is done". Where the contract can already see that it is not -
+    // nobody to start with, or too few shares in for the ceremony to ever reach its threshold -
+    // going on would only book the automatic reset, so refuse and say why instead
+    let progress = current_epoch.state_progress;
+    match current_epoch.state {
+        EpochState::PublicKeySubmission { .. } if progress.registered_dealers == 0 => {
+            return Err(ContractError::NoDealersToAdvance {
+                state: current_epoch.state.to_string(),
+            });
+        }
+        EpochState::VerificationKeySubmission { .. } => ensure_threshold_reachable(
+            deps.as_ref(),
+            &current_epoch,
+            progress.submitted_key_shares,
+        )?,
+        EpochState::VerificationKeyFinalization { .. } => {
+            ensure_threshold_reachable(deps.as_ref(), &current_epoch, progress.verified_keys)?
+        }
+        _ => {}
+    }
+
+    let response = advance_epoch_state(deps, env, current_epoch)?;
+
+    // the transition is the ordinary one, so the transaction has to say the phase was cut short
+    Ok(response.add_attribute(
+        nym_coconut_dkg_common::event_attributes::FORCED_ADVANCE,
+        current_epoch.state.to_string(),
+    ))
+}
+
+/// Refuse a forced advance when `progress` shares can no longer make the epoch's threshold.
+fn ensure_threshold_reachable(
+    deps: Deps<'_>,
+    current_epoch: &Epoch,
+    progress: u32,
+) -> Result<(), ContractError> {
+    let threshold = THRESHOLD.load(deps.storage)?;
+    if (progress as u64) < threshold {
+        return Err(ContractError::ForcedAdvanceBelowThreshold {
+            state: current_epoch.state.to_string(),
+            progress,
+            threshold,
+        });
+    }
+    Ok(())
+}
+
+/// Move the epoch on from `current_epoch`. Whether leaving it is allowed is the caller's question.
+fn advance_epoch_state(
+    deps: DepsMut<'_>,
+    env: Env,
+    current_epoch: Epoch,
+) -> Result<Response, ContractError> {
     // a ceremony can't start without dealers. the threshold would be `ceil(2 * 0 / 3)`, i.e.
     // zero, and every subsequent phase would be trivially complete (no dealings to wait for,
     // no shares to verify), so the epoch would run itself to the end and settle in progress
@@ -78,8 +158,8 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
         ));
     }
 
-    // `InProgress` is the only state with nothing after it, and `ensure_can_advance_state` has
-    // already refused it above
+    // `InProgress` is the only state with nothing after it, and both callers have already
+    // refused it before getting here
     let Some(next_state) = current_epoch.state.next() else {
         debug_assert!(current_epoch.state.is_in_progress());
         return Err(ContractError::EpochAlreadyInProgress);
@@ -123,12 +203,29 @@ mod tests {
     use crate::epoch_state::storage::load_current_epoch;
     use crate::epoch_state::transactions::try_initiate_dkg;
     use crate::epoch_state::utils::check_epoch_state;
+    use crate::error::ContractError;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::state::storage::STATE;
-    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
+    use crate::support::tests::helpers::{
+        group_member, init_contract, init_contract_with_group_members, longer_than_any_phase,
+        ADMIN_ADDRESS,
+    };
     use cosmwasm_std::testing::{message_info, mock_env};
-    use cosmwasm_std::{Addr, Storage};
+    use cosmwasm_std::{Addr, MessageInfo, Storage};
+    use nym_coconut_dkg_common::event_attributes::FORCED_ADVANCE;
     use nym_coconut_dkg_common::types::{StateProgress, TimeConfiguration};
+
+    fn admin() -> MessageInfo {
+        message_info(&Addr::unchecked(ADMIN_ADDRESS), &[])
+    }
+
+    fn forced_advance_attribute(response: &Response) -> Option<String> {
+        response
+            .attributes
+            .iter()
+            .find(|attribute| attribute.key == FORCED_ADVANCE)
+            .map(|attribute| attribute.value.clone())
+    }
 
     fn update_epoch<A>(storage: &mut dyn Storage, env: &Env, action: A)
     where
@@ -196,7 +293,8 @@ mod tests {
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
-        // neither PublicKeySubmission (in either resharing or non-resharing)
+        // nor PublicKeySubmission against a group with nobody in it (in either resharing or
+        // non-resharing) - `a_full_group_starts_the_ceremony_before_the_deadline` has the rest
         let epoch = epoch_in_state(EpochState::PublicKeySubmission { resharing: false }, &env);
         set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
@@ -705,7 +803,7 @@ mod tests {
         // every api is down, say, so not a single dealer registers. one jump per phase the
         // ceremony would otherwise have walked through, each longer than the longest of them
         for _ in 0..5 {
-            env.block.time = env.block.time.plus_seconds(601);
+            env.block.time = env.block.time.plus_seconds(longer_than_any_phase());
             let response = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
             // the hold must say so on the transaction itself: it succeeds, and without the
@@ -750,7 +848,7 @@ mod tests {
         .unwrap();
 
         // nobody yet, so the window just rolls
-        env.block.time = env.block.time.plus_seconds(601);
+        env.block.time = env.block.time.plus_seconds(longer_than_any_phase());
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         check_epoch_state(
             deps.as_ref().storage,
@@ -764,7 +862,7 @@ mod tests {
             e
         });
 
-        env.block.time = env.block.time.plus_seconds(601);
+        env.block.time = env.block.time.plus_seconds(longer_than_any_phase());
         let response = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         check_epoch_state(
             deps.as_ref().storage,
@@ -777,6 +875,252 @@ mod tests {
         assert!(!response.attributes.iter().any(|attribute| {
             attribute.key == nym_coconut_dkg_common::event_attributes::AWAITING_DEALERS
         }));
+    }
+
+    /// Registration used to burn its whole timer regardless of who had turned up; with the
+    /// group as the definition of "everyone who can", a full house starts the ceremony at once.
+    #[test]
+    fn a_full_group_starts_the_ceremony_before_the_deadline() {
+        let mut deps = init_contract_with_group_members(vec![
+            group_member("alice", 1),
+            group_member("bob", 1),
+            group_member("charlie", 1),
+        ]);
+        let env = mock_env();
+
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
+
+        // one still missing: the deadline stands
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.registered_dealers = 2;
+            e
+        });
+        let err = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err();
+        assert!(matches!(err, EarlyEpochStateAdvancement(_)));
+
+        // everyone in: no waiting, and the threshold is fixed off the full house
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.registered_dealers = 3;
+            e
+        });
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::DealingExchange { resharing: false },
+        )
+        .unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+    }
+
+    #[test]
+    fn only_the_admin_can_force_an_advance() {
+        let mut deps = init_contract();
+        let env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), admin()).unwrap();
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.registered_dealers = 2;
+            e
+        });
+
+        let err = try_force_advance_epoch_state(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked("not the admin"), &[]),
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::Admin(_)));
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::PublicKeySubmission { resharing: false },
+        )
+        .unwrap();
+    }
+
+    /// The forced path skips exactly the completion-or-deadline gate: the transition it then
+    /// runs is the ordinary one, and the transaction says which phase was cut short.
+    #[test]
+    fn a_forced_advance_ignores_the_deadline_and_says_so() {
+        let mut deps = init_contract();
+        let env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), admin()).unwrap();
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.registered_dealers = 2;
+            e
+        });
+
+        // the timer still stands for everybody else
+        let err = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err();
+        assert!(matches!(err, EarlyEpochStateAdvancement(_)));
+
+        let response = try_force_advance_epoch_state(deps.as_mut(), env.clone(), admin()).unwrap();
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::DealingExchange { resharing: false },
+        )
+        .unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+        assert_eq!(
+            forced_advance_attribute(&response).as_deref(),
+            Some(
+                EpochState::PublicKeySubmission { resharing: false }
+                    .to_string()
+                    .as_str()
+            )
+        );
+
+        // and a phase that ends on its own merits carries no such mark
+        let response = try_advance_epoch_state(
+            deps.as_mut(),
+            Env {
+                block: cosmwasm_std::BlockInfo {
+                    time: env.block.time.plus_seconds(longer_than_any_phase()),
+                    ..env.block.clone()
+                },
+                ..env.clone()
+            },
+        )
+        .unwrap();
+        assert_eq!(forced_advance_attribute(&response), None);
+    }
+
+    /// Forcing means "the work is done", and with nobody registered it plainly is not: the
+    /// permissionless hold would extend the window and report success, which is the opposite
+    /// of what an operator forcing the phase needs to hear.
+    #[test]
+    fn a_forced_advance_refuses_to_start_a_ceremony_nobody_joined() {
+        let mut deps = init_contract();
+        let env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), admin()).unwrap();
+        let before = load_current_epoch(&deps.storage).unwrap();
+
+        let err = try_force_advance_epoch_state(deps.as_mut(), env.clone(), admin()).unwrap_err();
+        assert!(matches!(err, ContractError::NoDealersToAdvance { .. }));
+        assert_eq!(load_current_epoch(&deps.storage).unwrap(), before);
+    }
+
+    /// Where the contract can already see the ceremony would end sub-threshold, forcing it on
+    /// would only book the automatic reset - so it is refused, and the operator learns why
+    /// instead of losing the whole ceremony.
+    #[test]
+    fn a_forced_advance_refuses_to_book_a_sub_threshold_ceremony() {
+        let mut deps = init_contract();
+        let env = mock_env();
+        THRESHOLD.save(deps.as_mut().storage, &3).unwrap();
+
+        // too few shares in to ever reach the threshold
+        let short_of_shares = Epoch {
+            state_progress: StateProgress {
+                registered_dealers: 4,
+                submitted_key_shares: 2,
+                ..Default::default()
+            },
+            ..Epoch::new(
+                EpochState::VerificationKeySubmission { resharing: false },
+                11,
+                TimeConfiguration::default(),
+                env.block.time,
+            )
+        };
+        save_epoch(deps.as_mut().storage, env.block.height, &short_of_shares).unwrap();
+        let err = try_force_advance_epoch_state(deps.as_mut(), env.clone(), admin()).unwrap_err();
+        assert!(matches!(
+            err,
+            ContractError::ForcedAdvanceBelowThreshold {
+                progress: 2,
+                threshold: 3,
+                ..
+            }
+        ));
+        assert_eq!(load_current_epoch(&deps.storage).unwrap(), short_of_shares);
+
+        // exactly threshold-many is enough to carry on
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.submitted_key_shares = 3;
+            e
+        });
+        try_force_advance_epoch_state(deps.as_mut(), env.clone(), admin()).unwrap();
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::VerificationKeyValidation { resharing: false },
+        )
+        .unwrap();
+
+        // the same at the end: too few verified shares would reset, so it is refused instead
+        let short_of_verified = Epoch {
+            state_progress: StateProgress {
+                registered_dealers: 4,
+                submitted_key_shares: 3,
+                verified_keys: 2,
+                ..Default::default()
+            },
+            keys_in_service: Some(7),
+            ..Epoch::new(
+                EpochState::VerificationKeyFinalization { resharing: false },
+                11,
+                TimeConfiguration::default(),
+                env.block.time,
+            )
+        };
+        save_epoch(deps.as_mut().storage, env.block.height, &short_of_verified).unwrap();
+        let err = try_force_advance_epoch_state(deps.as_mut(), env.clone(), admin()).unwrap_err();
+        assert!(matches!(
+            err,
+            ContractError::ForcedAdvanceBelowThreshold {
+                progress: 2,
+                threshold: 3,
+                ..
+            }
+        ));
+        // no reset booked: same epoch, same phase, same keys in service
+        assert_eq!(
+            load_current_epoch(&deps.storage).unwrap(),
+            short_of_verified
+        );
+
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.verified_keys = 3;
+            e
+        });
+        try_force_advance_epoch_state(deps.as_mut(), env.clone(), admin()).unwrap();
+        let concluded = load_current_epoch(&deps.storage).unwrap();
+        assert_eq!(concluded.state, EpochState::InProgress);
+        assert_eq!(concluded.epoch_id, 11);
+        assert_eq!(concluded.keys_in_service, Some(11));
+        assert_eq!(concluded.outgoing_keys, Some(7));
+        assert_eq!(concluded.ceremony_concluded_at, Some(env.block.time));
+    }
+
+    /// Forcing moves the ceremony along; it neither starts one nor rotates keys.
+    #[test]
+    fn a_forced_advance_stops_where_the_state_machine_does() {
+        let mut deps = init_contract();
+        let env = mock_env();
+
+        let err = try_force_advance_epoch_state(deps.as_mut(), env.clone(), admin()).unwrap_err();
+        assert!(matches!(err, ContractError::WaitingInitialisation));
+
+        save_epoch(
+            deps.as_mut().storage,
+            env.block.height,
+            &Epoch::new(
+                EpochState::InProgress,
+                3,
+                TimeConfiguration::default(),
+                env.block.time,
+            ),
+        )
+        .unwrap();
+        let err = try_force_advance_epoch_state(deps.as_mut(), env.clone(), admin()).unwrap_err();
+        assert!(matches!(err, ContractError::EpochAlreadyInProgress));
+        assert_eq!(
+            load_current_epoch(&deps.storage).unwrap().state,
+            EpochState::InProgress
+        );
     }
 
     /// The same hold applies to resharing, and must not quietly drop the resharing flag.
@@ -793,7 +1137,7 @@ mod tests {
         );
         save_epoch(deps.as_mut().storage, env.block.height, &epoch).unwrap();
 
-        env.block.time = env.block.time.plus_seconds(601);
+        env.block.time = env.block.time.plus_seconds(longer_than_any_phase());
         let response = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
         let current = load_current_epoch(&deps.storage).unwrap();

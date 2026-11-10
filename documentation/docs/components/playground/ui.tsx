@@ -1,3 +1,5 @@
+"use client";
+
 // Shared presentational primitives for the playground sections (MixPlayground
 // and the raw-messaging demo) so they share one look. Theme-neutral inline
 // styles (rgba greys read on light and dark Nextra themes), a per-section log

@@ -6,7 +6,6 @@ authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-homepage.workspace = true
 documentation.workspace = true
 rust-version = "1.85"
 readme.workspace = true
@@ -27,3 +26,6 @@ ts-rs = { workspace = true, optional = true, features = ["no-serde-warnings"] }
 [features]
 schema = ["cw2"]
 generate-ts = ["ts-rs"]
+
+[lints]
+workspace = true

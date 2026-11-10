@@ -142,7 +142,7 @@ mod tests {
     }
 
     fn gateway_identity() -> ed25519::PublicKey {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand::rng();
         *ed25519::KeyPair::new(&mut rng).public_key()
     }
 

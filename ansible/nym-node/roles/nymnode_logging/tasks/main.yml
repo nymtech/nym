@@ -1,26 +1,49 @@
 ---
 - name: Ensure systemd drop-in dir for nym-node exists
-  file:
+  ansible.builtin.file:
     path: "{{ nymnode_dropin_dir }}"
     state: directory
+    owner: root
+    group: root
     mode: "0755"
 
-- name: Cap nym-node logs + apply per-unit rate limiting
-  copy:
+- name: Configure nym-node log level and per-unit rate limiting
+  ansible.builtin.copy:
     dest: "{{ nymnode_dropin_dir }}/{{ nymnode_dropin_file }}"
+    owner: root
+    group: root
     mode: "0644"
     content: |
+      # Managed by Ansible (nym-node system-maintenance). Do not edit by hand.
+      #
+      # LogLevelMax is deliberately NOT set here. journald assigns priority
+      # "info" to everything nym-node writes to stderr, so LogLevelMax would
+      # drop all output including errors. RUST_LOG filters inside the binary
+      # instead, so warnings and errors always reach the journal.
       [Service]
-      LogLevelMax={{ nymnode_log_level_max }}
+      Environment=RUST_LOG={{ nymnode_rust_log }}
       LogRateLimitIntervalSec={{ nymnode_rate_limit_interval }}
       LogRateLimitBurst={{ nymnode_rate_limit_burst }}
+  register: nymnode_dropin
+  notify:
+    - Reload systemd for nym-node
+    - Restart nym-node
 
-- name: Reload systemd after nym-node drop-in
-  systemd:
-    daemon_reload: true
+- name: Find stray drop-ins that still set LogLevelMax
+  ansible.builtin.find:
+    paths: "{{ nymnode_dropin_dir }}"
+    patterns: "*.conf"
+    contains: '^\s*LogLevelMax='
+  register: nymnode_stale_dropins
 
-- name: Restart nym-node to apply new logging limits (best-effort)
-  systemd:
-    name: "{{ nymnode_unit_name }}"
-    state: restarted
-  ignore_errors: true
+- name: Remove stray drop-ins that silence nym-node entirely
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ nymnode_stale_dropins.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: item.path != nymnode_dropin_dir ~ '/' ~ nymnode_dropin_file
+  notify:
+    - Reload systemd for nym-node
+    - Restart nym-node

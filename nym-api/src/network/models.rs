@@ -1,20 +1,20 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_network_defaults::v2::NymNetworkDetails as NymNetworkDetailsV2;
-use nym_network_defaults::NymNetworkDetails;
+use nym_network_defaults::{v1, v2};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
-pub struct NetworkDetails {
+pub struct NetworkDetailsV1 {
     pub(crate) connected_nyxd: String,
-    pub(crate) network: NymNetworkDetails,
+    pub(crate) network: v1::NymNetworkDetails,
 }
 
-impl NetworkDetails {
-    pub fn new(connected_nyxd: String, network: NymNetworkDetails) -> Self {
+impl NetworkDetailsV1 {
+    #[allow(unused)]
+    pub fn new(connected_nyxd: String, network: v1::NymNetworkDetails) -> Self {
         Self {
             connected_nyxd,
             network,
@@ -23,18 +23,15 @@ impl NetworkDetails {
 }
 
 /// Same shape as [`NetworkDetails`], but carries the v2 (grouped `networking` block)
-/// version of the network details struct. This is *not* a v2 of the API - it's the
-/// existing `/v1/network` API surface serving the newer struct shape alongside the
-/// original one.
+/// version of the network details struct, served from `/v2/network/details`.
 #[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct NetworkDetailsV2 {
     pub(crate) connected_nyxd: String,
-    pub(crate) network: NymNetworkDetailsV2,
+    pub(crate) network: v2::NymNetworkDetails,
 }
 
 impl NetworkDetailsV2 {
-    #[allow(unused)]
-    pub fn new(connected_nyxd: String, network: NymNetworkDetailsV2) -> Self {
+    pub fn new(connected_nyxd: String, network: v2::NymNetworkDetails) -> Self {
         Self {
             connected_nyxd,
             network,
@@ -44,9 +41,9 @@ impl NetworkDetailsV2 {
 
 /// Converts down to the v1 shape for the `/v1/network/details` handler. Loses whatever
 /// `network.networking.dns_fallbacks` carries, since v1 has nowhere to put it.
-impl From<NetworkDetailsV2> for NetworkDetails {
+impl From<NetworkDetailsV2> for NetworkDetailsV1 {
     fn from(v2: NetworkDetailsV2) -> Self {
-        NetworkDetails {
+        NetworkDetailsV1 {
             connected_nyxd: v2.connected_nyxd,
             network: v2.network.into(),
         }
@@ -55,8 +52,8 @@ impl From<NetworkDetailsV2> for NetworkDetails {
 
 /// Converts up to the v2 shape, deriving `network.networking` from the v1 struct's
 /// `nym_api_urls()` / `nym_vpn_api_urls()` accessors (`dns_fallbacks` starts out empty).
-impl From<NetworkDetails> for NetworkDetailsV2 {
-    fn from(v1: NetworkDetails) -> Self {
+impl From<NetworkDetailsV1> for NetworkDetailsV2 {
+    fn from(v1: NetworkDetailsV1) -> Self {
         NetworkDetailsV2 {
             connected_nyxd: v1.connected_nyxd,
             network: v1.network.into(),

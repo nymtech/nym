@@ -91,8 +91,11 @@ pub enum RegistrationClientError {
         source: Box<crate::LpClientError>,
     },
 
+    #[error("failed to generate keys due to insufficient randomness")]
+    KeyGenerationFailure,
+
     #[error("failed to generate randomness: {0}")]
-    RngFailure(#[from] getrandom04::Error),
+    RngFailure(#[from] getrandom::Error),
 }
 
 impl RegistrationClientError {

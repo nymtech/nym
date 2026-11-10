@@ -1,0 +1,6 @@
+export default {
+  "packet-anatomy": "Packet Anatomy",
+  "mixing": "Packet Mixing",
+  "dvpn-cover": "dVPN Cover and Crowding",
+  "hidden-services": "SURBs vs Tor Hidden Services"
+}

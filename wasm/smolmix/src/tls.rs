@@ -113,15 +113,23 @@ where
     result
 }
 
-/// Get or build the cached rustls ClientConfig with the webpki-roots CA bundle.
+/// Get or build the cached rustls ClientConfig for the general fetch path.
 ///
-/// The config (crypto provider, root CA store, protocol versions) is identical
-/// for every connection, so we build it once and reuse the `Arc<ClientConfig>`.
+/// Advertises HTTP/1.1 only: the fetch HTTP client speaks HTTP/1.1, so a site
+/// must never negotiate HTTP/2 against it. The config is identical for every
+/// connection, so we build it once and reuse the `Arc<ClientConfig>`.
 fn make_client_config() -> Result<Arc<ClientConfig>, FetchError> {
     if let Some(config) = TLS_CONFIG.get() {
         return Ok(config.clone());
     }
+    let config = Arc::new(build_client_config(vec![b"http/1.1".to_vec()])?);
+    Ok(TLS_CONFIG.get_or_init(|| config.clone()).clone())
+}
 
+/// Build a rustls ClientConfig with the webpki-roots CA bundle. `alpn_protocols`
+/// is the only thing that varies between the fetch config (HTTP/1.1 only) and
+/// the DoH config (HTTP/2 then HTTP/1.1), most-preferred first.
+fn build_client_config(alpn_protocols: Vec<Vec<u8>>) -> Result<ClientConfig, FetchError> {
     // Restrict cipher suites to only what is explicity implemented as
     // per https://github.com/RustCrypto/rustls-rustcrypto#rustls-rustcrypto.
     let mut provider = rustls_rustcrypto::provider();
@@ -150,15 +158,60 @@ fn make_client_config() -> Result<Arc<ClientConfig>, FetchError> {
         .with_root_certificates(root_store)
         .with_no_client_auth();
 
-    // ALPN: advertise HTTP/1.1 so CDNs (GitHub, Cloudflare) that require
-    // protocol negotiation don't abort the handshake with an EOF.
-    config.alpn_protocols = vec![b"http/1.1".to_vec()];
+    config.alpn_protocols = alpn_protocols;
 
     // Disable session resumption: TLS session tickets and PSK identities are
     // long-lived correlators a server can use to link separate mixnet circuits
     // back to the same client, defeating per-request unlinkability.
     config.resumption = rustls::client::Resumption::disabled();
 
-    let config = Arc::new(config);
-    Ok(TLS_CONFIG.get_or_init(|| config.clone()).clone())
+    Ok(config)
+}
+
+/// Cached TLS client config for the DoH path: advertises HTTP/2 then HTTP/1.1.
+#[cfg(feature = "fetch")]
+static TLS_CONFIG_DOH: OnceLock<Arc<ClientConfig>> = OnceLock::new();
+
+/// Get or build the cached DoH ClientConfig (ALPN `h2` then `http/1.1`).
+#[cfg(feature = "fetch")]
+fn make_doh_client_config() -> Result<Arc<ClientConfig>, FetchError> {
+    if let Some(config) = TLS_CONFIG_DOH.get() {
+        return Ok(config.clone());
+    }
+    let config = Arc::new(build_client_config(vec![
+        b"h2".to_vec(),
+        b"http/1.1".to_vec(),
+    ])?);
+    Ok(TLS_CONFIG_DOH.get_or_init(|| config.clone()).clone())
+}
+
+/// TLS handshake for the DoH path. Advertises HTTP/2 and HTTP/1.1 by ALPN and
+/// returns whether the resolver selected HTTP/2, read from the rustls connection
+/// before the stream is wrapped (the wrapper hides the inner connection).
+#[cfg(feature = "fetch")]
+pub async fn connect_doh<S>(
+    stream: S,
+    hostname: &str,
+) -> Result<(MaybeCloseNotify<futures_rustls::client::TlsStream<S>>, bool), FetchError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let config = make_doh_client_config()?;
+    let connector = TlsConnector::from(config);
+
+    let server_name = ServerName::try_from(hostname.to_string())
+        .map_err(|e| FetchError::Dns(format!("invalid TLS server name '{hostname}': {e}")))?;
+
+    let tls = connector.connect(server_name, stream).await.map_err(|e| {
+        crate::util::debug_error!("[tls] DoH handshake FAILED with '{hostname}': {e}");
+        FetchError::Io(e)
+    })?;
+
+    let is_h2 = tls.get_ref().1.alpn_protocol() == Some(b"h2".as_slice());
+    crate::util::debug_log!(
+        "[tls] DoH ALPN with '{hostname}': {}",
+        if is_h2 { "h2" } else { "http/1.1" }
+    );
+
+    Ok((MaybeCloseNotify::new(tls), is_h2))
 }

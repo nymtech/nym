@@ -7,6 +7,7 @@ use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 use nym_network_monitor_orchestrator_requests::routes;
 
 pub(crate) mod agent;
+pub(crate) mod aggregates;
 pub(crate) mod error;
 pub(crate) mod metrics;
 pub(crate) mod results;
@@ -24,6 +25,7 @@ pub(crate) fn routes(
             Router::new()
                 .nest(routes::v1::METRICS, metrics::routes())
                 .nest(routes::v1::RESULTS, results::routes())
+                .nest(routes::v1::AGGREGATES, aggregates::routes())
                 .route_layer(metrics_and_results_auth),
         )
 }

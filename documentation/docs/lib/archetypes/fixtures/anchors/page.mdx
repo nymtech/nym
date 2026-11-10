@@ -1,0 +1,26 @@
+import { Tabs } from 'nextra/components';
+import Partial from './partial.mdx';
+
+# Title
+
+## Requirements
+
+## Rewards & `logic`
+
+## Step [#a-step]
+
+{/*
+## Hidden heading
+[hidden link](#hidden)
+*/}
+
+<Partial />
+
+<Tabs items={['From the server', 'From outside']}>
+<Tabs.Tab>
+[to the partial](#requirements)
+</Tabs.Tab>
+<Tabs.Tab>
+<div id="raw" data-id="not-an-id" />
+</Tabs.Tab>
+</Tabs>

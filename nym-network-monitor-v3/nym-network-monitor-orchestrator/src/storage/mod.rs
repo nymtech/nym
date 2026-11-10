@@ -4,15 +4,19 @@
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    AssignedTestrun, NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress,
+    AssignedTestrun, AssignmentRequest, CompletedTestRun, ConfigScoreCandidate, KindHead,
+    KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore, NewTestRun,
+    NodeAwaitingCapabilityRefresh, NodeChainCapability, NymNode, TestKind, TestRunInProgress,
+    TestRunSubmission, TestRunWindow,
 };
 use anyhow::Context;
-use nym_network_monitor_orchestrator_requests::models::Pagination;
+use nym_network_monitor_orchestrator_requests::models::{Pagination, RunMeasurements};
 use nym_validator_client::client::NodeId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::path::Path;
 use std::time::Duration;
+use strum::IntoEnumIterator;
 use time::OffsetDateTime;
 use tracing::log::{LevelFilter, debug};
 
@@ -31,7 +35,46 @@ pub(crate) struct NetworkMonitorStorage {
     pub(crate) storage_manager: StorageManager,
 }
 
+/// The in-flight gauge belonging to a kind. Exhaustive rather than defaulting, so a new kind is a
+/// compile error here instead of a silently unpublished series.
+fn in_progress_metric(kind: TestKind) -> PrometheusMetric {
+    match kind {
+        TestKind::MixnodeLiveness => PrometheusMetric::MixnodeLivenessTestrunsInProgress,
+        TestKind::GatewayLiveness => PrometheusMetric::GatewayLivenessTestrunsInProgress,
+        TestKind::MixnodeStress => PrometheusMetric::MixnodeStressTestrunsInProgress,
+    }
+}
+
+/// The expired-lease counter belonging to a kind, exhaustive for the same reason.
+fn expired_leases_metric(kind: TestKind) -> PrometheusMetric {
+    match kind {
+        TestKind::MixnodeLiveness => PrometheusMetric::MixnodeLivenessLeasesExpired,
+        TestKind::GatewayLiveness => PrometheusMetric::GatewayLivenessLeasesExpired,
+        TestKind::MixnodeStress => PrometheusMetric::MixnodeStressLeasesExpired,
+    }
+}
+
 impl NetworkMonitorStorage {
+    /// A migrated, empty database held entirely in memory, for tests that need storage without a
+    /// file on disk.
+    #[cfg(test)]
+    pub(crate) async fn in_memory() -> Self {
+        let connection_pool = sqlx::SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("failed to create in-memory SQLite pool");
+        let migrations = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+        sqlx::migrate::Migrator::new(migrations.as_path())
+            .await
+            .expect("failed to find migrations")
+            .run(&connection_pool)
+            .await
+            .expect("failed to run migrations");
+
+        NetworkMonitorStorage {
+            storage_manager: StorageManager { connection_pool },
+        }
+    }
+
     /// Opens (or creates) the SQLite database at `database_path`, configures
     /// WAL journaling and incremental auto-vacuum, and runs the embedded
     /// migrations. Slow statements (>50ms) are logged at `WARN`.
@@ -64,40 +107,32 @@ impl NetworkMonitorStorage {
         })
     }
 
-    /// Inserts or updates multiple node records in a single transaction.
-    ///
-    /// For each node, if a row with the same `node_id` already exists, all fields except
-    /// `identity_key` are updated. The entire batch shares one transaction for efficiency.
-    pub(crate) async fn batch_insert_or_update_nym_nodes(
+    /// Records what one refresh learned: every bond it read at `seen_at`, the description of every
+    /// node that answered completely, and the removal of the descriptions of nodes no longer bonded.
+    pub(crate) async fn store_refresh(
         &self,
-        nodes: &[NewNymNode],
+        nodes: &[NymNode],
+        seen_at: OffsetDateTime,
     ) -> anyhow::Result<()> {
-        self.storage_manager
-            .batch_insert_or_update_nym_nodes(nodes)
-            .await
+        self.storage_manager.store_refresh(nodes, seen_at).await
     }
 
-    /// Inserts a completed test run, updates the node's `last_testrun` pointer and
-    /// clears the corresponding `testrun_in_progress` marker. The target node is
-    /// taken from [`NewTestRun::node_id`].
-    ///
-    /// Decrements the `TestrunsInProgress` gauge iff a row was actually cleared — a late
-    /// submission whose in-progress row was already reaped by the timeout sweep must not
-    /// double-decrement the gauge.
-    pub(crate) async fn insert_test_run(&self, run: &NewTestRun) -> anyhow::Result<()> {
-        let node_id = run.node_id;
-        let run_id = self.storage_manager.insert_test_run(run).await?;
-        self.storage_manager
-            .set_node_last_testrun(node_id, run_id)
-            .await?;
-        let cleared = self
+    /// Records a submitted result against the run dispatched for its node and releases the node's
+    /// lock, in one transaction; see [`StorageManager::submit_testrun`]. A stored result released
+    /// exactly one lock, so it decrements the `TestrunsInProgress` gauge by one.
+    pub(crate) async fn submit_testrun(
+        &self,
+        run: &NewTestRun,
+        measurements: &RunMeasurements,
+    ) -> anyhow::Result<TestRunSubmission> {
+        let submission = self
             .storage_manager
-            .clear_testrun_in_progress(node_id)
+            .submit_testrun(run, measurements)
             .await?;
-        if cleared > 0 {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(cleared as i64));
+        if submission == TestRunSubmission::Stored {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -1);
         }
-        Ok(())
+        Ok(submission)
     }
 
     /// Returns the number of rows currently in `testrun_in_progress`.
@@ -105,65 +140,133 @@ impl NetworkMonitorStorage {
         self.storage_manager.count_testruns_in_progress().await
     }
 
-    /// Removes all in-progress markers whose `started_at` is older than `timeout`, on the
-    /// assumption that those runs have timed out and will never complete. Decrements the
-    /// `TestrunsInProgress` gauge by the number of rows actually cleared.
-    pub(crate) async fn clear_timed_out_testruns_in_progress(
-        &self,
-        timeout: Duration,
-    ) -> anyhow::Result<u64> {
-        let cutoff = OffsetDateTime::now_utc() - timeout;
+    /// Releases every in-flight lock whose lease has already expired, on the assumption that those
+    /// runs will never report back. Decrements the `TestrunsInProgress` gauge by the number of rows
+    /// actually cleared, and counts each kind's expiries against its own series.
+    ///
+    /// Takes no timeout: the deadline lives on each row, stamped at dispatch from the budget of the
+    /// kind being dispatched, so this sweep needs no knowledge of any kind's lease.
+    ///
+    /// Returns the total number of locks released.
+    pub(crate) async fn clear_expired_testruns_in_progress(&self) -> anyhow::Result<u64> {
         let cleared = self
             .storage_manager
-            .clear_timed_out_testruns_in_progress(cutoff)
+            .clear_expired_testruns_in_progress(OffsetDateTime::now_utc())
             .await?;
-        if cleared > 0 {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(cleared as i64));
+
+        for (kind, count) in &cleared {
+            PROMETHEUS_METRICS.inc_by(expired_leases_metric(*kind), *count as i64);
         }
-        Ok(cleared)
+
+        let total: u64 = cleared.values().sum();
+        if total > 0 {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(total as i64));
+        }
+        Ok(total)
     }
 
-    /// Atomically selects the most stale idle mixnode and marks it as having a test run in
-    /// progress.
+    /// Publishes the per-kind in-flight gauges from the authoritative row counts.
     ///
-    /// "Most stale" is defined as: nodes that have never been tested come first, followed by
-    /// nodes whose last test run has the oldest timestamp.
-    ///
-    /// `staleness_age` acts as a minimum-staleness gate: a node that has already been tested
-    /// is only eligible if its last test run completed more than `staleness_age` ago. Nodes
-    /// that have never been tested are always eligible regardless of this value.
-    ///
-    /// The current time is used as the `started_at` timestamp on the resulting
-    /// `testrun_in_progress` row.
-    ///
-    /// Nodes with a row in `testrun_in_progress` are excluded entirely. Only nodes classified
-    /// as `mixnode` or `mixnode_and_gateway` are eligible.
-    ///
-    /// Returns `None` if no eligible idle mixnode exists.
-    pub(crate) async fn assign_next_mixnode_testrun(
-        &self,
-        staleness_age: Duration,
-    ) -> anyhow::Result<Option<AssignedTestrun>> {
-        let now = OffsetDateTime::now_utc();
-        let last_tested_before = now - staleness_age;
-        let assigned = self
+    /// Set from a count rather than maintained by inc/dec like the total gauge: the delta paths
+    /// (assign, submit, expire) would each have to attribute their change to a kind, and a single
+    /// missed attribution leaves a per-kind gauge permanently wrong, whereas a recount cannot drift.
+    /// Every kind is published on every call, so a kind that has drained reads as zero rather than
+    /// holding its last value.
+    pub(crate) async fn publish_in_progress_gauges(&self) -> anyhow::Result<()> {
+        let counts = self
             .storage_manager
-            .assign_next_mixnode_testrun(now, last_tested_before)
+            .count_testruns_in_progress_by_kind()
             .await?;
-        if assigned.is_some() {
-            PROMETHEUS_METRICS.inc(PrometheusMetric::TestrunsInProgress);
+
+        for kind in TestKind::iter() {
+            PROMETHEUS_METRICS.set(
+                in_progress_metric(kind),
+                counts.get(&kind).copied().unwrap_or_default(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Atomically selects the nodes due for one kind and marks each as having a test run in
+    /// progress, leased for `schedule.lease_budget` from now. One target for a stress kind, up to
+    /// `schedule.wave_size` for a liveness one.
+    ///
+    /// Resolves the schedule's durations against a single `now`, so every gate applied and every row
+    /// stamped by one assignment agrees on when it happened.
+    ///
+    /// "Most stale" means: nodes this kind has never tested come first, followed by those whose last
+    /// run under it is oldest. `staleness_age` is a minimum-staleness gate that never-tested nodes
+    /// bypass.
+    ///
+    /// Nodes with a row in `testrun_in_progress` are excluded whatever kind that row holds, and
+    /// become eligible for any kind again as soon as that row clears.
+    ///
+    /// Returns an empty vector if nothing is eligible.
+    pub(crate) async fn assign_next_testruns(
+        &self,
+        schedule: &KindSchedule,
+    ) -> anyhow::Result<Vec<AssignedTestrun>> {
+        let now = OffsetDateTime::now_utc();
+        let request = AssignmentRequest {
+            kind: schedule.kind,
+            now,
+            last_tested_before: now - schedule.staleness_age,
+            expires_at: now + schedule.lease_budget,
+            wave_size: schedule.wave_size,
+        };
+
+        let assigned = self.storage_manager.assign_next_testruns(&request).await?;
+        if !assigned.is_empty() {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, assigned.len() as i64);
         }
         Ok(assigned)
     }
 
-    /// Fetches a single completed test run by its row id, or `None` if it has
-    /// been evicted or never existed.
-    pub(crate) async fn get_testrun_by_id(&self, id: i64) -> anyhow::Result<Option<TestRun>> {
-        self.storage_manager.get_testrun_by_id(id).await
+    /// When the node `schedule.kind` would assign next fell due, judged against the same staleness
+    /// gate the assignment would apply, or `None` if that kind has nothing eligible.
+    ///
+    /// The node is due at its last test by the kind plus the kind's interval; one the kind has never
+    /// tested is due from the start.
+    pub(crate) async fn peek_kind_head(
+        &self,
+        schedule: &KindSchedule,
+    ) -> anyhow::Result<Option<KindHead>> {
+        let last_tested_before = OffsetDateTime::now_utc() - schedule.staleness_age;
+        let head = self
+            .storage_manager
+            .peek_next_candidate(schedule.kind, last_tested_before)
+            .await?;
+
+        Ok(head.map(|candidate| match candidate.last_tested_at {
+            None => KindHead::NeverTested,
+            Some(last_tested_at) => KindHead::DueAt(last_tested_at + schedule.staleness_age),
+        }))
     }
 
-    /// Fetches a node by its contract-assigned `node_id`, or `None` if the
-    /// orchestrator has never observed a bond for it.
+    /// Fetches one completed run of `test_kind` by its id within that kind, or `None` if it has been
+    /// evicted or never existed.
+    pub(crate) async fn get_testrun_by_id(
+        &self,
+        test_kind: TestKind,
+        id: i64,
+    ) -> anyhow::Result<Option<CompletedTestRun>> {
+        self.storage_manager.get_testrun_by_id(test_kind, id).await
+    }
+
+    /// Fetches the newest completed run of `test_kind` against a node, or `None` if that kind has
+    /// never tested it or its runs have all been evicted.
+    pub(crate) async fn get_latest_testrun_for_node(
+        &self,
+        test_kind: TestKind,
+        node_id: NodeId,
+    ) -> anyhow::Result<Option<CompletedTestRun>> {
+        self.storage_manager
+            .get_latest_testrun_for_node(test_kind, node_id as i64)
+            .await
+    }
+
+    /// Fetches a node by its contract-assigned `node_id`, with its description if it has one, or
+    /// `None` if the orchestrator has never observed a bond for it.
     pub(crate) async fn get_nym_node_by_id(
         &self,
         node_id: NodeId,
@@ -203,32 +306,34 @@ impl NetworkMonitorStorage {
         Ok((nodes, total as usize))
     }
 
-    /// Paginated list of completed test runs ordered by `test_timestamp`
-    /// descending (newest first), with the snapshot-consistent total row count.
+    /// Paginated list of the completed runs of `test_kind`, ordered by `test_timestamp` descending
+    /// (newest first), with the snapshot-consistent total row count.
     pub(crate) async fn get_testruns_paginated(
         &self,
+        test_kind: TestKind,
         pagination: Pagination,
-    ) -> anyhow::Result<(Vec<TestRun>, usize)> {
+    ) -> anyhow::Result<(Vec<CompletedTestRun>, usize)> {
         let (test_results, total) = self
             .storage_manager
-            .get_testruns_paginated(pagination.limit(), pagination.offset())
+            .get_testruns_paginated(test_kind, pagination.limit(), pagination.offset())
             .await?;
 
         Ok((test_results, total as usize))
     }
 
-    /// Paginated list of completed test runs for a single node, ordered newest
-    /// first, with the snapshot-consistent total row count. Backed by the
-    /// `idx_testrun_node_id_timestamp` index. An unknown or never-tested
-    /// `node_id` produces `(vec![], 0)` rather than an error.
+    /// Paginated list of the completed runs of `test_kind` against a single node, ordered newest
+    /// first, with the snapshot-consistent total row count. An unknown or never-tested `node_id`
+    /// produces `(vec![], 0)` rather than an error.
     pub(crate) async fn get_testruns_for_node_paginated(
         &self,
+        test_kind: TestKind,
         node_id: NodeId,
         pagination: Pagination,
-    ) -> anyhow::Result<(Vec<TestRun>, usize)> {
+    ) -> anyhow::Result<(Vec<CompletedTestRun>, usize)> {
         let (test_results, total) = self
             .storage_manager
             .get_testruns_for_node_paginated(
+                test_kind,
                 node_id as i64,
                 pagination.limit(),
                 pagination.offset(),
@@ -238,44 +343,184 @@ impl NetworkMonitorStorage {
         Ok((test_results, total as usize))
     }
 
-    /// Returns the id of the newest `testrun` already submitted to the nym-api, or `None` if no
-    /// batch has been submitted yet. Callers treat `None` as "submit everything currently in
-    /// storage".
-    pub(crate) async fn get_last_submitted_testrun_id(&self) -> anyhow::Result<Option<i64>> {
-        self.storage_manager.get_last_submitted_testrun_id().await
-    }
-
-    /// Persists the id of the newest `testrun` whose batch submission to the nym-api has
-    /// succeeded. Subsequent [`Self::get_testruns_after`] calls use this value to avoid
-    /// resubmitting already-acknowledged rows.
-    pub(crate) async fn set_last_submitted_testrun_id(
+    /// Returns the id of the newest run of `test_kind` already submitted to the nym-api, or `None`
+    /// if that stream has submitted no batch yet. Callers treat `None` as "submit everything of
+    /// that kind currently in storage".
+    pub(crate) async fn get_last_submitted_testrun_id(
         &self,
-        testrun_id: i64,
-    ) -> anyhow::Result<()> {
+        test_kind: TestKind,
+    ) -> anyhow::Result<Option<i64>> {
         self.storage_manager
-            .set_last_submitted_testrun_id(testrun_id)
+            .get_last_submitted_testrun_id(test_kind)
             .await
     }
 
-    /// Fetches every `testrun` row with `id > after_id`, ordered by id ascending.
+    /// Persists the id of the newest run of `test_kind` whose batch submission to the nym-api has
+    /// succeeded. Subsequent [`Self::get_testruns_after`] calls for that kind use this value to
+    /// avoid resubmitting already-acknowledged rows.
+    pub(crate) async fn set_last_submitted_testrun_id(
+        &self,
+        test_kind: TestKind,
+        testrun_id: i64,
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .set_last_submitted_testrun_id(test_kind, testrun_id)
+            .await
+    }
+
+    /// Fetches every run in `test_kind`'s results table with `id > after_id`, ordered by id
+    /// ascending.
     ///
     /// Used by the nym-api submission task to build the next batch of pending results. Ascending
     /// ordering lets the caller record the highest-id row as the new submission watermark once
     /// the batch is acknowledged.
-    pub(crate) async fn get_testruns_after(&self, after_id: i64) -> anyhow::Result<Vec<TestRun>> {
-        self.storage_manager.get_testruns_after(after_id).await
+    pub(crate) async fn get_testruns_after(
+        &self,
+        test_kind: TestKind,
+        after_id: i64,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        self.storage_manager
+            .get_testruns_after(test_kind, after_id)
+            .await
     }
 
-    /// Deletes all `testrun` rows older than `eviction_age` relative to the current time.
+    /// Deletes every completed run older than `eviction_age` relative to the current time, from
+    /// every kind's results table.
     ///
     /// Intended to be called periodically to keep the local database from growing unboundedly.
     /// Rows that are evicted are assumed to have already been submitted to the nym-api for
-    /// persistent storage.
-    ///
-    /// Any `nym_node.last_testrun` foreign key that pointed at an evicted row is automatically
-    /// set to `NULL` by the database (`ON DELETE SET NULL`).
+    /// persistent storage. Each kind's `last_tested_at` survives, so an evicted result does not make
+    /// the node read as never-tested.
     pub(crate) async fn evict_old_testruns(&self, eviction_age: Duration) -> anyhow::Result<u64> {
         let cutoff = OffsetDateTime::now_utc() - eviction_age;
         self.storage_manager.evict_old_testruns(cutoff).await
+    }
+
+    /// Every run of `test_kind` stored within `window`, across all nodes.
+    pub(crate) async fn get_testruns_in_window(
+        &self,
+        test_kind: TestKind,
+        window: TestRunWindow,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        self.storage_manager
+            .get_testruns_in_window(test_kind, window)
+            .await
+    }
+
+    /// Stores aggregates that are not already stored, leaving any that are exactly as they were.
+    pub(crate) async fn batch_insert_mixnet_epoch_aggregates(
+        &self,
+        aggregates: &[MixnetEpochAggregate],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_insert_mixnet_epoch_aggregates(aggregates)
+            .await
+    }
+
+    /// The newest epoch that has aggregates stored, or `None` when none has.
+    pub(crate) async fn get_last_materialised_mixnet_epoch(&self) -> anyhow::Result<Option<i64>> {
+        self.storage_manager
+            .get_last_materialised_mixnet_epoch()
+            .await
+    }
+
+    /// Every aggregate stored for `mixnet_epoch`, ordered by node and then kind.
+    pub(crate) async fn get_mixnet_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        self.storage_manager
+            .get_mixnet_epoch_aggregates(mixnet_epoch)
+            .await
+    }
+
+    /// One node's aggregates for `mixnet_epoch`, one per kind that measured it.
+    pub(crate) async fn get_mixnet_epoch_aggregates_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: NodeId,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        self.storage_manager
+            .get_mixnet_epoch_aggregates_for_node(mixnet_epoch, node_id as i64)
+            .await
+    }
+
+    /// Deletes every aggregate of an epoch that began longer than `retention` ago.
+    pub(crate) async fn evict_old_mixnet_epoch_aggregates(
+        &self,
+        retention: Duration,
+    ) -> anyhow::Result<u64> {
+        let cutoff = OffsetDateTime::now_utc() - retention;
+        self.storage_manager
+            .evict_old_mixnet_epoch_aggregates(cutoff)
+            .await
+    }
+
+    /// Stores the on-chain standing of every node in `capabilities`, replacing what was cached.
+    pub(crate) async fn batch_upsert_node_chain_capabilities(
+        &self,
+        capabilities: &[NodeChainCapability],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_upsert_node_chain_capabilities(capabilities)
+            .await
+    }
+
+    /// Every described node whose on-chain standing is not cached yet or has fallen due.
+    pub(crate) async fn get_nodes_awaiting_capability_refresh(
+        &self,
+    ) -> anyhow::Result<Vec<NodeAwaitingCapabilityRefresh>> {
+        self.storage_manager
+            .get_nodes_awaiting_capability_refresh(OffsetDateTime::now_utc())
+            .await
+    }
+
+    /// Every described node with its cached on-chain standing, if any.
+    pub(crate) async fn get_config_score_candidates(
+        &self,
+    ) -> anyhow::Result<Vec<ConfigScoreCandidate>> {
+        self.storage_manager.get_config_score_candidates().await
+    }
+
+    /// Stores config scores that are not already stored, leaving any that are exactly as they were.
+    pub(crate) async fn batch_insert_mixnet_epoch_config_scores(
+        &self,
+        scores: &[MixnetEpochConfigScore],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_insert_mixnet_epoch_config_scores(scores)
+            .await
+    }
+
+    /// Every config score stored for `mixnet_epoch`, ordered by node.
+    pub(crate) async fn get_mixnet_epoch_config_scores(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochConfigScore>> {
+        self.storage_manager
+            .get_mixnet_epoch_config_scores(mixnet_epoch)
+            .await
+    }
+
+    /// One node's config score for `mixnet_epoch`, or `None` if none was stored.
+    pub(crate) async fn get_mixnet_epoch_config_score_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: NodeId,
+    ) -> anyhow::Result<Option<MixnetEpochConfigScore>> {
+        self.storage_manager
+            .get_mixnet_epoch_config_score_for_node(mixnet_epoch, node_id as i64)
+            .await
+    }
+
+    /// Deletes every config score of an epoch that began longer than `retention` ago.
+    pub(crate) async fn evict_old_mixnet_epoch_config_scores(
+        &self,
+        retention: Duration,
+    ) -> anyhow::Result<u64> {
+        let cutoff = OffsetDateTime::now_utc() - retention;
+        self.storage_manager
+            .evict_old_mixnet_epoch_config_scores(cutoff)
+            .await
     }
 }

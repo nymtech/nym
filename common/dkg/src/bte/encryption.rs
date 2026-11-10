@@ -10,7 +10,6 @@ use ff::Field;
 use group::{Curve, Group, GroupEncoding};
 use nym_bls12_381_fork::{G1Affine, G1Projective, G2Prepared, G2Projective, Gt, Scalar};
 use rand::CryptoRng;
-use rand_core::RngCore;
 use std::collections::HashMap;
 use std::ops::Neg;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -191,7 +190,7 @@ impl HazmatRandomness {
 pub fn encrypt_shares(
     shares: &[(&Share, &PublicKey)],
     params: &Params,
-    mut rng: impl RngCore + CryptoRng,
+    mut rng: impl CryptoRng,
 ) -> (Ciphertexts, HazmatRandomness) {
     let g1 = G1Projective::generator();
 
@@ -399,7 +398,7 @@ pub fn baby_step_giant_step(
 mod tests {
     use super::*;
     use crate::bte::{keygen, setup, BSGS_TABLE};
-    use rand_core::SeedableRng;
+    use rand::{Rng, SeedableRng};
 
     fn verify_hazmat_rand(ciphertext: &Ciphertexts, randomness: &HazmatRandomness) {
         let g1 = G1Projective::generator();
@@ -579,10 +578,7 @@ mod tests {
 
     #[test]
     fn ciphertexts_roundtrip() {
-        fn random_ciphertexts(
-            mut rng: impl RngCore + CryptoRng,
-            num_receivers: usize,
-        ) -> Ciphertexts {
+        fn random_ciphertexts(mut rng: impl CryptoRng, num_receivers: usize) -> Ciphertexts {
             Ciphertexts {
                 rr: (0..NUM_CHUNKS)
                     .map(|_| G1Projective::random(&mut rng))

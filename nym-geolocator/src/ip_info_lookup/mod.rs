@@ -14,7 +14,7 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 /// Report the one provider failure that is neither transient nor confined to a single address.
 ///
@@ -204,7 +204,19 @@ impl IpInfoLookup {
 
         let mut located = HashMap::new();
         let mut unresolved: HashSet<IpAddr> = HashSet::new();
+
+        info!(
+            "got {} addresses to perform geo lookup for",
+            addresses.len()
+        );
         for chunk in addresses.chunks(self.max_addresses_per_lookup) {
+            info!(
+                "performing geo lookup for a batch of {} addresses",
+                chunk.len()
+            );
+            for address in chunk {
+                info!(">> looking up {address}")
+            }
             match self.batch_lookup(chunk).await {
                 Ok(responses) => located.extend(responses),
                 Err(err) => {
@@ -231,13 +243,20 @@ impl IpInfoLookup {
 
             // addresses the provider could not place are simply missing from the response
             let responses = ips
-                .into_iter()
-                .filter_map(|ip| located.get(&ip).map(|details| (ip, details.clone())))
+                .iter()
+                .filter_map(|ip| located.get(ip).map(|details| (*ip, details.clone())))
                 .collect::<HashMap<_, _>>();
 
             match reconcile_node_responses(responses) {
-                Ok(location) => locations.push((node_id, location)),
-                Err(err) => debug!("no usable location for node {node_id}: {err}"),
+                Ok(location) => {
+                    info!(
+                        "node {node_id} ({ips:?}) is located in {}",
+                        location.two_letter_iso_country_code
+                    );
+                    debug!("node {node_id} ({ips:?}) full location: {location:?}");
+                    locations.push((node_id, location))
+                }
+                Err(err) => info!("no usable location for node {node_id}: {err}"),
             }
         }
 

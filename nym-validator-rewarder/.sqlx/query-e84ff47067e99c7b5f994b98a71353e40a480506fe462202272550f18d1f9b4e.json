@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT e.expiration_date as \"expiration_date: Date\"\n                FROM ticketbook_issuance_epoch e\n                LEFT JOIN ticketbook_issuance_rewarding_details d\n                    ON d.ticketbook_expiration_date = e.expiration_date\n                WHERE d.ticketbook_expiration_date IS NULL\n                ORDER BY e.expiration_date\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "expiration_date: Date",
+        "ordinal": 0,
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "ticketbook_issuance_epoch",
+            "name": "expiration_date"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e84ff47067e99c7b5f994b98a71353e40a480506fe462202272550f18d1f9b4e"
+}

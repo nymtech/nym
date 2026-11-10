@@ -38,6 +38,20 @@ pub trait NodeFamiliesSigningClient {
         .await
     }
 
+    async fn update_node_families_admin(
+        &self,
+        admin: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_node_families_contract(
+            fee,
+            NodeFamiliesExecuteMsg::UpdateAdmin { admin },
+            "NodeFamiliesContract::UpdateAdmin".to_string(),
+            vec![],
+        )
+        .await
+    }
+
     async fn create_family(
         &self,
         name: String,
@@ -241,6 +255,9 @@ mod tests {
         match msg {
             NodeFamiliesExecuteMsg::UpdateConfig { config } => {
                 client.update_node_families_config(config, None).ignore()
+            }
+            NodeFamiliesExecuteMsg::UpdateAdmin { admin } => {
+                client.update_node_families_admin(admin, None).ignore()
             }
             NodeFamiliesExecuteMsg::CreateFamily { name, description } => client
                 .create_family(name, description, None, vec![])

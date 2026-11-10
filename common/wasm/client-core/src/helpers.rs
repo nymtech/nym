@@ -23,7 +23,7 @@ use nym_topology::{EpochRewardedSet, NymTopology, RoutingNode};
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::{nym_api::NymApiClientExt, UserAgent};
 use nym_wasm_utils::error::PromisableResult;
-use rand::thread_rng;
+use rand::rng;
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_futures::future_to_promise;
@@ -198,7 +198,7 @@ pub async fn setup_from_topology(
 }
 
 pub async fn generate_new_client_keys(store: &ClientStorage) -> Result<(), WasmCoreError> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     init::generate_new_client_keys(&mut rng, store).await?;
     Ok(())
 }

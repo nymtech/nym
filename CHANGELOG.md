@@ -4,6 +4,159 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.21-hanoi] (2026-10-28)
+
+- Add conformance to Eq for KeyPairUser and SecretKeyUser ([#7380])
+- Wire up console_error_panic_hook feature in nym-wasm-client-core ([#7374])
+- Remove unused dependencies ([#7373])
+- Declare a [lints] table in every workspace crate ([#7372])
+- Remove redundant package.homepage ([#7371])
+- Fix clippy lints reported by newer toolchain ([#7370])
+- Accept key pair in NyxdCredentialFetcher ([#7368])
+- fixing clippy lints and stuff ([#7228])
+- bugfix: update trait function signature for domain fronting ([#7221])
+- chore: remove already run mixnet contract migrations ([#7220])
+- chore: upgrade libcrux libraries and re-enable nonce control ([#7214])
+- feat: performance contract: multiple kinds ([#7213])
+- feat: NMv3: config score calculation ([#7188])
+- update validator rewarder ([#7186])
+- feat: NMv3: node score aggregation ([#7181])
+- feat NMv3: review nits: additional tests and updated docs ([#7176])
+- feat: use Geolocation contract within NS API ([#7168])
+- feat: attested geolocation retrieval ([#7156])
+- feat: NMv3: Nym API integration ([#7136])
+- feat: NMv3: gateway liveness probes ([#7128])
+- feat: NMv3: mixnode liveness sending ([#7115])
+- feat: NMv3: per kind submission ([#7100])
+- feat: NMv3: per kind scheduling ([#7095])
+- feat: NMv3: allow storing different test results ([#7086])
+- feat: NMv3: announce agents' ed25519 identities to the contract ([#7080])
+- feat: NMv3: unmetered ephemeral client sessions ([#7078])
+- feat: NMv3: forwarding of final hop network monitor packets ([#7063])
+- feat: add network monitor agent ed25519 key to announced data ([#7059])
+- Feat/nmv3 liveness checks ([#7058])
+
+[#7380]: https://github.com/nymtech/nym/pull/7380
+[#7374]: https://github.com/nymtech/nym/pull/7374
+[#7373]: https://github.com/nymtech/nym/pull/7373
+[#7372]: https://github.com/nymtech/nym/pull/7372
+[#7371]: https://github.com/nymtech/nym/pull/7371
+[#7370]: https://github.com/nymtech/nym/pull/7370
+[#7368]: https://github.com/nymtech/nym/pull/7368
+[#7228]: https://github.com/nymtech/nym/pull/7228
+[#7221]: https://github.com/nymtech/nym/pull/7221
+[#7220]: https://github.com/nymtech/nym/pull/7220
+[#7214]: https://github.com/nymtech/nym/pull/7214
+[#7213]: https://github.com/nymtech/nym/pull/7213
+[#7188]: https://github.com/nymtech/nym/pull/7188
+[#7186]: https://github.com/nymtech/nym/pull/7186
+[#7181]: https://github.com/nymtech/nym/pull/7181
+[#7176]: https://github.com/nymtech/nym/pull/7176
+[#7168]: https://github.com/nymtech/nym/pull/7168
+[#7156]: https://github.com/nymtech/nym/pull/7156
+[#7136]: https://github.com/nymtech/nym/pull/7136
+[#7128]: https://github.com/nymtech/nym/pull/7128
+[#7115]: https://github.com/nymtech/nym/pull/7115
+[#7100]: https://github.com/nymtech/nym/pull/7100
+[#7095]: https://github.com/nymtech/nym/pull/7095
+[#7086]: https://github.com/nymtech/nym/pull/7086
+[#7080]: https://github.com/nymtech/nym/pull/7080
+[#7078]: https://github.com/nymtech/nym/pull/7078
+[#7063]: https://github.com/nymtech/nym/pull/7063
+[#7059]: https://github.com/nymtech/nym/pull/7059
+[#7058]: https://github.com/nymtech/nym/pull/7058
+
+## [2026.20-glasgow] (2026-10-13)
+
+- bugfix: one sphinx-key write per rotation (with jitter) ([#7212])
+- Bugfix/explicit ring crypto provider ([#7211])
+- fix: x86 compilation with avx2 ([#7208])
+- feat: passphrase encrypted client keys ([#7203])
+- feat: optional pemstore encryption ([#7202])
+- Add admin update tx to dkg and node family contracts ([#7201])
+- bump sphinx to 0.8.0 ([#7197])
+- Network Details Defaults ([#7187])
+- Remove unneeded mutabilty in internal Resolver API fns   ([#7184])
+- [bugfix] Credentials requests db missing from config ([#7177])
+- chore: update deps ([#7172])
+- Update sqlx to v0.9.0 ([#7164])
+- HTTP front / retry policy ([#7105])
+- Compact ecash bugfixes
+
+[#7212]: https://github.com/nymtech/nym/pull/7212
+[#7211]: https://github.com/nymtech/nym/pull/7211
+[#7208]: https://github.com/nymtech/nym/pull/7208
+[#7203]: https://github.com/nymtech/nym/pull/7203
+[#7202]: https://github.com/nymtech/nym/pull/7202
+[#7201]: https://github.com/nymtech/nym/pull/7201
+[#7197]: https://github.com/nymtech/nym/pull/7197
+[#7187]: https://github.com/nymtech/nym/pull/7187
+[#7184]: https://github.com/nymtech/nym/pull/7184
+[#7177]: https://github.com/nymtech/nym/pull/7177
+[#7172]: https://github.com/nymtech/nym/pull/7172
+[#7164]: https://github.com/nymtech/nym/pull/7164
+[#7105]: https://github.com/nymtech/nym/pull/7105
+
+## [2026.19-fuqing] (2026-09-29)
+
+- HTTP Rate-limit Rotation ([#7165])
+- Apply VPN API clock skew to LP registration timestamps (#7150) ([#7152])
+- Max/openspec archive stream liveness ([#7141])
+- Bump hickory crates to `0.26.2`  ([#7137])
+- Lock-free topology ([#7134])
+- Max/nym sdk feature gating ([#7123])
+- Max/stream keepalive ([#7120])
+- Max/lwd stream patch ([#7098])
+- Add prune command to BandwidthController ([#7085])
+- Clean up usage of nym-bridges ([#7036])
+
+[#7165]: https://github.com/nymtech/nym/pull/7165
+[#7152]: https://github.com/nymtech/nym/pull/7152
+[#7141]: https://github.com/nymtech/nym/pull/7141
+[#7137]: https://github.com/nymtech/nym/pull/7137
+[#7134]: https://github.com/nymtech/nym/pull/7134
+[#7123]: https://github.com/nymtech/nym/pull/7123
+[#7120]: https://github.com/nymtech/nym/pull/7120
+[#7098]: https://github.com/nymtech/nym/pull/7098
+[#7085]: https://github.com/nymtech/nym/pull/7085
+[#7036]: https://github.com/nymtech/nym/pull/7036
+
+## [2026.18-essaouria] (2026-09-16)
+
+- chore: additional logs when performing node lookup ([#7154])
+- bug fixes ([#7145])
+- bugfix: change snapshot retrieval to be best-effort ([#7132])
+- chore: revert manually setting LP AEAD nonce ([#7130])
+- bugfix: don't panic on Socks5 Controller Sender failure ([#7114])
+- [LP-DATA] Separation of Lp Registration and dVPN Registration ([#7112])
+- feat: LP: claim UM token when out of tickets ([#7110])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother [vol5] ([#7107])
+- Internal DNS work ([#7104])
+- feat: increase default replay window to 8k (following wireguard) + make it configurable for easier changes in the future ([#7103])
+- poc: manually control sending counters ([#7102])
+- Feat/allow future lp compat ([#7099])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother [vol4] ([#7096])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother [vol3] ([#7088])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother [vol2] ([#7082])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother ([#7069])
+
+[#7154]: https://github.com/nymtech/nym/pull/7154
+[#7145]: https://github.com/nymtech/nym/pull/7145
+[#7132]: https://github.com/nymtech/nym/pull/7132
+[#7130]: https://github.com/nymtech/nym/pull/7130
+[#7114]: https://github.com/nymtech/nym/pull/7114
+[#7112]: https://github.com/nymtech/nym/pull/7112
+[#7110]: https://github.com/nymtech/nym/pull/7110
+[#7107]: https://github.com/nymtech/nym/pull/7107
+[#7104]: https://github.com/nymtech/nym/pull/7104
+[#7103]: https://github.com/nymtech/nym/pull/7103
+[#7102]: https://github.com/nymtech/nym/pull/7102
+[#7099]: https://github.com/nymtech/nym/pull/7099
+[#7096]: https://github.com/nymtech/nym/pull/7096
+[#7088]: https://github.com/nymtech/nym/pull/7088
+[#7082]: https://github.com/nymtech/nym/pull/7082
+[#7069]: https://github.com/nymtech/nym/pull/7069
+
 ## [2026.17-djibouti] (2026-09-01)
 
 - fixed nym-node config migration ([#7106])

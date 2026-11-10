@@ -67,18 +67,37 @@ impl fmt::Debug for NymPacket {
 impl NymPacket {
     #[cfg(feature = "sphinx")]
     pub fn sphinx_build<M: AsRef<[u8]>>(
-        use_legacy_sphinx_format: bool,
         size: usize,
         message: M,
         route: &[Node],
         destination: &Destination,
         delays: &[Delay],
     ) -> Result<NymPacket, NymPacketError> {
-        let mut builder = SphinxPacketBuilder::new().with_payload_size(size);
+        // The with_version call isn't needed per se, but is there for disambiguation
+        let builder = SphinxPacketBuilder::new()
+            .with_payload_size(size)
+            .with_version(SINGLE_SEED_SURB_VERSION);
 
-        if use_legacy_sphinx_format {
-            builder = builder.with_version(X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION)
-        };
+        Ok(NymPacket::Sphinx(builder.build_packet(
+            message,
+            route,
+            destination,
+            delays,
+        )?))
+    }
+
+    #[cfg(feature = "sphinx")]
+    pub fn sphinx_build_legacy<M: AsRef<[u8]>>(
+        size: usize,
+        message: M,
+        route: &[Node],
+        destination: &Destination,
+        delays: &[Delay],
+    ) -> Result<NymPacket, NymPacketError> {
+        // The with_version call is needed to pin to the correct version, which is not the default
+        let builder = SphinxPacketBuilder::new()
+            .with_payload_size(size)
+            .with_version(PAYLOAD_KEYS_SEEDS_VERSION);
 
         Ok(NymPacket::Sphinx(builder.build_packet(
             message,

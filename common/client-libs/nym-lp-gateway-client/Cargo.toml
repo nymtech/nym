@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -16,15 +15,17 @@ publish = true
 workspace = true
 
 [dependencies]
+async-trait.workspace = true
 bincode.workspace = true
 bytes.workspace = true
-rand010.workspace = true
+rand.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
 nym-lp = { workspace = true }
 nym-lp-data.workspace = true
+nym-registration-common = { workspace = true }
 
 [dev-dependencies]
 nym-kkt.workspace = true

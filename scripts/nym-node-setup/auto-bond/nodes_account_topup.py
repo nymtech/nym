@@ -37,6 +37,8 @@ import argparse
 import csv
 import json
 import os
+import time
+import signal
 import subprocess
 import sys
 import tempfile
@@ -161,7 +163,7 @@ def fetch_node_address(ip: str, dry_run: bool) -> str:
     url = f"http://{ip}:{NODE_HTTP_PORT}{AUX_DETAILS_PATH}"
     if dry_run:
         return "DRY_RUN_ADDRESS"
-    req = urllib.request.Request(url, headers={"User-Agent": "nodes_account_topup/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "nym-topup/1.0"})
     with urllib.request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     addr = data.get("address")
@@ -180,7 +182,7 @@ def fetch_balance_nym(address: str, dry_run: bool) -> Decimal:
     for base in LCD_ENDPOINTS:
         url = base.rstrip("/") + LCD_BALANCE_PATH.format(address=address)
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "nodes_account_topup/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "nym-topup/1.0"})
             with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             unym = 0
@@ -342,31 +344,106 @@ def main():
         info("dry run — not sending")
     else:
         if not args.assume_yes:
-            # nym-cli will show the transfer table and prompt for confirmation;
-            # answer it interactively (output is NOT captured so the prompt shows).
+            # nym-cli shows the transfer table and an interactive confirmation
+            # (via the `inquire` crate, which reads the TTY). Run it attached to
+            # the real terminal so the table renders correctly and the operator
+            # answers the prompt themselves.
             result = subprocess.run(cmd, text=True)
-            combined = ""  # we didn't capture; rely on exit code + log below
+            combined = ""  # not captured; rely on exit code + log below
         else:
-            # non-interactive: auto-confirm by feeding "y" to the prompt.
-            # Stream output live AND collect it so we can scan for error markers
-            # (nym-cli has logged fatal errors while still exiting 0).
-            proc = subprocess.Popen(
-                cmd, text=True, stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            )
-            captured = []
+            # Non-interactive auto-confirm.
+            #
+            # nym-cli's confirmation uses `inquire::Confirm`, which reads from the
+            # TTY, NOT stdin — so feeding stdin does nothing and it still blocks.
+            # Piping stdout also strips the TTY, making inquire emit cursor-control
+            # escapes that render as a garbled "staircase". The only reliable fix
+            # is to attach nym-cli to a pseudo-terminal (pty): inquire then sees a
+            # real terminal, the table renders cleanly, and we can answer "y" on
+            # the pty. We tee everything to our stdout and capture it for the
+            # error-marker scan.
             try:
-                proc.stdin.write("y\n")
-                proc.stdin.flush()
-                proc.stdin.close()
-            except (BrokenPipeError, OSError):
+                import pty
+                import select
+            except ImportError:
+                err("--assume-yes (-y) needs a Unix pseudo-terminal (pty), which "
+                    "is not available on this platform. Re-run without -y and "
+                    "confirm the transfer prompt interactively.")
+                try:
+                    input_csv.unlink()
+                except OSError:
+                    pass
+                sys.exit(1)
+
+            captured_chunks = []
+
+            def _emit(text):
+                sys.stdout.write(text)
+                sys.stdout.flush()
+                captured_chunks.append(text)
+
+            pid, master_fd = pty.fork()
+            if pid == 0:
+                # child: exec nym-cli with the pty as its controlling terminal
+                try:
+                    os.execvp(cmd[0], cmd)
+                except Exception:
+                    os._exit(127)
+
+            # parent: stream pty output, answer the confirmation once, until EOF
+            answered = False
+            try:
+                while True:
+                    try:
+                        rlist, _, _ = select.select([master_fd], [], [], 1.0)
+                    except (OSError, ValueError):
+                        break
+                    if master_fd not in rlist:
+                        continue
+                    try:
+                        data = os.read(master_fd, 1024)
+                    except OSError:
+                        break  # pty closed (child exited)
+                    if not data:
+                        break
+                    _emit(data.decode(errors="replace"))
+                    if not answered and "continue with the transfers" in "".join(captured_chunks):
+                        # Give inquire a moment to enter its raw-mode line reader,
+                        # then submit. inquire's Confirm reads from the TTY and
+                        # needs a carriage return (\r) to submit — a bare \n is not
+                        # treated as "enter" in the pty's raw mode and shows up as
+                        # a stray "^J"/"j" while the prompt keeps waiting.
+                        time.sleep(0.3)
+                        os.write(master_fd, b"y\r")
+                        answered = True
+            except KeyboardInterrupt:
+                # The child runs in its own session (pty.fork), so Ctrl-C reaches
+                # only this parent — nym-cli would otherwise keep running and, if
+                # already confirmed, complete the transfer. Forward the signal so
+                # the child actually stops, then report it as an interruption
+                # rather than silently swallowing it.
+                try:
+                    os.kill(pid, signal.SIGINT)
+                except ProcessLookupError:
+                    pass
+                err("interrupted — sent SIGINT to nym-cli; the transfer may or may "
+                    "not have been broadcast. Verify balances before re-running.")
+
+            try:
+                os.close(master_fd)
+            except OSError:
                 pass
-            for line in proc.stdout:
-                print(line, end="")
-                captured.append(line)
-            proc.wait()
-            result = subprocess.CompletedProcess(cmd, proc.returncode)
-            combined = "".join(captured)
+
+            _, status = os.waitpid(pid, 0)
+            # os.waitstatus_to_exitcode exists only on Python 3.9+; decode the
+            # raw wait status manually so the script also works on 3.8 and below.
+            if os.WIFEXITED(status):
+                returncode = os.WEXITSTATUS(status)
+            elif os.WIFSIGNALED(status):
+                returncode = -os.WTERMSIG(status)
+            else:
+                returncode = 1
+            result = subprocess.CompletedProcess(cmd, returncode)
+            combined = "".join(captured_chunks)
 
         failed_markers = ("Failed to read input file", "ERROR", "error trying to",
                           "does not have enough columns", "insufficient funds")

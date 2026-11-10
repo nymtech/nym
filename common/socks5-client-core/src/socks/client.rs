@@ -23,7 +23,7 @@ use nym_sphinx::params::PacketType;
 use nym_task::connections::{LaneQueueLengths, TransmissionLane};
 use nym_task::ShutdownTracker;
 use pin_project::pin_project;
-use rand::RngCore;
+use rand::Rng;
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -237,7 +237,7 @@ impl SocksClient {
     }
 
     fn generate_random() -> ConnectionId {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand::rng();
         rng.next_u64()
     }
 

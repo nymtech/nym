@@ -24,12 +24,11 @@ mod test {
     use crate::ecash::tests::voucher_fixture;
     use nym_compact_ecash::{generate_keypair_user, scheme::withdrawal::WithdrawalRequest};
     use nym_credentials_interface::TicketType;
-    use rand::rngs::OsRng;
     use time::macros::date;
 
     #[tokio::test]
     async fn validate_deposit_test() {
-        let mut rng = OsRng;
+        let mut rng = rand::rng();
         let deposit_id = 42;
         let voucher = voucher_fixture(Some(deposit_id));
         let signing_data = voucher.prepare_for_signing();

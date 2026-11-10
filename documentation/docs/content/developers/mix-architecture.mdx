@@ -1,0 +1,26 @@
+---
+title: "mix-* Architecture: How the Browser Mixnet Packages Are Wired"
+description: "The shared browser architecture behind mix-tunnel, mix-fetch, mix-dns, and mix-websocket: one Web Worker, one WASM instance, a Comlink boundary, and a smoltcp + rustls stack reaching the mixnet via an IPR."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+import Intro from '@snippets/nym/developers/mix-architecture/intro.mdx'
+import ThePackageFamily from '@snippets/nym/developers/mix-architecture/the-package-family.mdx'
+import OneTunnelOneWasmInstance from '@snippets/nym/developers/mix-architecture/one-tunnel-one-wasm-instance.mdx'
+import TheWorkerBoundary from '@snippets/nym/developers/mix-architecture/the-worker-boundary.mdx'
+import InsideTheWorker from '@snippets/nym/developers/mix-architecture/inside-the-worker.mdx'
+import TunnelLifecycle from '@snippets/nym/developers/mix-architecture/tunnel-lifecycle.mdx'
+import GoingDeeper from '@snippets/nym/developers/mix-architecture/going-deeper.mdx'
+import SeeAlso from '@snippets/nym/developers/mix-architecture/see-also.mdx'
+
+# Architecture
+
+<Intro />
+<ThePackageFamily />
+<OneTunnelOneWasmInstance />
+<TheWorkerBoundary />
+<InsideTheWorker />
+<TunnelLifecycle />
+<GoingDeeper />
+<SeeAlso />

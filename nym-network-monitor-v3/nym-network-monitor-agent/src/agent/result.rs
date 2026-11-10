@@ -1,28 +1,33 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::egress_connection::EgressConnectionStatistics;
+use nym_network_monitor_orchestrator_requests::models::{
+    InterfaceMeasurement, RunMeasurements, TestKind,
+};
 use std::time::Duration;
 use time::OffsetDateTime;
 
 // TODO: once created, move this struct to a shared models library
-/// Captures the outcome of a single [`run_stress_test`](super::NodeStressTester::run_stress_test) run.
+/// What ONE of a node's interfaces returned: packets out, packets back, and the timing of what came
+/// back.
 ///
-/// Fields are populated incrementally as the test progresses; absent values (`None`) indicate
-/// that the corresponding step was not reached or did not produce a result.
-#[derive(Debug, Clone)]
-pub(crate) struct TestRunResult {
-    /// The timestamp when the test run was initiated.
-    pub(crate) start_time: OffsetDateTime,
-
+/// Named for the SHAPE of the measurement rather than for a role or a phase, because it is one kind
+/// of measurement rather than the only conceivable one: a future test measuring something that is not
+/// a delivery ratio becomes a sibling of this, at which point these two sit behind one enum and
+/// nothing that fills a `PacketDelivery` in has to change.
+///
+/// Fields are populated incrementally as a probe progresses; `None` means that step was never
+/// reached rather than that it yielded nothing.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub(crate) struct PacketDelivery {
     /// Duration of the Noise handshake on the ingress (responder) side, if completed.
+    ///
+    /// Both handshake figures stay empty on a leg with no Noise on it at all, such as one that
+    /// forwards over a client websocket, where an absent figure is the honest report and not a gap.
     pub(crate) ingress_noise_handshake: Option<Duration>,
 
     /// Duration of the Noise handshake on the egress (initiator) side, if completed.
     pub(crate) egress_noise_handshake: Option<Duration>,
-
-    /// The (constant) delay of the sphinx packet set during the test run.
-    pub sphinx_packet_delay: Duration,
 
     /// Number of sphinx packets successfully sent to the node under test.
     pub(crate) packets_sent: usize,
@@ -32,44 +37,29 @@ pub(crate) struct TestRunResult {
 
     /// Round-trip time of the very first probe packet, sent in isolation before any load is applied.
     /// Because the node is idle at this point, this value approximates the baseline network latency
-    /// to the node without any queuing or processing overhead from the stress test itself.
+    /// to the node without any queuing or processing overhead from the test itself.
     /// `None` if the initial probe did not complete successfully.
     pub(crate) approximate_latency: Option<Duration>,
 
     /// RTT statistics computed over all received packets, or `None` if no packets were received.
     pub(crate) packets_statistics: Option<LatencyDistribution>,
 
-    /// Latency distribution of individual batch send operations recorded during the load test.
-    /// Reflects how long each batch took to flush to the OS socket, giving a rough measure of
-    /// egress throughput. `None` if no batches were sent.
-    pub(crate) sending_statistics: Option<LatencyDistribution>,
-
-    /// Whether any packet was received with an ID that had already been seen in this test run.
+    /// Whether any packet was received with an ID that had already been seen against this interface.
     /// Duplicates should never occur under normal operation; their presence may indicate a
     /// misbehaving or malicious node replaying packets.
     pub(crate) received_duplicates: bool,
 
-    /// Human-readable description of the first error that caused the test to abort if any.
+    /// Why this interface measured nothing, or less than it should have.
+    ///
+    /// Per interface so that one dead leg of a multi-interface run does not make its healthy legs
+    /// unreportable. NOTE: this is currently LOCAL, for logging and tests only, because
+    /// [`InterfaceMeasurement`] has no error field to carry it. Folding it into the run-level error
+    /// instead would be wrong: that field drives `was_reachable`, so a gateway with a broken ingest
+    /// and a working delivery would be reported as unreachable while scoring 0.5.
     pub(crate) error: Option<String>,
 }
 
-impl TestRunResult {
-    pub(crate) fn new(sphinx_packet_delay: Duration) -> Self {
-        TestRunResult {
-            start_time: OffsetDateTime::now_utc(),
-            ingress_noise_handshake: None,
-            egress_noise_handshake: None,
-            sphinx_packet_delay,
-            packets_sent: 0,
-            packets_received: 0,
-            approximate_latency: None,
-            packets_statistics: None,
-            sending_statistics: None,
-            received_duplicates: false,
-            error: None,
-        }
-    }
-
+impl PacketDelivery {
     /// Calculates the percentage of packets received out of the total sent.
     pub(crate) fn received_percentage(&self) -> f64 {
         if self.packets_sent > 0 {
@@ -79,77 +69,146 @@ impl TestRunResult {
         }
     }
 
-    /// Records the duration of the ingress Noise handshake.
-    pub(crate) fn set_ingress_noise_handshake(&mut self, duration: Duration) {
-        self.ingress_noise_handshake = Some(duration);
-    }
-
-    /// Records the duration of the egress Noise handshake.
-    pub(crate) fn set_egress_noise_handshake(&mut self, duration: Duration) {
-        self.egress_noise_handshake = Some(duration);
-    }
-
-    /// Records the RTT of the initial probe packet as the baseline latency estimate.
-    pub(crate) fn set_approximate_latency(&mut self, rtt: Duration) {
-        self.approximate_latency = Some(rtt);
-    }
-
-    /// Sets the number of packets that were sent during the stress test.
-    pub(crate) fn set_packets_sent(&mut self, count: usize) {
-        self.packets_sent = count;
-    }
-
-    /// Sets the number of packets that were received back from the node under test.
-    pub(crate) fn set_packets_received(&mut self, count: usize) {
-        self.packets_received = count;
-    }
-
-    /// Attaches pre-computed RTT statistics for the received packets.
-    pub(crate) fn set_packets_statistics(&mut self, stats: LatencyDistribution) {
-        self.packets_statistics = Some(stats);
-    }
-
-    /// Marks that at least one duplicate packet ID was observed during the test run.
-    pub(crate) fn set_received_duplicates(&mut self) {
-        self.received_duplicates = true;
-    }
-
-    /// Records an error message that caused the test run to abort.
+    /// Records why this interface measured less than it should have.
+    // the mixnode probe has one interface, so its failures are run-level; the per-interface error is
+    // consumed by the gateway probe's phases
+    #[allow(dead_code)]
     pub(crate) fn set_error(&mut self, error: impl Into<String>) {
         self.error = Some(error.into());
     }
 
-    /// Populates egress-side statistics from the finished [`EgressConnection`](crate::egress_connection::EgressConnection).
-    /// Sets the egress Noise handshake duration and, if any batches were sent, the batch send
-    /// latency distribution.
-    pub(crate) fn set_egress_connection_statistics(&mut self, stats: EgressConnectionStatistics) {
-        self.set_egress_noise_handshake(stats.noise_handshake_duration);
-
-        if !stats.packet_batches_sending_duration.is_empty() {
-            self.sending_statistics = Some(LatencyDistribution::compute(
-                &stats.packet_batches_sending_duration,
-            ))
+    /// Projects this interface's counts onto the measurement it is submitted as.
+    fn into_measurement(self, sphinx_packet_delay: Duration) -> InterfaceMeasurement {
+        InterfaceMeasurement {
+            ingress_noise_handshake: self.ingress_noise_handshake,
+            egress_noise_handshake: self.egress_noise_handshake,
+            sphinx_packet_delay,
+            packets_sent: self.packets_sent,
+            packets_received: self.packets_received,
+            approximate_latency: self.approximate_latency,
+            packets_statistics: self.packets_statistics.map(Into::into),
+            received_duplicates: self.received_duplicates,
         }
     }
 }
 
-/// Latency statistics computed over the set of test packets received or sent during a stress test.
+/// What one run measured, shaped by its kind exactly as [`RunMeasurements`] is on the wire: one
+/// delivery per interface the kind exercises.
+///
+/// Every slot exists from the moment the run starts, which is what fixes the denominator of the score
+/// computed downstream: an interface that produced nothing is submitted as a zero rather than left
+/// out, since an omission would shrink the average and let a node whose second interface never ran
+/// tie with one that passed both. An interface the kind does not exercise is unrepresentable.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum ProbeMeasurements {
+    MixnodeLiveness {
+        mix_forwarding: PacketDelivery,
+    },
+    GatewayLiveness {
+        client_ingest: PacketDelivery,
+        client_delivery: PacketDelivery,
+    },
+    MixnodeStress {
+        mix_forwarding: PacketDelivery,
+    },
+}
+
+impl ProbeMeasurements {
+    /// Every interface `kind` exercises, with nothing measured yet: what a run reports should
+    /// nothing else happen.
+    fn unmeasured(kind: TestKind) -> Self {
+        match kind {
+            TestKind::MixnodeLiveness => ProbeMeasurements::MixnodeLiveness {
+                mix_forwarding: PacketDelivery::default(),
+            },
+            TestKind::GatewayLiveness => ProbeMeasurements::GatewayLiveness {
+                client_ingest: PacketDelivery::default(),
+                client_delivery: PacketDelivery::default(),
+            },
+            TestKind::MixnodeStress => ProbeMeasurements::MixnodeStress {
+                mix_forwarding: PacketDelivery::default(),
+            },
+        }
+    }
+
+    /// Projects every delivery onto the measurement it is submitted as.
+    fn into_wire(self, sphinx_packet_delay: Duration) -> RunMeasurements {
+        match self {
+            ProbeMeasurements::MixnodeLiveness { mix_forwarding } => {
+                RunMeasurements::MixnodeLiveness {
+                    mix_forwarding: mix_forwarding.into_measurement(sphinx_packet_delay),
+                }
+            }
+            ProbeMeasurements::GatewayLiveness {
+                client_ingest,
+                client_delivery,
+            } => RunMeasurements::GatewayLiveness {
+                client_ingest: client_ingest.into_measurement(sphinx_packet_delay),
+                client_delivery: client_delivery.into_measurement(sphinx_packet_delay),
+            },
+            ProbeMeasurements::MixnodeStress { mix_forwarding } => RunMeasurements::MixnodeStress {
+                mix_forwarding: mix_forwarding.into_measurement(sphinx_packet_delay),
+            },
+        }
+    }
+}
+
+/// Captures the outcome of a single test run against one node: the run-level facts, plus the
+/// measurements its kind defines.
+#[derive(Debug, Clone)]
+pub(crate) struct TestRunResult {
+    /// The timestamp when the test run was initiated.
+    pub(crate) start_time: OffsetDateTime,
+
+    /// The (constant) delay of the sphinx packet set during the test run. Run-level, because one run
+    /// asks the same delay of the node on every leg, and echoed onto each measurement.
+    pub(crate) sphinx_packet_delay: Duration,
+
+    /// Why the whole run failed, which is the only thing that makes a node UNREACHABLE: the
+    /// orchestrator reads `was_reachable` off this field's absence. A failure confined to one
+    /// interface belongs on that interface instead.
+    pub(crate) error: Option<String>,
+
+    /// What each interface of the run's kind returned, which also says which kind it was, so a run
+    /// cannot be submitted under a kind other than the one it was probed for.
+    pub(crate) measurements: ProbeMeasurements,
+}
+
+impl TestRunResult {
+    /// A run of `kind` about to start: every interface it exercises seeded at zero, which is already
+    /// a submittable result should nothing else happen.
+    pub(crate) fn new(kind: TestKind, sphinx_packet_delay: Duration) -> Self {
+        TestRunResult {
+            start_time: OffsetDateTime::now_utc(),
+            sphinx_packet_delay,
+            error: None,
+            measurements: ProbeMeasurements::unmeasured(kind),
+        }
+    }
+
+    /// Records the run-level failure that stopped every interface.
+    pub(crate) fn set_error(&mut self, error: impl Into<String>) {
+        self.error = Some(error.into());
+    }
+}
+
+/// Round-trip time statistics computed over the test packets received during a run.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LatencyDistribution {
-    /// Minimum latency duration it took to send or receive a test packet.
+    /// Minimum round-trip time of a test packet.
     pub minimum: Duration,
 
-    /// Average latency duration it took to send or receive a test packet.
+    /// Average round-trip time of a test packet.
     pub mean: Duration,
 
-    /// Median latency duration it took to send or receive a test packet.
+    /// Median round-trip time of a test packet.
     /// For an even number of samples, this is the arithmetic mean of the two middle values.
     pub median: Duration,
 
-    /// Maximum latency duration it took to send or receive a test packet.
+    /// Maximum round-trip time of a test packet.
     pub maximum: Duration,
 
-    /// The standard deviation of the latency duration it took to send or receive the test packets.
+    /// The standard deviation of the test packets' round-trip times.
     pub standard_deviation: Duration,
 }
 
@@ -254,27 +313,23 @@ impl From<LatencyDistribution>
     }
 }
 
+/// Projects a finished run onto the submission shape: one measurement per interface its kind
+/// exercises, whether or not that interface produced anything.
 impl From<TestRunResult> for nym_network_monitor_orchestrator_requests::models::TestRunResult {
     fn from(value: TestRunResult) -> Self {
         Self {
             time_taken: (OffsetDateTime::now_utc() - value.start_time).unsigned_abs(),
-            ingress_noise_handshake: value.ingress_noise_handshake,
-            egress_noise_handshake: value.egress_noise_handshake,
-            sphinx_packet_delay: value.sphinx_packet_delay,
-            packets_sent: value.packets_sent,
-            packets_received: value.packets_received,
-            approximate_latency: value.approximate_latency,
-            packets_statistics: value.packets_statistics.map(Into::into),
-            sending_statistics: value.sending_statistics.map(Into::into),
-            received_duplicates: value.received_duplicates,
             error: value.error,
+            measurements: value.measurements.into_wire(value.sphinx_packet_delay),
         }
     }
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use nym_network_monitor_orchestrator_requests::models as api;
 
     fn ms(n: u64) -> Duration {
         Duration::from_millis(n)
@@ -360,22 +415,62 @@ mod tests {
     }
 
     #[test]
-    fn result_setters_populate_fields() {
-        let mut result = TestRunResult::new(ms(2));
-        result.set_ingress_noise_handshake(ms(5));
-        result.set_egress_noise_handshake(ms(7));
-        result.set_packets_sent(100);
-        result.set_packets_received(95);
-        result.set_error("timeout");
-
+    fn measurement_fields_survive_projection_onto_the_wire() {
         let stats = LatencyDistribution::compute(&[ms(10), ms(20)]);
-        result.set_packets_statistics(stats);
+        let mut result = TestRunResult::new(TestKind::MixnodeStress, ms(2));
+        result.measurements = ProbeMeasurements::MixnodeStress {
+            mix_forwarding: PacketDelivery {
+                ingress_noise_handshake: Some(ms(5)),
+                egress_noise_handshake: Some(ms(7)),
+                packets_sent: 100,
+                packets_received: 95,
+                packets_statistics: Some(stats),
+                ..Default::default()
+            },
+        };
 
-        assert_eq!(result.ingress_noise_handshake, Some(ms(5)));
-        assert_eq!(result.egress_noise_handshake, Some(ms(7)));
-        assert_eq!(result.packets_sent, 100);
-        assert_eq!(result.packets_received, 95);
-        assert_eq!(result.packets_statistics, Some(stats));
-        assert_eq!(result.error.as_deref(), Some("timeout"));
+        let wire: api::TestRunResult = result.into();
+        let api::RunMeasurements::MixnodeStress {
+            mix_forwarding: projected,
+        } = wire.measurements
+        else {
+            panic!("projected onto the wrong kind: {wire:#?}");
+        };
+        assert_eq!(projected.ingress_noise_handshake, Some(ms(5)));
+        assert_eq!(projected.egress_noise_handshake, Some(ms(7)));
+        assert_eq!(projected.packets_sent, 100);
+        assert_eq!(projected.packets_received, 95);
+        assert_eq!(projected.packets_statistics, Some(stats.into()));
+    }
+
+    // each kind is seeded with its own shape, so a run that measured NOTHING is still submitted as
+    // its kind with every interface present and zeroed. swapped arms would submit a stress run as
+    // liveness, or a gateway run as a mixnode one
+    #[test]
+    fn every_kind_is_seeded_with_its_own_shape() {
+        for kind in [
+            TestKind::MixnodeLiveness,
+            TestKind::GatewayLiveness,
+            TestKind::MixnodeStress,
+        ] {
+            let wire: api::TestRunResult = TestRunResult::new(kind, ms(2)).into();
+
+            assert_eq!(wire.kind(), kind);
+            assert!(wire.measurements.all().iter().all(|m| m.packets_sent == 0));
+        }
+    }
+
+    // the run-level delay is what every measurement reports, since one run asks the same delay of the
+    // node on each of its legs
+    #[test]
+    fn the_run_level_sphinx_delay_reaches_every_measurement() {
+        let wire: api::TestRunResult = TestRunResult::new(TestKind::GatewayLiveness, ms(3)).into();
+
+        assert!(
+            wire.measurements
+                .all()
+                .iter()
+                .all(|m| m.sphinx_packet_delay == ms(3))
+        );
     }
 }

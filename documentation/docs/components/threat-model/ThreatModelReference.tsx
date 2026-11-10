@@ -10,9 +10,11 @@ import {
   VECTORS,
 } from "lib/privacy-model/threat-model";
 import { actorHref } from "lib/privacy-model/links";
+import type { Property, ThreatActor, Vector } from "lib/privacy-model/types";
 
-// Reference views over the generic threat-model spine. These render only from
-// the spine data (../../lib/privacy-model/threat-model) and use classes already
+// Reference views over the generic threat-model spine. `<Snippet view="reference">`
+// passes the spine records in (components/snippet.tsx); with no props they read the
+// module itself (../../lib/privacy-model/threat-model). They use classes already
 // defined in pages/threat-model-viz.css, scoped under .nym-threat-viz.
 
 /**
@@ -30,7 +32,7 @@ const L1_NOTE = {
   cost: "Free. It reads public data.",
 };
 
-export function ActorsReference() {
+export function ActorsReference({ actors = ACTORS }: { actors?: ThreatActor[] }) {
   return (
     <div className="nym-threat-viz" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div className="card actor-card" id="actor-L1">
@@ -64,12 +66,12 @@ export function ActorsReference() {
         </div>
       </div>
 
-      {ACTORS.map((a) => (
+      {actors.map((a) => (
         <div className="card actor-card" id={`actor-${a.id}`} key={a.id}>
           <div className="actor-head">
             <span className={`badge ${a.primary ? "accent" : ""}`}>{a.id}</span>
             <span className="actor-name">{a.name}</span>
-            {a.primary && <span className="badge accent">Primary adversary</span>}
+            {a.primary && <span className="badge accent">A primary adversary</span>}
           </div>
           <p style={{ margin: "0 0 8px", color: "var(--nym-text-dim)" }}>
             {a.vantage}
@@ -83,14 +85,35 @@ export function ActorsReference() {
                 ))}
               </ul>
             </div>
-            <div className="meta-block cant-see">
-              <h4>Cannot observe</h4>
-              <ul>
-                {a.cannotObserve.map((o, i) => (
-                  <li key={i}>{o}</li>
-                ))}
-              </ul>
-            </div>
+            {a.cannotObserveMixnet ? (
+              <>
+                <div className="meta-block cant-see">
+                  <h4>Cannot observe (direct connection)</h4>
+                  <ul>
+                    {a.cannotObserve.map((o, i) => (
+                      <li key={i}>{o}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="meta-block cant-see">
+                  <h4>Cannot observe (mixnet)</h4>
+                  <ul>
+                    {a.cannotObserveMixnet.map((o, i) => (
+                      <li key={i}>{o}</li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div className="meta-block cant-see">
+                <h4>Cannot observe</h4>
+                <ul>
+                  {a.cannotObserve.map((o, i) => (
+                    <li key={i}>{o}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="meta-block">
               <h4>Cost</h4>
               <ul>
@@ -108,10 +131,10 @@ export function ActorsReference() {
   );
 }
 
-export function VectorsReference() {
+export function VectorsReference({ vectors = VECTORS }: { vectors?: Vector[] }) {
   return (
     <div className="nym-threat-viz" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {VECTORS.map((v) => (
+      {vectors.map((v) => (
         <div className="card" id={`vector-${v.id}`} key={v.id} style={{ scrollMarginTop: 84 }}>
           <div className="actor-head">
             <span className="badge accent">{v.id}</span>
@@ -156,11 +179,11 @@ export function VectorsReference() {
   );
 }
 
-export function PropertiesReference() {
+export function PropertiesReference({ properties = PROPERTIES }: { properties?: Property[] }) {
   return (
     <div className="nym-threat-viz" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div className="meta-grid">
-        {PROPERTIES.map((p) => (
+        {properties.map((p) => (
           <div className="card" id={`prop-${p.id}`} key={p.id} style={{ scrollMarginTop: 84 }}>
             <div className="actor-head">
               <span className="badge accent">{p.id}</span>

@@ -90,13 +90,11 @@ impl AppState {
     pub(crate) fn dummy() -> Self {
         use crate::node::key_rotation::key::SphinxPrivateKey;
         use nym_crypto::asymmetric::x25519;
-        use rand::rngs::OsRng;
 
         let mut rng = nym_test_utils::helpers::deterministic_rng();
         let ed25519_keys = ed25519::KeyPair::new(&mut rng);
         let x25519_pub: x25519::DHPublicKey = x25519::PrivateKey::new(&mut rng).public_key().into();
         let lp = nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol::new(
-            false,
             0,
             0,
             x25519_pub,
@@ -118,7 +116,7 @@ impl AppState {
             auxiliary_data: Default::default(),
             lewes_protocol: signed,
         };
-        let active_sphinx = ActiveSphinxKeys::new_fresh(SphinxPrivateKey::new(&mut OsRng, 0));
+        let active_sphinx = ActiveSphinxKeys::new_fresh(SphinxPrivateKey::new(&mut rand::rng(), 0));
 
         AppState::new(
             static_information,

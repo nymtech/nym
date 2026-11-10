@@ -6,7 +6,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme = "src/ARCHITECTURE.md"
@@ -17,7 +16,7 @@ nym-smol-core = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }
-nym-sdk = { workspace = true }
+nym-sdk = { workspace = true, default-features = false, features = ["ipr"] }
 nym-ip-packet-requests = { workspace = true, default-features = true }
 thiserror.workspace = true
 
@@ -35,3 +34,5 @@ hyper = { workspace = true, features = ["client", "http1"] }
 hyper-util = { workspace = true, features = ["tokio"] }
 http-body-util = { workspace = true }
 reqwest = { workspace = true, features = ["rustls"] }
+
+[lints]

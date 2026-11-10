@@ -16,10 +16,14 @@ export interface SetupMixTunnelOpts {
   disableCoverTraffic?: boolean;
   openReplySurbs?: number | undefined;
   dataReplySurbs?: number | undefined;
-  primaryDns?: string | undefined;
-  fallbackDns?: string | undefined;
+  // DoH resolver endpoints, tried in order. Default: Quad9, Cloudflare, Google.
+  dohEndpoints?: string[] | undefined;
   storagePassphrase?: string | undefined;
   connectTimeoutMs?: number | undefined;
+  // IPR handshake budget per candidate during auto-discovery, in ms. Default 6000.
+  iprAttemptTimeoutMs?: number | undefined;
+  // Max IPR candidates tried during auto-discovery rotation. Default 5.
+  iprMaxAttempts?: number | undefined;
   dnsTimeoutMs?: number | undefined;
   tcpKeepaliveMs?: number | undefined;
   tcpBufferSize?: number | undefined;

@@ -11,8 +11,7 @@ use nym_validator_client::EcashApiClient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use rand::prelude::SliceRandom;
-use rand::thread_rng;
+use rand::seq::SliceRandom;
 use std::fmt::Display;
 use std::future::Future;
 use std::sync::Arc;
@@ -38,7 +37,7 @@ impl<C: DkgQueryClient> NyxdGlobalDataFetcher<C> {
     }
 
     // only the native credential fetcher shares its ecash-clients cache this way
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
     pub(crate) fn new_with_ecash_clients(
         client: Arc<C>,
         ecash_api_clients: Arc<EcashApiClientsCache>,
@@ -132,7 +131,7 @@ where
     E: Display,
 {
     // try apis in pseudorandom way to remove any bias towards the first registered dealer
-    apis.shuffle(&mut thread_rng());
+    apis.shuffle(&mut rand::rng());
 
     for api in apis {
         let disp = api.to_string();

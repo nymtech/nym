@@ -3,7 +3,7 @@
 
 use crate::ecash::state::EcashState;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
-use crate::network::models::NetworkDetails;
+use crate::network::models::NetworkDetailsV2;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_status_api::handlers::unstable;
@@ -66,7 +66,8 @@ pub(crate) struct AppState {
     /// It is used to prevent DoS by nodes constantly requesting the refresh.
     pub(crate) forced_refresh: ForcedRefresh,
 
-    /// Holds information on when the last stress testing submission was made by a network monitor.
+    /// Holds information on when the last submission was made by a network monitor, tracked
+    /// separately per ingest endpoint.
     /// It is used to prevent replay attacks by attempting to re-use request timestamps
     /// Timestamps are used instead of nonces to avoid NM having to keep state with the expected values.
     pub(crate) network_monitor_submissions: LastNMSubmissions,
@@ -93,7 +94,7 @@ pub(crate) struct AppState {
 
     /// Information about the current network this nym-api is connected to, e.g. contract addresses,
     /// endpoints, denominations.
-    pub(crate) network_details: NetworkDetails,
+    pub(crate) network_details: NetworkDetailsV2,
 
     /// A simple in-memory cache of node information mapping their database id to their node-ids
     /// and public keys. Useful (I guess?) for returning information about test routes.
@@ -183,7 +184,7 @@ impl AppState {
         &self.node_annotations_cache.inner_cache
     }
 
-    pub(crate) fn network_details(&self) -> &NetworkDetails {
+    pub(crate) fn network_details(&self) -> &NetworkDetailsV2 {
         &self.network_details
     }
 

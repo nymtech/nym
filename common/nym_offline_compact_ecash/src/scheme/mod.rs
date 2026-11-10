@@ -10,9 +10,7 @@ use crate::scheme::expiration_date_signatures::{find_index, ExpirationDateSignat
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::traits::Bytable;
-use crate::utils::{
-    batch_verify_signatures, check_bilinear_pairing, hash_to_scalar, try_deserialize_scalar,
-};
+use crate::utils::{check_bilinear_pairing, hash_to_scalar, try_deserialize_scalar};
 use crate::{constants, ecash_group_parameters};
 use crate::{Base58, EncodedDate, EncodedTicketType};
 use group::Curve;
@@ -481,7 +479,7 @@ impl WalletSignatures {
         let mut o_a: Vec<Scalar> = Default::default();
         let mut o_mu: Vec<Scalar> = Default::default();
         let mut mu: Vec<Scalar> = Default::default();
-        let r_k_vec: Vec<Scalar> = Default::default();
+        let mut r_k_vec: Vec<Scalar> = Default::default();
         let mut kappa_k_vec: Vec<G2Projective> = Default::default();
         let mut lk_vec: Vec<Scalar> = Default::default();
 
@@ -527,6 +525,8 @@ impl WalletSignatures {
             let coin_sign = coin_indices_signatures.get(lk as usize).unwrap().borrow();
             let (coin_sign_prime, coin_sign_blinding_factor) = coin_sign.blind_and_randomise();
             coin_indices_signatures_prime.push(coin_sign_prime);
+            // proven in tt_kappa_k so the verifier can bind this signature's index to the serial
+            r_k_vec.push(coin_sign_blinding_factor);
             //SAFETY: we checked that verification beta_g2 isn't empty
             #[allow(clippy::unwrap_used)]
             let kappa_k: G2Projective = grp_params.gen2() * coin_sign_blinding_factor
@@ -839,70 +839,18 @@ impl Payment {
         Ok(())
     }
 
-    // /// Checks the validity of the coin index signature at a specific index.
-    // ///
-    // /// This function performs two checks to ensure the coin index signature at a given index (`k`) is valid:
-    // /// - Verifies that the element `h` of the coin index signature does not equal the identity.
-    // /// - Calculates a combined element for the bilinear pairing check involving `kappa_k`, and verifies the pairing with the coin index signature elements (`h`, `kappa_k`, and `s`).
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `verification_key` - The global verification key of the signing authorities.
-    // /// * `k` - The index at which to check the coin index signature.
-    // ///
-    // /// # Returns
-    // ///
-    // /// A `Result` indicating success if the coin index signature is valid or an error if any check fails.
-    // ///
-    // /// # Errors
-    // ///
-    // /// An error is returned if:
-    // /// - The element `h` of the coin index signature at the specified index equals the identity.
-    // /// - The bilinear pairing check for `kappa_k` at the specified index fails.
-    // /// - The specified index is out of bounds for the coin index signatures array (`omega`).
-    // ///
-    // pub fn check_coin_index_signature(
-    //     &self,
-    //     verification_key: &VerificationKeyAuth,
-    //     k: u64,
-    // ) -> Result<()> {
-    //     if let Some(coin_idx_sign) = self.omega.get(k as usize) {
-    //         if bool::from(coin_idx_sign.h.is_identity()) {
-    //             return Err(CompactEcashError::SpendSignaturesVerification);
-    //         }
-    //         if verification_key.beta_g2.len() < 3 {
-    //             return Err(CompactEcashError::VerificationKeyTooShort);
-    //         }
-    //         //SAFETY: we checked the size of beta_G2 earlier
-    //         #[allow(clippy::unwrap_used)]
-    //         let combined_kappa_k = self.kappa_k[k as usize].to_affine()
-    //             + verification_key.beta_g2.get(1).unwrap() * constants::TYPE_IDX
-    //             + verification_key.beta_g2.get(2).unwrap() * constants::TYPE_IDX;
-    //
-    //         if !check_bilinear_pairing(
-    //             &coin_idx_sign.h.to_affine(),
-    //             &G2Prepared::from(combined_kappa_k.to_affine()),
-    //             &coin_idx_sign.s.to_affine(),
-    //             ecash_group_parameters().prepared_miller_g2(),
-    //         ) {
-    //             return Err(CompactEcashError::SpendSignaturesVerification);
-    //         }
-    //     } else {
-    //         return Err(CompactEcashError::SpendSignaturesVerification);
-    //     }
-    //     Ok(())
-    // }
-
-    /// Checks the validity of all coin index signatures available.
-    pub fn batch_check_coin_index_signatures(
+    /// Verifies each coin index signature against its own kappa_k with a separate pairing, so no cross-term cancellation is possible.
+    pub fn check_coin_index_signatures(
         &self,
         verification_key: &VerificationKeyAuth,
     ) -> Result<()> {
+        let params = ecash_group_parameters();
         if verification_key.beta_g2.len() < 3 {
             return Err(CompactEcashError::VerificationKeyTooShort);
         }
 
-        if self.omega.len() != self.kappa_k.len() {
+        let n = self.spend_value as usize;
+        if self.omega.len() != n || self.kappa_k.len() != n {
             return Err(CompactEcashError::SpendSignaturesVerification);
         }
 
@@ -911,13 +859,18 @@ impl Payment {
         let partially_signed = verification_key.beta_g2[1] * constants::TYPE_IDX
             + verification_key.beta_g2[2] * constants::TYPE_IDX;
 
-        let mut pairing_terms = Vec::with_capacity(self.omega.len());
         for (sig, kappa_k) in self.omega.iter().zip(self.kappa_k.iter()) {
-            pairing_terms.push((sig, partially_signed + kappa_k))
-        }
-
-        if !batch_verify_signatures(pairing_terms.iter()) {
-            return Err(CompactEcashError::SpendSignaturesVerification);
+            if bool::from(sig.is_at_infinity()) {
+                return Err(CompactEcashError::SpendSignaturesValidity);
+            }
+            if !check_bilinear_pairing(
+                &sig.h.to_affine(),
+                &G2Prepared::from((partially_signed + kappa_k).to_affine()),
+                &sig.s.to_affine(),
+                params.prepared_miller_g2(),
+            ) {
+                return Err(CompactEcashError::SpendSignaturesVerification);
+            }
         }
         Ok(())
     }
@@ -987,9 +940,14 @@ impl Payment {
         // Verify whether the expiration date signature and kappa_e are correct
         self.check_exp_signature_validity(verification_key, date_scalar(spend_date))?;
         // Verify whether the coin indices signatures and kappa_k are correct
-        self.batch_check_coin_index_signatures(verification_key)?;
+        self.check_coin_index_signatures(verification_key)?;
 
         Ok(())
+    }
+
+    /// Whether the attached proof binds each signed coin index to its serial; older provers never sent the relation.
+    pub fn proves_coin_index_binding(&self) -> bool {
+        self.zk_proof.proves_coin_index_binding()
     }
 
     pub fn encoded_serial_number(&self) -> Vec<u8> {

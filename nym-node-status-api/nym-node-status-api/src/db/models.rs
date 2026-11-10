@@ -179,6 +179,8 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
         let last_probe_log = value.last_probe_log.clone();
 
         let self_described = serde_json::from_str(&self_described).unwrap_or(None);
+        // `location` is skipped on the way in, so a row still carrying the pre-migration one
+        // parses fine and its stale location is dropped rather than served
         let explorer_pretty_bond = serde_json::from_str(&explorer_pretty_bond).unwrap_or(None);
         let last_probe_result = serde_json::from_str::<serde_json::Value>(&last_probe_result_raw)
             .ok()

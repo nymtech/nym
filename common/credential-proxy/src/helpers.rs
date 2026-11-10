@@ -1,15 +1,14 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use rand::RngCore;
-use rand::rngs::OsRng;
+use rand::Rng;
 use time::OffsetDateTime;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 pub fn random_uuid() -> Uuid {
     let mut bytes = [0u8; 16];
-    let mut rng = OsRng;
+    let mut rng = rand::rng();
     rng.fill_bytes(&mut bytes);
     Uuid::from_bytes(bytes)
 }

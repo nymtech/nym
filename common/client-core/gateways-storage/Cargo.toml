@@ -6,7 +6,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -30,14 +29,14 @@ nym-gateway-client = { workspace = true}
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true
-features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
+features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"]
 optional = true
 
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlite",
     "macros",
     "migrate",
@@ -45,3 +44,6 @@ sqlx = { workspace = true, features = [
 
 [features]
 fs-gateways-storage = ["sqlx"]
+
+[lints]
+workspace = true

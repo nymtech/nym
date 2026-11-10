@@ -174,7 +174,7 @@ impl From<ClientControlRequest> for Message {
         // SAFETY: all of the enum variants have valid (for json) serde impl
         #[allow(clippy::unwrap_used)]
         let str_req = serde_json::to_string(&req).unwrap();
-        Message::Text(str_req)
+        Message::Text(str_req.into())
     }
 }
 

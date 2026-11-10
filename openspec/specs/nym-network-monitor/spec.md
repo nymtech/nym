@@ -2,7 +2,6 @@
 
 ## Purpose
 The v3 mixnode stress-testing subsystem: chain-authorised, one-shot agents drive high-rate looped-back sphinx traffic through individual mixnodes, an orchestrator assigns work and submits signed result batches to nym-api, nym-nodes gate probe acceptance (and the replay/bloomfilter bypass) on the on-chain authorisation, and nym-api folds the results into node-performance scoring and rewarding. This capability covers the orchestrator and agent lifecycles, the on-chain agent authorisation and its node-side propagation, the probe mechanics and scoring, signed submission and nym-api ingest, the downstream consumer surface, and the configuration surface. It is distinct from the nym-api-internal v1 monitor (`network-monitor`) and the unused legacy v2 crate.
-
 ## Requirements
 ### Requirement: The orchestrator gates startup on chain balance, contract authorisation, identity-key reconciliation, and nym-api recognition
 
@@ -36,13 +35,23 @@ On a successful startup the orchestrator SHALL rebuild its in-memory agent regis
 
 ### Requirement: The node refresher builds the testable-node registry from the mixnet contract and each node's self-description
 
-The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and its role-derived `NodeType`. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32); a node that fails to answer leaves the corresponding fields NULL. The refresher MUST persist ALL bonded nodes, including unreachable ones (upserting on `node_id`, updating every field except `identity_key`), so that previously-learned keys are retained when a node is transiently unreachable.
+The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and whether it reports the mixnode and the entry-gateway role. For a node that announces an entry-gateway interface it MUST additionally learn that interface's plain client websocket port. It MUST NOT record whether the node also announces a wss entry: NOTHING reads that fact. The probe ignores wss entries by construction, the submission carries no such field, and the divergence surface deliberately does not bucket on it, so storing it here would be a copy with no consumer at all. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32).
 
-The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), deduplicated and sorted before being stored, because test runs rotate through it by position: a node is free to report its addresses in a different order on every refresh (a resolved hostname typically will), and a duplicate entry would stall the rotation on a subset of the set. The stored `mixnet_socket_address` MUST be derived deterministically from the first address of that sorted set plus the announced mix port, and contributes only that port to the address a given run actually targets.
+A node MUST be described COMPLETELY or not at all: every self-described field comes from one reading of the node's endpoint, and a failure of any part of that reading - including the client websocket interface of a gateway-capable node - MUST discard the whole reading rather than storing the fields that did answer. The refresher MUST record the bond of ALL bonded nodes, including unreachable ones, and MUST write a node's description only from a complete reading, replacing the previous description whole. A node that could not be described keeps its previous description untouched: deleting it would drop a merely slow node out of EVERY kind until a later cycle answered, which at the liveness cadence costs several test slots per incident. A missing description therefore means "never completely described" or "no longer bonded", never "did not answer this time". `identity_key` is never updated, since a `node_id` maps to exactly one identity and is never reassigned.
+
+After every SUCCESSFUL read of the contract's bonds, the refresher MUST delete the description of every node absent from that read and keep its bond, so that an unbonded node stops being assigned while remaining visible on the read surface with its last-seen time. A failed contract read MUST write nothing, so it can never delete a description. Without this an unbonded node keeps its last reading forever and is tested indefinitely, since nothing else removes it.
+
+The consequence, accepted deliberately, is that a node which stops answering keeps its last reading indefinitely while it remains bonded, and continues to be assigned against it. That is the intended behaviour: a probe against stale data fails, and for a liveness measurement an unreachable node failing its probe is the measurement, whereas silently not testing it is not.
+
+The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), deduplicated and sorted before being stored, because test runs rotate through it by position: a node is free to report its addresses in a different order on every refresh (a resolved hostname typically will), and a duplicate entry would stall the rotation on a subset of the set. The description MUST store the announced mix port rather than a socket address: the address a run targets comes from the rotation over the announced set, so an address stored beside the port would only ever be read for its port.
 
 #### Scenario: A reachable node's keys are recorded
 - **WHEN** the refresher queries a bonded node that answers its self-description
-- **THEN** the node's announced address set, socket address, noise key, sphinx key, key-rotation id, and type are stored
+- **THEN** its description is stored with the node's announced address set, mix port, noise key, sphinx key, key-rotation id, and reported roles
+
+#### Scenario: A gateway's client websocket port is recorded
+- **WHEN** the refresher queries a node that announces an entry-gateway interface
+- **THEN** the node's plain client websocket port is stored, and its wss announcement is not, no consumer anywhere in the subsystem reading it
 
 #### Scenario: The announced address set is stored in a stable order
 - **WHEN** a node reports its announced addresses in a different order on a later refresh
@@ -50,47 +59,101 @@ The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), dedu
 
 #### Scenario: An unreachable node is retained with prior data
 - **WHEN** a bonded node does not answer within `node_info_query_timeout`
-- **THEN** the node row is still upserted, leaving newly-unknown fields NULL and keeping any previously stored keys
+- **THEN** only its bond is recorded, and its previous description survives untouched, so it stays eligible for testing
+
+#### Scenario: A node seen for the first time without answering has a bond and no description
+- **WHEN** a node the orchestrator has never described does not answer
+- **THEN** its bond is recorded and no description is written, which is what marks it as never described rather than as unreachable this cycle
+
+#### Scenario: A partial reading is discarded
+- **WHEN** a gateway-capable node answers for its keys and roles but not for its client websocket interface
+- **THEN** the whole reading is discarded and the node keeps its previous description, rather than being stored as described everywhere except that interface
+
+#### Scenario: An unbonded node loses its description
+- **WHEN** a node with a description is absent from a successful read of the contract's bonds
+- **THEN** its description is deleted and its bond is kept, so it is no longer assigned but is still listed
+
+#### Scenario: A failed contract read deletes nothing
+- **WHEN** the contract's bonds cannot be read
+- **THEN** the refresh writes nothing and every description is left in place
 
 ### Requirement: Testruns are assigned lazily from a staleness-ordered node table guarded by an in-flight lock set
 
-There SHALL be no in-memory work queue. When an agent requests work, the orchestrator MUST select the next node inside a `BEGIN IMMEDIATE` write transaction that: excludes any node with a `testrun_in_progress` row; requires non-null socket address, noise key, and sphinx key; requires `node_type IN ('mixnode', 'mixnode_and_gateway')`; treats a node as eligible only if it has never been tested or was last tested before `now - staleness_age` (where `staleness_age` is `test_interval`, default 2 hours); orders by test timestamp ascending with never-tested first; takes one node; rotates onto the next address in that node's announced set; records that address as the node's rotation pointer; and atomically inserts a `testrun_in_progress` row for it. The response MUST be a `TestRunAssignment { node_id, node_address, node_ips, noise_key, sphinx_key, key_rotation_id }`, where `node_address` is the rotated-onto address combined with the node's mix port and `node_ips` is every address the node announces, or an empty assignment when no eligible node exists.
+There SHALL be no in-memory work queue. Work is identified by `(node_id, test_kind)`, and staleness, the address rotation and the eligibility gates are all evaluated PER KIND, so that kinds running at different cadences do not disturb one another.
 
-The rotation MUST take the address following the previously handed-out one, wrapping around at the end of the set and restarting from the first address when the pointer is unset or no longer announced. It MUST advance when the assignment is handed out rather than when a result arrives, so a run that is abandoned still moves the node onto its next address. A node stored before the announced set was tracked MUST remain testable by falling back to the single address in its `mixnet_socket_address`.
+When an agent requests work, the orchestrator MUST choose the kind, then select targets inside a `BEGIN IMMEDIATE` write transaction that: excludes any node with a `testrun_in_progress` row, REGARDLESS of which kind that row belongs to; requires the node to have a description reporting the role that kind probes; treats a node as eligible only if that kind has never tested it or last tested it before `now - staleness_age` for that kind; orders by that kind's test timestamp ascending with never-tested first; takes up to that kind's wave size, which is one for `mixnode_stress`; rotates each selected node onto the next address in its announced set FOR THAT KIND; records that address as that kind's rotation pointer; and atomically inserts a `testrun_in_progress` row for each, stamped with `started_at`, the kind, and an `expires_at` of `now` plus that kind's lease budget. The response MUST carry the chosen kind and its per-target payload, or an empty assignment when no eligible node exists.
 
-The staleness gate is per NODE while the rotation is per ADDRESS, so a node announcing N addresses has each individual address tested roughly every N × `staleness_age` rather than every `staleness_age`.
+The kind MUST be the one whose next assignable node is MOST OVERDUE across every enabled kind. A node is due at its last test by that kind plus that kind's staleness interval, and a node the kind has never tested outranks every measured one. Due times MUST be compared rather than raw last-tested timestamps, since kinds run at different cadences and a two-hour kind would otherwise always look older than a fifteen-minute one. Equally overdue kinds MUST resolve in the kinds' declaration order, which MUST place both liveness kinds ahead of `mixnode_stress`, so that a full cold start, where every kind is equally never-tested, begins with liveness. A disabled kind MUST NOT be considered, and when the chosen kind's assignment comes back empty because a concurrent request took its eligible nodes, the request MUST fall through to the next most overdue kind rather than being answered with no work.
+
+The policy is deliberately not fair, and no kind is owed a share of requests: under sustained overload every kind falls behind by a similar absolute margin, and a backlog of never-tested nodes, from a cold start or from a newly added kind, is drained before any other kind's re-tests. No kind can be starved indefinitely, because a kind left unserved only grows more overdue until it is chosen.
+
+Excluding any node that has an open in-progress row of ANY kind is required, not incidental: a node being stress-tested at high rate while a liveness probe measures it would bias both results. That lock is also the ONLY exclusion between kinds: a node is eligible again the moment its row clears, with no cooldown afterwards, because a stress test's 30000 packets at 1000 packets/second is around 3.1 Mbps at the probe's `AckPacket` sizing and so leaves nothing draining for a later probe to charge to the node.
+
+The rotation MUST take the address following the previously handed-out one for that kind, wrapping around at the end of the set and restarting from the first address when the pointer is unset or no longer announced. It MUST advance when the assignment is handed out rather than when a result arrives, so a run that is abandoned still moves the node onto its next address.
+
+The staleness gate is per NODE AND KIND while the rotation is per ADDRESS, so a node announcing N addresses has each individual address tested by a given kind roughly every N × that kind's `staleness_age` rather than every `staleness_age`.
 
 #### Scenario: The oldest-tested eligible node is assigned
 - **WHEN** an authorised, announced agent requests a testrun and eligible nodes exist
-- **THEN** the never-tested-or-oldest eligible mixnode is returned and a `testrun_in_progress` row is inserted for it in the same transaction
+- **THEN** the orchestrator picks a kind and returns the never-tested-or-oldest node for that kind, inserting a `testrun_in_progress` row for it in the same transaction
+
+#### Scenario: Overdue is judged by due time, not by age
+- **WHEN** the `mixnode_stress` head was last tested 2 hours 5 minutes ago against a 2-hour interval, and the `mixnode_liveness` head 30 minutes ago against a 15-minute interval
+- **THEN** the request is assigned `mixnode_liveness`, which is 15 minutes overdue against stress's 5, although the stress node was tested longer ago
+
+#### Scenario: A cold start begins with liveness
+- **WHEN** no kind has yet tested any node
+- **THEN** requests are assigned the liveness kinds until neither has a never-tested node left to hand out, and only then `mixnode_stress`
+
+#### Scenario: A kind with nothing to assign is skipped
+- **WHEN** the most overdue kind is disabled, has no eligible node, or has its eligible nodes taken by a concurrent request first
+- **THEN** the request is assigned the next most overdue kind rather than being answered with no work
+
+#### Scenario: A node already in progress is not reassigned
+- **WHEN** a node has an open `testrun_in_progress` row
+- **THEN** it is excluded from assignment by every kind until that row is cleared
+
+#### Scenario: A node under one kind of test is not assigned another
+- **WHEN** a node has an open `testrun_in_progress` row from a `mixnode_stress` test
+- **THEN** it is excluded from both liveness kinds until that row is cleared, and vice versa
 
 #### Scenario: Consecutive runs against one node rotate through its addresses
-- **WHEN** a node announcing both an ipv4 and an ipv6 address is assigned on two successive occasions
+- **WHEN** a node announcing both an ipv4 and an ipv6 address is assigned by the same kind on two successive occasions
 - **THEN** the second assignment targets the other address, so both are exercised in turn rather than whichever one a refresh happened to store
 
 #### Scenario: An abandoned run still advances the rotation
 - **WHEN** an assignment is handed out and no result is ever submitted for it
-- **THEN** the node's rotation pointer has already advanced, so its next assignment targets its next address rather than repeating the same one
+- **THEN** that kind's rotation pointer for the node has already advanced, so its next assignment of the node targets its next address rather than repeating the same one
 
-#### Scenario: A node already in progress is not reassigned
-- **WHEN** a node has an open `testrun_in_progress` row
-- **THEN** it is excluded from assignment until that row is cleared
+#### Scenario: Kinds do not disturb each other's rotation
+- **WHEN** a liveness test and a stress test are both assigned for one node over time
+- **THEN** each kind advances its own rotation pointer, so neither skips addresses because of the other
+
+#### Scenario: A node freed by one kind is immediately available to another
+- **WHEN** a node's stress test finishes and its in-flight row clears
+- **THEN** it is eligible for a liveness assignment straight away, the per-node lock being the whole of the mutual exclusion between kinds
+
+#### Scenario: A liveness assignment carries a wave
+- **WHEN** an agent is assigned liveness work and many nodes are eligible
+- **THEN** up to that kind's wave size of targets are returned in one assignment, each with its own in-flight row and lease
 
 #### Scenario: No eligible node yields an empty assignment
-- **WHEN** every node is either in progress or was tested more recently than `staleness_age`
+- **WHEN** no enabled kind has an eligible node, every node each kind may assign being either in progress or tested by that kind more recently than its `staleness_age`
 - **THEN** the agent receives an empty assignment and exits without testing
 
 ### Requirement: The orchestrator authorises both of an announcing agent's addresses on-chain in one transaction
 
-An agent SHALL announce a PAIR of mixnet socket addresses, one ipv4 and one ipv6, because a tested node sees whichever family it was reached over as the source of the probe traffic and gates on that source ip; authorising only one family would leave probes over the other rejected.
+An agent SHALL announce a PAIR of mixnet socket addresses, one ipv4 and one ipv6, because a tested node sees whichever family it was reached over as the source of the probe traffic and gates on that source ip; authorising only one family would leave probes over the other rejected. An agent SHALL additionally announce the base58 ed25519 CLIENT IDENTITY public key it will present when opening a gateway client session, derived from its noise key rather than provisioned, so that the gateway session exemption can be keyed on a verified identity instead of a source address.
 
-On `POST /v1/agent/announce` the orchestrator SHALL reject with a 400, before touching any state, an announcement whose addresses are not one plain ipv4 address and one ipv6 address that is not ipv4-mapped. Such a pair MUST NOT be normalised into shape, because an ipv4-mapped ipv6 address collapses onto the ipv4 one when a node canonicalises the authorised set, leaving the agent with a single authorised ingress while both the contract and the orchestrator believe it has two, and because rewriting an address would authorise something the agent never announced and will not use in its sphinx return hop.
+On `POST /v1/agent/announce` the orchestrator SHALL reject with a 400, before touching any state, an announcement whose addresses are not one plain ipv4 address and one ipv6 address that is not ipv4-mapped. Such a pair MUST NOT be normalised into shape, because an ipv4-mapped ipv6 address collapses onto the ipv4 one when a node canonicalises the authorised set, leaving the agent with a single authorised ingress while both the contract and the orchestrator believe it has two, and because rewriting an address would authorise something the agent never announced and will not use in its sphinx return hop. An announced identity key that is not valid base58 decoding to 32 bytes MUST likewise be rejected before any state is touched, but NOT by a check at that same point: the announce request MUST carry the identity as a typed ed25519 public key rather than an unvalidated string, so the malformed case is rejected during request deserialisation and is unrepresentable by the time the handler runs. The address pair cannot be handled that way because its rule is a relation between two individually well-formed addresses. The consequence is that a malformed identity answers with the deserialisation rejection's status rather than this 400, which is accepted: the property the requirement exists to protect is that nothing is cached and nothing is written on-chain, and that holds more strongly when the handler is never entered at all.
 
-It MUST then upsert the agent into its in-memory `KnownAgents` cache, keyed by the agent's ipv4 mixnet socket address with the ipv6 address held inside the entry, and, if the agent was not already announced, MUST authorise BOTH addresses in the network-monitors contract by submitting ONE transaction carrying an `AuthoriseNetworkMonitor` message per address, each with the agent's base58 x25519 noise key and noise version, then mark the agent announced. Both authorisations MUST travel in a single transaction so that an agent is never left with only one of its addresses authorised. A contract transaction failure MUST surface as a 500 and leave the agent un-announced; re-announcing is safe because the contract's agent save is an upsert. An agent whose announced noise key OR ipv6 address differs from the cached one MUST have its announced flag reset so it is re-authorised, and that divergence SHOULD be surfaced (log plus counter) because a superseded ipv6 address stays authorised in the contract. This on-chain write is what ultimately causes network nodes to accept the agent's probe connections.
+It MUST then upsert the agent into its in-memory `KnownAgents` cache, keyed by the agent's ipv4 mixnet socket address with the ipv6 address and the identity key held inside the entry, and, if the agent was not already announced, MUST authorise BOTH addresses in the network-monitors contract by submitting ONE transaction carrying an `AuthoriseNetworkMonitor` message per address, each with the agent's base58 x25519 noise key, noise version, and identity key, then mark the agent announced. Both authorisations MUST travel in a single transaction so that an agent is never left with only one of its addresses authorised. A contract transaction failure MUST surface as a 500 and leave the agent un-announced; re-announcing is safe because the contract's agent save is an upsert. An agent whose announced noise key, ipv6 address, OR identity key differs from the cached one MUST have its announced flag reset so it is re-authorised, and that divergence SHOULD be surfaced (log plus counter) because a superseded ipv6 address stays authorised in the contract. One counter covering all three is sufficient, and the identity MUST NOT get a series of its own: it is derived from the noise key, so it cannot diverge unless the noise key does, and a dedicated series would read flat zero outside a change to the derivation itself. The log MUST still name which of them diverged, since that is where the distinction is actually needed. This on-chain write is what ultimately causes network nodes to accept the agent's probe connections and to recognise its client sessions.
+
+Because the identity is carried on an OPTIONAL contract field and the save is an upsert keyed by socket address, agents authorised before the field existed acquire it on their next announcement with no backfill step and with no revocation of the old entry: the announcement rewrites both of the agent's entries in place. A cached entry therefore ALWAYS carries an identity, because the rehydration drop rule above leaves an identity-less on-chain entry out of the cache rather than admitting one that no consumer could use.
 
 #### Scenario: A first announcement authorises both addresses on-chain
 - **WHEN** a not-yet-announced agent calls `announce`
-- **THEN** the orchestrator writes a single transaction carrying one `AuthoriseNetworkMonitor` message for each of the agent's two addresses, both with its noise key, and marks it announced
+- **THEN** the orchestrator writes a single transaction carrying one `AuthoriseNetworkMonitor` message for each of the agent's two addresses, both with its noise key and its identity key, and marks it announced
 
 #### Scenario: A contract failure is not silently swallowed
 - **WHEN** the authorisation transaction fails
@@ -100,17 +163,29 @@ It MUST then upsert the agent into its in-memory `KnownAgents` cache, keyed by t
 - **WHEN** an agent announces two addresses of the same family, the same address twice, or an ipv4-mapped ipv6 address
 - **THEN** the call is rejected with a 400 and nothing is cached or written on-chain
 
+#### Scenario: A malformed identity key is rejected outright
+- **WHEN** an agent announces an identity key that is not valid base58 decoding to 32 bytes
+- **THEN** the request is rejected while being deserialised, so the handler never runs and nothing is cached or written on-chain
+
+#### Scenario: A changed identity key triggers re-authorisation
+- **WHEN** an already-announced agent announces an identity key that differs from the cached one
+- **THEN** its announced flag is reset, both addresses are authorised again carrying the new identity, and the divergence is logged and counted
+
 ### Requirement: Network nodes learn the authorised-agent set from the contract and gate connection, routing, and replay-bypass on it
 
 A Nym node SHALL derive which network-monitor agents may probe it directly from the network-monitors contract, not from any orchestrator or nym-api. A node MUST load the full authorised-agent set once at startup (via `get_all_network_monitor_agents`; a failed load aborts node startup) and MUST thereafter keep it current in REAL TIME through a nyxd websocket event subscription that dispatches `AuthoriseNetworkMonitor`, `RevokeNetworkMonitor`, and `RevokeAllNetworkMonitors` contract events. This is an event subscription, NOT a periodic contract poll; the node's periodic topology refresher explicitly preserves (does not reload) the agent set.
 
-The node MUST fold the set into two shared, lock-free, canonical-IP-keyed structures - a routing set (`RoutableNetworkMonitors`) and a noise-key map (`NoiseNetworkView`, in which one IP may host several agents disambiguated by port) - and MUST key both on `IpAddr::to_canonical()` at insert AND lookup so that a v4-mapped-IPv6 form matches its canonical IPv4 form. There is no separate "extra initiator IPs" allowlist; inbound acceptance is a facet of the noise map. The authorised set MUST gate three behaviours: (1) the Noise responder handshake - an inbound connection from an IP not in the noise map falls back to raw TCP and the agent's handshake fails; (2) packet routing through `NetworkRoutingFilter`; and (3) most importantly, the sphinx REPLAY / bloomfilter BYPASS - a packet detected as replayed MUST be dropped as a replay UNLESS it originates from an authorised network-monitor agent IP, which is the mechanism that lets the agent's deliberately-replayed probe header (see the `reuse_header` requirement) be processed rather than filtered.
+The node MUST fold the set into THREE shared, lock-free structures: a canonical-IP-keyed routing set (`RoutableNetworkMonitors`), a canonical-IP-keyed noise-key map (`NoiseNetworkView`, in which one IP may host several agents disambiguated by port), and a set of announced monitor ed25519 CLIENT IDENTITIES keyed by that identity rather than by any address. The two IP-keyed structures MUST key on `IpAddr::to_canonical()` at insert AND lookup so that a v4-mapped-IPv6 form matches its canonical IPv4 form. The identity set MUST tolerate the same identity arriving from several agent entries, since an agent authorises one entry per address family and both carry its identity, and MUST tolerate entries carrying no identity at all, which is a validly authorised agent that simply cannot be recognised on the client-session path. There is no separate "extra initiator IPs" allowlist; inbound acceptance is a facet of the noise map. The authorised set MUST gate five behaviours: (1) the Noise responder handshake - an inbound connection from an IP not in the noise map falls back to raw TCP and the agent's handshake fails; (2) packet routing through `NetworkRoutingFilter`, in which a packet originating from an authorised monitor may ONLY be routed to another authorised monitor; (3) most importantly, the sphinx REPLAY / bloomfilter BYPASS - a packet detected as replayed MUST be dropped as a replay UNLESS it originates from an authorised network-monitor agent IP, which is the mechanism that lets the agent's deliberately-replayed probe header (see the `reuse_header` requirement) be processed rather than filtered; (4) FINAL-HOP DELIVERY - a final-hop packet originating from an authorised monitor MUST be processed and delivered to a live client session, and MUST NOT be written to the recipient's on-disk store if no session is live, so that a packet which did not arrive on the socket was definitively not delivered and monitor traffic cannot accrue undeliverable stored messages on every gateway; and (5) CLIENT SESSION METERING - a client websocket session whose registration handshake authenticates an ed25519 identity in the announced-identity set MUST be treated as an ephemeral monitor session: it MUST NOT be metered for bandwidth, MUST NOT require any bandwidth credential, and MUST NOT persist a shared-key, bandwidth, or stored-message entry.
 
-The gate is by SOURCE IP only (not public key); the port is effectively ignored on the agent-as-initiator probe path (it is consulted only when the node dials an agent). The consequences are: an agent cannot successfully probe a node until it is authorised on-chain AND that authorisation event has been ingested by the node (propagation is bounded by block inclusion plus websocket delivery, on the order of seconds, NOT by any refresh interval); the IP the agent actually connects from MUST equal one of the `mixnet_address` IPs recorded on-chain for it (an egress IP that is neither, whether through NAT or a third interface, still breaks all three gates); and because there is no periodic reconciliation against the contract, a node that misses a revoke event (for example during websocket downtime) only re-syncs on its next restart's one-time load.
+Gates (4) and (5) are what make gateway liveness testing possible; before them a monitor's final-hop packets were dropped outright as unsupported, and a monitor could not open a client session without presenting bandwidth credentials.
 
-Because an agent authorises one ipv4 and one ipv6 address, it occupies TWO entries in each node's structures - one per address, both carrying the same noise key - so a probe arriving over either family passes all three gates. The node treats those entries independently: it neither knows nor needs to know that they belong to one agent, and revoking one leaves the other authorised.
+Gates (1) through (4) are keyed by SOURCE IP only (not public key); the port is effectively ignored on the agent-as-initiator probe path (it is consulted only when the node dials an agent). Gate (5) is the ONE exception and MUST be keyed on the handshake-verified client identity, with the source IP playing no part, because the client websocket port performs no Noise handshake and so can never be covered by the follow-up that moves the mixnet gates onto the Noise-authenticated static key, and because the exemption it guards is not confined by gate (2): a packet handed to a gateway over a client session is forwarded without the monitor flag and may therefore be routed to any known node, so an IP-keyed exemption inherited by a co-tenant behind a shared host port or a recycled address pool would grant unconfined unmetered transit.
 
-Intended follow-ups (recorded here as planned changes, NOT current behaviour): (1) add a periodic reconciliation of each node's authorised-agent set against the contract, so a missed revoke event no longer lingers until the next node restart; and (2) gate the replay and bloomfilter bypass on the agent's Noise-authenticated x25519 static key rather than its source IP. The current `Noise_XKpsk3` handshake already receives and possession-authenticates that key (the message-3 `se` step proves the agent holds the corresponding private key), so this hardening needs no packet-format change and would remove the source-IP spoofing and NAT-fragility of the present gate.
+The consequences are: an agent cannot successfully probe a node until it is authorised on-chain AND that authorisation event has been ingested by the node (propagation is bounded by block inclusion plus websocket delivery, on the order of seconds, NOT by any refresh interval); for gates (1) through (4) the IP the agent actually connects from MUST equal one of the `mixnet_address` IPs recorded on-chain for it (an egress IP that is neither, whether through NAT or a third interface, still breaks all four); an authorised agent with an announced identity obtains unmetered gateway transit for sessions presenting that identity, bounded by the orchestrator's ability to revoke the authorisation; and because there is no periodic reconciliation against the contract, a node that misses a revoke event (for example during websocket downtime) only re-syncs on its next restart's one-time load, which for gate (5) means a revoked monitor keeps its unmetered sessions until then.
+
+Because an agent authorises one ipv4 and one ipv6 address, it occupies TWO entries in each node's structures - one per address, both carrying the same noise key - so a probe arriving over either family passes every gate. The node treats those entries independently: it neither knows nor needs to know that they belong to one agent, and revoking one leaves the other authorised.
+
+Intended follow-ups (recorded here as planned changes, NOT current behaviour): (1) add a periodic reconciliation of each node's authorised-agent set against the contract, so a missed revoke event no longer lingers until the next node restart - this is a prerequisite for liveness scores ever carrying weight, because a node that missed its agents' authorisation events fails every gate and is indistinguishable from a dead node; and (2) gate the replay bypass and the final-hop delivery on the agent's Noise-authenticated x25519 static key rather than its source IP. The current `Noise_XKpsk3` handshake already receives and possession-authenticates that key (the message-3 `se` step proves the agent holds the corresponding private key), so this hardening needs no packet-format change and would remove the source-IP spoofing and NAT-fragility of the present gates. Follow-up (2) covers the MIXNET gates only; the client-session exemption is out of its reach and is why gate (5) is identity-keyed from the outset.
 
 #### Scenario: A newly authorised agent is accepted in near real time
 - **WHEN** an orchestrator authorises an agent on-chain and the transaction is included in a block
@@ -124,9 +199,25 @@ Intended follow-ups (recorded here as planned changes, NOT current behaviour): (
 - **WHEN** an authorised agent sends its deliberately-replayed probe header
 - **THEN** the node still runs its replay-detection bloomfilter but bypasses the drop because the packet's source IP is in the authorised network-monitor set, and processes the packet
 
+#### Scenario: A monitor's final-hop packet is delivered to its live session
+- **WHEN** an authorised agent sends a final-hop packet to a gateway addressed to a client session it currently holds open
+- **THEN** the gateway unwraps it and pushes it into that session
+
+#### Scenario: A monitor's final-hop packet is dropped rather than stored
+- **WHEN** an authorised agent sends a final-hop packet whose recipient has no live session
+- **THEN** the packet is dropped and nothing is written to the on-disk store
+
+#### Scenario: A monitor's client session needs no bandwidth
+- **WHEN** an authorised agent opens a client websocket session presenting its announced ed25519 identity and forwards packets
+- **THEN** the session is not metered, no credential is required, and no shared-key, bandwidth, or stored-message entry is persisted for it
+
+#### Scenario: An authorised IP alone does not earn the session exemption
+- **WHEN** a client opens a websocket session from an authorised agent's IP but presents an identity that is not in the announced-identity set
+- **THEN** the session is metered and requires credentials like any other client's
+
 #### Scenario: Revocation stops acceptance after the event is ingested, with no periodic re-sync
 - **WHEN** an agent is revoked on-chain and the node ingests the `RevokeNetworkMonitor` event
-- **THEN** the node removes it from the routing set and noise map so new handshakes fail and replays are dropped again
+- **THEN** the node removes it from the routing set and noise map so new handshakes fail, replays are dropped again, and its client sessions are metered like any other
 - **AND** if the node misses that event it will only re-sync the agent set on its next restart, because there is no periodic reconciliation
 
 ### Requirement: The orchestrator exposes agent and operator HTTP surfaces on separate bearer tokens
@@ -143,18 +234,24 @@ The orchestrator SHALL protect its HTTP API with static shared-secret bearer tok
 
 ### Requirement: Completed testruns are submitted to nym-api in signed, monotonic batches with at-least-once delivery
 
-The result submitter SHALL forward completed testruns to nym-api at `POST /v3/nym-nodes/stress-testing/batch-submit`. It MUST read a persisted watermark (`last_submitted_testrun_id`), fetch completed testruns after it in ascending id order, and send them in chunks of `result_submission_batch_size` (default 50). Each `TestRun` MUST be converted to a `StressTestResult` whose `test_performance` is `packets_received / packets_sent` (or `0.0` when `packets_sent` is zero or duplicates were seen) and whose `was_reachable` is `error.is_none()`. Each batch MUST be wrapped in a `StressTestBatchSubmissionContent { signer, timestamp, results }`, given a timestamp that is strictly increasing (bumped by 1 nanosecond if the clock has not advanced since the last batch, matching nym-api's replay guard), and signed with the orchestrator's ed25519 identity key. The watermark MUST be advanced only AFTER a successful POST, so a failed submission re-sends the same testruns on the next cycle (at-least-once delivery).
+The result submitter SHALL forward completed testruns to nym-api, in a SEPARATE STREAM PER TEST KIND. Each stream MUST read its own kind's results table and advance its own persisted watermark, because a testrun id is unique only within its kind and one watermark cannot describe two tables: advancing a shared watermark for one stream would skip unsubmitted rows of another. `mixnode_stress` results MUST be submitted to `POST /v3/nym-nodes/stress-testing/batch-submit`; the results of both liveness kinds MUST be submitted to the liveness endpoint, as two streams sharing one destination.
+
+For each stream the submitter MUST read that stream's persisted watermark, fetch completed testruns of that kind after it in ascending id order, and send them in chunks of `result_submission_batch_size` (default 50). Each `mixnode_stress` run MUST be converted to a `StressTestResult` whose `test_performance` is `packets_received / packets_sent` (or `0.0` when `packets_sent` is zero or duplicates were seen) and whose `was_reachable` is `error.is_none()`. Each run of a liveness kind MUST be converted to a result whose performance is the average over that kind's fixed measurement set, with an interface that produced no measurement counted as zero, and MUST NOT carry the per-interface breakdown it averaged over. The averaging MUST therefore happen here rather than at nym-api: the denominator is the set the run's role is expected to produce, and neither that role nor the interfaces reach the wire, so the receiver could not reconstruct it. An interface that saw duplicates MUST also count as zero, on the same reasoning as the stress path: a node that forwards one packet and replays it nine times counts ten received against ten sent, so scoring the ratio would hand a perfect result to a node delivering a tenth of the traffic. Each batch MUST be wrapped in a submission content carrying `{ signer, timestamp, results }`, given a timestamp that is strictly increasing across EVERY batch of one submission sweep (bumped by 1 nanosecond if the clock has not advanced since the previous batch), because nym-api's replay guard is per endpoint and two streams post to the liveness one, and signed with the orchestrator's ed25519 identity key. Each stream's watermark MUST be advanced only AFTER a successful POST, so a failed submission re-sends the same testruns on the next cycle (at-least-once delivery).
 
 #### Scenario: Only new testruns are submitted, in order
-- **WHEN** the submitter runs with a watermark of N
-- **THEN** it submits testruns with id greater than N in ascending id order, chunked by the batch size
+- **WHEN** the submitter runs with a watermark of N for a given kind
+- **THEN** it submits testruns of that kind with id greater than N in ascending id order, chunked by the batch size
+
+#### Scenario: One stream's progress does not advance another's
+- **WHEN** a liveness batch is submitted successfully while stress results are still pending
+- **THEN** only the liveness watermark advances and the pending stress results are still submitted on their own stream
 
 #### Scenario: A failed POST is retried, not skipped
 - **WHEN** a batch POST fails
-- **THEN** the watermark is not advanced and the same testruns are resubmitted on the next cycle
+- **THEN** that stream's watermark is not advanced and the same testruns are resubmitted on the next cycle
 
 #### Scenario: Batch timestamps are strictly monotonic
-- **WHEN** two batches are produced within the same clock tick
+- **WHEN** two batches are produced within the same clock tick, including two from different streams posting to the same endpoint
 - **THEN** the second batch's timestamp is bumped so it is strictly greater than the first, satisfying nym-api's replay check
 
 The submitter MUST NOT treat a successful POST as proof that the batch was stored: rows deduplicate at the database, so an accepted batch can store nothing. It MUST therefore read the per-result counts nym-api returns (`accepted`, `duplicates`, `rejected`), record each as a counter, and log a warning whenever `duplicates` or `rejected` is non-zero. A count that is absent (an older nym-api that does not report them) MUST be treated as "not reported" rather than as zero, and so neither logged nor counted.
@@ -169,49 +266,39 @@ The submitter MUST NOT treat a successful POST as proof that the batch was store
 
 ### Requirement: Stale in-flight dispatches and old results are evicted
 
-The stale-data eviction task SHALL clear `testrun_in_progress` rows older than `test_timeout` (default 5 minutes), so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days). One eviction sweep MUST run before the HTTP server begins serving.
+The stale-data eviction task SHALL clear `testrun_in_progress` rows whose `expires_at` has passed, so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days) from every kind's results table. One eviction sweep MUST run before the HTTP server begins serving.
+
+The deadline MUST be materialised on the in-progress row at hand-out rather than derived by the sweep from a single global timeout, because different test kinds have different budgets (a stress run is minutes, a liveness wave is seconds) and a future kind may be more expensive still. The sweep therefore requires no knowledge of kinds.
 
 #### Scenario: A timed-out dispatch is released
-- **WHEN** a `testrun_in_progress` row is older than `test_timeout`
+- **WHEN** a `testrun_in_progress` row's `expires_at` has passed
 - **THEN** it is removed and the node becomes eligible for assignment again
+
+#### Scenario: Kinds with different budgets coexist
+- **WHEN** a long-budget stress dispatch and a short-budget liveness dispatch are both in flight
+- **THEN** each is evicted according to its own deadline, and the short one does not keep the long one alive nor vice versa
 
 #### Scenario: Old results are pruned
 - **WHEN** completed testruns are older than `testrun_eviction_age`
-- **THEN** they are deleted from the database
-
-### Requirement: Orchestrator state is a four-table SQLite database and the agent registry is in-memory only
-
-The orchestrator SHALL persist state in a SQLite database with four tables: `metadata` (the single submission watermark row), `nym_node` (the node registry with its self-described keys and type, its announced address set, and its per-node address rotation pointer), `testrun` (completed results, each recording which address was tested), and `testrun_in_progress` (the in-flight dispatch lock set). The agent registry MUST NOT be persisted; it lives only in the in-memory `KnownAgents` cache and is rebuilt from the contract on each startup, which means agents' announced flags reset across a restart and each agent re-announces (and is re-authorised on-chain) on its next run.
-
-Rehydrating that cache from the contract requires recovering which pair of on-chain entries belongs to one agent. The contract stores one entry per socket address and carries no field linking an agent's two addresses, so the orchestrator MUST group the entries by their x25519 noise key, which is unique per agent (see the network-monitors-contract capability, which does NOT enforce that uniqueness). Entries that do not form exactly one ipv4/ipv6 pair MUST be dropped from the cache rather than guessed at - they are either authorisations predating the paired announcement or leftovers from an agent that has since changed an address - which is safe precisely because the cache only exists to skip redundant contract transactions, and an agent always announces before requesting work.
-
-#### Scenario: An agent's two on-chain entries are re-paired after a restart
-- **WHEN** the orchestrator restarts and reads its agents from the contract
-- **THEN** the ipv4 and ipv6 entries sharing one noise key are rehydrated as a single announced agent
-
-#### Scenario: An unpairable on-chain entry is dropped rather than guessed
-- **WHEN** an agent has an on-chain entry with no counterpart of the other family under the same noise key
-- **THEN** it is left out of the rehydrated cache and re-created by that agent's next announcement, at the cost of one redundant authorisation transaction
-
-#### Scenario: Node registry and results survive a restart
-- **WHEN** the orchestrator restarts
-- **THEN** its node registry, completed testruns, and submission watermark are loaded from SQLite
-
-#### Scenario: The agent set is rebuilt from the contract, not from disk
-- **WHEN** the orchestrator restarts
-- **THEN** its agent registry is rehydrated from the network-monitors contract rather than read from local storage
+- **THEN** they are deleted from their kind's results table
 
 ### Requirement: The agent is a one-shot job that announces, requests one assignment, tests, submits, and exits
 
-The `run-agent` path SHALL be a run-to-completion job, NOT a long-lived daemon: it builds an orchestrator client with a bearer token, loads its x25519 noise key, announces itself, requests a single testrun assignment, and - if an assignment is returned - runs exactly one stress test and submits the result, then exits. When the assignment is empty it MUST log that no work is available and exit without testing. Fleet scale is therefore achieved by running many short-lived agent invocations rather than one persistent process. The agent binary MUST also provide `build-info`, a `keygen` subcommand that generates ONLY an x25519 noise key (no ed25519 key), and a `test-node` subcommand that runs a single manual test against an explicitly-specified node bypassing the orchestrator (with no `node_id`).
+The `run-agent` path SHALL be a run-to-completion job, NOT a long-lived daemon: it builds an orchestrator client with a bearer token, loads its x25519 noise key, announces itself, requests a single assignment, and - if one is returned - executes it and exits. An assignment is either ONE stress target or a WAVE of liveness targets executed concurrently; in the wave case each target's result MUST be submitted as soon as that target finishes rather than at the end of the wave. When the assignment is empty it MUST log that no work is available and exit without testing. Fleet scale is therefore achieved by running many short-lived agent invocations rather than one persistent process, with liveness sweep throughput coming from wave concurrency within an invocation rather than from a longer-lived process.
+
+The agent MUST be able to execute every test kind the orchestrator may assign, since the orchestrator is the party that chooses. The agent binary MUST also provide `build-info`, a `keygen` subcommand that generates ONLY an x25519 noise key (no ed25519 key), and a `test-node` subcommand that runs a single manual test against an explicitly-specified node bypassing the orchestrator (with no `node_id`).
 
 #### Scenario: An assignment is tested once and submitted
 - **WHEN** the agent receives a non-empty assignment
-- **THEN** it runs one stress test, submits the result to the orchestrator, and exits
+- **THEN** it executes every target it was given, submits each result, and exits
 
 #### Scenario: No work available exits cleanly
 - **WHEN** the agent receives an empty assignment
 - **THEN** it logs that no work is available and exits without testing or submitting
+
+#### Scenario: A wave's results are submitted as they complete
+- **WHEN** one target of a liveness wave finishes while others are still running
+- **THEN** its result is submitted immediately rather than being held until the wave ends
 
 ### Requirement: The agent authenticates to the orchestrator with a static bearer token and does not sign requests
 
@@ -283,33 +370,35 @@ On the successful completion of the load test the agent SHALL overwrite the repo
 
 ### Requirement: The per-node result captures counts, handshake and latency statistics, and an optional error
 
-Each test SHALL produce a result carrying: `time_taken`; ingress and egress Noise-handshake durations; the sphinx packet delay; `packets_sent` and `packets_received`; the baseline `approximate_latency`; per-packet and per-send latency distributions (minimum, mean, median, maximum, standard deviation); a `received_duplicates` flag; and an optional `error` string. Only a critical failure (for example an inability to bind the ingress listener) MUST bubble up as an error return; node-level failures (no response, bloomfilter misconfiguration) MUST be recorded inside the returned result so the orchestrator always receives partial data.
+Each test SHALL produce a result carrying `time_taken`, an optional `error`, and measurements SHAPED BY ITS KIND: one named measurement per interface the kind exercises, so that a result can neither omit an interface its kind requires nor carry one it does not. The kind is the tag of that shape rather than a separate field, so the two cannot disagree. Each measurement MUST carry: ingress and egress Noise-handshake durations; the sphinx packet delay; `packets_sent` and `packets_received`; the baseline `approximate_latency`; the per-packet round-trip distribution (minimum, mean, median, maximum, standard deviation); and a `received_duplicates` flag. The latency of the agent's own batch sends is NOT measured: it describes the agent's socket rather than the node, and nothing read it. A `mixnode_stress` or `mixnode_liveness` run carries exactly one measurement (`mix_forwarding`); a `gateway_liveness` run carries one per phase (`client_ingest` and `client_delivery`). Only a critical failure (for example an inability to bind the ingress listener) MUST bubble up as an error return; node-level failures (no response, bloomfilter misconfiguration, a rejected Noise handshake, a refused client session) MUST be recorded inside the returned result so the orchestrator always receives partial data.
+
+The per-interface breakdown MUST be persisted and exposed on the operator read surface even though downstream consumers receive only the averaged score, because a gateway with a healthy ingress and a dead egress is otherwise indistinguishable from one that is uniformly half-lossy.
 
 The submission that carries a result to the orchestrator MUST additionally report WHICH address was tested, and that address MUST be persisted with the run and exposed on the operator read surface. A node may announce several addresses of which only some are healthy, so without it a per-address failure is indistinguishable from a dead node and gets averaged into that node's single result series.
 
+Latency statistics MUST be recorded but MUST NOT contribute to any score. Two confounds make them unsuitable for scoring today: a node defers replay checking in batches bounded by its deferral time and pending-packet count and only defers when its bloomfilter lock is contended, so a low-volume probe measures a busy node as slower than an idle one in a step function; and measurements taken inside a concurrent wave include the agent's own queueing. Consequently liveness latency figures MUST NOT be compared with stress-test latency figures.
+
 #### Scenario: A node-level failure still yields a result
-- **WHEN** a node fails to respond or is misconfigured
+- **WHEN** a node fails to respond, is misconfigured, or refuses the Noise handshake
 - **THEN** the agent returns a result with the failure recorded in its `error` field rather than failing the job
 
 #### Scenario: A result is attributable to the address it measured
 - **WHEN** a run against one of a node's several announced addresses fails
 - **THEN** the stored run records the tested address, so the failure is attributable to that address rather than to the node as a whole
 
-### Requirement: The subsystem tests mixnodes only; the gateway test path is an unwired extension seam
+#### Scenario: A gateway result keeps its per-phase breakdown
+- **WHEN** a gateway liveness run is stored and read back
+- **THEN** the ingress and egress measurements are separately visible, alongside the averaged score submitted downstream
 
-In its current behaviour the subsystem SHALL stress-test mixnodes only. The orchestrator MUST only ever assign nodes of type `mixnode` or `mixnode_and_gateway`, MUST record created testruns as the mixnode test type, and nym-api MUST drop any submitted result whose entry is not a mixnode. A gateway test type exists in the data model but is NOT wired to any assignment or execution path; it MUST be treated as an unused extension seam, not as current behaviour.
-
-#### Scenario: Only mixnodes are assigned and stored
-- **WHEN** the orchestrator selects a node to test
-- **THEN** it only considers mixnode-capable nodes and marks the run as a mixnode test
-
-#### Scenario: A non-mixnode result is dropped on ingest
-- **WHEN** nym-api receives a stress-test entry that is not a mixnode
-- **THEN** that entry is logged and dropped without failing the batch
+#### Scenario: A rejected handshake scores zero rather than being excluded
+- **WHEN** a node rejects the agent's Noise handshake, so nothing can be measured
+- **THEN** the result records the failure and scores zero, because a node that will not accept a connection is not routable and an unmeasurable node must not score better than a measurably broken one
 
 ### Requirement: nym-api accepts batches only from contract-authorised orchestrators after staleness, replay, and signature checks
 
 The nym-api handler for `POST /v3/nym-nodes/stress-testing/batch-submit` SHALL validate each submission through six ordered steps: (1) reject the batch if its body is older than a 30-second staleness window; (2) reject it unless the signer's ed25519 public key is in the `NetworkMonitorsCache` authorised set, which is populated from the network-monitors contract's authorised-orchestrator identity keys and refreshed lazily on a TTL (default 30 minutes); (3) reject it unless its timestamp is strictly greater than the per-signer high-water mark held in an in-memory `LastNMSubmissions` map, falling back to the process-online time when no prior submission is recorded (for example after a restart); (4) reject it unless the ed25519 signature over the JSON body verifies against the signer; (5) update the per-signer high-water mark; and (6) validate and insert the individual results.
+
+The per-signer high-water mark MUST be scoped to the submission endpoint. Each ingest endpoint MUST keep its own map, so that two streams signed by one orchestrator identity cannot invalidate each other's timestamps.
 
 Because the per-signer high-water mark is held in memory, it resets to the process-online time on restart; the database primary-key dedupe described in the next requirement is what ultimately guarantees idempotency. Intended follow-up (recorded here as a planned change, NOT current behaviour): persist the per-signer high-water mark across restarts as defense-in-depth.
 
@@ -318,12 +407,16 @@ Because the per-signer high-water mark is held in memory, it resets to the proce
 - **THEN** the submission is rejected as unauthorised
 
 #### Scenario: A replayed or out-of-order batch is rejected
-- **WHEN** a batch's timestamp is not strictly greater than the signer's last accepted timestamp
+- **WHEN** a batch's timestamp is not strictly greater than the signer's last accepted timestamp for that endpoint
 - **THEN** the submission is rejected
 
 #### Scenario: A tampered batch fails the signature check
 - **WHEN** the body does not match its ed25519 signature for the given signer
 - **THEN** the submission is rejected as failing its integrity check
+
+#### Scenario: One endpoint's high-water mark does not gate another's
+- **WHEN** the same orchestrator submits to the stress and liveness endpoints with interleaved timestamps
+- **THEN** each endpoint evaluates monotonicity against its own map and both submissions are accepted
 
 ### Requirement: Per-entry validation drops invalid rows without failing the batch, and rows deduplicate at the database
 
@@ -361,21 +454,77 @@ The submission payload SHALL be a `StressTestBatchSubmission`, a `SignedMessage<
 
 ### Requirement: Stored stress-test scores feed node performance and rewarding through a defined consumer surface
 
-The stored stress-test results SHALL form the subsystem's output contract to the rest of nym-api; the detailed behaviour of each consumer is owned by its own capability, and this requirement fixes only WHICH subsystems read the results and FOR WHAT. The stored per-node results MUST be aggregated (average performance and a reachability flag over a configured window) into a stress-testing score; that score MUST feed the node performance provider, which folds it - together with routing and configuration components - into each node's detailed performance, gated by the `use_stress_testing_data`, `minimum_available_stress_testing_results`, and `stress_testing_score_weight` configuration flags and applied only to stress-test-eligible mixnodes; and the resulting composite performance MUST flow into rewarding via the node's rewarding-performance derivation.
+The stored stress-test and liveness results SHALL form the subsystem's output contract to the rest of nym-api; the detailed behaviour of each consumer is owned by its own capability, and this requirement fixes only WHICH subsystems read the results and FOR WHAT. The stored per-node stress results MUST be aggregated (average performance and a reachability flag over a configured window) into a stress-testing score; the stored per-node liveness results MUST be aggregated the same way into a separate liveness score; each score MUST feed the node performance provider, which folds them - together with routing and configuration components - into each node's detailed performance, each gated by its own `use_*_data`, `minimum_available_*_results`, and `*_score_weight` configuration flags; and the resulting composite performance MUST flow into rewarding via the node's rewarding-performance derivation.
+
+Liveness MUST be INERT by default, so that it is recorded and queryable without affecting performance or rewarding until an operator deliberately enables it. This is required because two populations will score zero on liveness for reasons unrelated to their forwarding capability: nodes that have not ingested their agents' on-chain authorisations, and gateways not yet carrying the final-hop and monitor-session behaviour that gateway liveness depends on.
+
+Node performance SHALL be computed as the weighted mean of whichever delivery properties APPLIED to that node, renormalised over their weights, MULTIPLIED by the node's config score. The properties are the legacy v1 routing score, the v3 stress score and the v3 liveness score; they measure the same thing from different sources, so their weights are proportions of one figure rather than independent axes.
+
+This supersedes a formula in which each enabled component took its weight and `routing x config` absorbed the remainder. That form let a component ESCAPE the config gate: with stress at 0.3, three tenths of a node's performance was immune to its configuration score, so a node that was out of date, unfunded or had not accepted the terms could partially buy that back by stress-testing well. Multiplying the whole delivery figure by the config score removes that shield, and the difference for a given node is exactly `stress_weight x stress_score x (1 - config_score)` - zero for a node whose config score is 1.0.
+
+Renormalisation over the APPLIED set is required rather than optional, because that set varies for two reasons outside the operator's control. A property may not apply to a node at all - stress testing covers mixnodes only, so a gateway would otherwise be docked the stress share for a test it cannot take - and a property may be dropped mid-flight when its availability threshold trips because an orchestrator is down, which would otherwise deflate every node's score for a fault that is not theirs. A consequence MUST be documented: effective weights therefore differ by role, so a declared weight is a share of whatever applies rather than a fixed fraction.
+
+The ENABLED properties' weights MUST sum to 1.0, checked at startup. At least one property MUST be enabled with a non-zero weight, and at least one of legacy v1 routing or liveness MUST be enabled: stress testing applies to mixnodes alone, so on its own it leaves every gateway with an empty applied set and no definable score. When a node's applied set IS empty, NO score may be computed for it and its previous annotation MUST be left in place - a zero would slash it for a gap that is not its fault, and any other value would reward it for nothing measured.
+
+Inertness MUST rest on the component's `enabled` flag defaulting to off, NOT on its weight defaulting to zero. A zero default weight was specified originally and is REJECTED: it is a second gate on the same property, and its only observable effect is a state in which the component reads as enabled while changing nothing, which is indistinguishable from a broken feature. The weight SHOULD therefore default to the value the component is expected to carry once switched on, making enabling a single change. The consequence MUST be documented where an operator will see it: enabling takes effect immediately at that weight, so the divergence surface is to be consulted BEFORE the flip rather than after.
+
+While the weight is zero, nym-api MUST expose a DIVERGENCE surface comparing each node's aggregated liveness score against the v1 monitor's routing score, PER NODE, carrying the two scores, their difference, whether any liveness sample reached the node, and the node's declared role. It MUST list every liveness-eligible bonded node including those with no sample yet, so that coverage and comparison are readable together: the decision to weight liveness needs both how much of the fleet has been measured and how the measured part compares. It MUST omit nodes the orchestrator would never assign a liveness test, since those have no divergence to report rather than a divergence of zero. This surface is the evidence on which the eventual decisions to weight liveness, and separately to retire the v1 routing score, are to be based.
+
+It MUST be served under the UNSTABLE route tree and is explicitly TEMPORARY: it exists to inform those two decisions and is to be deleted once they are made, so nothing durable may be built on it.
+
+The only dimension beyond the per-node rows is the declared role, and only because nym-api already holds it. Bucketing on whether the node announces a wss entry was considered and REJECTED as unjustified complexity: it is inert for mixnodes, which announce no entry interface at all and will be most of the population, and it is second-order to the confound that actually dominates during rollout, namely whether a node yet carries the behaviour liveness depends on. The consequence is accepted rather than hidden: because this subsystem probes only the plain-ws ingress, a gateway with a broken TLS ingress will diverge for a reason this design created, and reading a gateway's divergence requires knowing that. The role field is what signals which of the two unrelated probe paths produced a row.
 
 #### Scenario: Stress scores contribute to node performance when enabled
 - **WHEN** stress-testing data is enabled and a mixnode has at least the minimum number of available results
 - **THEN** its averaged stress score is folded into its detailed performance according to the configured weight
 
+#### Scenario: Liveness scores are inert by default
+- **WHEN** liveness results are stored and aggregated with the default configuration
+- **THEN** they are queryable and appear on the divergence surface, but contribute nothing to any node's performance or reward, because the component's own enable flag is off
+
+#### Scenario: A gateway is not docked for a test it cannot take
+- **WHEN** stress testing is enabled and a gateway, which is never stress-tested, is scored
+- **THEN** the properties that do apply are renormalised to carry the whole measurement, so the gateway is scored on what it has rather than losing the stress share
+
+#### Scenario: Configuration gates every property
+- **WHEN** a node with an imperfect config score scores well on a delivery property
+- **THEN** that property's contribution is multiplied by the config score like every other, so a good delivery score cannot lift the node above its configuration ceiling
+
+#### Scenario: A node with nothing applicable keeps its previous annotation
+- **WHEN** no delivery property applies to a node
+- **THEN** no score is computed for it and its existing annotation stands, rather than being replaced by a fabricated figure
+
+#### Scenario: A component with no data available does not freeze the annotations
+- **WHEN** the selected performance provider structurally has no data for a component, as the contract provider has none for stress or liveness
+- **THEN** it reports that component as absent rather than as a retrieval failure, so the refresh still writes annotations instead of aborting and leaving them frozen
+
+#### Scenario: Divergence is reported per node
+- **WHEN** a gateway scores zero on liveness while the v1 monitor scores it as routable
+- **THEN** the surface reports that node's two scores, their difference, and its declared role, so the gap is attributable to that node and to which probe path measured it
+
+#### Scenario: An unmeasured node is distinguishable from a broken one
+- **WHEN** a liveness-eligible node has produced no sample in the window
+- **THEN** it is still listed, with a zero score and its reachability flag false, so coverage is visible rather than being mistaken for a fleet of well-behaved nodes
+
+#### Scenario: An ineligible node is absent rather than diverging
+- **WHEN** a node declares neither a mixnode nor an entry role, so no liveness test is ever assigned to it
+- **THEN** it does not appear on the surface at all
+
 #### Scenario: The consumer surface is bounded
-- **WHEN** reasoning about the blast radius of a stress-test score
+- **WHEN** reasoning about the blast radius of a stress or liveness score
 - **THEN** the readers are the performance aggregation query, the performance provider, and rewarding, each specified by its own capability
 
 ### Requirement: The subsystem's behaviour is governed by orchestrator and agent configuration surfaces with defined defaults
 
-The orchestrator SHALL be configured with the following defaults: `test_interval` 2 hours, `test_timeout` 5 minutes, `node_refresh_rate` 2 hours, `node_info_query_timeout` 10 seconds, `testrun_eviction_age` 7 days, `result_submission_interval` 15 minutes, `result_submission_batch_size` 50, `number_of_concurrent_node_queries` 32, `chain_authorisation_check_max_attempts` 10, `chain_authorisation_check_retry_delay` 1 minute, and an HTTP bind of `0.0.0.0:8080`; plus required secrets (`agents_token`, `metrics_and_results_token`, the bip39 `mnemonic`, and the base58 ed25519 `private_key`) and required endpoints (`nym_api_endpoint`, `rpc_url`, the mixnet and network-monitors contract addresses, and `database_path`). The agent SHALL be configured with the following defaults: `sending_duration` 30 seconds, `waiting_duration` 5 seconds, `packet_delay` 50 milliseconds (which MUST be non-zero), `target_rate` 1000 packets/second, `reuse_header` true, `egress_connection_timeout` 5 seconds, `noise_handshake_timeout` 3 seconds, `sending_batch_size` 50, and a listener bind of `[::]:9000`; plus the required orchestrator URL, orchestrator bearer token, announced ipv4 host address, announced ipv6 host address, shared announced port, and noise-key path. All knobs MUST be overridable by CLI flag or environment variable.
+The orchestrator SHALL be configured with the following defaults: `test_interval` 2 hours, `test_timeout` 5 minutes, `node_refresh_rate` 2 hours, `node_info_query_timeout` 10 seconds, `testrun_eviction_age` 7 days, `result_submission_interval` 15 minutes, `result_submission_batch_size` 50, `number_of_concurrent_node_queries` 32, `chain_authorisation_check_max_attempts` 10, `chain_authorisation_check_retry_delay` 1 minute, and an HTTP bind of `0.0.0.0:8080`; plus required secrets (`agents_token`, `metrics_and_results_token`, the bip39 `mnemonic`, and the base58 ed25519 `private_key`) and required endpoints (`nym_api_endpoint`, `rpc_url`, the mixnet and network-monitors contract addresses, and `database_path`).
 
-The announced pair MUST be validated at configuration time, applying the same rule the orchestrator enforces on announce, so a misconfigured deployment fails immediately rather than on its first announcement. The listener bind default MUST remain dual-stack (`[::]`), since an ipv4-only bind cannot receive the return traffic for a run whose return hop is the agent's ipv6 address.
+Where a knob governs a per-kind behaviour it MUST be expressible per kind, except that the two liveness kinds share one staleness interval, one lease budget and one enable flag. The orchestrator MUST additionally carry, for the liveness kinds: a staleness interval (defaulting well below the stress `test_interval`, so that liveness tracks v1's cadence) of 15 minutes, a lease budget used as the in-progress `expires_at` (which MUST bound one concurrent wave, not the sum over its targets, and MUST therefore cover the slower of the two probes) of 1 minute, a wave size PER KIND - 100 for `mixnode_liveness` and 50 for `gateway_liveness`, since a wave is one concurrent batch and a gateway target costs the agent a live client session where a mixnode target costs a Noise connection - and an enable flag allowing both liveness kinds to be switched off without a code change, i.e. by configuration and a restart rather than by a build, defaulting to ON and therefore expressible as an explicit value rather than as a bare presence flag, since a flag that can only be switched on cannot be switched off by a deployment. `test_interval` and `test_timeout` remain the staleness interval and lease budget of `mixnode_stress`.
+
+The agent SHALL be configured with the following defaults: `sending_duration` 30 seconds, `waiting_duration` 5 seconds, `packet_delay` 50 milliseconds (which MUST be non-zero), `target_rate` 1000 packets/second, `reuse_header` true, `egress_connection_timeout` 5 seconds, `noise_handshake_timeout` 3 seconds, `sending_batch_size` 50, and a listener bind of `[::]:9000`; plus the required orchestrator URL, orchestrator bearer token, announced ipv4 host address, announced ipv6 host address, shared announced port, and noise-key path. The agent MUST additionally carry a liveness profile: a per-target packet count, a PER-TARGET send rate (never an aggregate budget divided across the wave), a straggler wait, and a per-target timeout. All knobs MUST be overridable by CLI flag or environment variable.
+
+The liveness profile's initial values are PROVISIONAL, chosen for score granularity rather than measured against agent hardware: a per-target packet count of 50 (giving 2% granularity against v1's three packets per route), a per-target rate of 50 packets/second, a straggler wait of 5 seconds, a per-target timeout of 30 seconds, and wave sizes of 100 mixnode targets and 50 gateway targets. The rate is well below the stress profile's 1000 packets/second, so no target is under load, and it puts a target's send window at about one second, which is as long as a probe asking whether a node forwards at all has any reason to hold one open. A full mixnode wave therefore emits 5000 packets/second for roughly that second, about 15 Mbps at the probe's `AckPacket` sizing, while totalling 5000 packets against a stress run's 30000. The packet count is sized for the interpretability of a SINGLE run on the operator read surface, not for statistical power, which comes from the cadence: at a 15-minute interval a node contributes on the order of a hundred runs to each daily aggregation window. Because they are provisional, every one of them MUST be tunable in a deployment without a code change, and no behaviour may depend on a specific value: an agent host that cannot sustain a full wave MUST be correctable by configuration alone.
+
+The announced pair MUST be validated at configuration time, applying the same rule the orchestrator enforces on announce, so a misconfigured deployment fails immediately rather than on its first announcement. The listener bind default MUST remain dual-stack (`[::]`), since an ipv4-only bind cannot receive the return traffic for a run whose return hop is the agent's ipv6 address, and since one shared listener serves every target of a concurrent wave.
 
 #### Scenario: Defaults match the documented values
 - **WHEN** an orchestrator or agent is configured without overriding a given knob
@@ -388,4 +537,243 @@ The announced pair MUST be validated at configuration time, applying the same ru
 #### Scenario: A malformed announced address pair is rejected at startup
 - **WHEN** the agent is configured with two announced addresses of the same family, or with an ipv4-mapped ipv6 address
 - **THEN** configuration construction fails before the agent announces itself
+
+#### Scenario: Liveness can be disabled without a new build
+- **WHEN** the orchestrator's liveness enable flag is unset
+- **THEN** neither liveness kind is assigned and stress testing continues unaffected
+
+### Requirement: Liveness is tested by two kinds of its own, and the mixnode probe is the stress probe at a low-volume profile
+
+The subsystem SHALL support liveness testing alongside stress testing. A test kind is ONE probe against ONE role, and the kinds are `mixnode_liveness`, `gateway_liveness` and `mixnode_stress`; "liveness" names the family of the first two rather than a kind of its own. Every unit of work MUST be identified by exactly one kind, and the orchestrator MUST be the party that decides which kind a given assignment carries; an agent MUST support every kind.
+
+For a node reporting the mixnode role, a liveness probe SHALL be the same two-hop self-loop probe as a stress test - route `[tested_node, this_agent]`, `AckPacket`-sized mix packets, the same connectivity and bloomfilter probe sequence, the same `reuse_header` behaviour - executed under its own low-volume profile (`liveness_packets`, `liveness_target_rate`, `liveness_waiting_duration`) rather than the stress profile. The reported sent count MUST be forced to the profile's expected packet count on success, exactly as for a stress test, so a node that applies back-pressure to a liveness probe is penalised rather than flattered.
+
+A liveness probe MUST be PACED at its configured rate rather than dispatched as a burst, because a burst applies exactly the load the kind exists to avoid applying. Since the inter-batch interval is the batch size divided by the rate, a batch that is large relative to the packet count collapses the send window into a couple of dispatches seconds apart, which is what inheriting the stress batch size would do. The liveness batch size MUST therefore be DERIVED from the per-target packet count, as a fixed number of dispatches spread across the send window, and MUST NOT be inherited from the stress profile or configured on its own, so that retuning the provisional count or rate cannot silently reintroduce bursting. At the profile's own values the interval between dispatches MUST remain on a millisecond scale.
+
+Because the probe traverses exactly one node besides the agent, a liveness score MUST depend only on that node and the agent's own link. No other node of the network may appear in the measured path.
+
+#### Scenario: A mixnode liveness probe measures only the tested node
+- **WHEN** a liveness assignment for a mixnode is executed
+- **THEN** the packets traverse only the tested node and return to the agent, so no third node's behaviour can affect the score
+
+#### Scenario: The liveness profile is used rather than the stress profile
+- **WHEN** a liveness probe runs against a mixnode
+- **THEN** it sends `liveness_packets` packets at `liveness_target_rate` and waits `liveness_waiting_duration` for stragglers, leaving the stress profile's values untouched
+
+#### Scenario: Back-pressure on a liveness probe is penalised
+- **WHEN** a node throttles the agent so that fewer than the expected packets are pushed, and the probe otherwise completes
+- **THEN** the reported sent count is the expected count, lowering the node's delivery ratio
+
+### Requirement: Gateway liveness is one indivisible test of two phases over a single client session
+
+A gateway liveness assignment SHALL be a single, indivisible unit of work performed by ONE agent within ONE gateway client session, comprising two phases:
+
+1. **Ingress** - the agent, acting as a gateway client, submits a `ForwardSphinx` request whose next hop is the agent's own mixnet address, and counts the packets that arrive at its mixnet listener. This exercises the client session, the bandwidth path, and the gateway's outbound forwarder (including its Noise handshake as initiator). The gateway performs NO sphinx processing on this path: the client supplies an explicit next hop and the gateway forwards the packet verbatim, so an ingress failure implicates the session or the forwarder and never the sphinx layer.
+2. **Egress** - the agent, acting as a mixnode, sends packets to the gateway's mixnet listener as FINAL-hop packets addressed to its own client session, and counts the packets pushed back to it over that session. This exercises the gateway's mixnet ingress, its final-hop sphinx unwrapping, its destination resolution, and its delivery to a live client.
+
+The client session MUST be established before either phase and held open through the drain window of both, because final-hop delivery requires a live session at the instant the packet arrives. The two phases MUST NOT be assignable, executable, or submittable separately.
+
+A gateway liveness run MUST produce a measurement for each phase. The score denominator MUST be fixed by the test kind at two measurements, so a phase that produces no measurement scores zero rather than being excluded from the average. A phase-1 failure MUST NOT abort the run; only failure to establish the client session aborts it, in which case both measurements are zero. Neither phase relies on `forward_hop_processing_enabled`, which is derived from a node's mixnode mode and is disabled on a gateway-only node.
+
+#### Scenario: Both phases run in one session by one agent
+- **WHEN** a gateway liveness assignment is handed out
+- **THEN** a single agent establishes one client session and performs both the ingress and egress phases within it, and no other agent is ever assigned either phase of that run
+
+#### Scenario: A dead egress path is not hidden by a healthy ingress path
+- **WHEN** the ingress phase returns every packet and the egress phase returns none
+- **THEN** the run records one full and one zero measurement, and the reported score is their average over the kind's fixed two-measurement denominator
+
+#### Scenario: An ingress failure still yields an egress measurement
+- **WHEN** the gateway fails to forward the ingress phase's packets
+- **THEN** the run continues into the egress phase and records the ingress measurement as zero, rather than aborting
+
+#### Scenario: A session that cannot be established scores zero on both phases
+- **WHEN** the agent cannot establish its client session with the gateway
+- **THEN** the run aborts with the failure recorded and both measurements are zero
+
+### Requirement: Gateway client sessions are established over plain ws at an announced ip address
+
+The agent SHALL establish its gateway client session at `ws://<announced-ip>:<clients_ws_port>`, constructed from the address the orchestrator assigned and the gateway's announced client websocket port. It MUST ignore any announced hostname and any announced wss entry, and MUST NOT reuse a topology helper that prefers either.
+
+This is required so that the session reaches the node itself rather than an operator-owned TLS terminator or reverse proxy, and so that the probe carries no DNS or certificate dependency. A Nym node binds NO TLS listener: its clients websocket is bound unconditionally in entry mode and the announced wss port is an announcement field only, so an announced wss entry always denotes externally terminated TLS and the plain ws port is the node's own listener. Authenticity is unaffected: the registration handshake authenticates the gateway's ed25519 identity, which the orchestrator holds from the mixnet contract, so no transport-level certificate is needed to know which gateway answered.
+
+A gateway liveness run MUST use ONE announced address for both of its phases, so that a run exercises a single address family end to end, consistent with the per-address rotation. Testing a gateway's wss ingress path is explicitly NOT covered by this kind and is recorded as intended future work (a separate test kind), which means a gateway whose plain-ws path works while its wss path is broken WILL score well here.
+
+#### Scenario: The session targets an ip, not a hostname
+- **WHEN** a gateway announces both a hostname with a wss port and a plain client websocket port
+- **THEN** the agent connects to `ws://<announced-ip>:<clients_ws_port>` and neither resolves the hostname nor negotiates TLS
+
+#### Scenario: The gateway is still authenticated
+- **WHEN** the session is established without TLS
+- **THEN** the gateway's identity is verified through the registration handshake against the identity key recorded for that node
+
+#### Scenario: Both phases use one address family
+- **WHEN** the rotation selects a gateway's ipv6 address for a run
+- **THEN** both the client session and the mixnet leg use that ipv6 address, and the sphinx return hop carries the agent's ipv6 address
+
+### Requirement: A liveness assignment is a wave of targets probed concurrently
+
+A liveness assignment SHALL carry a wave of targets that the agent probes CONCURRENTLY, and one wave MUST be one concurrent batch: the agent MUST NOT split a wave into sequentially-executed sub-waves. A stress assignment remains a single target.
+
+Concurrency is required so that the assignment's lease is bounded by the WORST CASE OF ONE target rather than by the sum over the wave, which is what makes a full-population sweep feasible at liveness cadence and what makes a multi-target lease safe at all.
+
+To execute a wave the agent MUST bind ONE shared ingress listener and MUST treat the union of every target's announced addresses, canonicalised, as its known-source set, so that any target's return connection is accepted from any address that target is known by. The Noise view the responder is given MUST be scoped to the single source of the connection being upgraded rather than spanning the wave: the responder consults it only as a membership gate, falling back to plain TCP on a miss, and authenticates using the agent's own key rather than the initiator's, so a wave-spanning view would be the known-source set held a second time. The initiator side is where a target's noise key is actually required, and there each target's egress connection is established against its own. Returned packets MUST be attributed to a target by the source address of the connection they arrive on, which is sound because node ip addresses are unique across the node population (unlike agent addresses, which may share an ip and be disambiguated only by port). The union is collision-free for the same reason.
+
+The send rate MUST be configured PER TARGET and MUST NOT depend on the wave width, so that a node is probed at the same rate whether its wave held three targets or a hundred and its delivery ratio is comparable across waves. A rate derived by dividing an aggregate budget across the received wave MUST NOT be used, because it would probe a node in a narrow wave far harder than the same node in a full one, and liveness measures delivery rather than throughput.
+
+It follows that the agent's aggregate egress is the per-target rate times the wave width, and so is bounded by the orchestrator's wave size rather than by any agent-side knob. The per-target rate MUST stay far enough below the stress profile's that no individual target is placed under load, but a full wave's aggregate rate is NOT required to stay within one stress run's. A liveness probe sends orders of magnitude fewer packets per target than a stress test and finishes in about a second, so a full wave is a FRACTION of a stress run's volume even while briefly exceeding its instantaneous rate; volume is what the cost bound is expressed in, because the wave width the rate is multiplied by is the orchestrator's knob rather than the agent's.
+
+Every result MUST be submitted as soon as its own target completes, rather than at the end of the wave, so that each target's in-flight lock is released independently and an agent that dies mid-wave loses only the targets it had not yet reported.
+
+#### Scenario: A wave's duration is bounded by its slowest target, not their sum
+- **WHEN** a wave contains several unresponsive targets
+- **THEN** they time out concurrently, so the wave completes within roughly one target's worst case rather than the sum of them
+
+#### Scenario: Returned packets are attributed to the right target
+- **WHEN** several targets in one wave return packets to the shared listener at the same time
+- **THEN** each packet is attributed to the target whose address the connection originated from
+
+#### Scenario: A node is probed at the same rate in a narrow wave as in a full one
+- **WHEN** one wave carries three targets and another carries a hundred
+- **THEN** every target in both is probed at the configured per-target rate, so the two waves' delivery ratios are directly comparable
+
+#### Scenario: A crashed agent only holds its unreported targets
+- **WHEN** an agent completes part of a wave and then dies
+- **THEN** the completed targets have already been submitted and unlocked, and only the unreported ones wait for the lease to expire
+
+### Requirement: The agent's gateway client identity is derived, announced on-chain, and verified by the gateway
+
+The agent SHALL obtain the ed25519 client identity it needs for a gateway client session WITHOUT any additional on-disk key material, by deriving it deterministically from its existing x25519 noise private key using a labelled key-derivation function whose output is used directly as the ed25519 seed. The derivation MUST carry a domain-separation label so that it can never collide with any other value derived from the same secret. Seeding a general-purpose random number generator with the raw private key bytes MUST NOT be used, because it provides no such separation.
+
+The identity MUST be STABLE rather than freshly generated per test, because it is announced before it is used: the agent SHALL include its base58 ed25519 identity public key in its announcement to the orchestrator, and the orchestrator SHALL record it on-chain with the agent's authorisation. A gateway SHALL grant the ephemeral unmetered monitor session ONLY to a client whose registration handshake authenticates an identity present in the on-chain authorised-agent set, and MUST NOT grant it on the basis of the connection's source IP.
+
+Keying this gate on the identity rather than the source IP is required, not preferred. The registration handshake already possession-authenticates the client's ed25519 key before any session exists, so the check costs no new protocol; the exemption it guards grants unmetered mixnet transit that the routing filter does not confine to monitor destinations; and agents share source IPs through distinct host ports while address pools recycle them, so an IP-keyed exemption can be inherited by an unrelated workload. The Noise-authenticated static key that the separately-identified follow-up applies to the mixnet gates CANNOT serve here, because the client websocket port performs no Noise handshake.
+
+The agent's client identity is permanently recognisable to a gateway. This is accepted: the agent's addresses are published on-chain, so liveness traffic is not covert regardless of the identity's lifetime. Rotating the noise key rotates the derived identity and therefore requires re-announcement.
+
+#### Scenario: No new key file is required
+- **WHEN** an agent performs a gateway liveness test
+- **THEN** it uses an identity derived from its noise key, and no additional key is generated on disk or provisioned by an operator
+
+#### Scenario: A derived identity is stable across runs
+- **WHEN** the same agent tests the same gateway on two occasions
+- **THEN** the same client identity is presented both times, so an on-chain announcement remains valid and at most one stored entry could ever exist for that pair
+
+#### Scenario: The session exemption follows the identity, not the address
+- **WHEN** an authorised agent opens a client session from an egress address that is not among its authorised mixnet addresses, presenting its announced identity
+- **THEN** the gateway grants the ephemeral unmetered session, because the gate is the verified identity
+
+#### Scenario: An unannounced identity is metered like any client
+- **WHEN** a client presents an ed25519 identity that is not in the gateway's authorised-monitor identity set
+- **THEN** the session is metered and requires credentials as normal, whatever its source IP
+
+#### Scenario: A gateway that has not ingested the identity scores the run zero
+- **WHEN** an agent tests a gateway that has not yet ingested its announced identity
+- **THEN** the session cannot be established without credentials and both phases score zero, which is the same outcome as a missed authorisation event
+
+### Requirement: nym-api ingests liveness batches on their own endpoint with their own replay state
+
+nym-api SHALL accept liveness result batches on an endpoint distinct from the stress-testing batch endpoint, applying the same ordered validation (staleness window, contract membership of the signer, strict per-signer timestamp monotonicity, ed25519 signature over the JSON body) and the same `SignedMessage` envelope shape.
+
+The per-signer high-water mark used for the monotonicity check MUST be held SEPARATELY per endpoint. It MUST NOT be shared with the stress-testing endpoint, because a single orchestrator identity submits both streams and two interleaved streams validated against one high-water mark would reject each other indefinitely.
+
+Unlike stress-test ingest, liveness ingest MUST accept results for gateway-capable nodes as well as mixnodes. Each result MUST carry a SINGLE averaged score and no per-interface breakdown, so the submitted shape is identical for a mixnode and a gateway; the breakdown stays on the orchestrator, per "The per-node result captures counts, handshake and latency statistics, and an optional error" below, which already fixes downstream consumers as receiving only the averaged score.
+
+Rows MUST deduplicate at the database on `(node_id, test_timestamp, submitter_pubkey)`, the measurement's own identity, so that at-least-once resends are idempotent. The submitting orchestrator's testrun id MUST NOT be part of that key: it is an orchestrator-local autoincrement counter, so wiping that database restarts it at 1 and every resubmitted id then collides with a stored row and is dropped silently behind a `200` until the counter climbs back past its previous high-water mark. This is not hypothetical - it is the defect that migration `20260806120000_stress_testing_result_identity` exists to fix on the stress table, and the liveness table MUST NOT reintroduce it. The testrun id MUST still be stored, so a row remains traceable to the submitter's own read surface.
+
+#### Scenario: Interleaved streams do not reject each other
+- **WHEN** one orchestrator submits a stress batch and then a liveness batch whose timestamp is lower than the stress batch's
+- **THEN** both are accepted, because each endpoint tracks that signer's high-water mark independently
+
+#### Scenario: Gateway liveness results are accepted
+- **WHEN** a liveness batch contains a result for a gateway-only node
+- **THEN** it is validated and stored, rather than being dropped as a non-mixnode entry
+
+#### Scenario: A resent liveness result does not duplicate rows
+- **WHEN** the same `(node_id, test_timestamp, submitter_pubkey)` measurement arrives twice
+- **THEN** the second insert is ignored
+
+#### Scenario: A wiped orchestrator database does not collide with stored rows
+- **WHEN** an orchestrator loses its local database, restarts its testrun counter at 1, and submits fresh measurements under ids it has used before
+- **THEN** they are stored, because the row identity is the measurement rather than that counter
+
+### Requirement: Each test kind defines which nodes it assigns and how their results are typed
+
+Each test kind SHALL declare the role a node must report to be eligible for it. `mixnode_stress` and `mixnode_liveness` MUST assign only nodes reporting the mixnode role, and `gateway_liveness` MUST assign only nodes reporting the entry-gateway role. A dual-role node, reporting both, is therefore eligible for all three kinds, each with its own staleness, and its liveness score MUST be the average over the runs of both liveness kinds.
+
+A node with no description, because it has never been completely described or is no longer bonded, MUST be ineligible for every kind, as MUST a described node that reports no roles.
+
+#### Scenario: A gateway-only node is assignable for gateway liveness only
+- **WHEN** the orchestrator selects work for a gateway-only node
+- **THEN** it may assign `gateway_liveness` and never `mixnode_liveness` or `mixnode_stress`
+
+#### Scenario: A dual-role node is measured in both roles
+- **WHEN** a dual-role node is due for liveness
+- **THEN** it is assigned both `mixnode_liveness` and `gateway_liveness`, and its score averages the runs of both
+
+#### Scenario: An undescribed node is never assigned
+- **WHEN** a node has never answered its self-description completely
+- **THEN** no test of any kind is assigned to it
+
+#### Scenario: An unbonded node is no longer assigned
+- **WHEN** a node disappears from the mixnet contract's bonds
+- **THEN** its description is deleted at the next successful refresh and no test of any kind is assigned to it
+
+### Requirement: Orchestrator state is a per-kind SQLite schema and the agent registry is in-memory only
+
+The orchestrator SHALL persist state in a SQLite database of: `nym_node_bond`, the bonded-node registry (node id, identity key, and when the node was last seen bonded); `nym_node_description`, each node's latest complete self-description (mix port, announced address set, noise key, sphinx key and key-rotation id, the mixnode and entry-gateway role flags as the node reports them, and plain client websocket port), at most one per bonded node; a work-state table keyed `(node_id, test_kind)` holding that kind's last-tested timestamp and address rotation pointer; one results table PER KIND (`mixnode_liveness_testrun`, `gateway_liveness_testrun`, `mixnode_stress_testrun`), each row recording the node, the address that was tested, the run's timing and error, and one column group per interface that kind exercises; a submission-watermark table with one row per kind; and `testrun_in_progress` (the in-flight dispatch lock set, keyed by `node_id` alone so that only one test of any kind runs against a node at a time, and carrying a materialised `expires_at` plus the kind it was dispatched for).
+
+The set of kinds MUST be listed once, in a `test_kind` table keyed by the kind's name that every kind column references, so that adding a kind inserts a row rather than rebuilding each table naming one, SQLite being unable to alter a `CHECK` constraint.
+
+Every column of a description MUST be non-null except the client websocket port, which MUST be null exactly when the node does not report the entry-gateway role. The roles MUST be stored as the two flags the node reports rather than folded into a combined classification, since every reader asks about one role at a time. A node therefore has either a complete description or none, so no consumer has to reason about a partially described node, and eligibility for every kind requires one. Results and work state MUST reference the bond rather than the description, so deleting a description loses neither.
+
+Each kind's results table MUST carry the same column group for every interface it exercises: one `mix_forwarding` group for the two mixnode kinds, and a `client_ingest` and a `client_delivery` group for `gateway_liveness`. A result MUST be stored only under the kind recorded on its in-flight row, and a result shaped for any other kind MUST be rejected; because a result carries exactly one measurement per interface its kind exercises, every column group is written from the submission and none can be missing or extra. A testrun id is unique only within its kind, so the operator read surface MUST address a completed run by its kind as well as its id.
+
+Because each liveness role is a kind of its own, a dual-role node has separate work state for `mixnode_liveness` and `gateway_liveness`, and one kind's run never advances the timestamp that gates the other's eligibility. The dispatched kind MUST be recorded on the in-flight row, because the submission reports only the node and the address, so the orchestrator would otherwise depend on the agent echoing back a value the orchestrator itself chose in order to know which table the result belongs in.
+
+The per-kind last-tested timestamp MUST be stored directly rather than read through a join onto the last testrun row, so that evicting an old result does not make a node read as never-tested and jump the assignment queue.
+
+The agent registry MUST NOT be persisted; it lives only in the in-memory `KnownAgents` cache and is rebuilt from the contract on each startup, which means agents' announced flags reset across a restart and each agent re-announces (and is re-authorised on-chain) on its next run.
+
+Rehydrating that cache from the contract requires recovering which pair of on-chain entries belongs to one agent. The contract stores one entry per socket address and carries no field linking an agent's two addresses, so the orchestrator MUST group the entries by their x25519 noise key, which is unique per agent (see the network-monitors-contract capability, which does NOT enforce that uniqueness). Entries that do not form exactly one ipv4/ipv6 pair MUST be dropped from the cache rather than guessed at - they are either authorisations predating the paired announcement or leftovers from an agent that has since changed an address - which is safe precisely because the cache only exists to skip redundant contract transactions, and an agent always announces before requesting work. The identity key is subject to the same rule: a pair whose two entries do not both carry the SAME identity MUST be dropped, an absent one being an authorisation predating the field and a disagreeing one being a half-written pair. Dropping rather than tolerating is what keeps every cached entry complete, so no consumer has to reason about a rehydrated agent whose identity is unknown, and it costs only the one redundant authorisation transaction the drop rule already accepts.
+
+#### Scenario: Each kind keeps its own staleness and rotation position
+- **WHEN** a node has been tested by several kinds
+- **THEN** the work-state table holds one row per kind, each with its own last-tested timestamp and rotation pointer
+
+#### Scenario: A dual-role node is not starved of either liveness probe
+- **WHEN** a dual-role node has just been tested by `mixnode_liveness`
+- **THEN** its `gateway_liveness` eligibility is unaffected, because that kind has its own last-tested timestamp
+
+#### Scenario: Evicting an old result does not reset staleness
+- **WHEN** a node's last completed testrun is deleted by result eviction
+- **THEN** the node's per-kind last-tested timestamp is unchanged, so it does not read as never-tested
+
+#### Scenario: A gateway description always carries its client port
+- **WHEN** a gateway-capable node's description is stored
+- **THEN** it carries the plain client websocket port, and a gateway-capable description without one cannot be written
+
+#### Scenario: A result of the wrong kind is rejected
+- **WHEN** a node dispatched for `mixnode_liveness` submits a result shaped for `gateway_liveness`
+- **THEN** the submission is rejected and nothing is stored
+
+#### Scenario: An agent's two on-chain entries are re-paired after a restart
+- **WHEN** the orchestrator restarts and reads its agents from the contract
+- **THEN** the ipv4 and ipv6 entries sharing one noise key are rehydrated as a single announced agent
+
+#### Scenario: An unpairable on-chain entry is dropped rather than guessed
+- **WHEN** an agent has an on-chain entry with no counterpart of the other family under the same noise key
+- **THEN** it is left out of the rehydrated cache and re-created by that agent's next announcement, at the cost of one redundant authorisation transaction
+
+#### Scenario: An on-chain pair without one identity is dropped rather than half-restored
+- **WHEN** an agent's on-chain entries were written before the identity field existed, or carry identities that differ from one another
+- **THEN** the pair is left out of the rehydrated cache and re-created, complete with its identity, by that agent's next announcement, with no revocation of the old entries because the authorisation save overwrites them in place
+
+#### Scenario: Node registry and results survive a restart
+- **WHEN** the orchestrator restarts
+- **THEN** its node bonds and descriptions, per-kind work state, per-kind completed testruns, and per-kind submission watermarks are loaded from SQLite
+
+#### Scenario: The agent set is rebuilt from the contract, not from disk
+- **WHEN** the orchestrator restarts
+- **THEN** its agent registry is rehydrated from the network-monitors contract rather than read from local storage
 

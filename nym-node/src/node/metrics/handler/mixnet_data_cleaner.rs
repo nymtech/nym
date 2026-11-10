@@ -5,6 +5,7 @@ use crate::node::metrics::handler::{
     MetricsHandler, OnStartMetricsHandler, OnUpdateMetricsHandler,
 };
 use async_trait::async_trait;
+use dashmap::DashMap;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::mixnet::{EgressRecipientStats, IngressRecipientStats};
 use std::collections::HashMap;
@@ -17,6 +18,19 @@ pub struct StaleMixnetMetrics;
 pub struct LastSeen {
     ingress_senders: HashMap<IpAddr, IngressRecipientStats>,
     egress_forward_recipients: HashMap<SocketAddr, EgressRecipientStats>,
+    lp_received_per_src: HashMap<IpAddr, usize>,
+    lp_forwarded_per_dst: HashMap<IpAddr, usize>,
+    lp_routing_filter_dropped_per_dst: HashMap<IpAddr, usize>,
+}
+
+/// Drop every entry of `counters` that has not moved since the previous pass, then remember what
+/// is left for the next one.
+fn remove_unchanged(counters: &DashMap<IpAddr, usize>, last_seen: &mut HashMap<IpAddr, usize>) {
+    counters.retain(|addr, count| last_seen.get(addr) != Some(count));
+    *last_seen = counters
+        .iter()
+        .map(|entry| (*entry.key(), *entry.value()))
+        .collect();
 }
 
 pub struct MixnetMetricsCleaner {
@@ -93,6 +107,20 @@ impl OnUpdateMetricsHandler for MixnetMetricsCleaner {
 
             self.last_seen.egress_forward_recipients = new_egress_forward_recipients;
         }
+
+        let lp = &self.metrics.mixnet.lp;
+        remove_unchanged(
+            lp.packets_received_per_src(),
+            &mut self.last_seen.lp_received_per_src,
+        );
+        remove_unchanged(
+            lp.packets_forwarded_per_dst(),
+            &mut self.last_seen.lp_forwarded_per_dst,
+        );
+        remove_unchanged(
+            lp.routing_filter_dropped_per_dst(),
+            &mut self.last_seen.lp_routing_filter_dropped_per_dst,
+        );
     }
 }
 

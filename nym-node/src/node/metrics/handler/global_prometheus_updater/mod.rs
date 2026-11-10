@@ -91,6 +91,20 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
             self.metrics.mixnet.egress.disk_persisted_packets() as i64,
         );
         self.prometheus_wrapper.set(
+            MixnetEgressMonitorFinalHopPacketsDelivered,
+            self.metrics
+                .mixnet
+                .egress
+                .monitor_final_hop_packets_delivered() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetEgressMonitorFinalHopPacketsDropped,
+            self.metrics
+                .mixnet
+                .egress
+                .monitor_final_hop_packets_dropped() as i64,
+        );
+        self.prometheus_wrapper.set(
             MixnetEgressUnknownRecipientDroppedFinalHopPackets,
             self.metrics
                 .mixnet
@@ -108,6 +122,83 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
         self.prometheus_wrapper.set(
             MixnetEgressForwardPacketsDropped,
             self.metrics.mixnet.egress.forward_hop_packets_dropped() as i64,
+        );
+
+        // # LP DATA PLANE
+        self.prometheus_wrapper.set(
+            MixnetLpPacketsReceived,
+            self.metrics.mixnet.lp.packets_received() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpPacketsForwarded,
+            self.metrics.mixnet.lp.packets_forwarded() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpRoutingFilterDropped,
+            self.metrics.mixnet.lp.routing_filter_dropped() as i64,
+        );
+        for entry in self.metrics.mixnet.lp.messages_received_per_kind() {
+            self.prometheus_wrapper.set(
+                MixnetLpMessagesReceived { kind: *entry.key() },
+                *entry.value() as i64,
+            )
+        }
+        for entry in self.metrics.mixnet.lp.messages_processed_per_kind() {
+            self.prometheus_wrapper.set(
+                MixnetLpMessagesProcessed { kind: *entry.key() },
+                *entry.value() as i64,
+            )
+        }
+        self.prometheus_wrapper.set(
+            MixnetLpMalformedPackets,
+            self.metrics.mixnet.lp.malformed_packets() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpExcessiveDelayPackets,
+            self.metrics.mixnet.lp.excessive_delay_packets() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpReplayedPackets,
+            self.metrics.mixnet.lp.replayed_packets() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpFinalHopPacketsDropped,
+            self.metrics.mixnet.lp.final_hop_packets_dropped() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpProcessingMiscErrors,
+            self.metrics.mixnet.lp.processing_misc_errors() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpPipelineOverloadedDropped,
+            self.metrics.mixnet.lp.pipeline_overloaded_dropped_packets() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpWorkerPoolOverloadedDropped,
+            self.metrics
+                .mixnet
+                .lp
+                .worker_pool_overloaded_dropped_packets() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpEgressOverloadedDropped,
+            self.metrics.mixnet.lp.egress_overloaded_dropped_packets() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpClientForwardingDisabledDropped,
+            self.metrics.mixnet.lp.client_forwarding_disabled_dropped() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpInternalSpRouted,
+            self.metrics.mixnet.lp.internal_sp_routed() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpInternalSpUndeliverable,
+            self.metrics.mixnet.lp.internal_sp_undeliverable() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpInternalSpSubmitted,
+            self.metrics.mixnet.lp.internal_sp_submitted() as i64,
         );
 
         // # ENTRY
@@ -231,6 +322,76 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
             self.prometheus_wrapper.set_float(
                 MixnetEgressForwardPacketsDroppedRate,
                 diff.mixnet.egress.forward_hop_packets_dropped_sec,
+            );
+
+            // ## LP
+            self.prometheus_wrapper.set_float(
+                MixnetLpPacketsReceivedRate,
+                diff.mixnet.lp.packets_received_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpPacketsForwardedRate,
+                diff.mixnet.lp.packets_forwarded_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpRoutingFilterDroppedRate,
+                diff.mixnet.lp.routing_filter_dropped_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpMessagesReceivedRate,
+                diff.mixnet.lp.messages_received_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpMessagesProcessedRate,
+                diff.mixnet.lp.messages_processed_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpMalformedPacketsRate,
+                diff.mixnet.lp.malformed_packets_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpExcessiveDelayPacketsRate,
+                diff.mixnet.lp.excessive_delay_packets_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpReplayedPacketsRate,
+                diff.mixnet.lp.replayed_packets_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpFinalHopPacketsDroppedRate,
+                diff.mixnet.lp.final_hop_packets_dropped_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpProcessingMiscErrorsRate,
+                diff.mixnet.lp.processing_misc_errors_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpPipelineOverloadedDroppedRate,
+                diff.mixnet.lp.pipeline_overloaded_dropped_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpWorkerPoolOverloadedDroppedRate,
+                diff.mixnet.lp.worker_pool_overloaded_dropped_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpEgressOverloadedDroppedRate,
+                diff.mixnet.lp.egress_overloaded_dropped_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpClientForwardingDisabledDroppedRate,
+                diff.mixnet.lp.client_forwarding_disabled_dropped_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpInternalSpRoutedRate,
+                diff.mixnet.lp.internal_sp_routed_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpInternalSpUndeliverableRate,
+                diff.mixnet.lp.internal_sp_undeliverable_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpInternalSpSubmittedRate,
+                diff.mixnet.lp.internal_sp_submitted_sec,
             );
 
             // # WIREGUARD

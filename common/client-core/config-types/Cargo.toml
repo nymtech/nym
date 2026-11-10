@@ -6,7 +6,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -22,7 +21,7 @@ url = { workspace = true, features = ["serde"] }
 
 nym-config = { workspace = true }
 
-nym-pemstore = { workspace = true , optional = true }
+nym-pemstore = { workspace = true, optional = true }
 
 # those are pulling so many deps T.T
 nym-sphinx-params = { workspace = true }
@@ -32,3 +31,6 @@ nym-statistics-common = { workspace = true }
 
 [features]
 disk-persistence = ["nym-pemstore"]
+
+[lints]
+workspace = true

@@ -1,6 +1,13 @@
 ---
-- name: Vacuum journal to size cap (hard)
-  command: "journalctl --vacuum-size={{ journal_vacuum_size }}"
+# journalctl writes its vacuum summary to stderr, e.g.
+#   "Vacuuming done, freed 0B of archived journals from /var/log/journal/..."
+# so "freed 0B" is a reliable no-op marker for idempotent reporting.
+- name: Vacuum journal to size cap
+  ansible.builtin.command: "journalctl --vacuum-size={{ journal_vacuum_size }}"
+  register: vacuum_size
+  changed_when: "'freed 0B' not in (vacuum_size.stderr | default(''))"
 
-- name: Vacuum journal older than retention window (time)
-  command: "journalctl --vacuum-time={{ journal_vacuum_time }}"
+- name: Vacuum journal older than retention window
+  ansible.builtin.command: "journalctl --vacuum-time={{ journal_vacuum_time }}"
+  register: vacuum_time
+  changed_when: "'freed 0B' not in (vacuum_time.stderr | default(''))"

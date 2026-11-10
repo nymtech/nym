@@ -1,0 +1,18 @@
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    participant Alice
+    participant Mixnet
+    participant Bob
+
+    Alice->>Mixnet: Message + 5 SURBs
+    Mixnet->>Bob: Message + 5 SURBs
+    Bob->>Bob: Reply needs 10 SURBs
+    Bob->>Mixnet: "Need more SURBs" (uses 1 SURB)
+    Mixnet->>Alice: SURB request
+    Alice->>Mixnet: 10 more SURBs
+    Mixnet->>Bob: Additional SURBs
+    Bob->>Mixnet: Reply (uses SURBs)
+    Mixnet->>Alice: Reply received

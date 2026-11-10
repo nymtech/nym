@@ -2,16 +2,18 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "MigrateMsg",
   "type": "object",
-  "required": [
-    "directory_contract_address",
-    "geolocation_contract_address"
-  ],
   "properties": {
     "directory_contract_address": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "geolocation_contract_address": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "node_families_contract_address": {
       "type": [

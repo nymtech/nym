@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -16,6 +15,7 @@ publish = true
 
 [dependencies]
 celes = { workspace = true }                                               # country codes
+hex = { workspace = true }
 humantime-serde = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
@@ -31,6 +31,7 @@ nym-crypto = { workspace = true, features = [
     "serde",
     "libcrux_x25519"
 ] }
+nym-directory-types = { workspace = true }
 nym-exit-policy = { workspace = true }
 nym-noise-keys = { workspace = true }
 nym-wireguard-types = { workspace = true }

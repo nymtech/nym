@@ -5,7 +5,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -24,7 +23,7 @@ nym-test-utils = { path = "../common/test-utils" }
 nym-registration-client = { path = "../nym-registration-client" }
 nym-node = { path = "../nym-node" }
 nym-lp = { path = "../common/nym-lp", features = ["mock"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "sqlite"] }
 tracing = { workspace = true }
 futures = { workspace = true }
 nym-kkt = { workspace = true }

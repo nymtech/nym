@@ -56,7 +56,7 @@
 - [Exit Security](https://nym.com/docs/developers/concepts/exit-security): What the exit gateway sees in proxy mode, and how end-to-end differs
 - [Playground](https://nym.com/docs/developers/playground): Interactive browser playground driving the mix-* packages and the raw messaging SDK against the live mixnet
 - [ENS Demo](https://nym.com/docs/developers/demos/ens): Resolve ENS names and fetch IPFS sites over the mixnet via an ethers-to-mixFetch shim
-- [Railgun Demo](https://nym.com/docs/developers/demos/railgun): Shield testnet ETH into a Railgun private note with every Ethereum RPC routed through the mixnet
+- [Railgun SDK over the mixnet](https://nym.com/docs/developers/demos/railgun): Route every RPC call of a third-party Ethereum SDK (Railgun) through the mixnet with a global ethers-to-mixFetch shim
 
 ## Operators
 

@@ -12,7 +12,7 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_types::delays::Delay;
 use nym_sphinx_types::{NymPacket, NymPacketError};
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use std::time;
 use thiserror::Error;
 use tracing::error;
@@ -43,9 +43,8 @@ pub enum SurbAckRecoveryError {
 
 impl SurbAck {
     #[allow(clippy::too_many_arguments)]
-    pub fn construct<R>(
+    pub fn construct_legacy<R>(
         rng: &mut R,
-        use_legacy_sphinx_format: bool,
         recipient: &Recipient,
         ack_key: &AckKey,
         marshaled_fragment_id: [u8; 5],
@@ -55,7 +54,7 @@ impl SurbAck {
         disable_mix_hops: bool,
     ) -> Result<Self, NymTopologyError>
     where
-        R: RngCore + CryptoRng,
+        R: CryptoRng,
     {
         let PacketType::Mix = packet_type else {
             return Err(NymTopologyError::PacketTypeNotSupported);
@@ -73,8 +72,7 @@ impl SurbAck {
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
 
         let packet_size = PacketSize::AckPacket.payload_size();
-        let surb_ack_packet = NymPacket::sphinx_build(
-            use_legacy_sphinx_format,
+        let surb_ack_packet = NymPacket::sphinx_build_legacy(
             packet_size,
             surb_ack_payload,
             &route,

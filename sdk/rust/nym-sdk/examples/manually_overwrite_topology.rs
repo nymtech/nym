@@ -19,7 +19,9 @@ async fn main() {
 
     // Connect an ephemeral client and grab the current topology.
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    let starting_topology = client.read_current_route_provider().await.unwrap().clone();
+    // the accessor hands out a shared snapshot of the route provider - it's not affected by any
+    // topology refreshes happening while we're building our custom topology below
+    let starting_topology = client.read_current_route_provider().unwrap();
 
     // Define a custom set of hardcoded mix nodes.
     let nodes = vec![
@@ -92,7 +94,7 @@ async fn main() {
 
     // Apply the custom topology. All subsequent traffic goes
     // through these specific nodes.
-    client.manually_overwrite_topology(custom_topology).await;
+    client.manually_overwrite_topology(custom_topology);
 
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");

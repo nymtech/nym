@@ -17,7 +17,7 @@ use crate::{
 };
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use nym_kkt_ciphersuite::KEM;
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 
 pub(crate) const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
 
@@ -88,7 +88,9 @@ impl KKTFrame {
     where
         R: CryptoRng + Rng,
     {
-        let ephemeral_keypair = DHKeyPair::new(rng);
+        let ephemeral_keypair = DHKeyPair::new(rng).map_err(|_| KKTError::X25519Error {
+            info: "Key Derivation Error",
+        })?;
 
         let plaintext =
             KKTRequestPlaintext::new(ephemeral_keypair.pk, responder_public_key, version_byte);

@@ -5,7 +5,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 publish = false
 
@@ -23,7 +22,6 @@ hex = { workspace = true }
 tracing = { workspace = true }
 pnet_packet = { workspace = true }
 rand = { workspace = true }
-rand010 = { workspace = true }
 reqwest = { workspace = true, features = ["socks"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -53,7 +51,7 @@ nym-config = { workspace = true }
 nym-connection-monitor = { path = "../common/nym-connection-monitor" }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
-nym-crypto = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand"] }
 nym-http-api-client = { path = "../common/http-api-client", features = ["network-defaults"] }
 nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
 nym-ip-packet-client = { workspace = true }

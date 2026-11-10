@@ -1,21 +1,24 @@
+"use client";
+
 // Per-page action row: "Copy page" (grabs the generated Markdown for this page)
 // and "Use with AI" (opens the MCP connection panel). Mounted at the top of the
 // page content by PageActionsMount, which injects it through a client-side portal.
 //
 // "Copy page" fetches <path>.md, which generate-page-markdown.mjs emits at build.
-// Pages without prose (e.g. the component landing) have no .md; the copy just
-// no-ops there. "Use with AI" dispatches a window event McpPanel listens for.
+// Pages without prose have no .md; the copy just no-ops there. "Use with AI"
+// dispatches a window event McpPanel listens for.
 
-import { useRouter } from 'next/router';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 export default function PageActions() {
-  const router = useRouter();
+  // next/navigation under the App Router: usePathname() is the route without basePath,
+  // query or hash. basePath (/docs) is a fixed config value, prepended for the .md URL.
+  const pathname = usePathname();
   const [copied, setCopied] = useState(false);
 
-  const path = router.asPath.split(/[#?]/)[0].replace(/\/$/, '');
-  const slug = path === '' ? '/index' : path;
-  const mdUrl = `${router.basePath}${slug}.md`;
+  const path = pathname.replace(/\/$/, '');
+  const mdUrl = `/docs${path}.md`;
 
   const copyPage = async () => {
     try {
@@ -30,6 +33,9 @@ export default function PageActions() {
   };
 
   const askAI = () => window.dispatchEvent(new CustomEvent('nym:ask-ai'));
+
+  // The landing page is a custom overview with no .md and nothing to feed an agent.
+  if (path === '') return null;
 
   return (
     <div style={rowStyle}>

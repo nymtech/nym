@@ -411,9 +411,9 @@ mod tests {
     /// share it was minted for.
     ///
     /// Multisig proposals outlive the round they belong to - they are given
-    /// `BLOCK_TIME_FOR_VERIFICATION_SECS` to be voted on, while a whole ceremony takes about
-    /// twenty minutes - so one that never reached a decision is still sitting there, open,
-    /// when the next ceremony reaches its finalization phase. If nothing in the order ties it
+    /// `BLOCK_TIME_FOR_VERIFICATION_SECS` to be voted on, far longer than a whole ceremony
+    /// takes when its phases end early - so one that never reached a decision is still sitting
+    /// there, open, when the next ceremony reaches its finalization phase. If nothing in the order ties it
     /// to an epoch, executing it then verifies whatever share that owner happens to have now,
     /// which nobody validated, and counts it towards the totals that decide both whether the
     /// phase is complete and whether the threshold was met.

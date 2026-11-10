@@ -79,6 +79,7 @@ pub struct GatewayCoreStatusResponse {
 /// stress testing results to nym-api via signed batches.
 pub mod v3 {
     use super::*;
+    use crate::models::OffsetDateTimeJsonSchemaWrapper;
     use crate::signable::SignedMessage;
     use std::time::Duration;
     use time::OffsetDateTime;
@@ -102,7 +103,7 @@ pub mod v3 {
     /// by a nym-api predating these counts. `None` therefore means "not reported", which is a
     /// different signal from `Some(0)`.
     #[derive(Clone, Debug, Default, Serialize, Deserialize, ToSchema)]
-    pub struct StressTestBatchSubmissionResponse {
+    pub struct BatchSubmissionResponse {
         /// Results newly stored by this submission.
         #[serde(default)]
         pub accepted: Option<usize>,
@@ -113,11 +114,16 @@ pub mod v3 {
         #[serde(default)]
         pub duplicates: Option<usize>,
 
-        /// Results dropped by per-entry validation (a non-mixnode entry, or a performance score
-        /// outside `[0.0, 1.0]`).
+        /// Results dropped by per-entry validation (an entry whose role the endpoint does not
+        /// accept, or a performance score outside `[0.0, 1.0]`).
         #[serde(default)]
         pub rejected: Option<usize>,
     }
+
+    /// Both batch endpoints report the same three counts, so they share one body rather than
+    /// carrying two structurally identical types that could drift apart.
+    pub type StressTestBatchSubmissionResponse = BatchSubmissionResponse;
+    pub type LivenessTestBatchSubmissionResponse = BatchSubmissionResponse;
 
     /// Single stress-test measurement for one node, produced by a network monitor orchestrator.
     #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -188,6 +194,141 @@ pub mod v3 {
         }
     }
 
+    /// Signed envelope posted by a network monitor orchestrator to
+    /// `POST /v3/nym-nodes/liveness-testing/batch-submit`.
+    ///
+    /// Liveness has its OWN endpoint rather than sharing the stress one because nym-api keeps a
+    /// per-signer replay high-water mark per endpoint: two streams signed by the same orchestrator
+    /// and validated against one shared mark would reject each other indefinitely.
+    pub type LivenessTestBatchSubmission = SignedMessage<LivenessTestBatchSubmissionContent>;
+
+    /// Single liveness measurement for one node, produced by a network monitor orchestrator.
+    #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+    pub struct LivenessTestResult {
+        /// Orchestrator-local id of the test run that produced this result. Combined with the
+        /// batch's `signer` it uniquely identifies the measurement, allowing nym-api to dedupe
+        /// retried submissions on the at-least-once delivery path.
+        pub testrun_id: i64,
+
+        /// Contract-assigned id of the node that was tested.
+        pub node_id: NodeId,
+
+        #[schema(value_type = String)]
+        #[serde(with = "time::serde::rfc3339")]
+        pub test_timestamp: OffsetDateTime,
+
+        /// Score for the run: the average over the fixed set of interfaces its probe exercises,
+        /// with an interface that produced no measurement counted as zero. A mixnode probe
+        /// exercises one interface and a gateway probe two, so this single ratio is the whole
+        /// submission shape for both - identical for every role.
+        ///
+        /// The average is computed orchestrator-side and CANNOT be recomputed here: its
+        /// denominator is the set the run's (kind, role) pairing is expected to produce, which
+        /// this submission deliberately does not carry, so a run missing one of its interfaces
+        /// would average over the wrong denominator on this side. The orchestrator knows the
+        /// expected set from the row it stored, so it averages there.
+        ///
+        /// The per-interface breakdown behind this number stays on the orchestrator, which keeps
+        /// it under the run's row and serves it on its own read surface. It is deliberately NOT
+        /// submitted: nym-api scores on the average alone, and a submission shape carrying figures
+        /// nothing reads would have to be versioned before it could be trusted - the same reason
+        /// the latency distribution is not submitted either. Telling a gateway with a dead
+        /// delivery apart from a uniformly half-lossy one is therefore a lookup against the
+        /// orchestrator, not a question nym-api can answer.
+        pub test_performance: f64,
+
+        /// Whether the node responded at all during testing.
+        ///
+        /// Recorded alongside `test_performance` so that a genuine 0.0 score (node responded but
+        /// dropped everything) can be distinguished from the node being offline entirely.
+        pub was_reachable: bool,
+    }
+
+    /// Body of a liveness batch submission, signed by a network monitor orchestrator.
+    #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+    pub struct LivenessTestBatchSubmissionContent {
+        /// ed25519 identity key of the submitting orchestrator. Must match an entry in the
+        /// network-monitors contract for the batch to be accepted.
+        #[schema(value_type = String)]
+        #[serde(with = "ed25519::bs58_ed25519_pubkey")]
+        pub signer: ed25519::PublicKey,
+
+        /// Time at which this batch was produced. Also used as a monotonic nonce for replay
+        /// protection: the API rejects submissions whose timestamp is not strictly greater than
+        /// the orchestrator's previous accepted submission ON THIS ENDPOINT.
+        #[schema(value_type = String)]
+        #[serde(with = "time::serde::rfc3339")]
+        pub timestamp: OffsetDateTime,
+
+        pub results: Vec<LivenessTestResult>,
+    }
+
+    impl LivenessTestBatchSubmissionContent {
+        /// Whether this submission is older than `max_age` relative to the current UTC time.
+        ///
+        /// Used server-side to reject submissions that have been sitting around too long, even if
+        /// they are otherwise well-formed and correctly signed.
+        pub fn is_stale(&self, max_age: Duration) -> bool {
+            self.timestamp + max_age < OffsetDateTime::now_utc()
+        }
+    }
+
+    /// Which role or roles a node declares, so a divergence row can be read against the probe
+    /// that produced it. The two liveness probes share no machinery, and a mixnode's divergence
+    /// has nothing in common with a gateway's.
+    ///
+    /// `Both` labels the NODE, not the measurement: a dual-role node's stored liveness score
+    /// already averages its mixnode and gateway runs together, so its divergence cannot be
+    /// attributed to one path or the other.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum DivergenceNodeRole {
+        Mixnode,
+        Gateway,
+        Both,
+    }
+
+    /// One node's liveness score set against the v1 monitor's routing score for the same node.
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+    pub struct NodeLivenessDivergence {
+        #[schema(value_type = u32)]
+        pub node_id: NodeId,
+
+        /// Aggregated v3 liveness score over the configured window, in `[0.0, 1.0]`.
+        pub liveness_score: f64,
+
+        /// The v1 monitor's routing score for the same node, in `[0.0, 1.0]`.
+        pub routing_score: f64,
+
+        /// `liveness_score - routing_score`. NEGATIVE means liveness scores the node WORSE than
+        /// v1 routing does, which is the expected direction while the fleet is mid-upgrade: a node
+        /// that has not ingested its agents' on-chain authorisations, or a gateway not yet
+        /// carrying the monitor-session behaviour, scores zero on liveness for reasons unrelated
+        /// to its forwarding. Reading the sign the other way inverts the whole gauge.
+        pub divergence: f64,
+
+        /// Whether any liveness sample in the window reached the node at all. `false` with a
+        /// `liveness_score` of zero means never measured, which is a different finding from a node
+        /// that answered and delivered nothing.
+        pub was_reachable: bool,
+
+        pub role: DivergenceNodeRole,
+    }
+
+    /// Response body for the liveness divergence gauge.
+    ///
+    /// Every liveness-ELIGIBLE bonded node appears, including those with no sample yet, so that
+    /// coverage is readable off the same response as the comparison: deciding whether to give
+    /// liveness a non-zero weight needs both how much of the fleet has been measured and how the
+    /// measured part compares.
+    #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+    pub struct LivenessDivergenceResponse {
+        /// Oldest of the caches this was assembled from, so the figures' age is visible.
+        pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
+
+        pub nodes: Vec<NodeLivenessDivergence>,
+    }
+
     /// Response body for `GET /v3/nym-nodes/stress-testing/known-monitors/{identity_key}`,
     /// used by orchestrators to check whether this nym-api currently recognises their key.
     #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -208,6 +349,68 @@ pub mod v3 {
         use crate::signable::SignableMessageBody;
         use nym_test_utils::helpers::deterministic_rng;
         use time::macros::datetime;
+
+        fn dummy_liveness_results() -> Vec<LivenessTestResult> {
+            // Order-distinguishable entries, as in the stress body: `testrun_id` is the order
+            // witness, so a permuting deserialisation would break the signature check below.
+            vec![
+                // a gateway run, whose score averages its two interfaces - the shape is the same
+                // as a mixnode's, since the interfaces averaged over never reach the wire
+                LivenessTestResult {
+                    testrun_id: 1,
+                    node_id: 42,
+                    test_timestamp: datetime!(2026-06-01 12:34:56.123456789 UTC),
+                    test_performance: 0.5,
+                    was_reachable: true,
+                },
+                // a mixnode run: one interface, so the score is that interface's ratio
+                LivenessTestResult {
+                    testrun_id: 2,
+                    node_id: 7,
+                    test_timestamp: datetime!(2026-06-01 12:34:56 UTC),
+                    test_performance: 0.97,
+                    was_reachable: true,
+                },
+            ]
+        }
+
+        // Same hazard as the stress body: if JSON serialisation is not a byte-exact fixed point,
+        // no liveness batch could ever pass nym-api's signature check. Kept separate from the
+        // stress test because the two bodies are independent types on independent endpoints, and
+        // a float or timestamp encoding change would have to break both to be caught by one.
+        #[test]
+        fn signed_liveness_batch_roundtrips_and_is_a_byte_exact_fixed_point() {
+            let mut rng = deterministic_rng();
+            let keys = ed25519::KeyPair::new(&mut rng);
+
+            let body = LivenessTestBatchSubmissionContent {
+                signer: *keys.public_key(),
+                timestamp: datetime!(2026-06-01 12:34:56.123456789 UTC),
+                results: dummy_liveness_results(),
+            };
+
+            let signed_bytes = body.plaintext();
+            let signed = body.clone().sign(keys.private_key());
+
+            let bytes = serde_json::to_vec(&signed).unwrap();
+            let deserialised: LivenessTestBatchSubmission = serde_json::from_slice(&bytes).unwrap();
+            assert!(
+                deserialised.verify_signature(&deserialised.body.signer),
+                "signature failed to verify after a JSON round-trip"
+            );
+
+            // re-serialising the parsed body must reproduce the signed bytes verbatim
+            assert_eq!(signed_bytes, deserialised.body.plaintext());
+
+            // the results keep their order, so the scores stay attached to the right nodes
+            let ids: Vec<_> = deserialised
+                .body
+                .results
+                .iter()
+                .map(|result| (result.testrun_id, result.node_id))
+                .collect();
+            assert_eq!(ids, vec![(1, 42), (2, 7)]);
+        }
 
         fn dummy_results() -> Vec<StressTestResult> {
             // Order-distinguishable entries: if deserialisation ever permuted the array, the

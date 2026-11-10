@@ -1,5 +1,5 @@
 use anyhow::{Context, bail};
-use rand::Rng;
+use rand::RngExt;
 use reqwest::Proxy;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -167,7 +167,7 @@ impl JsonRpcRequestBody {
             jsonrpc: String::from("2.0"),
             method: String::from("eth_chainId"),
             params: serde_json::json!([]),
-            id: rand::thread_rng().r#gen(),
+            id: rand::rng().random(),
         }
     }
 
@@ -179,7 +179,7 @@ impl JsonRpcRequestBody {
             method: String::from("eth_getBlockByNumber"),
             // Invalid params: should be [blockNumber, boolean] but we pass garbage
             params: serde_json::json!(["invalid_block_number"]),
-            id: rand::thread_rng().r#gen(),
+            id: rand::rng().random(),
         }
     }
 }

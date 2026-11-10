@@ -12,11 +12,7 @@ use tracing::info;
 
 mod agent;
 pub(crate) mod cli;
-mod egress_connection;
-pub(crate) mod listener;
-mod processor;
-pub(crate) mod sphinx_helpers;
-pub(crate) mod test_packet;
+pub(crate) mod mixnet;
 
 fn setup_logger() -> anyhow::Result<()> {
     // crates that are more granularly filtered, regardless of default `RUST_LOG` value

@@ -22,6 +22,8 @@ Options:
           Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement [env: NYMAPI_MONITOR_CREDENTIALS_MODE_ARG=]
       --bind-address <BIND_ADDRESS>
           Socket address this api will use for binding its http API. default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
+      --utility-routes-bearer <UTILITY_ROUTES_BEARER>
+          Bearer token for exposing and accessing additional utility routes [env: NYMAPI_UTILITY_ROUTES_BEARER_ARG=]
   -h, --help
           Print help
 ```

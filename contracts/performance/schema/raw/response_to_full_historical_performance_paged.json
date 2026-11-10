@@ -43,8 +43,8 @@
       "type": "object",
       "required": [
         "epoch_id",
-        "node_id",
-        "performance"
+        "medians",
+        "node_id"
       ],
       "properties": {
         "epoch_id": {
@@ -52,13 +52,60 @@
           "format": "uint32",
           "minimum": 0.0
         },
+        "medians": {
+          "$ref": "#/definitions/KindMedians"
+        },
         "node_id": {
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
-        "performance": {
-          "$ref": "#/definitions/Percent"
+        "score": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "KindMedians": {
+      "description": "Per-kind medians of one node's bundle.",
+      "type": "object",
+      "properties": {
+        "config": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "liveness": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stress": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false

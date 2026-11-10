@@ -11,7 +11,7 @@ use axum::Router;
 use nym_api_requests::models::directory::{
     DirectoryEntriesIdentitiesResponse, DirectoryEntriesRecordsResponse,
 };
-use nym_directory_attestation::{AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest};
+use nym_contract_attestation::{AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest};
 use nym_http_api_common::{FormattedResponse, OutputParamsV2};
 use std::cmp::min;
 use tendermint::block::Height;

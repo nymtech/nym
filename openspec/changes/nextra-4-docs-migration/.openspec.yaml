@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-10-01
+# Tooling/docs migration (Nextra 2 pages-router -> Nextra 4 App Router + build switch).
+# No product-capability spec deltas; the record lives in proposal.md and tasks.md.
+skip_specs: true

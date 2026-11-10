@@ -23,7 +23,8 @@ options:
   --wireguard-enabled {true,false}
                         WireGuard functionality switch: true / false
   --hostname HOSTNAME   Node domain / hostname
-  --location LOCATION   Node location (country code or name)
+  --location LOCATION   Node physical country: ISO 3166 alpha-2 (CH), alpha-3
+                        (CHE), numeric (756) or name (Switzerland)
   --email EMAIL         Contact email for the node operator
   --moniker MONIKER     Public moniker displayed in explorer & NymVPN app
   --description DESCRIPTION

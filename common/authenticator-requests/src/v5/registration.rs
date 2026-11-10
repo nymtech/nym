@@ -246,7 +246,7 @@ mod tests {
     #[test]
     #[cfg(feature = "verify")]
     fn client_request_roundtrip() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let gateway_key_pair = x25519::KeyPair::new(&mut rng);
         let client_key_pair = x25519::KeyPair::new(&mut rng);

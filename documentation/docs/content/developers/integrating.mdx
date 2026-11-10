@@ -1,0 +1,36 @@
+---
+title: "Planning an Integration"
+description: "Which of your endpoints to route through Nym, what the routing costs in latency and failure handling, and how to prove it worked."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-08-25"
+---
+import Intro from '@snippets/nym/developers/integrating/intro.mdx'
+import RoutingIsAPerEndpointDecision from '@snippets/nym/developers/integrating/routing-is-a-per-endpoint-decision.mdx'
+import SequentialCallsAndColdStart from '@snippets/nym/developers/integrating/sequential-calls-and-cold-start.mdx'
+import BoundConcurrentRequestsButDoNotSerialiseThem from '@snippets/nym/developers/integrating/bound-concurrent-requests-but-do-not-serialise-them.mdx'
+import DecideFailOpenOrFailClosedExplicitly from '@snippets/nym/developers/integrating/decide-fail-open-or-fail-closed-explicitly.mdx'
+import ProveTheTrafficWentThroughTheMixnet from '@snippets/nym/developers/integrating/prove-the-traffic-went-through-the-mixnet.mdx'
+import ChooseTheResolver from '@snippets/nym/developers/integrating/choose-the-resolver.mdx'
+import WhatTheIntegrationGetsYou from '@snippets/nym/developers/integrating/what-the-integration-gets-you.mdx'
+import TheOtherIntegrationShapes from '@snippets/nym/developers/integrating/the-other-integration-shapes.mdx'
+import DvpnDatapath from '@snippets/nym/developers/integrating/dvpn-datapath.mdx'
+import EndToEnd from '@snippets/nym/developers/integrating/end-to-end.mdx'
+import ServiceProvider from '@snippets/nym/developers/integrating/service-provider.mdx'
+import Next from '@snippets/nym/developers/integrating/next.mdx'
+
+# Planning an integration
+
+<Intro />
+<RoutingIsAPerEndpointDecision />
+<SequentialCallsAndColdStart />
+<BoundConcurrentRequestsButDoNotSerialiseThem />
+<DecideFailOpenOrFailClosedExplicitly />
+<ProveTheTrafficWentThroughTheMixnet />
+<ChooseTheResolver />
+<WhatTheIntegrationGetsYou />
+<TheOtherIntegrationShapes />
+<DvpnDatapath />
+<EndToEnd />
+<ServiceProvider />
+<Next />

@@ -64,10 +64,10 @@ use crate::constants::groupelementbytes;
 use crate::constants::tagbytes;
 use crate::error::OutfoxError;
 use crate::lion::*;
-use chacha20poly1305::AeadInPlace;
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::KeyInit;
 use chacha20poly1305::Tag;
+use chacha20poly1305::aead::AeadInPlace;
 use std::ops::Range;
 
 /// A structure that holds mix packet construction parameters. These incluse the length
@@ -284,12 +284,7 @@ impl MixStageParameters {
         let tag = Tag::from_slice(&tag_bytes);
 
         header_aead_key
-            .decrypt_in_place_detached(
-                &nonce.into(),
-                &[],
-                &mut buffer[self.header_range()],
-                tag.as_slice().into(),
-            )
+            .decrypt_in_place_detached(&nonce.into(), &[], &mut buffer[self.header_range()], tag)
             .map_err(|e| OutfoxError::ChaCha20Poly1305Error(e.to_string()))?;
 
         let routing_data = buffer[self.routing_data_range()].to_vec();

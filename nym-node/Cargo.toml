@@ -3,12 +3,11 @@
 
 [package]
 name = "nym-node"
-version = "1.39.0"
+version = "1.43.0"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 publish = false
 
@@ -25,11 +24,12 @@ celes = { workspace = true }
 cfg-if = { workspace = true }# country codes
 colored = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
+crossbeam-channel = { workspace = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
+blake3 = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
-hex = { workspace = true }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
 human-repr = { workspace = true }
@@ -37,10 +37,11 @@ ipnetwork = { workspace = true }
 indicatif = { workspace = true }
 prost = { workspace = true }
 rand = { workspace = true }
-rand010 = { workspace = true }
-getrandom04 = { workspace = true }
+getrandom = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+subtle = { workspace = true }
 thiserror.workspace = true
 tracing.workspace = true
 tracing-indicatif = { workspace = true }
@@ -58,6 +59,7 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 cupid = { workspace = true }
 sysinfo = { workspace = true }
 
+nym-authorised-network-monitors = { workspace = true }
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",
@@ -142,17 +144,16 @@ hkdf = { workspace = true }
 name = "benchmarks"
 harness = false
 
-
-[build-dependencies]
-# temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
-cargo_metadata = { workspace = true }
-
 [dev-dependencies]
 nym-lp = { workspace = true, default-features = true, features = ["mock"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 nym-test-utils = { workspace = true }
+# for standing up an in-memory gateway storage in final-hop tests, and registering a client in it
+nym-gateway-requests = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio", "sqlite"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 tokio-console = ["console-subscriber", "nym-task/tokio-tracing"]

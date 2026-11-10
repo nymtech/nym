@@ -1,0 +1,6 @@
+export default {
+  "zk-nym-overview": "Generate & Use Flow",
+  "rerandomise": "Feature: Rerandomisation",
+  "unlinkability": "Feature: Unlinkability",
+  "double-spend-prot": "Feature: Double Spend Protection"
+}

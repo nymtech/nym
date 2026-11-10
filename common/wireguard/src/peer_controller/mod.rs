@@ -244,7 +244,7 @@ impl PeerController {
     }
 
     pub async fn generate_bandwidth_manager(
-        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+        storage: Arc<dyn BandwidthGatewayStorage + Send + Sync>,
         public_key: &Key,
     ) -> Result<BandwidthStorageManager> {
         let client_id = storage
@@ -767,7 +767,7 @@ pub fn start_controller(
         nym_gateway_storage::traits::mock::MockGatewayStorage::default(),
     ));
     let ecash_manager = Arc::new(nym_credential_verification::ecash::MockEcashManager::new(
-        Box::new(storage.clone()),
+        storage.clone(),
     ));
     let wg_api = Arc::new(MockWgApi::default());
 

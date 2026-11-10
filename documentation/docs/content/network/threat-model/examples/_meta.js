@@ -1,0 +1,5 @@
+export default {
+  "wallet": "Wallet Sync",
+  "messaging": "Private Messaging",
+  "browsing": "Web Browsing"
+}

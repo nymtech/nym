@@ -281,8 +281,7 @@ pub(crate) async fn contract_backed_ecash_state(
     chain: &SharedContractChain,
     signer_address: AccountId,
 ) -> EcashState {
-    let mut rng = test_rng([1u8; 32]);
-    let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
+    let identity = Arc::new(ed25519::KeyPair::new(&mut test_rng([1u8; 32])));
 
     let mut config = crate::support::config::Config::new("test");
     config.ecash_signer.enabled = true;

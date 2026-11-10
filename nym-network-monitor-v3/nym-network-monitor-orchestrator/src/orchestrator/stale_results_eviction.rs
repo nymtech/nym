@@ -10,16 +10,18 @@ use tracing::{debug, error, info};
 
 /// Background task that periodically purges stale data from the storage.
 ///
-/// Two distinct kinds of staleness are handled:
-/// - in-progress test runs whose assigned agent has gone silent past
-///   `test_timeout` (freed so they can be reassigned),
+/// Three distinct kinds of staleness are handled:
+/// - in-progress test runs whose lease has expired (freed so they can be
+///   reassigned),
 /// - finalised test runs older than `testrun_eviction_age` (dropped to keep
-///   the results table bounded).
+///   the results table bounded),
+/// - epoch aggregates and config scores older than `aggregate_retention`
+///   (dropped to keep the per-epoch tables bounded).
 ///
-/// The two deletions are deliberately issued as separate statements rather
-/// than wrapped in a transaction: they touch disjoint tables, a partial
-/// failure is self-healing on the next tick, and keeping them independent
-/// avoids holding a write lock across both for the whole sweep.
+/// The deletions are deliberately issued as separate statements rather than
+/// wrapped in a transaction: they touch disjoint tables, a partial failure is
+/// self-healing on the next tick, and keeping them independent avoids holding
+/// a write lock across all of them for the whole sweep.
 pub(crate) struct StaleResultsEviction {
     storage: NetworkMonitorStorage,
 
@@ -27,10 +29,9 @@ pub(crate) struct StaleResultsEviction {
     /// Mirrors `Config::testrun_eviction_age`.
     testrun_eviction_age: Duration,
 
-    /// Maximum time a test run may remain "in progress" before we assume the
-    /// assigned agent has died and free the slot for reassignment.
-    /// Mirrors `Config::test_timeout`.
-    test_timeout: Duration,
+    /// Age past which an epoch aggregate or config score is removed. Mirrors
+    /// `Config::aggregate_retention`.
+    aggregate_retention: Duration,
 
     /// Cadence at which [`Self::run`] performs an eviction sweep.
     check_interval: Duration,
@@ -44,54 +45,69 @@ pub(crate) struct StaleResultsEviction {
 const MIN_CHECK_INTERVAL: Duration = Duration::from_secs(60);
 
 impl StaleResultsEviction {
+    /// `stress_lease_budget` sizes the sweep cadence only; each in-flight row is still compared
+    /// against the deadline stamped on it at dispatch. A liveness lease is shorter, so an abandoned
+    /// liveness target can stay locked for up to a sweep interval past it (about 3.5x at defaults).
     pub(crate) fn new(
         storage: NetworkMonitorStorage,
         testrun_eviction_age: Duration,
-        test_timeout: Duration,
+        aggregate_retention: Duration,
+        stress_lease_budget: Duration,
         shutdown_token: ShutdownToken,
     ) -> Self {
-        // Sweep at least twice per shortest timeout window so the worst-case
-        // lag between an item going stale and being evicted is bounded by
-        // roughly 1.5x that timeout rather than 2x. Floored at
-        // `MIN_CHECK_INTERVAL` to stay safe under degenerate configs.
+        // Sweep at least twice per stress lease so an abandoned stress run is
+        // evicted within roughly 1.5x its lease rather than 2x. Floored at
+        // `MIN_CHECK_INTERVAL` to stay safe under degenerate configs. The
+        // aggregate retention is measured in days and would only ever lengthen
+        // the interval, so it is left out.
         let check_interval = Duration::max(
             MIN_CHECK_INTERVAL,
-            Duration::min(testrun_eviction_age, test_timeout) / 2,
+            Duration::min(testrun_eviction_age, stress_lease_budget) / 2,
         );
 
         Self {
             storage,
             testrun_eviction_age,
-            test_timeout,
+            aggregate_retention,
             check_interval,
             shutdown_token,
         }
     }
 
-    /// Performs a single eviction sweep: clears timed-out in-progress test
-    /// runs and deletes results older than the configured retention window.
-    /// Logs how many rows were affected so ops can confirm the task is doing
-    /// real work (and spot unexpected spikes).
+    /// Performs a single eviction sweep: releases in-flight locks whose lease
+    /// has expired, deletes results older than the configured retention
+    /// window from every kind's results table, and deletes aggregates and
+    /// config scores past their own retention. Logs how many rows were affected
+    /// so ops can confirm the task is doing real work (and spot unexpected
+    /// spikes).
     pub(crate) async fn evict_stale_results(&self) -> anyhow::Result<()> {
-        let cleared_in_progress = self
-            .storage
-            .clear_timed_out_testruns_in_progress(self.test_timeout)
-            .await?;
+        let cleared_in_progress = self.storage.clear_expired_testruns_in_progress().await?;
         let evicted_old = self
             .storage
             .evict_old_testruns(self.testrun_eviction_age)
             .await?;
+        let evicted_aggregates = self
+            .storage
+            .evict_old_mixnet_epoch_aggregates(self.aggregate_retention)
+            .await?;
+        let evicted_config_scores = self
+            .storage
+            .evict_old_mixnet_epoch_config_scores(self.aggregate_retention)
+            .await?;
 
-        if cleared_in_progress > 0 || evicted_old > 0 {
-            PROMETHEUS_METRICS.inc_by(
-                PrometheusMetric::TimedOutTestrunsEvicted,
-                cleared_in_progress as i64,
-            );
+        if cleared_in_progress > 0
+            || evicted_old > 0
+            || evicted_aggregates > 0
+            || evicted_config_scores > 0
+        {
             PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
 
             info!(
                 cleared_in_progress,
-                evicted_old, "stale data eviction sweep completed"
+                evicted_old,
+                evicted_aggregates,
+                evicted_config_scores,
+                "stale data eviction sweep completed"
             );
         } else {
             debug!("stale data eviction sweep completed: nothing to evict");
@@ -104,6 +120,12 @@ impl StaleResultsEviction {
         match self.storage.count_testruns_in_progress().await {
             Ok(count) => PROMETHEUS_METRICS.set(PrometheusMetric::TestrunsInProgress, count),
             Err(err) => error!("failed to count in-flight testruns for metric: {err}"),
+        }
+
+        // the per-kind gauges are only ever published here, so their freshness is this sweep's
+        // cadence rather than the assignment path's
+        if let Err(err) = self.storage.publish_in_progress_gauges().await {
+            error!("failed to count in-flight testruns per kind for metrics: {err}");
         }
         Ok(())
     }

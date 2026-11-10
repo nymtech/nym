@@ -3,7 +3,15 @@
   hosts: all    # or a specific host/group or limit via -l on CLI (ansible-playbook playbooks/upgrade.yml -l mynode1)
   become: true
   serial: 1
-  
+
+  # Ubuntu's apt-daily.timer / unattended-upgrades hold the dpkg frontend lock
+  # in the background. The apt module waits only 60s by default, which is
+  # shorter than a kernel upgrade takes, so tasks fail on otherwise healthy
+  # nodes. Set once here so every apt task in every role inherits it.
+  module_defaults:
+    ansible.builtin.apt:
+      lock_timeout: 300
+
   roles:
     - base
     - upgrade

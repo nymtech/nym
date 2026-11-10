@@ -12,6 +12,7 @@ use crate::models::described::v2::{
 use crate::models::{BinaryBuildInformationOwned, OffsetDateTimeJsonSchemaWrapper};
 use crate::nym_nodes::{
     BasicEntryInformation, NodeRole, SemiSkimmedNodeV1, SemiSkimmedNodeV3, SkimmedNodeV1,
+    SkimmedNodeV2,
 };
 use celes::Country;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -157,6 +158,62 @@ impl NymNodeDescriptionV3 {
     }
 }
 
+pub trait NymNodeDescriptionConversion: Sized {
+    fn from_description(
+        node: &NymNodeDescriptionV3,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> Option<Self>;
+}
+
+impl NymNodeDescriptionConversion for SkimmedNodeV1 {
+    fn from_description(
+        node: &NymNodeDescriptionV3,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> Option<Self> {
+        // The original implementation stays to avoid handling an option that can't actually fail all over the place
+        Some(node.to_skimmed_node(current_rotation_id, role, performance))
+    }
+}
+
+impl NymNodeDescriptionConversion for SkimmedNodeV2 {
+    fn from_description(
+        node: &NymNodeDescriptionV3,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> Option<Self> {
+        let keys = &node.description.host_information.keys;
+        let entry = if node.description.declared_role.entry {
+            Some(node.entry_information())
+        } else {
+            None
+        };
+
+        let lp = node.description.lewes_protocol.clone()?;
+
+        Some(SkimmedNodeV2 {
+            node_id: node.node_id,
+            ed25519_identity_pubkey: keys.ed25519,
+            ip_addresses: node.description.host_information.ip_address.clone(),
+            mix_port: node.description.mix_port(),
+            x25519_sphinx_pubkey: node.current_sphinx_key(current_rotation_id),
+            // we can't use the declared roles, we have to take whatever was provided in the contract.
+            // why? say this node COULD operate as an exit, but it might be the case the contract decided
+            // to assign it an ENTRY role only. we have to use that one instead.
+            role,
+            supported_roles: node.description.declared_role,
+            entry,
+            performance,
+            lp,
+            build_version: node.description.build_information.build_version.clone(),
+        })
+    }
+}
+
 impl From<NymNodeDescriptionV3> for NymNodeDescriptionV2 {
     fn from(value: NymNodeDescriptionV3) -> Self {
         NymNodeDescriptionV2 {
@@ -283,7 +340,7 @@ impl From<NymNodeAuxiliaryDetailsV3> for NymNodeAuxiliaryDetailsV2 {
 #[cfg(any(test, feature = "mock-fixtures"))]
 pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV3 {
     use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
-    use nym_test_utils::helpers::{u64_seeded_rng, RngCore};
+    use nym_test_utils::helpers::{u64_seeded_rng, Rng010};
 
     let mut rng = u64_seeded_rng(seed);
 
@@ -392,5 +449,42 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV3 {
                 wss_port: None,
             },
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_skimmed_node_carries_the_published_lp_details() {
+        let described = mock_nym_node_description(42);
+        let published = described.description.lewes_protocol.clone().unwrap();
+
+        let skimmed =
+            SkimmedNodeV2::from_description(&described, 0, Default::default(), Default::default())
+                .unwrap();
+
+        assert_eq!(skimmed.lp.content, published.content);
+        assert_ne!(skimmed.lp.content.data_port, skimmed.mix_port);
+        assert_eq!(
+            skimmed.build_version,
+            described.description.build_information.build_version
+        );
+    }
+
+    #[test]
+    fn a_node_that_published_no_lp_details_yields_no_skimmed_node() {
+        let mut described = mock_nym_node_description(42);
+        described.description.lewes_protocol = None;
+
+        // it has no address on an LP route, so it cannot be handed out as a hop at all
+        assert!(SkimmedNodeV2::from_description(
+            &described,
+            0,
+            Default::default(),
+            Default::default()
+        )
+        .is_none());
     }
 }

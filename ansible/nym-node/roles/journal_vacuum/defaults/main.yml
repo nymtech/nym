@@ -1,3 +1,5 @@
 ---
+enable_journal_vacuum: true
+
 journal_vacuum_size: "100M"
 journal_vacuum_time: "3days"

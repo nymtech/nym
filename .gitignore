@@ -97,6 +97,9 @@ nym-wallet/.tsbuild-test/tsconfig.test.tsbuildinfo
 /data/
 
 .openlore
+.mcp.json
+openlore-ab.sh
+AGENTS.md
 
 # Credential for reaching a protected Vercel preview (documentation/scripts/*).
 # Kept out of the tree entirely: it is a shared secret, and an untracked file at

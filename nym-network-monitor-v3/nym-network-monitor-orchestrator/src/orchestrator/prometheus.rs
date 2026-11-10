@@ -13,7 +13,7 @@
 //! series is present (with a zero value) from the very first scrape — this avoids dashboards and
 //! alerts interpreting the first observation as a reset.
 
-use nym_metrics::{HistogramTimer, Metric, metrics_registry};
+use nym_metrics::{Metric, metrics_registry};
 use std::sync::LazyLock;
 use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
 
@@ -108,6 +108,20 @@ const AVG_PACKET_RTT: &[f64] = &[
     1000., // 1s+ (implicitly)
 ];
 
+/// Histogram buckets for the liveness wave-size series. Spans both configured caps (100 mixnode
+/// targets, 50 gateway ones) with a dedicated `<= 1` bucket, because a wave that has collapsed to a
+/// single target reads very differently from one that is merely short: it means the population due
+/// for that pairing has run dry.
+const LIVENESS_WAVE_SIZE: &[f64] = &[
+    1.,   // 1 - 2
+    2.,   // 2 - 5
+    5.,   // 5 - 10
+    10.,  // 10 - 20
+    20.,  // 20 - 50
+    50.,  // 50 - 100 (the gateway cap)
+    100., // 100+ (implicitly, past the mixnode cap)
+];
+
 /// Every Prometheus series emitted by the orchestrator. Each variant maps to exactly one metric
 /// and must carry a `help` strum property — this is verified by the `every_variant_has_help_property`
 /// test.
@@ -140,7 +154,7 @@ pub enum PrometheusMetric {
     AgentContractAnnounceFailures,
 
     #[strum(props(
-        help = "The number of announcements that changed the cached noise key or ipv6 address of an already known agent (its previous authorisation may be left stale in the contract)"
+        help = "The number of announcements that changed the cached noise key, ipv6 address or ed25519 identity of an already known agent (its previous authorisation may be left stale in the contract)"
     ))]
     AgentDetailsChanged,
 
@@ -167,19 +181,11 @@ pub enum PrometheusMetric {
     ))]
     EmptyTestrunAssignments,
 
-    #[strum(props(help = "The number of testrun requests that resulted in work being assigned"))]
-    NonEmptyTestrunAssignments,
-
     #[strum(props(help = "The number of testrun results that were submitted by agents"))]
     TestRunResultSubmissions,
 
     #[strum(props(help = "The number of stale testruns that were evicted from the storage"))]
     StaleTestrunsEvicted,
-
-    #[strum(props(
-        help = "The number of testruns in progress that timed out and were evicted from the queue and the storage"
-    ))]
-    TimedOutTestrunsEvicted,
 
     #[strum(props(help = "The duration of a test run, in seconds"))]
     TestDurationSeconds,
@@ -217,16 +223,6 @@ pub enum PrometheusMetric {
         help = "The number of bonded nodes whose self-described role could not be determined (unreachable or no roles reported)"
     ))]
     BondedUnknownNymNodes,
-
-    #[strum(props(
-        help = "The number of successful Nym node data retrievals from self-described endpoints"
-    ))]
-    SuccessfulNymNodeDataRetrieval,
-
-    #[strum(props(
-        help = "The number of failed Nym node data retrievals from self-described endpoints"
-    ))]
-    FailedNymNodeDataRetrieval,
 
     #[strum(props(help = "The duration of a full bonded-node refresh cycle, in seconds"))]
     NodeRefreshCycleSeconds,
@@ -266,6 +262,64 @@ pub enum PrometheusMetric {
         help = "The number of submitted stress-test results that nym-api dropped in per-entry validation (non-mixnode entry, or performance score outside [0, 1])"
     ))]
     SubmittedResultsRejected,
+
+    // Assignments, in-flight runs and lease expiries are each counted per kind: every kind is separate
+    // machinery against its own population, so an operator has to be able to see that gateway
+    // liveness is flowing without inferring it from a total.
+    #[strum(props(
+        help = "The number of stress test runs assigned to agents against a node's mixnode role"
+    ))]
+    MixnodeStressAssignments,
+
+    #[strum(props(
+        help = "The number of liveness waves assigned to agents against a node's mixnode role"
+    ))]
+    MixnodeLivenessAssignments,
+
+    #[strum(props(
+        help = "The number of liveness waves assigned to agents against a node's entry-gateway role"
+    ))]
+    GatewayLivenessAssignments,
+
+    #[strum(props(
+        help = "The number of targets in an assigned mixnode liveness wave. A distribution sitting well below the configured wave size means the population is keeping up with the cadence rather than the wave being the constraint"
+    ))]
+    MixnodeLivenessWaveSize,
+
+    #[strum(props(
+        help = "The number of targets in an assigned gateway liveness wave, whose configured cap is lower than the mixnode one because each target costs the agent a live client session"
+    ))]
+    GatewayLivenessWaveSize,
+
+    #[strum(props(
+        help = "The number of mixnode liveness test runs currently in progress (rows in testrun_in_progress under the mixnode_liveness kind)"
+    ))]
+    MixnodeLivenessTestrunsInProgress,
+
+    #[strum(props(
+        help = "The number of gateway liveness test runs currently in progress (rows in testrun_in_progress under the gateway_liveness kind)"
+    ))]
+    GatewayLivenessTestrunsInProgress,
+
+    #[strum(props(
+        help = "The number of mixnode stress test runs currently in progress (rows in testrun_in_progress under the mixnode_stress kind)"
+    ))]
+    MixnodeStressTestrunsInProgress,
+
+    #[strum(props(
+        help = "The number of mixnode liveness test runs whose lease expired before a result arrived. A persistently non-zero value means the liveness lease is too short for the wave it has to cover"
+    ))]
+    MixnodeLivenessLeasesExpired,
+
+    #[strum(props(
+        help = "The number of gateway liveness test runs whose lease expired before a result arrived. A persistently non-zero value means the liveness lease is too short for the slower of the two probes"
+    ))]
+    GatewayLivenessLeasesExpired,
+
+    #[strum(props(
+        help = "The number of mixnode stress test runs whose lease expired before a result arrived, freeing the node for reassignment"
+    ))]
+    MixnodeStressLeasesExpired,
 }
 
 impl PrometheusMetric {
@@ -308,10 +362,8 @@ impl PrometheusMetric {
                 Metric::new_int_counter(&name, help)
             }
             PrometheusMetric::EmptyTestrunAssignments => Metric::new_int_counter(&name, help),
-            PrometheusMetric::NonEmptyTestrunAssignments => Metric::new_int_counter(&name, help),
             PrometheusMetric::TestRunResultSubmissions => Metric::new_int_counter(&name, help),
             PrometheusMetric::StaleTestrunsEvicted => Metric::new_int_counter(&name, help),
-            PrometheusMetric::TimedOutTestrunsEvicted => Metric::new_int_counter(&name, help),
             PrometheusMetric::TestDurationSeconds => {
                 Metric::new_histogram(&name, help, Some(TESTRUN_DURATION))
             }
@@ -329,8 +381,6 @@ impl PrometheusMetric {
             PrometheusMetric::BondedGatewayNymNodes => Metric::new_int_gauge(&name, help),
             PrometheusMetric::BondedMixnodeAndGatewayNymNodes => Metric::new_int_gauge(&name, help),
             PrometheusMetric::BondedUnknownNymNodes => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::SuccessfulNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::FailedNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
             PrometheusMetric::NodeRefreshCycleSeconds => {
                 Metric::new_histogram(&name, help, Some(NODE_REFRESH_CYCLE))
             }
@@ -342,6 +392,25 @@ impl PrometheusMetric {
             PrometheusMetric::SubmittedResultsAccepted => Metric::new_int_counter(&name, help),
             PrometheusMetric::SubmittedResultsDuplicate => Metric::new_int_counter(&name, help),
             PrometheusMetric::SubmittedResultsRejected => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnodeStressAssignments => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnodeLivenessAssignments => Metric::new_int_counter(&name, help),
+            PrometheusMetric::GatewayLivenessAssignments => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnodeLivenessWaveSize => {
+                Metric::new_histogram(&name, help, Some(LIVENESS_WAVE_SIZE))
+            }
+            PrometheusMetric::GatewayLivenessWaveSize => {
+                Metric::new_histogram(&name, help, Some(LIVENESS_WAVE_SIZE))
+            }
+            PrometheusMetric::MixnodeLivenessTestrunsInProgress => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::GatewayLivenessTestrunsInProgress => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::MixnodeStressTestrunsInProgress => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnodeLivenessLeasesExpired => Metric::new_int_counter(&name, help),
+            PrometheusMetric::GatewayLivenessLeasesExpired => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnodeStressLeasesExpired => Metric::new_int_counter(&name, help),
         }
     }
 
@@ -355,10 +424,6 @@ impl PrometheusMetric {
             reg.register_metric(registrable);
             reg.set(&self.name(), value);
         }
-    }
-
-    fn set_float(&self, value: f64) {
-        metrics_registry().set_float(&self.name(), value);
     }
 
     fn inc(&self) {
@@ -378,10 +443,6 @@ impl PrometheusMetric {
             reg.register_metric(registrable);
             reg.add_to_histogram(&self.name(), value);
         }
-    }
-
-    fn start_timer(&self) -> Option<HistogramTimer> {
-        metrics_registry().start_timer(&self.name())
     }
 }
 
@@ -422,11 +483,6 @@ impl NetworkMonitorPrometheusMetrics {
         metric.set(value)
     }
 
-    #[allow(dead_code)]
-    pub fn set_float(&self, metric: PrometheusMetric, value: f64) {
-        metric.set_float(value)
-    }
-
     pub fn inc(&self, metric: PrometheusMetric) {
         metric.inc()
     }
@@ -437,11 +493,6 @@ impl NetworkMonitorPrometheusMetrics {
 
     pub fn observe_histogram(&self, metric: PrometheusMetric, value: f64) {
         metric.observe_histogram(value)
-    }
-
-    #[allow(dead_code)]
-    pub fn start_timer(&self, metric: PrometheusMetric) -> Option<HistogramTimer> {
-        metric.start_timer()
     }
 }
 
@@ -455,7 +506,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(34, PrometheusMetric::COUNT)
+        assert_eq!(41, PrometheusMetric::COUNT)
     }
 
     #[test]

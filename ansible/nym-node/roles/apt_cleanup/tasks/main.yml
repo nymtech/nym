@@ -1,21 +1,44 @@
 ---
-- name: Clean apt cache
-  command: apt-get clean
-  ignore_errors: true
-
+# Autoremove genuinely changes system state, so let it report honestly.
 - name: Autoremove unused packages
-  command: apt-get -y autoremove
-  ignore_errors: true
+  ansible.builtin.apt:
+    autoremove: true
+  register: apt_autoremove
+  failed_when: false
 
-- name: Remove apt lists to reclaim space (they will be re-fetched on update)
-  file:
+# Evicting the download cache is an operation, not configuration drift -
+# reporting it as "changed" on every run would break idempotency reporting.
+- name: Clean apt cache
+  ansible.builtin.apt:
+    clean: true
+    autoclean: true
+  register: apt_clean
+  changed_when: false
+  failed_when: false
+
+- name: Remove apt lists to reclaim space
+  ansible.builtin.file:
     path: /var/lib/apt/lists
     state: absent
-  ignore_errors: true
+  when: apt_remove_lists | bool
 
+# apt refuses to run if either directory is missing, and the "partial"
+# subdirectory must exist with mode 0700 or `apt update` aborts with
+# "E: Lists directory /var/lib/apt/lists/partial is missing."
 - name: Recreate apt lists directory
-  file:
+  ansible.builtin.file:
     path: /var/lib/apt/lists
     state: directory
+    owner: root
+    group: root
     mode: "0755"
-  ignore_errors: true
+  when: apt_remove_lists | bool
+
+- name: Recreate apt lists partial directory
+  ansible.builtin.file:
+    path: /var/lib/apt/lists/partial
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: apt_remove_lists | bool

@@ -6,35 +6,41 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
 publish = true
 
 [dependencies]
+async-trait = { workspace = true }
 thiserror = { workspace = true }
 bs58 = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
-rand010 = { workspace = true }
-getrandom04 = { workspace = true }
+rand = { workspace = true }
+getrandom = { workspace = true }
 tls_codec = { workspace = true }
-tokio = { workspace = true, features = ["net", "io-util"] }
+tokio = { workspace = true, features = ["io-util"] }
+serde = { workspace = true, features = ["derive"], optional = true }
 
-nym-crypto = { workspace = true, features = ["hashing"] }
+nym-crypto = { workspace = true, features = ["hashing", "asymmetric"] }
 nym-common.workspace = true
 nym-kkt = { workspace = true }
 nym-kkt-ciphersuite = { workspace = true }
 nym-lp-data.workspace = true
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
-libcrux-psq = { workspace = true }
+libcrux-psq = { workspace = true, features = ["nonce-control"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 
 # needed for the 'mock 'feature
 nym-test-utils = { workspace = true, optional = true }
+
+# the TCP and UDP channel impls; wasm has no sockets to give them
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = ["net"] }
+socket2 = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
@@ -45,6 +51,12 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [features]
 mock = ["nym-test-utils"]
+serde = [
+    "dep:serde",
+    "nym-crypto/libcrux_x25519",
+    "nym-crypto/serde",
+    "nym-kkt-ciphersuite/serde",
+]
 
 [[bench]]
 name = "replay_protection"

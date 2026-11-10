@@ -1,0 +1,32 @@
+---
+title: "Building a Nym Service Provider"
+description: "Embedding a Nym client in your own server-side application so clients reach it end-to-end over the mixnet rather than through an exit gateway: the receive-and-reply loop in Rust, SURBs, Nym addressing and gateway stability, and the default sending budget."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-08-25"
+---
+import Intro from '@snippets/nym/developers/service-providers/intro.mdx'
+import TheFourthParticipant from '@snippets/nym/developers/service-providers/the-fourth-participant.mdx'
+import ItNeverAcceptsAnInboundConnection from '@snippets/nym/developers/service-providers/it-never-accepts-an-inbound-connection.mdx'
+import ReplyingWithoutKnowingWhoAsked from '@snippets/nym/developers/service-providers/replying-without-knowing-who-asked.mdx'
+import ReceivingAndReplying from '@snippets/nym/developers/service-providers/receiving-and-replying.mdx'
+import WhatYourClientsSpeakDecidesTheProvider from '@snippets/nym/developers/service-providers/what-your-clients-speak-decides-the-provider.mdx'
+import EveryExampleIsEphemeralAndYoursMustNotBe from '@snippets/nym/developers/service-providers/every-example-is-ephemeral-and-yours-must-not-be.mdx'
+import YourAddressIsOnlyAsStableAsItsGateway from '@snippets/nym/developers/service-providers/your-address-is-only-as-stable-as-its-gateway.mdx'
+import TheDefaultSendingBudget from '@snippets/nym/developers/service-providers/the-default-sending-budget.mdx'
+import WhatThisIsNotFor from '@snippets/nym/developers/service-providers/what-this-is-not-for.mdx'
+import HowThisComparesToATorHiddenService from '@snippets/nym/developers/service-providers/how-this-compares-to-a-tor-hidden-service.mdx'
+
+# Building a Nym Service Provider
+
+<Intro />
+<TheFourthParticipant />
+<ItNeverAcceptsAnInboundConnection />
+<ReplyingWithoutKnowingWhoAsked />
+<ReceivingAndReplying />
+<WhatYourClientsSpeakDecidesTheProvider />
+<EveryExampleIsEphemeralAndYoursMustNotBe />
+<YourAddressIsOnlyAsStableAsItsGateway />
+<TheDefaultSendingBudget />
+<WhatThisIsNotFor />
+<HowThisComparesToATorHiddenService />

@@ -8,16 +8,16 @@
 //! that channel: a registration client borrows a channel and registers over it.
 //!
 //! - [`LpDvpnRegistrationClient`] registers with the gateway an
-//!   [`LpGatewayClient`](nym_lp_gateway_client::LpGatewayClient) is connected to.
+//!   [`LpGatewayControlClient`](nym_lp_gateway_client::LpGatewayControlClient) is connected to.
 //! - [`NestedLpDvpnRegistrationClient`] registers with an exit gateway through an entry one.
 //!
 //! # Usage
 //!
 //! ```ignore
-//! use nym_lp_gateway_client::LpGatewayClient;
+//! use nym_lp_gateway_client::LpGatewayControlClient;
 //! use nym_registration_client::LpDvpnRegistrationClient;
 //!
-//! let mut client = LpGatewayClient::new_with_default_config(
+//! let mut client = LpGatewayControlClient::new_with_default_config(
 //!     keypair,
 //!     gateway_peer,
 //!     gateway_lp_address,
@@ -38,15 +38,13 @@ use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
 use crate::types::RegistrationResult;
 use helpers::to_lp_remote_peer;
-use nym_lp_gateway_client::LpGatewayClient;
-
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
-
 use nym_lp::peer::DHKeyPair;
+use nym_lp_gateway_client::LpGatewayControlClient;
 use nym_lp_gateway_client::NestedLpSession;
-use rand010::rngs::SysRng;
-use rand010::{CryptoRng, Rng, SeedableRng};
+use rand::rngs::SysRng;
+use rand::{CryptoRng, Rng, SeedableRng};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
@@ -99,8 +97,14 @@ impl LpBasedRegistrationClient {
         tracing::debug!("Exit gateway LP address: {exit_address}");
 
         // Generate fresh x25519 keypairs for LP registration
-        let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rand010::rng()));
-        let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rand010::rng()));
+        let entry_lp_keypair = Arc::new(
+            DHKeyPair::new(&mut rand::rng())
+                .map_err(|_| RegistrationClientError::KeyGenerationFailure)?,
+        );
+        let exit_lp_keypair = Arc::new(
+            DHKeyPair::new(&mut rand::rng())
+                .map_err(|_| RegistrationClientError::KeyGenerationFailure)?,
+        );
 
         let entry_peer = to_lp_remote_peer(entry_lp_data);
         let exit_peer = to_lp_remote_peer(exit_lp_data);
@@ -109,7 +113,7 @@ impl LpBasedRegistrationClient {
         // This creates the LP session that will be used to forward packets to exit.
         // Uses packet-per-connection model: each handshake packet on new TCP connection.
         tracing::info!("Establishing outer session with entry gateway");
-        let mut entry_client = LpGatewayClient::<TcpStream>::new(
+        let mut entry_client = LpGatewayControlClient::<TcpStream>::new(
             entry_lp_keypair.clone(),
             entry_peer,
             entry_address,
@@ -204,7 +208,7 @@ impl LpBasedRegistrationClient {
     }
 
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        let mut rng = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         self.register_wg_with_rng(&mut rng).await
     }

@@ -1,14 +1,14 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_client_core::config::disk_persistence::old::v3::CommonClientPathsV3;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
 pub struct NetworkRequesterPathsV3 {
     #[serde(flatten)]
-    pub common_paths: CommonClientPaths,
+    pub common_paths: CommonClientPathsV3,
 
     /// Location of the file containing our allow.list
     pub allowed_list_location: PathBuf,

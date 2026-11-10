@@ -482,6 +482,7 @@ mod tests {
     use crate::wallet_storage::account_data::WalletAccount;
 
     use super::*;
+    use bip39::WordCount;
     use nym_config::defaults::COSMOS_DERIVATION_PATH;
     use std::str::FromStr;
     use tempfile::tempdir;
@@ -508,7 +509,7 @@ mod tests {
     fn store_single_login() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -529,7 +530,7 @@ mod tests {
     fn store_single_login_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -557,7 +558,7 @@ mod tests {
     fn store_single_login_with_multi_then_update_pwd_and_load() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let new_password = UserPassword::new("new_password".to_string());
@@ -588,7 +589,7 @@ mod tests {
     fn store_twice_for_the_same_id_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -614,7 +615,7 @@ mod tests {
     fn store_twice_for_the_same_id_fails_with_multiple() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -646,7 +647,7 @@ mod tests {
     fn load_with_wrong_password_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let bad_password = UserPassword::new("bad-password".to_string());
@@ -665,7 +666,7 @@ mod tests {
     fn load_with_wrong_password_fails_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let bad_password = UserPassword::new("bad-password".to_string());
@@ -691,7 +692,7 @@ mod tests {
     fn load_with_wrong_id_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -710,7 +711,7 @@ mod tests {
     fn load_with_wrong_id_fails_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -730,7 +731,7 @@ mod tests {
     fn store_and_load_a_single_login() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -754,7 +755,7 @@ mod tests {
     fn store_a_single_login_then_update_pwd_and_load() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let new_password = UserPassword::new("new_password".to_string());
@@ -781,7 +782,7 @@ mod tests {
     fn store_a_single_login_then_update_pwd_with_identical_pwd_is_noop_but_okay() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -807,7 +808,7 @@ mod tests {
     fn store_a_single_login_then_update_pwd_with_wrong_current_pwd_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let new_password = UserPassword::new("new_password".to_string());
@@ -825,7 +826,7 @@ mod tests {
     fn store_a_single_login_then_update_pwd_and_load_with_wrong_pwd_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let new_password = UserPassword::new("new_password".to_string());
@@ -843,7 +844,7 @@ mod tests {
     fn store_and_load_a_single_login_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let acc1 = Mnemonic::generate(24).unwrap();
+        let acc1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -872,7 +873,7 @@ mod tests {
     fn store_a_single_login_with_multi_then_update_pwd_and_load() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let acc1 = Mnemonic::generate(24).unwrap();
+        let acc1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let new_password = UserPassword::new("new_password".to_string());
@@ -904,7 +905,7 @@ mod tests {
     fn store_a_single_login_with_multi_then_update_pwd_with_wrong_current_pwd_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let acc1 = Mnemonic::generate(24).unwrap();
+        let acc1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let new_password = UserPassword::new("new_password".to_string());
@@ -923,7 +924,7 @@ mod tests {
     fn store_a_single_login_with_multi_then_update_pwd_and_load_with_wrong_pwd_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let acc1 = Mnemonic::generate(24).unwrap();
+        let acc1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let new_password = UserPassword::new("new_password".to_string());
@@ -948,8 +949,8 @@ mod tests {
     fn store_a_second_login_with_a_different_password_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let bad_password = UserPassword::new("bad-password".to_string());
@@ -976,8 +977,8 @@ mod tests {
     fn store_a_second_login_with_a_different_password_fails_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let bad_password = UserPassword::new("bad-password".to_string());
@@ -1010,8 +1011,8 @@ mod tests {
     fn store_two_mnemonic_accounts_gives_different_salts_and_iv() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let different_hd_path: DerivationPath = "m".parse().unwrap();
         let password = UserPassword::new("password".to_string());
@@ -1050,8 +1051,8 @@ mod tests {
     fn store_two_mnemonic_accounts_using_two_logins() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let different_hd_path: DerivationPath = "m".parse().unwrap();
         let password = UserPassword::new("password".to_string());
@@ -1099,8 +1100,8 @@ mod tests {
     fn store_two_mnemonic_accounts_using_two_logins_then_update_pwd_and_load() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let different_hd_path: DerivationPath = "m".parse().unwrap();
         let password = UserPassword::new("password".to_string());
@@ -1151,8 +1152,8 @@ mod tests {
     fn store_one_mnemonic_account_and_one_multi_account() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let different_hd_path: DerivationPath = "m".parse().unwrap();
         let password = UserPassword::new("password".to_string());
@@ -1205,7 +1206,7 @@ mod tests {
     fn remove_non_existent_id_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1225,8 +1226,8 @@ mod tests {
     fn store_and_remove_wallet_login_information() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let different_hd_path: DerivationPath = "m".parse().unwrap();
         let password = UserPassword::new("password".to_string());
@@ -1295,8 +1296,8 @@ mod tests {
     fn append_account_converts_the_type() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1342,10 +1343,10 @@ mod tests {
     fn append_accounts_to_existing_login() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
-        let account3 = Mnemonic::generate(24).unwrap();
-        let account4 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account3 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account4 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1418,10 +1419,10 @@ mod tests {
     fn append_accounts_to_existing_login_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
-        let account3 = Mnemonic::generate(24).unwrap();
-        let account4 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account3 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account4 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1495,8 +1496,8 @@ mod tests {
     fn append_account_to_existing_login_with_multi_then_update_pwd_and_load() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let new_password = UserPassword::new("new_password".to_string());
@@ -1549,7 +1550,7 @@ mod tests {
     fn append_the_same_mnemonic_twice_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1574,9 +1575,9 @@ mod tests {
     fn append_the_same_account_name_twice_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let mnemonic1 = Mnemonic::generate(24).unwrap();
-        let mnemonic2 = Mnemonic::generate(24).unwrap();
-        let mnemonic3 = Mnemonic::generate(24).unwrap();
+        let mnemonic1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let mnemonic2 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let mnemonic3 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         // The top-level login id. NOTE: the first account id is always set to default.
@@ -1624,8 +1625,8 @@ mod tests {
     fn delete_the_same_account_twice_for_a_login_fails() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1655,8 +1656,8 @@ mod tests {
     fn delete_the_same_account_twice_for_a_login_fails_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1693,9 +1694,9 @@ mod tests {
     fn delete_appended_account_doesnt_affect_others() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
-        let account3 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account3 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1747,8 +1748,8 @@ mod tests {
     fn remove_all_accounts_for_a_login_removes_the_file_when_empty() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1796,9 +1797,9 @@ mod tests {
     fn remove_all_accounts_for_a_login_removes_that_login() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
-        let account3 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account3 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1863,10 +1864,10 @@ mod tests {
     fn append_accounts_and_remove_appended_accounts() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let acc1 = Mnemonic::generate(24).unwrap();
-        let acc2 = Mnemonic::generate(24).unwrap();
-        let acc3 = Mnemonic::generate(24).unwrap();
-        let acc4 = Mnemonic::generate(24).unwrap();
+        let acc1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let acc2 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let acc3 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let acc4 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1947,7 +1948,7 @@ mod tests {
     fn rename_first_account_in_login() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let login_id = LoginId::new("first".to_string());
@@ -1995,8 +1996,8 @@ mod tests {
     fn rename_one_account_in_login_with_two_accounts() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let login_id = LoginId::new("first".to_string());
@@ -2066,8 +2067,8 @@ mod tests {
     fn rename_account_into_existing_account_id_fails() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = Mnemonic::generate(24).unwrap();
-        let account2 = Mnemonic::generate(24).unwrap();
+        let account1 = Mnemonic::generate(WordCount::Words24).unwrap();
+        let account2 = Mnemonic::generate(WordCount::Words24).unwrap();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let login_id = LoginId::new("first".to_string());

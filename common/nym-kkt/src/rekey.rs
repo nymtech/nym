@@ -14,7 +14,7 @@
 use libcrux_kem::*;
 use nym_crypto::hkdf::blake3::derive_key_blake3;
 use nym_kkt_ciphersuite::{KEM, mceliece, ml_kem768, x25519, xwing};
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use std::fmt::{Debug, Formatter};
 use zeroize::Zeroize;
 
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn rekey_test() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let (rekey_state, request_message) =
             RekeyInitiator::generate_request(&mut rng, KEM::MlKem768).unwrap();

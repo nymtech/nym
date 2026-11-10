@@ -46,8 +46,29 @@ macro_rules! trace_err_chain {
         tracing::error!("{}", $crate::ErrorExt::display_chain(&$err));
     };
     ($err:expr, $($args:tt)*) => {
-        tracing::error!("{}", $crate::ErrorExt::display_chain_with_msg(&$err, ::std::format!($($args)*)));
+        tracing::error!("{}", $crate::ErrorExt::display_chain_with_msg(&$err, ::std::format!($($args)*)))
     };
+}
+
+#[derive(Debug)]
+pub struct BoxedError(Box<dyn Error + 'static + Send>);
+
+impl fmt::Display for BoxedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Error for BoxedError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.0.source()
+    }
+}
+
+impl BoxedError {
+    pub fn new(error: impl Error + 'static + Send) -> Self {
+        BoxedError(Box::new(error))
+    }
 }
 
 #[cfg(test)]
@@ -85,25 +106,5 @@ mod tests {
         // todo: fix once it supports multiline messages
         // https://github.com/dbrgn/tracing-test/issues/48
         // assert!(logs_contain("Caused by: file not found"));
-    }
-}
-#[derive(Debug)]
-pub struct BoxedError(Box<dyn Error + 'static + Send>);
-
-impl fmt::Display for BoxedError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Error for BoxedError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.0.source()
-    }
-}
-
-impl BoxedError {
-    pub fn new(error: impl Error + 'static + Send) -> Self {
-        BoxedError(Box::new(error))
     }
 }

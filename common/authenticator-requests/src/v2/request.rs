@@ -12,8 +12,8 @@ use crate::make_bincode_serializer;
 use super::VERSION;
 
 fn generate_random() -> u64 {
-    use rand::RngCore;
-    let mut rng = rand::rngs::OsRng;
+    use rand::Rng;
+    let mut rng = rand::rng();
     rng.next_u64()
 }
 

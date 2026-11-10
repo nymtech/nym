@@ -8,7 +8,7 @@ use digest::Digest;
 use digest::crypto_common::BlockSizeUser;
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 
 /// Generate an ephemeral encryption keypair and perform diffie-hellman to establish
 /// shared key with the remote.
@@ -20,7 +20,7 @@ pub fn new_ephemeral_shared_key<C, D, R>(
 where
     C: StreamCipher + KeyIvInit,
     D: Digest + BlockSizeUser + Clone,
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
 {
     let ephemeral_keypair = x25519::KeyPair::new(rng);
 
@@ -36,7 +36,7 @@ where
     // SAFETY: the generated okm has exactly `C::key_size()` elements,
     // so this call is safe
     #[allow(clippy::unwrap_used)]
-    let derived_shared_key = Key::<C>::from_exact_iter(okm).unwrap();
+    let derived_shared_key = Key::<C>::try_from_iter(okm).unwrap();
 
     (ephemeral_keypair, derived_shared_key)
 }
@@ -61,5 +61,5 @@ where
     // SAFETY: the generated okm has exactly `C::key_size()` elements,
     // so this call is safe
     #[allow(clippy::unwrap_used)]
-    Key::<C>::from_exact_iter(okm).unwrap()
+    Key::<C>::try_from_iter(okm).unwrap()
 }

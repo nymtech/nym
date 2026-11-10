@@ -1,0 +1,8 @@
+export default {
+  "FailureReason": "FailureReason",
+  "TaskName": "TaskName",
+  "TunnelState": "TunnelState",
+  "TunnelStateName": "TunnelStateName",
+  "WsEventCallback": "WsEventCallback",
+  "WsEventType": "WsEventType"
+}

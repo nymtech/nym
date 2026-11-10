@@ -9,7 +9,6 @@ authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -20,7 +19,7 @@ publish = true
 [dependencies]
 bs58 = { workspace = true }
 futures = { workspace = true }
-generic-array = { workspace = true, features = ["serde"] }
+hybrid-array = { workspace = true, features = ["serde"] }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

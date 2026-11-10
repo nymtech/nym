@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cipher::{Iv, StreamCipher};
-use generic_array::typenum::Unsigned;
+use hybrid_array::typenum::Unsigned;
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 
 // re-export this for ease of use
 pub use cipher::Key as CipherKey;
@@ -28,7 +28,7 @@ pub type IV<C> = Iv<C>;
 pub fn generate_key<C, R>(rng: &mut R) -> CipherKey<C>
 where
     C: KeyIvInit,
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
 {
     let mut key = CipherKey::<C>::default();
     rng.fill_bytes(&mut key);
@@ -39,7 +39,7 @@ where
 pub fn random_iv<C, R>(rng: &mut R) -> IV<C>
 where
     C: IvSizeUser,
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
 {
     let mut iv = IV::<C>::default();
     rng.fill_bytes(&mut iv);
@@ -115,7 +115,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand_chacha::rand_core::SeedableRng;
+    use rand::SeedableRng;
 
     #[cfg(test)]
     mod aes_ctr128 {

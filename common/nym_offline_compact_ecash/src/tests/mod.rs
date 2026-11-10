@@ -3,3 +3,5 @@
 
 mod e2e;
 pub mod helpers;
+#[cfg(test)]
+mod spend_forgeries;

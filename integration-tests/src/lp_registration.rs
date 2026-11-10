@@ -17,15 +17,18 @@ mod tests {
     use nym_lp::peer::LpLocalPeer;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
+    use nym_node::node::lp::active_sessions::ActiveLpSessions;
     use nym_node::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
+    use nym_node::node::lp::directory::LpNodes;
     use nym_node::node::lp::error::LpHandlerError;
-    use nym_node::node::lp::state::ActiveLpSessions;
-    use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
+    use nym_node::node::lp::registration_nonces::RegistrationNonces;
+    use nym_node::node::lp::{SharedGatewayLpControlState, SharedLpControlState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{
-        LpClientError, LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient,
+        LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient,
+        NestedLpDvpnRegistrationClient,
     };
-    use nym_test_utils::helpers::{CryptoRng010, seeded_rng};
+    use nym_test_utils::helpers::CryptoRng010;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::Timeboxed;
     use nym_wireguard::peer_controller::IpPair;
@@ -37,8 +40,8 @@ mod tests {
     use std::mem;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
     use std::sync::Arc;
-    use tokio::sync::Semaphore;
     use tokio::sync::mpsc::Receiver;
+    use tokio::sync::{Semaphore, mpsc};
     use tokio::task::JoinHandle;
     use tokio_util::sync::CancellationToken;
     use tracing::error;
@@ -66,15 +69,10 @@ mod tests {
             let mut ip = [0u8; 4];
             let mut port = [0u8; 2];
 
-            // generate a valid instance of rand08
-            let mut seed = [0u8; 32];
-            rng.fill_bytes(&mut seed);
-            let mut rng08 = seeded_rng(seed);
-
             rng.fill_bytes(&mut ip);
             rng.fill_bytes(&mut port);
-            let ed25519_keys = ed25519::KeyPair::new(&mut rng08);
-            let x25519_wg_keys = Arc::new(x25519::KeyPair::new(&mut rng08));
+            let ed25519_keys = ed25519::KeyPair::new(rng);
+            let x25519_wg_keys = Arc::new(x25519::KeyPair::new(rng));
 
             let lp_x25519_keys = Arc::new(generate_lp_keypair_x25519(rng));
             let mlkem_keypair = generate_keypair_mlkem(rng);
@@ -133,7 +131,8 @@ mod tests {
 
     struct Gateway {
         base: Party,
-        lp_state: SharedLpClientControlState,
+        lp_state: SharedLpControlState,
+        gateway_lp_state: SharedGatewayLpControlState,
         ip_pool: IpPool,
         mock_peer_controller: SpawnedPeerController,
 
@@ -199,7 +198,7 @@ mod tests {
             let storage = Self::init_in_memory_storage().await?;
 
             // 2. create mock ecash manager for testing (essentially allow **any** credential)
-            let ecash_verifier = MockEcashManager::new(Box::new(storage.clone()));
+            let ecash_verifier = MockEcashManager::new(Arc::new(storage.clone()));
 
             let lp_config = LpConfig {
                 debug: LpDebug {
@@ -227,24 +226,32 @@ mod tests {
                 PeerManager::new(wireguard_data),
                 upgrade_mode_details,
             );
+            let (tx, _) = mpsc::channel(10);
+            let sessions = ActiveLpSessions::new(tx);
 
-            let lp_state = SharedLpClientControlState {
+            let lp_state = SharedLpControlState {
                 local_lp_peer: base.peer.clone(),
+                nodes: LpNodes::new_empty(),
+                sessions: sessions.clone(),
+                metrics: Default::default(),
+                lp_config,
+            };
+
+            let gateway_lp_state = SharedGatewayLpControlState {
+                identity: *base.identity.public_key(),
+                sessions,
+                registration_nonces: RegistrationNonces::new(),
 
                 forward_semaphore,
 
                 // handles for dealing with new peers
                 peer_registrator: Some(peer_registrator),
-                shared: SharedLpState {
-                    metrics: Default::default(),
-                    lp_config,
-                    session_states: ActiveLpSessions::new(),
-                },
             };
 
             Ok(Gateway {
                 base,
                 lp_state,
+                gateway_lp_state,
                 ip_pool: Self::ip_pool(),
                 mock_peer_controller: SpawnedPeerController::Ready {
                     controller: mock_peer_controller,
@@ -269,6 +276,7 @@ mod tests {
                     client_connection,
                     client_address,
                     self.lp_state.clone(),
+                    self.gateway_lp_state.clone(),
                 ),
             };
         }
@@ -378,7 +386,7 @@ mod tests {
         use super::*;
         use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
         use nym_registration_client::NestedLpSession;
-        use nym_test_utils::helpers::u64_seeded_rng_09;
+        use nym_test_utils::helpers::u64_seeded_rng;
         use nym_wireguard::DefguardPeer;
 
         #[tokio::test]
@@ -389,14 +397,14 @@ mod tests {
                 let ciphersuite = Ciphersuite::default().with_kem(kem);
 
                 // initialise random, but deterministic, keys, addresses, etc. for the parties
-                let mut client_rng = u64_seeded_rng_09(0);
-                let mut gateway_rng = u64_seeded_rng_09(1);
+                let mut client_rng = u64_seeded_rng(0);
+                let mut gateway_rng = u64_seeded_rng(1);
 
                 let client_data = Client::mock(&mut client_rng);
                 let client_key = *client_data.base.x25519_wg_keys.public_key();
                 let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-                let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config(
+                let mut client = LpGatewayControlClient::<MockIOStream>::new_with_default_config(
                     client_data.base.peer.x25519().clone(),
                     entry.base.peer.as_remote(),
                     entry.base.socket_addr,
@@ -494,15 +502,15 @@ mod tests {
         async fn registration_is_not_allowed_without_prior_handshake() -> anyhow::Result<()> {
             // nym_test_utils::helpers::setup_test_logger();
             // initialise random, but deterministic, keys, addresses, etc. for the parties
-            let mut client_rng = u64_seeded_rng_09(0);
-            let mut gateway_rng = u64_seeded_rng_09(1);
+            let mut client_rng = u64_seeded_rng(0);
+            let mut gateway_rng = u64_seeded_rng(1);
 
             let client_data = Client::mock(&mut client_rng);
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
             let ciphersuite = Ciphersuite::default();
 
-            let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config(
+            let mut client = LpGatewayControlClient::<MockIOStream>::new_with_default_config(
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
@@ -562,16 +570,16 @@ mod tests {
             let ciphersuite = Ciphersuite::default().with_kem(kem);
 
             // initialise random, but deterministic, keys, addresses, etc. for the parties
-            let mut client_rng = u64_seeded_rng_09(0);
-            let mut entry_rng = u64_seeded_rng_09(1);
-            let mut exit_rng = u64_seeded_rng_09(2);
+            let mut client_rng = u64_seeded_rng(0);
+            let mut entry_rng = u64_seeded_rng(1);
+            let mut exit_rng = u64_seeded_rng(2);
 
             let client_data = Client::mock(&mut client_rng);
             let client_key = *client_data.base.x25519_wg_keys.public_key();
             let mut entry = Gateway::mock(&mut entry_rng).await?;
             let mut exit = Gateway::mock(&mut exit_rng).await?;
 
-            let mut entry_client = LpGatewayClient::<MockIOStream>::new_with_default_config(
+            let mut entry_client = LpGatewayControlClient::<MockIOStream>::new_with_default_config(
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,

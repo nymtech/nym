@@ -1,38 +1,68 @@
 ---
-- name: Restrict logging, vacuum journals, and enable periodic trim
+# System maintenance for servers (VMs) hosting nym-node.
+#
+# Tunables live in playbooks/group_vars/all.yml under
+# "## SYSTEM MAINTENANCE PLAYBOOK KNOBS", and fall back to each role's
+# defaults/main.yml. Do NOT add a play-level `vars:` block here - play vars
+# outrank group_vars and would silently override every operator setting.
+
+- name: Restrict logging, vacuum journals, reclaim space and enable periodic trim
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
 
-  # global knobs - override in inventory/group_vars/host_vars as needed
-  vars:
-    journald_system_max_use: "100M"
-    journald_runtime_max_use: "50M"
-    journald_system_max_file_size: "25M"
-    journald_runtime_max_file_size: "10M"
-    journald_max_retention_sec: "3day"
-    journald_rate_limit_interval: "30s"
-    journald_rate_limit_burst: "1000"
+  # Batch the run so hypervisors hosting many VMs are not hit by every guest
+  # restarting nym-node and running fstrim at the same moment.
+  serial: "{{ maintenance_serial | default('25%') }}"
 
-    # per nym-node rate limit + level cap
-    nymnode_log_level_max: "warning"
-    nymnode_rate_limit_interval: "30s"
-    nymnode_rate_limit_burst: "200"
+  pre_tasks:
+    - name: Record disk usage before maintenance
+      ansible.builtin.command: df -hP /
+      register: disk_before
+      changed_when: false
 
-    # journal vacuum targets
-    journal_vacuum_size: "100M"
-    journal_vacuum_time: "3days"
-
-    # fstrim cadence (note: the systemd override uses cron-like calendar)
-    fstrim_every_calendar: "*:0/15"
+    - name: Record journal usage before maintenance
+      ansible.builtin.command: journalctl --disk-usage
+      register: journal_before
+      changed_when: false
+      failed_when: false
 
   roles:
     - role: journald_limits
+      when: enable_journald_limits | default(true) | bool
+      tags: [journald, logging]
+
     - role: nymnode_logging
+      when: enable_nymnode_logging | default(true) | bool
+      tags: [nymnode, logging]
+
     - role: rsyslog_disable
-    - role: journal_vacuum
+      when: disable_rsyslog | default(true) | bool
+      tags: [rsyslog, logging]
+
     - role: classic_log_cleanup
+      when: enable_classic_log_cleanup | default(true) | bool
+      tags: [logs, cleanup]
+
+    - role: journal_vacuum
+      when: enable_journal_vacuum | default(true) | bool
+      tags: [journald, cleanup]
+
     - role: apt_cleanup
+      when: enable_apt_cleanup | default(true) | bool
+      tags: [apt, cleanup]
+
     - role: snap_cleanup
+      when: enable_snap_cleanup | default(true) | bool
+      tags: [snap, cleanup]
+
+    - role: writeback_tuning
+      when: enable_writeback_tuning | default(false) | bool
+      tags: [writeback, tuning]
+
     - role: fstrim_15min
+      when: enable_fstrim | default(true) | bool
+      tags: [fstrim, cleanup]
+
     - role: report
+      tags: [report, always]

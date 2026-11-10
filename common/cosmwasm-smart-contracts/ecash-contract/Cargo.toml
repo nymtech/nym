@@ -6,7 +6,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version = "1.85"
 readme.workspace = true
@@ -27,3 +26,6 @@ cw-controllers = { workspace = true }
 
 [features]
 schema = ["cw2"]
+
+[lints]
+workspace = true

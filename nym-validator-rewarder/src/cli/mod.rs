@@ -79,8 +79,8 @@ pub struct ConfigOverridableArgs {
     #[clap(long, env = "NYM_VALIDATOR_REWARDER_NYXD_ENDPOINT")]
     pub nyxd_endpoint: Option<Url>,
 
-    #[clap(long, env = "NYM_VALIDATOR_REWARDER_EPOCH_BUDGET")]
-    pub epoch_budget: Option<Coin>,
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_DAILY_BUDGET")]
+    pub daily_budget: Option<Coin>,
 
     #[clap(long, env = "NYM_VALIDATOR_REWARDER_EPOCH_DURATION")]
     pub epoch_duration: Option<humantime::Duration>,

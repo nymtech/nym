@@ -9,7 +9,6 @@ use nym_credentials::IssuanceTicketBook;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::cosmwasm_client::ContractResponseData;
 use nym_validator_client::nyxd::{Coin, Hash};
-use rand::rngs::OsRng;
 use std::fmt::Debug;
 use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
@@ -92,11 +91,13 @@ pub async fn make_deposits_request(
 ) -> Result<PerformedDeposits, CredentialProxyError> {
     let requested_on = OffsetDateTime::now_utc();
     let chain_write_permit = client.start_chain_tx().await;
-    let mut rng = OsRng;
-
-    let keys = (0..amount)
-        .map(|_| ed25519::PrivateKey::new(&mut rng))
-        .collect::<Vec<_>>();
+    // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await`s below
+    let keys = {
+        let mut rng = rand::rng();
+        (0..amount)
+            .map(|_| ed25519::PrivateKey::new(&mut rng))
+            .collect::<Vec<_>>()
+    };
 
     info!("starting {amount} deposits");
     let mut contents = Vec::new();

@@ -34,12 +34,16 @@ pub mod performance_signing_client;
 pub mod vesting_signing_client;
 
 // re-export query traits
-pub use directory_query_client::{DirectoryQueryClient, PagedDirectoryQueryClient};
+pub use directory_query_client::{
+    DirectoryQueryClient, PagedDirectoryQueryClient, PinnedDirectoryQueryClient,
+};
 pub use dkg_query_client::{DkgQueryClient, PagedDkgQueryClient};
 pub use ecash_query_client::{EcashQueryClient, PagedEcashQueryClient};
-pub use geolocation_query_client::{GeolocationQueryClient, PagedGeolocationQueryClient};
+pub use geolocation_query_client::{
+    GeolocationQueryClient, PagedGeolocationQueryClient, PinnedGeolocationQueryClient,
+};
 pub use group_query_client::{GroupQueryClient, PagedGroupQueryClient};
-pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
+pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient, PinnedMixnetQueryClient};
 pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
 pub use network_monitors_query_client::{
     NetworkMonitorsQueryClient, PagedNetworkMonitorsQueryClient,
@@ -147,6 +151,21 @@ impl TryFrom<NymContracts> for TypedNymContracts {
         })
     }
 }
+
+/// Backstop on how many records a single height-pinned read will accumulate.
+///
+/// These reads feed a digest recompute, so they treat the queried node as untrusted, and the
+/// digest check that would catch a lie only runs once the loop has ended. A repeated cursor
+/// is rejected directly at each call site; this bound is the residual guard against a node
+/// that keeps returning *fresh* fabricated records under advancing cursors, which no cursor
+/// check can detect.
+///
+/// Sized against real state rather than intuition: mainnet carries ~1,100 bonded nodes, and
+/// the widest of these reads (geolocation, keyed per subject *and* source) holds roughly one
+/// record per node per measurement agent. 250k therefore covers a twentyfold-grown network
+/// at ~11 sources per node. It is deliberately far above any plausible honest state, because
+/// tripping it on real data would break a verified read in production.
+pub(crate) const MAX_PINNED_READ_RECORDS: usize = 250_000;
 
 // a simple helper macro to define to repeatedly call a paged query until a full response is constructed
 #[macro_export]

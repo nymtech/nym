@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_ecash_time::Date;
-
-use nym_sqlx_pool_guard::SqlitePoolGuard;
+use sqlx::SqlitePool;
 
 use crate::storage::models::StoredPendingTicketbook;
 
 #[derive(Clone)]
 pub struct SqliteZkNymRequestsStorageManager {
-    connection_pool: SqlitePoolGuard,
+    connection_pool: SqlitePool,
 }
 
 impl SqliteZkNymRequestsStorageManager {
-    pub fn new(connection_pool: SqlitePoolGuard) -> Self {
+    pub fn new(connection_pool: SqlitePool) -> Self {
         Self { connection_pool }
     }
 
@@ -41,7 +40,7 @@ impl SqliteZkNymRequestsStorageManager {
             expiration_date,
             dkg_epoch_id,
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?;
 
         Ok(())
@@ -68,7 +67,7 @@ impl SqliteZkNymRequestsStorageManager {
             data,
             expiration_date,
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?;
 
         Ok(())
@@ -78,7 +77,7 @@ impl SqliteZkNymRequestsStorageManager {
         &self,
     ) -> Result<Vec<StoredPendingTicketbook>, sqlx::Error> {
         sqlx::query_as("SELECT * FROM pending_issuance")
-            .fetch_all(&*self.connection_pool)
+            .fetch_all(&self.connection_pool)
             .await
     }
 
@@ -90,7 +89,7 @@ impl SqliteZkNymRequestsStorageManager {
             "DELETE FROM pending_issuance WHERE deposit_id = ?",
             pending_id
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?;
         Ok(())
     }

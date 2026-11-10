@@ -7,7 +7,7 @@ use nym_sphinx_params::SphinxKeyRotation;
 use nym_sphinx_types::constants::PAYLOAD_KEY_SEED_SIZE;
 use std::fmt::Display;
 use std::iter::once;
-use tracing::{error, warn};
+use tracing::warn;
 
 const fn v2_reply_surb_serialised_len(num_hops: u8) -> usize {
     ReplySurb::BASE_OVERHEAD + num_hops as usize * PAYLOAD_KEY_SEED_SIZE
@@ -33,13 +33,6 @@ fn key_rotation(reply_surbs: &[ReplySurbWithKeyRotation]) -> SphinxKeyRotation {
 fn v2_reply_surbs_serialised_len(surbs: &[ReplySurbWithKeyRotation]) -> usize {
     let num_surbs = surbs.len();
     let num_hops = reply_surbs_hops(surbs);
-
-    // sanity checks; this should probably be removed later on
-    if let Some(reply_surb) = surbs.first()
-        && !reply_surb.inner.surb.uses_key_seeds()
-    {
-        error!("using v2 surbs encoding with legacy structure - the surbs will be unusable")
-    }
 
     // when serialising surbs are always prepended with:
     // - u16-encoded count,

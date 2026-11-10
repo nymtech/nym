@@ -16,11 +16,10 @@ keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[dependencies]
+[target."cfg(target_arch = \"wasm32\")".dependencies]
 anyhow = { workspace = true }
 futures = { workspace = true }
 js-sys = { workspace = true }
-rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
@@ -49,3 +48,5 @@ default = []
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
+
+[lints]

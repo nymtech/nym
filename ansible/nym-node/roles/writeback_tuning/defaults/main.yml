@@ -1,0 +1,14 @@
+---
+# Off by default: only useful on hypervisors where many guests share one
+# backing store and you want to reduce small-write amplification.
+enable_writeback_tuning: false
+
+# Kernel writeback pacing, in centiseconds (1/100s).
+#   dirty_writeback_centisecs: how often the flusher threads wake  (default 500 = 5s)
+#   dirty_expire_centisecs:    how old dirty data may get          (default 3000 = 30s)
+# Larger values batch more writes together, which is easier on shared storage
+# but widens the window of data loss on an unclean shutdown.
+writeback_dirty_writeback_centisecs: 1500
+writeback_dirty_expire_centisecs: 6000
+
+writeback_sysctl_file: /etc/sysctl.d/60-nym-writeback.conf

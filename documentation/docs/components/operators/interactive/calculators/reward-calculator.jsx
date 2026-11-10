@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react'
 import CirculatingSupply from 'components/outputs/api-scraping-outputs/circulating-supply.json'
 import RewardParams from 'components/outputs/api-scraping-outputs/reward-params.json'

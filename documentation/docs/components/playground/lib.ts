@@ -17,8 +17,7 @@ export interface SetupOpts {
   disableCoverTraffic?: boolean;
   openReplySurbs?: number;
   dataReplySurbs?: number;
-  primaryDns?: string;
-  fallbackDns?: string;
+  dohEndpoints?: string[];
   debug?: boolean;
 }
 

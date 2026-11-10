@@ -45,6 +45,23 @@ impl Display for DisplaySphinxKey {
 }
 
 #[derive(Debug, Serialize)]
+pub(crate) struct DisplayLpDetails {
+    pub(crate) x25519_key: String,
+    pub(crate) control_port: u16,
+    pub(crate) data_port: u16,
+}
+
+impl Display for DisplayLpDetails {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "x25519 {} (control port: {}, data port: {})",
+            self.x25519_key, self.control_port, self.data_port
+        )
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub(crate) struct DisplayDetails {
     pub(crate) current_modes: NodeModes,
 
@@ -59,6 +76,9 @@ pub(crate) struct DisplayDetails {
     pub(crate) exit_network_requester_address: String,
     pub(crate) exit_ip_packet_router_address: String,
     pub(crate) exit_authenticator_address: String,
+
+    pub(crate) lewes_protocol: DisplayLpDetails,
+    pub(crate) build_version: String,
 }
 
 impl Display for DisplayDetails {
@@ -97,6 +117,8 @@ impl Display for DisplayDetails {
             "exit authenticator address: {}",
             self.exit_authenticator_address
         )?;
+        writeln!(f, "lewes protocol: {}", self.lewes_protocol)?;
+        writeln!(f, "build version: {}", self.build_version)?;
         Ok(())
     }
 }

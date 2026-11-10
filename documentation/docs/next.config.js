@@ -1,15 +1,16 @@
 // const path = require('path');
 // const CopyPlugin = require('copy-webpack-plugin');
 
-const withNextra = require("nextra")({
-  theme: "nextra-theme-docs",
-  themeConfig: "./theme.config.tsx",
+// Nextra 4: the theme/themeConfig options are gone; theme setup lives in
+// app/layout.tsx. withNextra() composes its MDX webpack with ours.
+// Nextra 4 is ESM; require() returns the namespace, so the factory is `.default`.
+const withNextra = require("nextra").default({
+  defaultShowCopyCode: true,
 });
 
-const nextra = withNextra();
-nextra.webpack = (config, options) => {
-  // generate Nextra's webpack config
-  const newConfig = withNextra().webpack(config, options);
+// raw-loader for .txt.
+function nymDocsWebpack(config, options) {
+  const newConfig = config;
 
   newConfig.module.rules.push({
     test: /\.txt$/i,
@@ -34,58 +35,25 @@ nextra.webpack = (config, options) => {
   //   }),
   // );
 
-  // --- Railgun demo: browser polyfills for the @railgun-community SDK ---
-  // Railgun pulls libp2p / pouchdb / crypto transitively and expects Node-stdlib
-  // globals that webpack 5 no longer auto-polyfills. Client build only; the SSR
-  // build resolves these natively. Mirrors wasm/railgun-demo/webpack.config.js.
-  if (!options.isServer) {
-    newConfig.resolve.fallback = {
-      ...newConfig.resolve.fallback,
-      buffer: require.resolve("buffer/"),
-      crypto: require.resolve("crypto-browserify"),
-      http: require.resolve("stream-http"),
-      https: require.resolve("https-browserify"),
-      stream: require.resolve("stream-browserify"),
-      url: require.resolve("url/"),
-      vm: require.resolve("vm-browserify"),
-      zlib: require.resolve("browserify-zlib"),
-    };
-    // Force single instances of ethers and shared-models. ethers: so Railgun's
-    // global FetchRequest.registerGetUrl shares static state with our import.
-    // shared-models: so our `NETWORK_CONFIG[...].poi = undefined` POI sidestep
-    // mutates the SAME object the engine's loadProvider reads (otherwise an
-    // ESM/CJS split gives two copies and the POI gate still fires).
-    newConfig.resolve.alias = {
-      ...newConfig.resolve.alias,
-      ethers$: require.resolve("ethers"),
-      "@railgun-community/shared-models$":
-        require.resolve("@railgun-community/shared-models"),
-    };
-    newConfig.plugins.push(
-      new options.webpack.ProvidePlugin({
-        Buffer: ["buffer", "Buffer"],
-        process: "process/browser",
-      }),
-    );
-    // Railgun ships its zk-SNARK circuits as async WASM.
-    newConfig.experiments = {
-      ...newConfig.experiments,
-      asyncWebAssembly: true,
-    };
-  }
-  // Silence "Critical dependency" warnings from Railgun's GraphQL subgraph plumbing.
-  newConfig.ignoreWarnings = [
-    ...(newConfig.ignoreWarnings || []),
-    { module: /@graphql-mesh/, message: /Critical dependency/ },
-    { module: /@graphql-tools\/url-loader/, message: /Critical dependency/ },
-  ];
-
   return newConfig;
-};
+}
 
 const config = {
-  ...nextra,
   basePath: "/docs",
+  webpack: nymDocsWebpack,
+  // Turbopack (dev + the default `build`; `build:webpack` is the fallback) ignores the webpack key above, so its aliases are set
+  // here. The two MDX aliases Nextra needs: the mermaid subpath (whose wildcard export map
+  // Turbopack cannot follow) and the MDX import source.
+  turbopack: {
+    resolveAlias: {
+      "@theguild/remark-mermaid/mermaid": "./mermaid-client.mjs",
+      "next-mdx-import-source-file": "./mdx-components.jsx",
+    },
+  },
+  // Pin the trace root to this directory. Otherwise Next picks the nearest parent
+  // lockfile (the monorepo root) as the root, and the MCP tracing paths below, plus
+  // the Vercel function bundle, resolve against the wrong base.
+  outputFileTracingRoot: __dirname,
   // The MCP route reads public/docs-index.json at runtime. On Vercel, public/ is
   // not in the serverless function's filesystem unless traced in explicitly.
   outputFileTracingIncludes: {
@@ -96,13 +64,13 @@ const config = {
       // network docs
       {
         source: "/operators",
-        destination: "docs/operators/introduction",
+        destination: "/docs/operators/introduction",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/operators",
-        destination: "docs/operators/introduction",
+        destination: "/docs/operators/introduction",
         permanent: true,
         basePath: false,
       },
@@ -259,24 +227,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/docs/binaries/pre-built-binaries.html",
-        destination: "/docs/developers/binaries#building-from-source",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/binaries/init-and-config.html",
-        destination: "/docs/developers/binaries#building-from-source",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/binaries/building-nym.html",
-        destination: "/docs/developers/binaries#building-from-source",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/docs/nodes/overview.html ",
         destination: "/docs/network/infrastructure/nym-nodes",
         permanent: true,
@@ -383,13 +333,13 @@ const config = {
       },
       {
         source: "/developers/sdk/rust/message-types.html",
-        destination: "/docs/developers/rust/mixnet/message-types",
+        destination: "/docs/developers/rust/mixnet",
         permanent: true,
         basePath: false,
       },
       {
         source: "/developers/sdk/rust/message-helpers.html",
-        destination: "/docs/developers/rust/mixnet/message-helpers",
+        destination: "/docs/developers/rust/mixnet",
         permanent: true,
         basePath: false,
       },
@@ -406,45 +356,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/developers/sdk/rust/examples/simple.html",
-        destination: "/docs/developers/rust/mixnet/examples/simple",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/developers/sdk/rust/examples/keys.html",
-        destination: "/docs/developers/sdk/rust/examples/keys.html",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/storage.html",
-        destination:
-          "/docs/developers/rust/mixnet/examples/builders/builder-with-storage",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/surbs.html",
-        destination: "/docs/developers/rust/mixnet/examples/surbs",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/custom-network.html",
-        destination: "/docs/developers/rust/mixnet/examples/custom-topology",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/socks.html",
-        destination: "/docs/developers/rust/mixnet/examples/socks",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/split-send.html",
-        destination: "/docs/developers/rust/mixnet/examples/split-send",
+        destination: "/docs/developers/rust/mixnet/tutorial",
         permanent: true,
         basePath: false,
       },
@@ -463,18 +376,6 @@ const config = {
       {
         source: "/developers/sdk/typescript.html",
         destination: "/docs/developers/typescript",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/binaries/pre-built-binaries.html",
-        destination: "/docs/developers/binaries#pre-built-binaries",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/binaries/building-nym.html",
-        destination: "/docs/developers/binaries",
         permanent: true,
         basePath: false,
       },
@@ -569,44 +470,14 @@ const config = {
         basePath: false,
       },
       {
-        source: "/developers/nymvpn/intro.html",
-        destination: "/docs/developers/archive/nymvpn",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/developers/nymvpn/cli.html",
-        destination: "/docs/developers/nymvpn/cli",
+        destination: "/docs/developers/nymvpncli",
         permanent: true,
         basePath: false,
       },
       {
         source: "/developers/archive/nym-connect.html",
         destination: "/docs/developers/archive/nym-connect",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/examples/custom-services.html",
-        destination: "/docs/developers/rust/mixnet/other-examples#services",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/examples/browser-only.html",
-        destination: "/docs/developers/rust/mixnet/other-examples#browser-only",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/examples/using-nrs.html",
-        destination: "/docs/developers/rust/mixnet/other-examples",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/examples/monorepo-examples.html",
-        destination: "/docs/developers/rust/mixnet/other-examples",
         permanent: true,
         basePath: false,
       },
@@ -665,33 +536,6 @@ const config = {
       {
         source: "/operators/nodes/nymvisor-upgrade.html",
         destination: "/docs/operators/nodes/maintenance/nymvisor-upgrade",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/testing/performance.html",
-        destination: "/docs/operators/nodes/performance-and-testing",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/testing/gateway-probe.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/gateway-probe",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/testing/prometheus-grafana.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/prometheus-grafana",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/testing/explorenym-scripts.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/prometheus-grafana/explorenym-scripts",
         permanent: true,
         basePath: false,
       },
@@ -787,26 +631,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/docs/developers/clients/socks5/setup",
-        destination: "/docs/developers/clients/socks5#client-setup",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/docs/architecture/network-overview.html",
         destination: "/docs/network/overview",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/archive/nymvpn/troubleshooting",
-        destination: "/docs/developers/archive/nymvpn/faq",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/archive/nymvpn/intro",
-        destination: "/docs/developers/archive/nymvpn",
         permanent: true,
         basePath: false,
       },
@@ -825,12 +651,6 @@ const config = {
       {
         source: "/docs/operators/variables.html",
         destination: "/docs/operators/variables",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/testing/performance",
-        destination: "/docs/operators/nodes/performance-and-testing",
         permanent: true,
         basePath: false,
       },
@@ -854,13 +674,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/docs/operators/testing/gateway-probe",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/gateway-probe",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/docs/operators/legal/isp-list",
         destination: "/docs/operators/community-counsel/isp-list",
         permanent: true,
@@ -869,12 +682,6 @@ const config = {
       {
         source: "/docs/operators/nodes/vps-setup",
         destination: "/docs/operators/nodes/preliminary-steps/vps-setup",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/binaries/building-nym",
-        destination: "/docs/developers/binaries#building-nym",
         permanent: true,
         basePath: false,
       },
@@ -906,13 +713,6 @@ const config = {
       {
         source: "/docs/operators/preliminrary-steps/vps-setup",
         destination: "/docs/operators/nodes/preliminary-steps/vps-setup",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/nodes/perfomance-and-testing/gateway-probe",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/gateway-probe",
         permanent: true,
         basePath: false,
       },
@@ -953,68 +753,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/nodes/manual-upgrade.html",
-        destination: "/docs/operators/nodes/maintenance/manual-upgrade",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/developers/faq/general-faq.html",
         destination: "/docs/operators/faq/general-faq",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/tutorials/cosmos-service/intro.html",
-        destination: "/docs/developers/rust#",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/nymvpn/cli.html",
-        destination: "/docs/developers/archive/nymvpn/cli",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/archive/nym-connect.html",
-        destination: "/docs/developers/archive/nym-connect",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/websocket-client.html",
-        destination: "/docs/developers/clients/websocket",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/socks5-client.html",
-        destination: "/docs/developers/clients/socks5",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/webassembly-client.html",
-        destination: "/docs/developers/clients/webassembly-client",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/nodes/nym-node/nym-node",
-        destination: "/docs/operators/nodes/nym-node",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/network/concepts/anonymous-replies",
-        destination: "/docs/network/concepts/anonymous-replies",
         permanent: true,
         basePath: false,
       },
@@ -1031,12 +771,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/developers/faq/general-faq.html",
-        destination: "/docs/developers",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/operators/faq/mixnodes-faq.html",
         destination: "/docs/operators/faq/general-faq",
         permanent: true,
@@ -1049,45 +783,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/legal/exit-gateway.html",
-        destination: "/docs/operators/community-counsel/exit-gateway",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/developers/tutorials/cosmos-service/intro.html",
         destination: "/docs/developers/rust",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/testing/gateway-probe.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/gateway-probe",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/nymvpn/cli.html",
-        destination: "/docs/developers/archive/nymvpn/cli",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/archive/nym-connect.html",
-        destination: "/docs/developers/archive/nym-connect",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/nodes/vps-setup.html",
-        destination: "/docs/operators/nodes/preliminary-steps/vps-setup",
         permanent: true,
         basePath: false,
       },
@@ -1104,45 +801,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/legal/isp-list.html",
-        destination: "/docs/operators/community-counsel/isp-list",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/nodes/proxy-configuration.html",
-        destination:
-          "/docs/operators/nodes/nym-node/configuration/proxy-configuration",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/nodes/bonding.html",
-        destination: "/docs/operators/nodes/nym-node/bonding",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/operators/sandbox.html",
         destination: "/docs/operators/sandbox",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/websocket-client.html",
-        destination: "/docs/developers/clients/websocket",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/socks5-client.html",
-        destination: "/docs/developers/clients/socks5",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/webassembly-client.html",
-        destination: "/docs/developers/clients/webassembly-client",
         permanent: true,
         basePath: false,
       },
@@ -1448,7 +1108,7 @@ const config = {
       },
       {
         source: "/docs/developers/typescript/api",
-        destination: "/docs/developers/typescript/api/sdk",
+        destination: "/docs/developers/typescript/api/sdk/globals",
         permanent: false,
         basePath: false,
       },
@@ -1547,6 +1207,65 @@ const config = {
         permanent: true,
         basePath: false,
       },
+
+      // Corrected legacy targets. The operators "testing" section was renamed to
+      // "performance-and-testing" (and is no longer under nodes/), so these
+      // inbound URLs pointed at a path that no longer exists; repoint them at the
+      // live page rather than let the old links 404.
+      {
+        source: "/operators/testing/performance.html",
+        destination: "/docs/operators/performance-and-testing",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/operators/testing/performance",
+        destination: "/docs/operators/performance-and-testing",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/operators/testing/gateway-probe.html",
+        destination: "/docs/operators/performance-and-testing/gateway-probe",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/operators/testing/gateway-probe",
+        destination: "/docs/operators/performance-and-testing/gateway-probe",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/operators/testing/gateway-probe.html",
+        destination: "/docs/operators/performance-and-testing/gateway-probe",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/operators/nodes/perfomance-and-testing/gateway-probe",
+        destination: "/docs/operators/performance-and-testing/gateway-probe",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/operators/testing/prometheus-grafana.html",
+        destination: "/docs/operators/performance-and-testing/prometheus-grafana",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/operators/testing/explorenym-scripts.html",
+        destination: "/docs/operators/performance-and-testing/prometheus-grafana/explorenym-scripts",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/network/concepts/anonymous-replies",
+        destination: "/docs/network/mixnet-mode/anonymous-replies",
+        permanent: true,
+        basePath: false,
+      },
     ];
   },
   images: {
@@ -1600,4 +1319,4 @@ const config = {
   },
 };
 
-module.exports = config;
+module.exports = withNextra(config);

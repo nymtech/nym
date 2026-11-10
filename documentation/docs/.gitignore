@@ -37,3 +37,12 @@ public/**/*.md
 # @generated date stamp, so tracking it means churn on every build.
 # public/llms.txt is NOT here: that one is hand-written.
 public/llms-full.txt
+
+# Pagefind search index, generated at build by `pnpm run pagefind`.
+public/_pagefind/
+
+# What `pnpm build:data` writes: the records for <Snippet view> (components/snippet.tsx) and the snippet routes for components/snippet-link.ts.
+.nym-codex/build/
+
+# Twins that lib/retrieval/ts-data.mjs writes and deletes; a killed run can leave one.
+lib/**/.*.retrieval.mjs

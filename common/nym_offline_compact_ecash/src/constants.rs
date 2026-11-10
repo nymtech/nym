@@ -8,6 +8,8 @@ use nym_network_defaults::TICKETBOOK_SIZE;
 pub const PUBLIC_ATTRIBUTES_LEN: usize = 2; //expiration date and ticket type
 pub const PRIVATE_ATTRIBUTES_LEN: usize = 2; //user and wallet secret
 pub const ATTRIBUTES_LEN: usize = PUBLIC_ATTRIBUTES_LEN + PRIVATE_ATTRIBUTES_LEN; // number of attributes encoded in a single zk-nym credential
+/// Attributes the spender proves in zero knowledge: everything but the ticket type, which is revealed. The expiration date is public at issuance but hidden at spend; the spend date is shown instead.
+pub const SPEND_PROOF_HIDDEN_ATTRIBUTES_LEN: usize = ATTRIBUTES_LEN - 1;
 
 pub const CRED_VALIDITY_PERIOD_DAYS: u32 = TICKETBOOK_VALIDITY_DAYS;
 

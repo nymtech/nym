@@ -1,16 +1,83 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::Context;
+use crate::orchestrator::chain_capability_refresher::ChainCapabilityConfig;
+use crate::storage::models::{KindSchedule, TestKind};
+use anyhow::{Context, bail};
 use nym_network_defaults::{NymNetworkDetails, env_configured};
-use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::{client, nyxd};
 use std::net::SocketAddr;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
 use std::time::Duration;
+use strum::IntoEnumIterator;
 use tracing::info;
 use url::Url;
+
+/// The liveness kinds' scheduling knobs. Grouped rather than flattened into [`Config`] because
+/// every one of them is per-kind: the stress kind keeps `test_interval` and `test_timeout`, and
+/// this is the same set of decisions taken for liveness, shared by both of its kinds except for
+/// the wave size.
+///
+/// Every value is provisional and deployment-tunable by design - no behaviour may depend on a
+/// specific one.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct LivenessConfig {
+    /// Whether liveness work may be assigned at all. On by default, so switching it off is a
+    /// deployment-time decision; an agent that predates wave support cannot deserialise a liveness
+    /// assignment, so a fleet mid-upgrade is a reason to set it.
+    pub(crate) enabled: bool,
+
+    /// How often each node should be tested by each liveness kind (e.g. `15m`). Well below the
+    /// stress `test_interval`, since liveness is the low-volume probe.
+    pub(crate) test_interval: Duration,
+
+    /// Lease stamped on a liveness assignment's in-progress rows. Bounds ONE concurrent wave rather
+    /// than the sum over its targets, because the agent probes the whole wave at once, so it does
+    /// not scale with the wave size. It does have to cover the SLOWER of the two probes: a gateway
+    /// wave pays session setup and measures two interfaces where a mixnode wave measures one.
+    pub(crate) test_timeout: Duration,
+
+    /// Maximum number of targets in a mixnode liveness wave.
+    pub(crate) mixnode_wave_size: usize,
+
+    /// Maximum number of targets in a gateway liveness wave. Lower than the mixnode wave: since a
+    /// wave is one concurrent batch, this is what an agent holds open at once, and a gateway target
+    /// costs a full client session where a mixnode target costs a Noise connection. v1 ran a
+    /// 50-client window over its whole gateway population per cycle.
+    pub(crate) gateway_wave_size: usize,
+}
+
+/// How far back each kind's aggregate reaches from the start of the epoch it is filed under.
+///
+/// The two liveness kinds share one window, as they share the rest of their scheduling, which is also
+/// what keeps their combined figure exact. Nothing validates a window against its kind's test
+/// interval: a cadence is a target rather than a guarantee, and the sample count recorded with each
+/// aggregate is the ground truth.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct AggregationWindows {
+    /// Longer than the liveness window because the stress cadence is an order of magnitude slower.
+    pub(crate) stress: Duration,
+
+    /// Shorter, which keeps the figure responsive to a node that has just broken.
+    pub(crate) liveness: Duration,
+}
+
+impl AggregationWindows {
+    /// The window that applies to `kind`.
+    pub(crate) fn for_kind(&self, kind: TestKind) -> Duration {
+        match kind {
+            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => self.liveness,
+            TestKind::MixnodeStress => self.stress,
+        }
+    }
+
+    /// The longest window configured, which completed-run retention has to outlast.
+    pub(crate) fn longest(&self) -> Duration {
+        Duration::max(self.stress, self.liveness)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
@@ -28,8 +95,14 @@ pub(crate) struct Config {
     pub(crate) test_interval: Duration,
 
     /// Maximum time a single test run is allowed to run before being considered timed out
-    /// (e.g. `5m`).
+    /// (e.g. `5m`). The stress kind's lease budget.
     pub(crate) test_timeout: Duration,
+
+    /// Scheduling knobs of the liveness kind, whose cadence and lease are its own.
+    pub(crate) liveness: LivenessConfig,
+
+    /// How far back each kind's aggregate reaches.
+    pub(crate) aggregation_windows: AggregationWindows,
 
     /// Path to the SQLite database file.
     pub(crate) database_path: PathBuf,
@@ -39,7 +112,7 @@ pub(crate) struct Config {
     pub(crate) node_refresh_rate: Duration,
 
     /// Timeout for querying a single node for its detailed information (sphinx key, noise key,
-    /// etc.). Queries that exceed this budget leave the corresponding fields as `NULL`
+    /// etc.). A node that exceeds this budget keeps whatever an earlier cycle learned about it
     /// (e.g. `10s`).
     pub(crate) node_info_query_timeout: Duration,
 
@@ -55,6 +128,10 @@ pub(crate) struct Config {
     /// Rows older than this are assumed to have already been submitted to the nym-api
     /// (e.g. `7d`, `24h`).
     pub(crate) testrun_eviction_age: Duration,
+
+    /// Maximum age of a materialised epoch aggregate or config score before it is evicted
+    /// (e.g. `30d`).
+    pub(crate) aggregate_retention: Duration,
 
     /// Maximum number of nodes queried concurrently during a node refresh cycle.
     pub(crate) number_of_concurrent_node_queries: usize,
@@ -72,11 +149,65 @@ pub(crate) struct Config {
     /// batch submission (e.g. `15m`, `1h`).
     pub(crate) result_submission_interval: Duration,
 
-    /// Maximum number of stress testing results to submit in a single POST request
+    /// Maximum number of results to submit in a single POST request, applied per stream
     pub(crate) result_submission_batch_size: usize,
+
+    /// How long a node's cached on-chain standing (balance + feegrant) stays valid before it is due
+    /// to be re-queried, before jitter (e.g. `24h`).
+    pub(crate) chain_capability_refresh_interval: Duration,
+
+    /// Upper bound on the random jitter added to each node's capability re-query time, spreading the
+    /// sweep's load so a population cached together does not all fall due at once (e.g. `1h`).
+    pub(crate) chain_capability_refresh_jitter: Duration,
+
+    /// Maximum number of nodes whose on-chain standing is queried concurrently by the capability
+    /// sweep.
+    pub(crate) chain_capability_query_concurrency: NonZeroUsize,
+
+    /// Minimum on-chain balance a node must hold to count as able to transact for config scoring.
+    /// Its denom is also the denom the capability sweep queries balances in.
+    pub(crate) minimum_on_chain_balance: Coin,
+
+    /// Config-score penalty applied to a node that cannot transact on chain (balance below the
+    /// minimum and no feegrant). A fraction in `[0, 1]`; 0.2 keeps 80% of the score.
+    pub(crate) chain_interactions_penalty: f64,
 }
 
 impl Config {
+    /// How `kind` is scheduled, or `None` while it is switched off.
+    ///
+    /// The two liveness kinds share one cadence, one lease and one switch, and differ only in wave
+    /// size. A stress assignment always carries a single target.
+    fn schedule(&self, kind: TestKind) -> Option<KindSchedule> {
+        let liveness = |wave_size| {
+            self.liveness.enabled.then_some(KindSchedule {
+                kind,
+                staleness_age: self.liveness.test_interval,
+                lease_budget: self.liveness.test_timeout,
+                wave_size,
+            })
+        };
+
+        match kind {
+            TestKind::MixnodeLiveness => liveness(self.liveness.mixnode_wave_size),
+            TestKind::GatewayLiveness => liveness(self.liveness.gateway_wave_size),
+            TestKind::MixnodeStress => Some(KindSchedule {
+                kind,
+                staleness_age: self.test_interval,
+                lease_budget: self.test_timeout,
+                wave_size: 1,
+            }),
+        }
+    }
+
+    /// The schedule of every kind that is switched on, in the kinds' declaration order, which is the
+    /// order the scheduler breaks ties in.
+    pub(crate) fn schedules(&self) -> Vec<KindSchedule> {
+        TestKind::iter()
+            .filter_map(|kind| self.schedule(kind))
+            .collect()
+    }
+
     /// Builds the validator client configuration from the orchestrator config.
     /// Falls back to environment-provided network details when RPC endpoint or
     /// contract addresses are not explicitly set.
@@ -122,5 +253,84 @@ impl Config {
 
         info!("using the following config: {client_config:#?}");
         Ok(client_config)
+    }
+
+    pub(crate) fn chain_capability_config(&self) -> ChainCapabilityConfig {
+        ChainCapabilityConfig {
+            denom: self.minimum_on_chain_balance.denom.clone(),
+            ttl: self.chain_capability_refresh_interval,
+            jitter: self.chain_capability_refresh_jitter,
+            concurrency: self.chain_capability_query_concurrency,
+        }
+    }
+
+    /// Rejects a configuration whose completed-run retention does not outlast the longest
+    /// aggregation window.
+    ///
+    /// Aggregates are computed from the stored runs, so a window reaching further back than
+    /// retention would be materialised over whatever survived eviction: a plausible figure derived
+    /// from part of the evidence. The excess of retention over the window is how far back a restart
+    /// can still backfill epochs, and its sizing is left to the operator.
+    ///
+    /// Also rejects a chain interactions penalty that is not a fraction.
+    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+        let longest_window = self.aggregation_windows.longest();
+        if self.testrun_eviction_age <= longest_window {
+            bail!(
+                "testrun eviction age ({}) must be greater than the longest aggregation window ({}); \
+                 raise --testrun-eviction-age or lower the aggregation windows",
+                humantime::format_duration(self.testrun_eviction_age),
+                humantime::format_duration(longest_window),
+            );
+        }
+
+        if !(0.0..=1.0).contains(&self.chain_interactions_penalty) {
+            bail!(
+                "chain interactions penalty ({}) must be within [0, 1]",
+                self.chain_interactions_penalty
+            );
+        }
+        Ok(())
+    }
+}
+
+/// A config carrying the shipped scheduling defaults, with liveness switched as given. Everything
+/// unrelated to scheduling is a placeholder.
+#[cfg(test)]
+pub(crate) fn test_config(liveness_enabled: bool) -> Config {
+    Config {
+        nyxd_rpc_endpoint: None,
+        nym_api_endpoint: "http://localhost:8080".parse().unwrap(),
+        http_server_bind_address: "127.0.0.1:0".parse().unwrap(),
+        test_interval: Duration::from_secs(2 * 60 * 60),
+        test_timeout: Duration::from_secs(5 * 60),
+        liveness: LivenessConfig {
+            enabled: liveness_enabled,
+            test_interval: Duration::from_secs(15 * 60),
+            test_timeout: Duration::from_secs(60),
+            mixnode_wave_size: 100,
+            gateway_wave_size: 50,
+        },
+        aggregation_windows: AggregationWindows {
+            stress: Duration::from_secs(24 * 60 * 60),
+            liveness: Duration::from_secs(6 * 60 * 60),
+        },
+        database_path: PathBuf::from("unused.sqlite"),
+        node_refresh_rate: Duration::from_secs(10 * 60),
+        node_info_query_timeout: Duration::from_secs(10),
+        mixnet_contract_address: None,
+        network_monitors_contract_address: None,
+        testrun_eviction_age: Duration::from_secs(7 * 24 * 60 * 60),
+        aggregate_retention: Duration::from_secs(30 * 24 * 60 * 60),
+        number_of_concurrent_node_queries: 10,
+        chain_authorisation_check_max_attempts: NonZeroU32::MIN,
+        chain_authorisation_check_retry_delay: Duration::from_secs(1),
+        result_submission_interval: Duration::from_secs(15 * 60),
+        result_submission_batch_size: 50,
+        chain_capability_refresh_interval: Duration::from_secs(24 * 60 * 60),
+        chain_capability_refresh_jitter: Duration::from_secs(60 * 60),
+        chain_capability_query_concurrency: NonZeroUsize::new(8).unwrap(),
+        minimum_on_chain_balance: Coin::new(1_000_000u128, "unym"),
+        chain_interactions_penalty: 0.2,
     }
 }

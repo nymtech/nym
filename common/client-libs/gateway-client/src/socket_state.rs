@@ -238,7 +238,7 @@ impl PartiallyDelegatedRouter {
     ) -> Result<Option<Vec<u8>>, GatewayClientError> {
         match message {
             Message::Binary(bin_msg) => {
-                let plaintext = self.handle_binary_message(bin_msg)?;
+                let plaintext = self.handle_binary_message(bin_msg.to_vec())?;
                 Ok(Some(plaintext))
             }
             // I think that in the future we should perhaps have some sequence number system, i.e.
@@ -251,7 +251,7 @@ impl PartiallyDelegatedRouter {
                 trace!(
                     "received a text message - probably a response to some previous query! - {text}",
                 );
-                self.handle_text_message(text)?;
+                self.handle_text_message(text.to_string())?;
                 Ok(None)
             }
             _ => {

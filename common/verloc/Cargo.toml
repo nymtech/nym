@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -29,3 +28,6 @@ nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-api-requests = { workspace = true }
+
+[lints]
+workspace = true

@@ -8,7 +8,7 @@ use nym_crypto::{
 };
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_sphinx::acknowledgements::AckKey;
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use std::sync::Arc;
 use zeroize::ZeroizeOnDrop;
 
@@ -38,7 +38,7 @@ impl ClientKeys {
     /// Creates new instance of a [`ClientKeys`]
     pub fn generate_new<R>(rng: &mut R) -> Self
     where
-        R: RngCore + CryptoRng,
+        R: CryptoRng,
     {
         ClientKeys {
             identity_keypair: Arc::new(ed25519::KeyPair::new(rng)),
@@ -52,7 +52,7 @@ impl ClientKeys {
         derivation_material: &DerivationMaterial,
     ) -> Result<Self, InvalidLength>
     where
-        R: RngCore + CryptoRng,
+        R: CryptoRng,
     {
         let secret = derivation_material.derive_secret()?;
         Ok(ClientKeys {

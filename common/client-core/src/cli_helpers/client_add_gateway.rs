@@ -7,7 +7,7 @@ use crate::client::base_client::non_wasm_helpers::setup_fs_gateways_storage;
 use crate::{
     client::{
         base_client::storage::helpers::{get_all_registered_identities, set_active_gateway},
-        key_manager::persistence::OnDiskKeys,
+        key_manager::persistence::{OnDiskKeys, Passphrase},
     },
     error::ClientCoreError,
     init::types::{GatewaySelectionSpecification, GatewaySetup},
@@ -64,6 +64,7 @@ pub struct CommonClientAddGatewayArgs {
 pub async fn add_gateway<C, A>(
     args: A,
     user_agent: Option<UserAgent>,
+    key_passphrase: Option<Passphrase>,
 ) -> Result<GatewayInfo, C::Error>
 where
     A: AsRef<CommonClientAddGatewayArgs>,
@@ -76,7 +77,7 @@ where
     let core = config.core_config();
     let paths = config.common_paths();
 
-    let key_store = OnDiskKeys::new(paths.keys.clone());
+    let key_store = OnDiskKeys::with_passphrase(paths.keys.clone(), key_passphrase);
     let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
 
     // Attempt to use a user-provided gateway, if possible

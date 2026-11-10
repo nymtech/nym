@@ -12,8 +12,9 @@ use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{KeyRotationInfoResponse, NodeRefreshBody};
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nym_api::{NodesByAddressesResponse, SemiSkimmedNodesWithMetadata};
-use rand::prelude::SliceRandom;
-use rand::thread_rng;
+use nym_validator_client::nym_nodes::LpSkimmedNodesWithMetadata;
+use rand::rng;
+use rand::seq::SliceRandom;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -45,7 +46,7 @@ impl NymApisClient {
         }
 
         let mut urls = nym_apis.to_vec();
-        urls.shuffle(&mut thread_rng());
+        urls.shuffle(&mut rng());
 
         let active_client = Client::builder(urls[0].clone())?
             .no_hickory_dns()
@@ -129,6 +130,11 @@ impl NymApisClient {
             .map(Into::into)
     }
 
+    /// Every bonded node, with the noise keys only nodes use.
+    ///
+    /// What this node needs to know about the network as a whole: which addresses it will forward
+    /// to, which it can speak noise with, and the view it hands the mixnet clients it embeds. None
+    /// of that may be restricted to nodes that published LP details.
     pub(crate) async fn current_nymnodes(
         &mut self,
     ) -> Result<SemiSkimmedNodesWithMetadata, NymAPIError> {
@@ -137,6 +143,21 @@ impl NymApisClient {
             .get_all_expanded_nodes()
             .await
             .inspect_err(|err| error!("failed to get network nodes: {err}"))
+    }
+
+    /// The nodes that published LP details, which is every node an LP route can name.
+    ///
+    /// A separate listing because it describes a smaller network, and the plain one carries no LP
+    /// details to dial with. Carries no noise keys either, and needs none: LP does its own
+    /// handshake.
+    pub(crate) async fn current_lp_nymnodes(
+        &mut self,
+    ) -> Result<LpSkimmedNodesWithMetadata, NymAPIError> {
+        self.active_client()
+            .await
+            .get_all_lp_nodes_with_metadata()
+            .await
+            .inspect_err(|err| error!("failed to get LP network nodes: {err}"))
     }
 
     pub(crate) async fn query_nym_nodes_addresses(

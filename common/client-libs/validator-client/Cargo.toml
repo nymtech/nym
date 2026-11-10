@@ -6,7 +6,6 @@ authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version = "1.85"
 readme.workspace = true
@@ -28,13 +27,13 @@ nym-group-contract-common = { workspace = true }
 nym-performance-contract-common = { workspace = true }
 nym-network-monitors-contract-common = { workspace = true }
 nym-node-families-contract-common = { workspace = true }
-nym-directory-attestation = { workspace = true }
+nym-contract-attestation = { workspace = true }
 nym-directory-contract-common = { workspace = true }
 nym-geolocation-contract-common = { workspace = true }
 nym-serde-helpers = { workspace = true, features = ["hex", "base64"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["network-defaults"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
@@ -108,3 +107,5 @@ contract-testing = ["nym-mixnet-contract-common/contract-testing"]
 # Features below are added to make clippy happy, it seems like they're unused we should remove them
 tendermint-rpc-http-client = ["tendermint-rpc/http-client"]
 tendermint-rpc-websocket-client = ["tendermint-rpc/websocket-client"]
+
+[lints]

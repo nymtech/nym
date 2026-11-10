@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -17,7 +16,6 @@ async-trait = { workspace = true }
 bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw-utils = { workspace = true }
-dyn-clone = { workspace = true }
 futures = { workspace = true }
 si-scale = { workspace = true }
 thiserror = { workspace = true }
@@ -36,3 +34,5 @@ nym-metrics = { workspace = true }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-upgrade-mode-check = { workspace = true }
+
+[lints]

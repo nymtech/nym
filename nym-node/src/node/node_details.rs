@@ -16,23 +16,24 @@ use crate::node::http::state::StaticNodeInformation;
 use celes::Country;
 use nym_bin_common::bin_info_owned;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
-use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, OsRng, RngCore};
 use nym_crypto::asymmetric::encryption::DHPublicKey;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::rng::os_rng;
 use nym_kkt::keys::KEMEncapsulationKeys;
+use nym_lp::peer::LpRemotePeer;
 use nym_network_requester::{
     CustomGatewayDetails, GatewayDetails, GatewayRegistration, set_active_gateway,
     setup_fs_gateways_storage, store_gateway_details,
 };
-use nym_node_requests::api::SignedData;
-use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM, LewesProtocol};
+use nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol;
 use nym_node_requests::api::v1::node::models::NodeRoles;
+use nym_node_requests::api::{SignedData, SignedLewesProtocol};
 use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_validator_client::nyxd::AccountId;
+use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::net::IpAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -184,7 +185,10 @@ pub(crate) struct LewesProtocolDetails {
 }
 
 impl LewesProtocolDetails {
-    fn to_directory_model(&self) -> nym_directory_types::LewesProtocolDetails {
+    fn to_directory_model(
+        &self,
+        identity_key: &ed25519::PrivateKey,
+    ) -> nym_directory_types::LewesProtocolDetails {
         // KEM type -> (hash function -> raw digest bytes), stringifying the enum keys.
         let kem_key_digests = self
             .kem_keys
@@ -207,27 +211,36 @@ impl LewesProtocolDetails {
             kem_key_digests,
             control_port: self.control_port as u32,
             data_port: self.data_port as u32,
+            legacy_http_api_signature: self
+                .to_signed_http_api_model(identity_key)
+                .signature
+                .to_bytes()
+                .to_vec(),
         }
     }
 
-    pub(crate) fn compute_http_api_kem_key_hashes(
+    /// This node's LP listener, as it publishes it over its HTTP API, signed with its identity key.
+    pub(crate) fn to_signed_http_api_model(
         &self,
-    ) -> BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>> {
-        let digests = self.kem_keys.digests();
+        identity_key: &ed25519::PrivateKey,
+    ) -> SignedLewesProtocol {
+        let lewes_protocol = LewesProtocol::new(
+            self.control_port,
+            self.data_port,
+            self.x25519,
+            self.kem_keys.digests(),
+        );
 
-        // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
-        digests
-            .into_iter()
-            .map(|(kem, kem_digests)| {
-                (
-                    kem.into(),
-                    kem_digests
-                        .into_iter()
-                        .map(|(f, digest)| (f.into(), hex::encode(&digest)))
-                        .collect(),
-                )
-            })
-            .collect()
+        // SAFETY: the only way for this call to fail is if serialisation of LewesProtocol fails.
+        // however, that conversion is stable and infallible
+        #[allow(clippy::unwrap_used)]
+        SignedData::new(lewes_protocol, identity_key).unwrap()
+    }
+
+    /// This node as an LP peer, as the topology carries it, so a node's own entry says exactly
+    /// what it tells everyone else.
+    pub(crate) fn to_remote_peer(&self) -> LpRemotePeer {
+        LpRemotePeer::new(self.x25519).with_key_digests(self.kem_keys.digests())
     }
 }
 
@@ -249,7 +262,7 @@ pub struct ServiceProvidersKeys {
 }
 
 impl ServiceProvidersKeys {
-    fn initialise_client_keys<R: RngCore + CryptoRng>(
+    fn initialise_client_keys<R: CryptoRng>(
         rng: &mut R,
         typ: &str,
         ed25519_paths: nym_pemstore::KeyPairPath,
@@ -283,7 +296,7 @@ impl ServiceProvidersKeys {
         Ok(())
     }
 
-    pub async fn initialise_network_requester<R: RngCore + CryptoRng>(
+    pub async fn initialise_network_requester<R: CryptoRng>(
         rng: &mut R,
         config: &ServiceProvidersConfig,
         registration: &GatewayRegistration,
@@ -309,7 +322,7 @@ impl ServiceProvidersKeys {
         .await
     }
 
-    pub async fn initialise_ip_packet_router_requester<R: RngCore + CryptoRng>(
+    pub async fn initialise_ip_packet_router_requester<R: CryptoRng>(
         rng: &mut R,
         config: &ServiceProvidersConfig,
         registration: &GatewayRegistration,
@@ -335,7 +348,7 @@ impl ServiceProvidersKeys {
         .await
     }
 
-    pub async fn initialise_authenticator<R: RngCore + CryptoRng>(
+    pub async fn initialise_authenticator<R: CryptoRng>(
         rng: &mut R,
         config: &ServiceProvidersConfig,
         registration: &GatewayRegistration,
@@ -367,7 +380,8 @@ impl ServiceProvidersKeys {
         public_key: ed25519::PublicKey,
     ) -> Result<(), ServiceProvidersError> {
         // generate all the keys for NR, IPR and AUTH
-        let mut rng = OsRng;
+        // `ThreadRng` is not `Send`, and this rng is passed into the async initialisers below
+        let mut rng = os_rng();
 
         let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
 
@@ -554,16 +568,6 @@ impl NodeDetails {
         signing_keys: Arc<ed25519::KeyPair>,
         node_config: &Config,
     ) -> StaticNodeInformation {
-        let lewes_protocol = LewesProtocol {
-            enabled: self.modes.entry,
-            control_port: self.lewes_protocol_details.control_port,
-            data_port: self.lewes_protocol_details.data_port,
-            x25519: self.lewes_protocol_details.x25519,
-            kem_keys: self
-                .lewes_protocol_details
-                .compute_http_api_kem_key_hashes(),
-        };
-
         let x25519_versioned_noise_key = if node_config.mixnet.debug.unsafe_disable_noise {
             None
         } else {
@@ -586,11 +590,9 @@ impl NodeDetails {
             accepted_operator_terms_and_conditions: self.accepted_operator_terms_and_conditions,
         };
 
-        // SAFETY: the only way for this call to fail is if serialisation of LewesProtocol fails.
-        // however, that conversion is stable and infallible
-        #[allow(clippy::unwrap_used)]
-        let signed_lewes_protocol =
-            SignedData::new(lewes_protocol, signing_keys.private_key()).unwrap();
+        let signed_lewes_protocol = self
+            .lewes_protocol_details
+            .to_signed_http_api_model(signing_keys.private_key());
 
         StaticNodeInformation {
             ed25519_identity_keys: signing_keys,
@@ -662,6 +664,22 @@ impl NodeDetails {
 
 // methods for converting into the directory publications
 impl NodeDetails {
+    pub(crate) fn lp_remote_peer(&self) -> LpRemotePeer {
+        self.lewes_protocol_details.to_remote_peer()
+    }
+
+    pub(crate) fn lp_control_port(&self) -> u16 {
+        self.lewes_protocol_details.control_port
+    }
+
+    pub(crate) fn lp_data_port(&self) -> u16 {
+        self.lewes_protocol_details.data_port
+    }
+
+    pub(crate) fn build_version(&self) -> String {
+        self.build_information.build_version.clone()
+    }
+
     pub(crate) fn directory_node_description(&self) -> nym_directory_types::NodeDescription {
         self.description.clone().into()
     }
@@ -672,8 +690,9 @@ impl NodeDetails {
 
     pub(crate) fn directory_lewes_protocol_details(
         &self,
+        identity_key: &ed25519::PrivateKey,
     ) -> nym_directory_types::LewesProtocolDetails {
-        self.lewes_protocol_details.to_directory_model()
+        self.lewes_protocol_details.to_directory_model(identity_key)
     }
 
     pub(crate) fn directory_node_information(&self) -> nym_directory_types::NodeInformation {
@@ -688,6 +707,8 @@ impl NodeDetails {
                 .map(|country| country.alpha2.to_string()),
             ports: Some(self.external_ports.to_directory_model()),
             modes: Some(self.directory_node_modes()),
+            x25519_noise_key: self.noise_key.to_bytes().to_vec(),
+            accepted_operator_terms_and_conditions: self.accepted_operator_terms_and_conditions,
         }
     }
 
@@ -703,7 +724,6 @@ impl NodeDetails {
 
 #[cfg(test)]
 pub(crate) fn mock_node_details() -> NodeDetails {
-    let mut rng09 = nym_test_utils::helpers::deterministic_rng_09();
     let mut rng = nym_test_utils::helpers::deterministic_rng();
 
     let identity = ed25519::KeyPair::new(&mut rng);
@@ -717,10 +737,10 @@ pub(crate) fn mock_node_details() -> NodeDetails {
     let auth_x25519 = x25519::KeyPair::new(&mut rng);
     let wireguard_key = x25519::KeyPair::new(&mut rng);
 
-    let lp_key = nym_lp::peer::DHKeyPair::new(&mut rng09);
+    let lp_key = nym_lp::peer::DHKeyPair::new(&mut rng).unwrap();
     let kem_keys = nym_kkt::keys::KEMKeys::new(
-        nym_kkt::key_utils::generate_keypair_mceliece(&mut rng09),
-        nym_kkt::key_utils::generate_keypair_mlkem(&mut rng09),
+        nym_kkt::key_utils::generate_keypair_mceliece(&mut rng),
+        nym_kkt::key_utils::generate_keypair_mlkem(&mut rng),
     );
 
     NodeDetails {
@@ -766,5 +786,26 @@ pub(crate) fn mock_node_details() -> NodeDetails {
             wss_port: None,
         },
         system_info: Default::default(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prost::Message;
+
+    #[test]
+    fn legacy_lp_signature_verifies_after_directory_round_trip() {
+        let mut rng = nym_test_utils::helpers::deterministic_rng();
+        let identity = ed25519::KeyPair::new(&mut rng);
+
+        let published =
+            mock_node_details().directory_lewes_protocol_details(identity.private_key());
+        let on_chain =
+            nym_directory_types::LewesProtocolDetails::decode(published.encode_to_vec().as_slice())
+                .unwrap();
+
+        let rebuilt = SignedLewesProtocol::try_from(on_chain).unwrap();
+        assert!(rebuilt.verify(identity.public_key()));
     }
 }

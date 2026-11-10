@@ -1,7 +1,26 @@
 ---
-nymnode_log_level_max: "warning"
+enable_nymnode_logging: true
+
+# Application-level log filter. nym-node logs to stderr via `tracing` and
+# honours RUST_LOG. This is the ONLY correct way to reduce its verbosity.
+#
+# Do NOT use systemd LogLevelMax= for this: journald tags everything a service
+# writes to stdout/stderr at SyslogLevel= (default "info", priority 6), so
+# LogLevelMax=warning silently discards every line the binary emits -
+# including its own ERROR output.
+#
+#   info   - upstream default, full operational visibility (recommended)
+#   warn   - only warnings and errors
+#   error  - errors only (you lose packet counters and health-check lines)
+nymnode_rust_log: "info"
+
+# Per-unit journald rate limiting: protects against runaway log bursts.
 nymnode_rate_limit_interval: "30s"
 nymnode_rate_limit_burst: "200"
-nymnode_unit_name: "nym-node"   # set to "nym-node.service" if your distro expects it
+
+nymnode_unit_name: "nym-node"
 nymnode_dropin_dir: "/etc/systemd/system/nym-node.service.d"
 nymnode_dropin_file: "10-logging.conf"
+
+# Restart nym-node when the drop-in changes so the new settings take effect.
+nymnode_restart_on_change: true

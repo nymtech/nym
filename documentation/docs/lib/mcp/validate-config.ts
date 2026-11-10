@@ -13,7 +13,7 @@
 //     verified here; only the type checks and the privacy notes hold across
 //     versions.
 
-export type FieldType = 'string' | 'number' | 'boolean';
+export type FieldType = 'string' | 'number' | 'boolean' | 'string[]';
 
 /** SetupMixTunnelOpts fields, from the generated TypeDoc. All optional. */
 export const SETUP_MIX_TUNNEL_FIELDS: Record<string, FieldType> = {
@@ -24,10 +24,11 @@ export const SETUP_MIX_TUNNEL_FIELDS: Record<string, FieldType> = {
   disableCoverTraffic: 'boolean',
   openReplySurbs: 'number',
   dataReplySurbs: 'number',
-  primaryDns: 'string',
-  fallbackDns: 'string',
+  dohEndpoints: 'string[]',
   storagePassphrase: 'string',
   connectTimeoutMs: 'number',
+  iprAttemptTimeoutMs: 'number',
+  iprMaxAttempts: 'number',
   dnsTimeoutMs: 'number',
   tcpKeepaliveMs: 'number',
   tcpBufferSize: 'number',
@@ -64,8 +65,16 @@ export function validateSetupMixTunnelOpts(config: unknown): ValidationResult {
       );
       continue;
     }
-    if (typeof value !== expected) {
-      const got = Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value;
+    const got = Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value;
+    if (expected === 'string[]') {
+      if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
+        errors.push(`Option "${key}" should be string[], got ${got}.`);
+      } else if (value.length === 0) {
+        warnings.push(
+          `Option "${key}" is an empty array. The SDK treats that as "no endpoints", which disables the default resolvers and breaks name resolution. Omit the field to keep the defaults.`,
+        );
+      }
+    } else if (typeof value !== expected) {
       errors.push(`Option "${key}" should be ${expected}, got ${got}.`);
     }
   }

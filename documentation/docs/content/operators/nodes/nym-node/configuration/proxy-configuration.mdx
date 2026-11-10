@@ -1,0 +1,58 @@
+---
+diataxis: how-to
+---
+import Intro from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/intro.mdx'
+import ReverseProxySetup from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/reverse-proxy-setup.mdx'
+import HtmlFileCustomization from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/html-file-customization.mdx'
+import CreateTheLandingPageDirectory from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/create-the-landing-page-directory.mdx'
+import CreateHtmlLandingPage from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/create-html-landing-page.mdx'
+import EditTheEmailAddress from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/edit-the-email-address.mdx'
+import SaveAndExit from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/save-and-exit.mdx'
+import NymNodeConfiguration from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/nym-node-configuration.mdx'
+import ReverseProxyConfiguration from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/reverse-proxy-configuration.mdx'
+import ConfigureNginxAndFirewall from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/configure-nginx-and-firewall.mdx'
+import CreateTheNginxEndpointConfiguration from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/create-the-nginx-endpoint-configuration.mdx'
+import ActivateAndTestNginxConfiguration from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/activate-and-test-nginx-configuration.mdx'
+import GetAnSslCertificateUsingCertbotAndRestartNymNode from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/get-an-ssl-certificate-using-certbot-and-restart-nym-node.mdx'
+import VerifyThatYourPageIsWorking from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/verify-that-your-page-is-working.mdx'
+import WebSecureSocketSetup from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/web-secure-socket-setup.mdx'
+import FirewallConfiguration from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/firewall-configuration.mdx'
+import WssConfiguration from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/wss-configuration.mdx'
+import CreateTheNginxWssConfigurationFile from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/create-the-nginx-wss-configuration-file.mdx'
+import ActivateAndTestNginxWssConfiguration from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/activate-and-test-nginx-wss-configuration.mdx'
+import RestartNginx from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/restart-nginx.mdx'
+import AnnounceTheWssPortAndHostname from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/announce-the-wss-port-and-hostname.mdx'
+import TestWssSetup from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/test-wss-setup.mdx'
+import Troubleshooting from '@snippets/nym/operators/nodes/nym-node/configuration/proxy-configuration/troubleshooting.mdx'
+
+# Reverse Proxy & Web Secure Socket
+
+<Intro />
+<ReverseProxySetup />
+<HtmlFileCustomization />
+<Steps>
+<CreateTheLandingPageDirectory />
+<CreateHtmlLandingPage />
+<EditTheEmailAddress />
+<SaveAndExit />
+</Steps>
+<NymNodeConfiguration />
+<ReverseProxyConfiguration />
+<Steps>
+<ConfigureNginxAndFirewall />
+<CreateTheNginxEndpointConfiguration />
+<ActivateAndTestNginxConfiguration />
+<GetAnSslCertificateUsingCertbotAndRestartNymNode />
+<VerifyThatYourPageIsWorking />
+</Steps>
+<WebSecureSocketSetup />
+<FirewallConfiguration />
+<WssConfiguration />
+<Steps>
+<CreateTheNginxWssConfigurationFile />
+<ActivateAndTestNginxWssConfiguration />
+<RestartNginx />
+<AnnounceTheWssPortAndHostname />
+</Steps>
+<TestWssSetup />
+<Troubleshooting />

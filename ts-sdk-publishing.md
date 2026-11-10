@@ -126,17 +126,18 @@ Under `auto`, `publish.sh` resolves each package's tag from what is already on n
 | --- | --- |
 | version carries a prerelease suffix | `next` |
 | package is not yet on npm (`npm view` returns 404) | `latest` |
-| major matches the current `latest` major | `latest` |
-| major is higher than the current `latest` major | `next` |
+| major is the same as or higher than the current `latest` major | `latest` |
 | major is lower than the current `latest` major | `next` |
 
-A higher major goes to `next` so existing users stay on `latest` until you promote it with
-`npm dist-tag add <pkg>@<version> latest`. Once `latest` points at the new major, ordinary
-patches resolve to `latest` again on their own.
+A new major goes straight to `latest`, the same as a patch or minor. Semver shields existing
+consumers, since a `^` or `~` range caps at the major, so they do not pick up the new major
+until they change their range. A lower major (a backport) stays on `next` so it never moves
+`latest` backwards; pass an explicit `dist_tag` if you want a dedicated legacy tag. A normal
+forward release has no promote step.
 
 If `npm view` fails for any reason other than a 404, `publish.sh` aborts rather than
-guessing. Defaulting to `latest` on a network error could push a breaking major onto every
-current consumer.
+guessing. Defaulting to `latest` on a network error would tag the version without confirming
+it is a forward release, so a backport could silently move `latest` backwards.
 
 The workflow runs `pnpm sdk:build`, which rebuilds the wasm from local source
 (`build-prod-sdk.sh` calls `pnpm build:wasm`, which calls `make sdk-wasm-build`). The
@@ -262,14 +263,12 @@ This runs the full wasm and TypeScript build and a dry-run publish against your 
 versions, without merging or uploading anything.
 
 Check the "Summary of packages to publish" block in the log and confirm each resolved tag
-is the one you expect from the resolution table above, rather than assuming the four should
-match each other. Work it out per package from the versions you saw in step 1: same major
-as the published `latest` gives `latest`, a prerelease or a major that has crossed the
-published one gives `next`.
+is the one you expect from the resolution table above. A final version whose major is the
+same as or higher than the published `latest` gives `latest`; a prerelease, or a backport to
+a lower major, gives `next`.
 
-If a tag is not what you expected, fix the version. Do not force `dist_tag = latest` to
-make the four agree: on a package whose major has crossed, that moves `latest` onto the new
-major and breaks every existing consumer of the old one.
+If a tag is not what you expected, fix the version rather than forcing `dist_tag`. Forcing
+`dist_tag = latest` on a backport would move `latest` backwards onto the older major.
 
 ### 3. Merge the bump
 
@@ -292,18 +291,24 @@ described above. If a run aborts, check what actually landed on npm and publish 
 remaining packages by hand from their directories with
 `pnpm publish --access=public --no-git-checks --tag <tag>`.
 
-### 5. Promote, if you published a new major under `next`
+### 5. Promote (only a backport, or a release cut before this policy)
 
-```bash
-npm dist-tag add <pkg>@<version> latest
-```
+A normal forward release, including a new major, already resolves to `latest` under `auto`,
+so there is nothing to promote. You touch tags by hand in two cases only:
 
-Promoting does not clear the `next` tag, and nothing else does either. A `next` left behind
-from an earlier major can end up pointing at an older release than `latest`, so
-`npm i <pkg>@next` installs something staler than a bare `npm i`. Re-run the `npm view`
-loop from step 1; if a package's `next` now lags its `latest`, either move it forward or
-drop it. Note the tag name is the last argument, so advancing `next` is not the command
-above:
+  * a release published under the old "new major goes to `next`" behaviour, promoted once:
+
+    ```bash
+    npm dist-tag add <pkg>@<version> latest
+    ```
+
+  * a backport you put on `next` and now want on a dedicated legacy tag.
+
+A `next` tag, once set, is cleared by nothing. If a package carries a `next` left over from
+an older release it can end up pointing at something staler than `latest`, so
+`npm i <pkg>@next` installs an older version than a bare `npm i`. Re-run the `npm view` loop
+from step 1; if a package's `next` lags its `latest`, move it forward or drop it. The tag
+name is the last argument, so advancing `next` is not the promote command above:
 
 ```bash
 npm dist-tag add <pkg>@<version> next   # move next forward

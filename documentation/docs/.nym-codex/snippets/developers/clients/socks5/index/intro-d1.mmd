@@ -1,0 +1,31 @@
+---
+config:
+  theme: neo-dark
+  layout: elk
+---
+flowchart TB
+    subgraph Local Machine[Local Machine]
+        A[Application Logic]
+        B[Nym Socks5 Client]
+    end
+    A <-->|Bytes| B
+    B <-->|Sphinx Packets| EG
+
+    subgraph Mixnet Nodes[Mixnet Nodes]
+        EG[/Entry Gateway/]
+        M{Mix Nodes 1..3}
+        ExG[\Exit Gateway\]
+    end
+    EG <-->|Sphinx Packets| M
+    M <-->|Sphinx Packets| ExG
+
+    subgraph External Systems
+        C[Blockchain RPC]
+        D[Mail Server]
+        E[Message Server]
+        F[etc]
+    end
+    C <-->|Bytes| ExG
+    D <-->|Bytes| ExG
+    E <-->|Bytes| ExG
+    F <-->|Bytes| ExG

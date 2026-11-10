@@ -33,7 +33,7 @@ use utoipauto::utoipauto;
         nym_mixnet_contract_common::IntervalRewardParams,
         nym_mixnet_contract_common::RewardingParams,
         nym_mixnet_contract_common::reward_params::RewardedSetParams,
-        nym_config::defaults::NymNetworkDetails,
+        nym_config::defaults::v1::NymNetworkDetails,
         nym_config::defaults::ChainDetails,
         nym_config::defaults::DenomDetailsOwned,
         nym_config::defaults::ValidatorDetails,

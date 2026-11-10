@@ -4,7 +4,7 @@
 use crate::config::BaseClientConfig;
 use crate::error::WasmCoreError;
 use crate::helpers::setup_reply_surb_storage_backend;
-use crate::storage::wasm_client_traits::WasmClientStorage;
+use crate::storage::wasm_client_traits::{WasmClientStorage, WasmClientStorageError};
 use crate::storage::ClientStorage;
 use async_trait::async_trait;
 use nym_client_core::client::base_client::storage::{
@@ -13,7 +13,7 @@ use nym_client_core::client::base_client::storage::{
     },
     MixnetClientStorage,
 };
-use nym_client_core::client::key_manager::persistence::KeyStore;
+use nym_client_core::client::key_manager::persistence::{KeyStore, KeyStoreError};
 use nym_client_core::client::key_manager::ClientKeys;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
@@ -104,6 +104,18 @@ impl KeyStore for ClientStorage {
         self.store_ack_key(&keys.ack_key()).await?;
 
         Ok(())
+    }
+}
+
+impl KeyStoreError for WasmCoreError {
+    fn keys_missing(&self) -> bool {
+        matches!(
+            self,
+            WasmCoreError::ClientStorageError {
+                source: WasmClientStorageError::CryptoKeyNotInStorage { .. },
+                ..
+            }
+        )
     }
 }
 

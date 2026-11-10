@@ -16,7 +16,7 @@
       "additionalProperties": false
     },
     {
-      "description": "Returns performance of particular node for the provided epoch",
+      "description": "Returns per-kind medians and the score of particular node for exactly the provided epoch",
       "type": "object",
       "required": [
         "node_performance"
@@ -46,7 +46,7 @@
       "additionalProperties": false
     },
     {
-      "description": "Returns historical performance for particular node",
+      "description": "Returns historical performance for particular node, up to its last known epoch",
       "type": "object",
       "required": [
         "node_performance_paged"
@@ -234,6 +234,128 @@
               "minItems": 2
             }
           },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns everything rewarding uses for the node in the epoch: the resolved medians, the epoch they came from, the weights in force and the score",
+      "type": "object",
+      "required": [
+        "rewarding_inputs"
+      ],
+      "properties": {
+        "rewarding_inputs": {
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "node_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns only the score rewarding uses for the node in the epoch",
+      "type": "object",
+      "required": [
+        "rewarding_score"
+      ],
+      "properties": {
+        "rewarding_score": {
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "node_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns the last epoch the node has any measurements for",
+      "type": "object",
+      "required": [
+        "last_known_epoch"
+      ],
+      "properties": {
+        "last_known_epoch": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns the weights in force at the provided epoch",
+      "type": "object",
+      "required": [
+        "weights_at"
+      ],
+      "properties": {
+        "weights_at": {
+          "type": "object",
+          "required": [
+            "epoch_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns the weights in force at the current mixnet epoch",
+      "type": "object",
+      "required": [
+        "current_weights"
+      ],
+      "properties": {
+        "current_weights": {
+          "type": "object",
           "additionalProperties": false
         }
       },

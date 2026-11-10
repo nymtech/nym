@@ -13,7 +13,6 @@ use crate::LpError;
 use nym_lp_data::packet::LpPacket;
 
 pub mod error;
-pub mod simd;
 pub mod validator;
 
 pub use error::ReplayError;

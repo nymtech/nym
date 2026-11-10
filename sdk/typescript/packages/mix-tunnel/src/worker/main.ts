@@ -10,8 +10,27 @@ import {
   wsClose,
   setDebugLogging,
 } from '@nymproject/smolmix-wasm';
+import type { SetupOpts as WasmSetupOpts } from '@nymproject/smolmix-wasm';
 import * as Comlink from 'comlink';
-import { EventKinds, IMixTunnelWorker, LoadedEvent } from '../types';
+import { EventKinds, IMixTunnelWorker, LoadedEvent, SetupMixTunnelOpts } from '../types';
+
+// Compile-time guard: the hand-written SetupMixTunnelOpts (../types) must mirror
+// smolmix-wasm's generated SetupOpts exactly, minus the TS-only `debug` toggle
+// this worker strips before the wasm call. If the Rust SetupOpts gains, drops,
+// or retypes a field and ../types does not follow, _AssertOptsMatch stops being
+// `true` and the build fails. Type-level only, so nothing is emitted, and the
+// type-only import keeps smolmix-wasm out of the published type surface.
+type _AssertEq<A, B> = [keyof A] extends [keyof B]
+  ? [keyof B] extends [keyof A]
+    ? A extends B
+      ? B extends A
+        ? true
+        : false
+      : false
+    : false
+  : false;
+type _AssertTrue<T extends true> = T;
+type _AssertOptsMatch = _AssertTrue<_AssertEq<Omit<SetupMixTunnelOpts, 'debug'>, WasmSetupOpts>>;
 
 const postMessageWithType = <E>(event: E) => self.postMessage(event);
 

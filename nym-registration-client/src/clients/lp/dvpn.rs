@@ -5,18 +5,17 @@
 //!
 //! [`nym_lp_gateway_client`] owns the channel; this is what a client *says* over it. A registration
 //! client borrows a channel for as long as it takes to register over it, which keeps the two apart:
-//! a data-plane client wants [`LpGatewayClient`] with none of this attached.
+//! a data-plane client wants [`LpGatewayControlClient`] with none of this attached.
 
 use crate::clients::lp::bandwidth_claim::produce_bandwidth_claim;
-use crate::clients::lp::helpers::{LpFrameDeliverExt, LpFrameSendExt};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp_gateway_client::{
-    LpClientError, LpGatewayClient, NestedLpSession, Result, exponential_backoff_with_jitter,
-    extract_forwarded_response, prepare_send_packet,
+    LpClientError, LpGatewayControlClient, NestedLpSession, Result,
+    exponential_backoff_with_jitter, extract_forwarded_response, prepare_send_packet,
 };
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
@@ -24,7 +23,7 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use std::net::SocketAddr;
 use time::Duration as TimeDuration;
 use tokio::net::TcpStream;
@@ -52,13 +51,18 @@ async fn build_finalisation_request(
 
     tracing::trace!("Built dVPN registration finalisation request");
 
-    Ok(LpRegistrationRequest::new_finalise_dvpn(credential))
+    let mut request = LpRegistrationRequest::new_finalise_dvpn(credential);
+    if let Some(skew) = spend_time_skew {
+        request = request.with_spend_time_skew(skew);
+    }
+    Ok(request)
 }
 
 /// Build an initial dVPN request, returning it alongside the PSK it carries.
 fn build_initial_request<R>(
     rng: &mut R,
     wg_keypair: &x25519::KeyPair,
+    spend_time_skew: Option<TimeDuration>,
 ) -> (LpRegistrationRequest, [u8; 32])
 where
     R: Rng + CryptoRng,
@@ -67,7 +71,10 @@ where
     let mut psk = [0u8; 32];
     rng.fill_bytes(&mut psk);
 
-    let request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
+    let mut request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
+    if let Some(skew) = spend_time_skew {
+        request = request.with_spend_time_skew(skew);
+    }
     tracing::trace!("Built dVPN registration request: {request:?}");
 
     (request, psk)
@@ -124,14 +131,14 @@ fn wireguard_configuration(
 /// That is what the entry leg of a two-hop tunnel needs: it carries the exit registration first,
 /// then registers itself.
 pub struct LpDvpnRegistrationClient<'a, S = TcpStream> {
-    channel: &'a mut LpGatewayClient<S>,
+    channel: &'a mut LpGatewayControlClient<S>,
 }
 
 impl<'a, S> LpDvpnRegistrationClient<'a, S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
-    pub fn new(channel: &'a mut LpGatewayClient<S>) -> Self {
+    pub fn new(channel: &'a mut LpGatewayControlClient<S>) -> Self {
         Self { channel }
     }
 
@@ -152,7 +159,7 @@ where
     where
         R: Rng + CryptoRng,
     {
-        let (request, psk) = build_initial_request(rng, wg_keypair);
+        let (request, psk) = build_initial_request(rng, wg_keypair, spend_time_skew);
 
         let final_response = match self.exchange(request).await? {
             DvpnAnswer::Completed(config) => *config,
@@ -272,7 +279,7 @@ where
 /// of its own, so its packets ride the carrier channel. See [`NestedLpSession`].
 pub struct NestedLpDvpnRegistrationClient<'a, S = TcpStream> {
     session: &'a mut NestedLpSession,
-    carrier: &'a mut LpGatewayClient<S>,
+    carrier: &'a mut LpGatewayControlClient<S>,
 }
 
 impl<'a, S> NestedLpDvpnRegistrationClient<'a, S>
@@ -280,7 +287,10 @@ where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
     /// `carrier` is the channel to the entry gateway that forwards for `session`.
-    pub fn new(session: &'a mut NestedLpSession, carrier: &'a mut LpGatewayClient<S>) -> Self {
+    pub fn new(
+        session: &'a mut NestedLpSession,
+        carrier: &'a mut LpGatewayControlClient<S>,
+    ) -> Self {
         Self { session, carrier }
     }
 
@@ -298,7 +308,7 @@ where
         R: Rng + CryptoRng,
     {
         tracing::debug!("Building registration request for exit gateway");
-        let (request, psk) = build_initial_request(rng, wg_keypair);
+        let (request, psk) = build_initial_request(rng, wg_keypair, spend_time_skew);
 
         let final_response = match self.exchange(request).await? {
             DvpnAnswer::Completed(config) => *config,

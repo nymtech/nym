@@ -9,7 +9,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -19,8 +18,8 @@ publish = true
 nym-validator-client = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
-nym-bandwidth-fetcher = { workspace = true }
-nym-credential-storage = { workspace = true }
+nym-bandwidth-fetcher = { workspace = true, features = ["credentials"] }
+nym-credential-storage = { workspace = true, features = ["persistent-storage"] }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-ecash-time = { workspace = true }
@@ -42,8 +41,7 @@ async-trait = { workspace = true }
 bip39 = { workspace = true }
 sha2 = { workspace = true }
 rand = { workspace = true }
-rand010 = { workspace = true }
-getrandom04 = { workspace = true }
+getrandom = { workspace = true }
 semver = { workspace = true }
 reqwest = { workspace = true, features = ["rustls", "json"] }
 serde = { workspace = true, features = ["derive"] }
@@ -64,3 +62,6 @@ nym-compact-ecash = { workspace = true }
 # real NyxdGlobalDataFetcher discovers local mock nym-apis (no chain).
 nym-coconut-dkg-common = { workspace = true }
 cosmwasm-std = { workspace = true }
+
+[lints]
+workspace = true

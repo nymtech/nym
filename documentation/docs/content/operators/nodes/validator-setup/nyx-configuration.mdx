@@ -1,0 +1,42 @@
+---
+diataxis: how-to
+---
+import Intro from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/intro.mdx'
+import Automation from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/automation.mdx'
+import ValidatorSystemdAutomation from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/validator-systemd-automation.mdx'
+import CreateAnInitServiceFile from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/create-an-init-service-file.mdx'
+import StartTheValidatorAsASystemdService from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/start-the-validator-as-a-systemd-service.mdx'
+import AfterAnyChangesToTheSystemdScript from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/after-any-changes-to-the-systemd-script.mdx'
+import NymApiSystemdAutomation from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-systemd-automation.mdx'
+import NymApiCreateAnInitServiceFile from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-create-an-init-service-file.mdx'
+import NymApiStartYourApiAsASystemdService from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-start-your-api-as-a-systemd-service.mdx'
+import NymApiAfterAnyChangesToTheSystemdScript from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-after-any-changes-to-the-systemd-script.mdx'
+import NymApiEndpoints from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-endpoints.mdx'
+import ReverseProxy from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/reverse-proxy.mdx'
+import FullNodeConfiguration from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/full-node-configuration.mdx'
+import NymApiConfiguration from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-configuration.mdx'
+import ConfiguringPrometheusMetricsOptional from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/configuring-prometheus-metrics-optional.mdx'
+import ValidatorPortReference from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/validator-port-reference.mdx'
+
+# Nyx Validator & Nym API Configuration
+
+<Intro />
+<Automation />
+<ValidatorSystemdAutomation />
+<Steps>
+<CreateAnInitServiceFile />
+<StartTheValidatorAsASystemdService />
+<AfterAnyChangesToTheSystemdScript />
+</Steps>
+<NymApiSystemdAutomation />
+<Steps>
+<NymApiCreateAnInitServiceFile />
+<NymApiStartYourApiAsASystemdService />
+<NymApiAfterAnyChangesToTheSystemdScript />
+</Steps>
+<NymApiEndpoints />
+<ReverseProxy />
+<FullNodeConfiguration />
+<NymApiConfiguration />
+<ConfiguringPrometheusMetricsOptional />
+<ValidatorPortReference />

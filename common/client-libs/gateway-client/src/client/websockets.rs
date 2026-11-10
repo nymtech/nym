@@ -9,11 +9,16 @@ use std::{
     sync::Arc,
 };
 use tokio::net::TcpStream;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{Connector, MaybeTlsStream, WebSocketStream};
 use tungstenite::handshake::client::Response;
 use url::{Host, Url};
 
 use std::net::SocketAddr;
+
+// tungstenite would otherwise build a rustls config with the ambiguous default provider
+fn rustls_connector() -> Connector {
+    Connector::Rustls(nym_http_api_client::tls::rustls_client_config())
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn connect_async_with_hickory(
@@ -80,12 +85,17 @@ pub(crate) async fn connect_async_with_hickory(
         }
     }
 
-    tokio_tungstenite::client_async_tls(endpoint, stream?)
-        .await
-        .map_err(|error| GatewayClientError::NetworkConnectionFailed {
-            address: endpoint.to_owned(),
-            source: Box::new(error),
-        })
+    tokio_tungstenite::client_async_tls_with_config(
+        endpoint,
+        stream?,
+        None,
+        Some(rustls_connector()),
+    )
+    .await
+    .map_err(|error| GatewayClientError::NetworkConnectionFailed {
+        address: endpoint.to_owned(),
+        source: Box::new(error),
+    })
 }
 
 async fn connect_async_inner(
@@ -101,7 +111,13 @@ async fn connect_async_inner(
         )
         .await
     } else {
-        let (stream, response) = tokio_tungstenite::connect_async(endpoint).await?;
+        let (stream, response) = tokio_tungstenite::connect_async_tls_with_config(
+            endpoint,
+            None,
+            false,
+            Some(rustls_connector()),
+        )
+        .await?;
         #[cfg(unix)]
         if let (Some(callback), Some(fd)) = (
             connection_fd_callback.as_ref(),

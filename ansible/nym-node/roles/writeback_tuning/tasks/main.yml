@@ -1,0 +1,29 @@
+---
+# Uses builtin modules only - the rest of this playbook has no collection
+# dependencies and this role must not introduce one.
+- name: Write kernel writeback tuning
+  ansible.builtin.copy:
+    dest: "{{ writeback_sysctl_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (nym-node system-maintenance). Do not edit by hand.
+      vm.dirty_writeback_centisecs = {{ writeback_dirty_writeback_centisecs }}
+      vm.dirty_expire_centisecs = {{ writeback_dirty_expire_centisecs }}
+
+# Not fatal: on LXC/OpenVZ-backed VPS /proc/sys is read-only, so the write
+# fails there. The setting still persists for any host that can apply it.
+- name: Apply writeback settings immediately
+  ansible.builtin.command: "sysctl -p {{ writeback_sysctl_file }}"
+  register: writeback_apply
+  changed_when: false
+  failed_when: false
+
+- name: Warn if writeback settings could not be applied
+  ansible.builtin.debug:
+    msg: >-
+      NOTE: sysctl could not apply {{ writeback_sysctl_file }}
+      (rc={{ writeback_apply.rc | default('n/a') }}). This is expected on
+      container-backed VPS (LXC/OpenVZ) where /proc/sys is read-only.
+  when: (writeback_apply.rc | default(0)) != 0

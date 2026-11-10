@@ -85,7 +85,7 @@ fn bench_group_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("bench_group_operations");
     group.measurement_time(Duration::from_secs(200));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let g1 = G1Affine::generator();
     let g2 = G2Affine::generator();

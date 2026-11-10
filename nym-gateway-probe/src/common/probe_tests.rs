@@ -10,7 +10,7 @@ use crate::common::types::{
 use crate::common::wireguard::{WgTunnelConfig, run_tunnel_tests};
 use crate::common::{helpers, icmp};
 use crate::config::{NetstackArgs, Socks5Args};
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use base64::{Engine, engine::general_purpose};
 use bytes::BytesMut;
 use futures::StreamExt;
@@ -26,12 +26,12 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::DHKeyPair;
-use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayClient};
+use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
 use nym_topology::HardcodedTopologyProvider;
-use rand010::SeedableRng;
-use rand010::rngs::SysRng;
+use rand::SeedableRng;
+use rand::rngs::SysRng;
 use std::net::SocketAddr;
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
@@ -54,12 +54,10 @@ pub async fn wg_probe(
 ) -> anyhow::Result<WgProbeResults> {
     info!("attempting to use authenticator version {auth_version:?}");
 
-    let mut rng = rand::thread_rng();
-
     // that's a long conversion chain
     // (it should be simplified later...)
     // nym x25519 -> dalek x25519 -> wireguard wrapper x25519
-    let private_key = nym_crypto::asymmetric::encryption::PrivateKey::new(&mut rng);
+    let private_key = nym_crypto::asymmetric::encryption::PrivateKey::new(&mut rand::rng());
     let public_key = private_key.public_key();
 
     let authenticator_pub_key = public_key.inner().into();
@@ -179,11 +177,12 @@ pub async fn lp_registration_probe(
     let mut lp_outcome = LpProbeResults::default();
 
     // Generate X25519 keypair for this connection
-    let mut rng010 = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
-    let client_x25519_keypair = Arc::new(DHKeyPair::new(&mut rng010));
+    let mut rng010 = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
+    let client_x25519_keypair =
+        Arc::new(DHKeyPair::new(&mut rng010).map_err(|_| anyhow!("insufficient rng"))?);
 
     // Create LP registration client
-    let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
+    let mut client = LpGatewayControlClient::<TcpStream>::new_with_default_config(
         client_x25519_keypair,
         peer,
         lp_address,
@@ -192,7 +191,7 @@ pub async fn lp_registration_probe(
     );
 
     // Step 1: Perform handshake (connection is implicit in packet-per-connection model)
-    // LpGatewayClient uses packet-per-connection model - connect() is gone,
+    // LpGatewayControlClient uses packet-per-connection model - connect() is gone,
     // connection is established during handshake and registration automatically.
     info!("Performing LP handshake at {lp_address}...");
     let handshake_result =
@@ -217,8 +216,7 @@ pub async fn lp_registration_probe(
     info!("Sending LP registration request...");
 
     // Generate WireGuard keypair for dVPN registration
-    let mut rng = rand::thread_rng();
-    let wg_keypair = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rng);
+    let wg_keypair = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rand::rng());
 
     // Register using the new packet-per-connection API (returns GatewayData directly)
     let ticket_type = TicketType::V1WireguardEntry;

@@ -61,7 +61,7 @@ pub trait InboxGatewayStorage {
 }
 
 #[async_trait]
-pub trait BandwidthGatewayStorage: dyn_clone::DynClone {
+pub trait BandwidthGatewayStorage {
     async fn create_bandwidth_entry(&self, client_id: i64) -> Result<(), GatewayStorageError>;
     async fn set_expiration(
         &self,
@@ -187,7 +187,7 @@ pub trait BandwidthGatewayStorage: dyn_clone::DynClone {
 
 #[cfg(feature = "mock")]
 pub mod mock {
-    use std::{collections::HashMap, sync::Arc};
+    use std::collections::HashMap;
 
     use tokio::sync::RwLock;
 
@@ -229,7 +229,7 @@ pub mod mock {
     }
 
     #[async_trait]
-    impl BandwidthGatewayStorage for Arc<RwLock<MockGatewayStorage>> {
+    impl BandwidthGatewayStorage for RwLock<MockGatewayStorage> {
         async fn create_bandwidth_entry(&self, client_id: i64) -> Result<(), GatewayStorageError> {
             self.write().await.available_bandwidth.insert(
                 client_id,

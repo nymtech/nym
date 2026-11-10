@@ -8,6 +8,7 @@ use crate::{
 };
 use clap::Args;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
+use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
 use std::error::Error;
 use std::net::IpAddr;
 
@@ -15,6 +16,9 @@ use std::net::IpAddr;
 pub(crate) struct Run {
     #[command(flatten)]
     common_args: CommonClientRunArgs,
+
+    #[command(flatten)]
+    key_passphrase: KeyPassphraseArgs,
 
     /// Whether to not start the websocket
     #[clap(long)]
@@ -52,7 +56,11 @@ pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync
     let mut config = try_load_current_config(&args.common_args.id).await?;
     config = override_config(config, OverrideConfig::from(args.clone()));
 
-    SocketClient::new(config, args.common_args.custom_mixnet)
-        .run_socket_forever()
-        .await
+    SocketClient::new(
+        config,
+        args.common_args.custom_mixnet,
+        args.key_passphrase.key_passphrase,
+    )
+    .run_socket_forever()
+    .await
 }

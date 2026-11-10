@@ -4,8 +4,6 @@
 // TODO: combine those more closely. Perhaps into a single underlying store.
 // Like for persistent, on-disk, storage, what's the point of having 3 different databases?
 
-use rand::rngs::OsRng;
-
 use crate::client::key_manager::persistence::{InMemEphemeralKeys, KeyStore};
 use crate::client::replies::reply_storage;
 use crate::client::replies::reply_storage::ReplyStorageBackend;
@@ -19,7 +17,8 @@ use nym_credential_storage::storage::Storage as CredentialStorage;
 ))]
 use crate::{
     client::{
-        base_client::non_wasm_helpers, key_manager::persistence::OnDiskKeys,
+        base_client::non_wasm_helpers,
+        key_manager::persistence::{OnDiskKeys, Passphrase},
         replies::reply_storage::fs_backend,
     },
     config::{self, disk_persistence::CommonClientPaths},
@@ -35,13 +34,6 @@ pub use nym_client_core_gateways_storage::{GatewaysDetailsStore, InMemGatewaysDe
 pub use nym_client_core_gateways_storage::{OnDiskGatewaysDetails, StorageError};
 
 pub mod helpers;
-
-#[cfg(all(
-    not(target_arch = "wasm32"),
-    feature = "fs-surb-storage",
-    feature = "fs-gateways-storage"
-))]
-pub mod migration_helpers;
 
 // TODO: ideally this should be changed into
 // `MixnetClientStorage: KeyStore + ReplyStorageBackend + CredentialStorage + GatewaysDetailsStore`
@@ -76,7 +68,7 @@ pub struct Ephemeral {
 impl Default for Ephemeral {
     fn default() -> Self {
         Ephemeral {
-            key_store: InMemEphemeralKeys::new(&mut OsRng),
+            key_store: InMemEphemeralKeys::new(&mut rand::rng()),
             reply_store: Default::default(),
             credential_store: Default::default(),
             gateway_details_store: Default::default(),
@@ -157,8 +149,9 @@ impl OnDiskPersistent {
     pub async fn from_paths(
         paths: CommonClientPaths,
         debug_config: &config::DebugConfig,
+        key_passphrase: Option<Passphrase>,
     ) -> Result<Self, ClientCoreError> {
-        let key_store = OnDiskKeys::new(paths.keys);
+        let key_store = OnDiskKeys::with_passphrase(paths.keys, key_passphrase);
 
         let reply_store = non_wasm_helpers::setup_fs_reply_surb_backend(
             paths.reply_surb_database,

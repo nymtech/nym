@@ -66,6 +66,6 @@ A marker sits above the code it names, so it moves with the code when the code m
 
 ## In CI
 
-The `ci-spec-trace` workflow runs on each pull request. It first plants a marker with an unknown id in its checkout and checks that Tracey fails on it. Then it removes the marker and runs `tracey kill`, because a running daemon does not see a new file at once. Then it runs `tracey query validate --deny warnings`, and also fails when the output holds `CONFIG ERROR`. Last, it lists the requirements with no code or no test, and does not fail on them.
+The `ci-spec-trace` workflow runs on each pull request. It first plants a marker with an unknown id in its checkout and checks that Tracey fails on it. Then it removes the marker and runs `tracey kill`, because a running daemon does not see a new file at once. Then it runs `tracey query validate --deny warnings`, and also fails when the output holds `CONFIG ERROR`. Last, it fails on each requirement with no code or no test, and lists them in the job summary. No requirement is exempt.
 
 Tracey does not check that a marker has a code item below it.

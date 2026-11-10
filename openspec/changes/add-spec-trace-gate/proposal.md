@@ -10,7 +10,7 @@ A developer also gets no prompt before CI that a marker is broken.
 
 - The markers become the only source of the links from code to a requirement. Tracey reads them, and the coverage report asks Tracey for them. The code entries leave `edges.proposed.json`. The threat-model entries stay there for the threat-model owner to review.
 - `.config/tracey/config.styx` covers 7 specs: `sphinx-packet-format`, `client-cover-traffic`, `mix-node-delay`, `sdk-mixnet-stream`, `nym-network-monitor`, `network-monitor-config-score` and `network-monitor-epoch-performance`. For each spec it lists every code path that holds a marker for that spec.
-- A new CI job runs `tracey query validate --deny warnings` on each pull request. The job blocks the merge when a reference is broken. It reports a requirement with no code or no test, and does not fail on it.
+- A new CI job runs `tracey query validate --deny warnings` on each pull request. The job blocks the merge when a reference is broken. It also fails on a requirement with no code or no test.
 - The SDK and Network Monitor V3 specs get Tracey ids (61 requirements), then markers in their code.
 - A lefthook pre-commit job runs the same Tracey check before a commit. It never fails the commit.
 
@@ -37,7 +37,6 @@ None. The Tracey ids that the archived specs gain are lines above the requiremen
 ## Non-Goals
 
 - A check that the code still does what its requirement says. A marker shows where the code is, not what it does. The witness tests guard behaviour, and `add-codex-assurance` (A2) asks for a canary before a statement is enforced.
-- A coverage threshold. An uncovered requirement is reported, not failed, so that ids can land before their markers.
 - The other 35 specs in `openspec/specs/`, the older network monitor in `nym-api` (`network-monitor`), and `sdk-service-provider-example`.
 
 ## Dependencies

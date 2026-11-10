@@ -10,7 +10,7 @@ A hand edge names its code by `<path>#<symbol>`. That is a lookup, so a rename b
 
 So Tracey owns the code links, and the repository has no second reader of the markers. `coverage.mts` asks Tracey for the markers of each requirement with a Tracey id (`tracey query --json rule <id>`), and counts a requirement with an `impl` marker as realised and one with a `verify` marker as tested. The docs records hold no code edges for these requirements. A `realises` edge from code to a requirement in the scope, written by hand in `.nym-codex/edges.json` or `edges.proposed.json`, is an error in the records check. The edges from a requirement to the threat model are not in the code. They stay hand-written, and the threat-model owner reviews them.
 
-### T2: The gate fails on a broken reference, and reports a gap
+### T2: The gate fails on a broken reference and on a gap
 
 The blocking job fails on three faults:
 
@@ -22,9 +22,9 @@ The blocking job fails on three faults:
 
 Only the spec files and the code paths that the Tracey config names are read. A copy of a spec in an archived change, or in a MODIFIED delta of an open change, is not read, so it cannot define an id twice. A comment of the marker form outside the code paths is not read either.
 
-The job reports, and does not fail on, a requirement with no `impl` marker and a requirement with no `verify` marker. This lets the ids of a spec land before its markers, so the SDK and Network Monitor V3 work can go in steps.
+The job also fails on a requirement with no `impl` marker or no `verify` marker, and lists each one in the job summary. A gap is a fault to fix, not a report to read. A feature branch can fail this job for as long as its gaps are open, so the ids of a spec can still land before its markers there. The merge to `develop` waits until each gap is closed. No requirement is exempt: `delay.only-hop-reads`, whose code is in the `sphinx-packet` crate, needs a witness test in this repository or a move to the specs of that crate.
 
-**Checked with Tracey 1.4.0 on 2026-11-10 (task 1.1):**
+**Checked with Tracey 1.4.0 on 2026-11-10 (task 1.1).** `validate` itself does not fail on a gap, so the gaps step reads `tracey query --json uncovered` and `untested`:
 
 | Run | `tracey query validate --deny warnings` |
 |---|---|
@@ -34,7 +34,7 @@ The job reports, and does not fail on, a requirement with no `impl` marker and a
 | `r[delay.node-holds]` in a second spec | Prints `CONFIG ERROR ... Duplicate requirement 'delay.node-holds'`, then validates the old state and exits 0. The CI step fails when the output holds `CONFIG ERROR` |
 | `// r[impl sphinx.route]` after the last item of a file | Exit 0 |
 
-So an uncovered requirement does not fail the gate, and Tracey reads a marker with no version as version 1. A marker with no item below it passes. Nothing in this change catches that, and it is a cost of having one reader. The gate is Tracey (decided 2026-11-10).
+So `validate` does not fail on an uncovered requirement, and Tracey reads a marker with no version as version 1. A marker with no item below it passes. Nothing in this change catches that, and it is a cost of having one reader. The gate is Tracey (decided 2026-11-10).
 
 ### T3: The scope is a list of specs, not of code paths
 
@@ -77,7 +77,7 @@ A new workflow, `.github/workflows/ci-spec-trace.yml`, and not a step in `ci-cod
 |---|---|
 | Trigger | Each `pull_request`, with no path filter. A workflow that a path filter skips sends no status, so a required check on it stays pending and the PR cannot merge. The job is a download and a scan of the code paths, so it is short |
 | Tool | Tracey 1.4.0, `tracey-x86_64-unknown-linux-gnu.tar.xz` from the GitHub release, with its SHA-256 written in the workflow. `cargo install tracey` (1.3.0) does not build without `--locked`, so the job does not use it |
-| Command | `tracey query validate --deny warnings`, which fails on an unknown id or an old version, and a `grep` that fails on `CONFIG ERROR`. Then `tracey query uncovered` and `tracey query untested` print the gaps |
+| Command | `tracey query validate --deny warnings`, which fails on an unknown id or an old version, and a `grep` that fails on `CONFIG ERROR`. Then a step fails on each requirement with no code or no test (T2) |
 | Blocking | A required status check on `develop`, which a repository admin sets |
 
 ### T7: The advisory note at commit time

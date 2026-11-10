@@ -3,7 +3,7 @@ name: ci-spec-trace
 # The spec trace gate on each PR (openspec/changes/add-spec-trace-gate, T6).
 # Tracey reads the specs and the code paths that .config/tracey/config.styx names. The job fails
 # on a marker that names an unknown id or an old version, and on an id that two specs define.
-# A requirement with no code or no test is reported and does not fail.
+# The job also fails on a requirement with no code or no test, and lists each one.
 #
 # There is no path filter. A workflow that a path filter skips sends no status, so a required
 # check on it stays pending and the PR cannot merge.
@@ -61,7 +61,13 @@ jobs:
           ! grep -q 'CONFIG ERROR' "$RUNNER_TEMP/gate.log"
 
       - name: Gaps
-        # Reported, not failed (T2).
+        # A requirement with no impl marker or no verify marker fails the job (T2).
         run: |
-          tracey query uncovered || true
-          tracey query untested || true
+          # pipefail: if jq cannot read Tracey's output, the step fails and does not pass with an empty list.
+          set -o pipefail
+          gaps=$({ tracey query --json uncovered; tracey query --json untested; } | jq -r '.bySection[].rules[].id.base' | sort -u)
+          [ -z "$gaps" ] && exit 0
+          { echo "### Requirements with no code or no test"; echo "$gaps" | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
+          tracey query uncovered
+          tracey query untested
+          exit 1

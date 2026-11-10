@@ -33,14 +33,19 @@ A CI job SHALL run Tracey on each pull request. It SHALL read only the spec file
 - **WHEN** a spec changes `r[sphinx.route]` to `r[sphinx.route+2]` and a marker still names `sphinx.route`
 - **THEN** the job fails and names the marker
 
-### Requirement: The gate reports a gap without failing
+### Requirement: The gate fails on a gap
 
-The job SHALL report each requirement in the scope that has no `impl` marker, and each that has no `verify` marker. It SHALL NOT fail because of them.
+The job SHALL fail on each requirement in the scope that has no `impl` marker or no `verify` marker, and SHALL list each one. No requirement SHALL be exempt.
 
 #### Scenario: A spec gains ids before its markers
 
 - **WHEN** a pull request adds Tracey ids to `sdk-mixnet-stream` and no code names them yet
-- **THEN** the job passes and reports each new requirement as having no code and no test
+- **THEN** the job fails and lists each new requirement as having no code and no test
+
+#### Scenario: A witness test loses its marker
+
+- **WHEN** a pull request removes the only `verify` marker of `sphinx.size-classes`
+- **THEN** the job fails and names `sphinx.size-classes`
 
 ### Requirement: The gate covers the specs in the scope and every path of their markers
 

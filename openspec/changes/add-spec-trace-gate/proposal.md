@@ -9,8 +9,8 @@ A developer also gets no prompt before CI that a marker is broken.
 ## What Changes
 
 - The markers become the only source of the links from code to a requirement. Tracey reads them, and the coverage report asks Tracey for them. The code entries leave `edges.proposed.json`. The threat-model entries stay there for the threat-model owner to review.
-- `.config/tracey/config.styx` covers 7 specs: `sphinx-packet-format`, `client-cover-traffic`, `mix-node-delay`, `sdk-mixnet-stream`, `nym-network-monitor`, `network-monitor-config-score` and `network-monitor-epoch-performance`. For each spec it lists every code path that holds a marker for that spec.
-- A new CI job runs `tracey query validate --deny warnings` on each pull request. The job blocks the merge when a reference is broken. It also fails on a requirement with no code or no test.
+- `.config/tracey/config.styx` covers 7 specs: `sphinx-packet-format`, `client-cover-traffic`, `mix-node-delay`, `sdk-mixnet-stream`, `nym-network-monitor`, `network-monitor-config-score` and `network-monitor-epoch-performance`. It lists every code path that holds a marker for one of these specs.
+- A new CI job runs `tracey query validate --deny warnings` on each pull request. The job blocks the merge when a reference is broken. It also fails on a requirement with no code, no test or no `r[id]` line.
 - The SDK and Network Monitor V3 specs get Tracey ids (61 requirements), then markers in their code.
 - A lefthook pre-commit job runs the same Tracey check before a commit. It never fails the commit.
 
@@ -26,8 +26,9 @@ None. The Tracey ids that the archived specs gain are lines above the requiremen
 
 ## Impact
 
-- `.config/tracey/config.styx`: 7 specs with their code paths. `gateway/**` joins the paths, so the `delay.gateways-no-delay` marker counts.
+- `.config/tracey/config.styx`: 7 specs, and the code paths that hold their markers. `gateway/**` joins the paths, so the `delay.gateways-no-delay` marker counts.
 - `.github/workflows/ci-spec-trace.yml` (new): installs Tracey 1.4.0 from its release, checks its SHA-256, and runs the check.
+- `tools/internal/spec-trace-gaps.sh` (new): lists each gap. CI and lefthook run it.
 - `lefthook.yml`: one advisory pre-commit job.
 - `documentation/docs/lib/snippets/`: `coverage.mts` asks Tracey for the markers of each traced requirement. `records.mts` fails on a hand-written code edge to a traced requirement. The spike `tracey.mts` goes.
 - `openspec/changes/add-mixnet-core-specs/edges.proposed.json`: loses its code entries.

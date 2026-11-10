@@ -57,15 +57,16 @@ A marker sits above the code it names, so it moves with the code when the code m
 
 ## How to run it
 
-1. Install the Tracey version that `TRACEY_VERSION` in `.github/workflows/ci-spec-trace.yml` names, from the [release page](https://github.com/bearcove/tracey/releases): download `tracey-x86_64-unknown-linux-gnu.tar.xz` and its `.sha256` file, check it with `sha256sum -c`, and put the binary on your `PATH`.
+1. Install the Tracey version that `TRACEY_VERSION` in `.github/workflows/ci-spec-trace.yml` names, from the [release page](https://github.com/bearcove/tracey/releases): download `tracey-x86_64-unknown-linux-gnu.tar.xz`, check it against `TRACEY_SHA256` in the same workflow with `echo "<TRACEY_SHA256>  tracey-x86_64-unknown-linux-gnu.tar.xz" | sha256sum -c -`, and put the binary on your `PATH`.
 2. From the repository root, run the commands in "What you can ask". For an id that two specs define, Tracey prints `CONFIG ERROR` and exits 0, so read the output.
 3. Run `tracey web --open` for a dashboard of the specs with their coverage.
-4. A lefthook pre-commit job runs `tracey query validate --deny warnings` when `tracey` is on your `PATH`. It prints the result and never fails the commit.
-5. For an agent, run `tracey ai --claude` (or `--codex`) once. It registers the `tracey mcp` server with the agent and installs the Tracey skill. The agent can then ask `tracey_rule` for the code and tests of a requirement, and `tracey_validate` for broken references. The docs MCP on the docs site does not hold these links.
-6. In the editor, `tracey lsp` shows the requirement that a marker names.
+4. Run `tools/internal/spec-trace-gaps.sh` to list each requirement with no code, no test or no `r[id]` line. It needs `jq`.
+5. A lefthook pre-commit job runs `tracey query validate --deny warnings` and the gaps script when `tracey` is on your `PATH`. It prints the results and never fails the commit.
+6. For an agent, run `tracey ai --claude` (or `--codex`) once. It registers the `tracey mcp` server with the agent and installs the Tracey skill. The agent can then ask `tracey_rule` for the code and tests of a requirement, and `tracey_validate` for broken references. The docs MCP on the docs site does not hold these links.
+7. In the editor, `tracey lsp` shows the requirement that a marker names.
 
 ## In CI
 
-The `ci-spec-trace` workflow runs on each pull request. It first plants a marker with an unknown id in its checkout and checks that Tracey fails on it. Then it removes the marker and runs `tracey kill`, because a running daemon does not see a new file at once. Then it runs `tracey query validate --deny warnings`, and also fails when the output holds `CONFIG ERROR`. Last, it fails on each requirement with no code or no test, and lists them in the job summary. No requirement is exempt.
+The `ci-spec-trace` workflow runs on each pull request. It first plants three faults in its checkout: a marker with an unknown id, a requirement with no marker, and a requirement with no `r[id]` line. It checks that Tracey fails on the first and that the gaps script names the other two. Then it removes the planted files and runs `tracey kill`, because a running daemon does not see a new file at once. Then it runs `tracey query validate --deny warnings`, and also fails when the output holds `CONFIG ERROR`. Last, it runs `tools/internal/spec-trace-gaps.sh`, which fails on each requirement with no code, no test or no `r[id]` line, and lists them in the job summary. No requirement is exempt.
 
 Tracey does not check that a marker has a code item below it.

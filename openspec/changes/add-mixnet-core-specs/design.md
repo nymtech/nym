@@ -66,13 +66,15 @@ The specs do not claim:
 
 ## What has a witness, and what does not
 
+This section gives the state on 2026-11-04. The last paragraph gives what changed on 2026-11-10.
+
 | Spec | Requirements with a test in this repository | Requirements with no test |
 |---|---|---|
 | `sphinx-packet-format` | Frame rejection of a future version, of an unknown size tag (the test uses 255), and of an unknown packet type (`header_decoding_will_reject_future_versions`, `decoding_will_fail_for_unknown_packet_size`, `decoding_will_fail_for_unknown_packet_type` in `common/nymsphinx/framing/src/packet.rs`) | The byte totals, the three-mix route, the replay drop, the MAC rejection, the rejection of the Outfox tags 6 and 7, and of a version below 7. `header_encoding_reserves_enough_bytes_for_full_sphinx_packet_` compares a capacity with the value that sets it, so it cannot fail and is not a witness |
 | `client-cover-traffic` | The cover prefix check (`is_cover_*` tests in `common/nymsphinx/cover/src/lib.rs`) | The streams, the defaults, the presets, the send schedule |
 | `mix-node-delay` | None in this repository. The `sphinx-packet` crate tests that hops decode their delays | All six |
 
-This branch also adds tests for five requirements, each with a comment that names the requirement:
+On 2026-11-04, this change added tests for five requirements, each with a comment that names the requirement:
 
 | Requirement | Test |
 |---|---|
@@ -124,6 +126,6 @@ Each requirement has a Tracey id (`r[...]` above its text). The code carries `//
 
 | Risk | Answer |
 |---|---|
-| The code changes and a spec goes stale | Each requirement names its code as `<path>#<symbol>`. When the edges are accepted, the extractor fails on a symbol that no longer exists |
+| The code changes and a spec goes stale | Each requirement has a Tracey id, and its markers move with the code. The CI gate of `add-spec-trace-gate` fails on a marker that names an unknown id or an old version, and on a requirement with no code or no test |
 | A reader takes a requirement with a condition as a guarantee | The condition is in the text of the requirement, and this document lists each one |
 | The threat-model links are wrong | They are proposals. The owner reviews each one (task 2.1) |

@@ -7,7 +7,7 @@ The links from code to a requirement in the scope SHALL come from Tracey markers
 #### Scenario: A renamed function keeps its link
 
 - **WHEN** a commit renames a function that carries `// r[impl sphinx.ack-packet]` on the line above it
-- **THEN** the records still have a `realises` edge from the renamed function to `sphinx.ack-packet`
+- **THEN** `tracey query rule sphinx.ack-packet` and the coverage report give the marker at its new line
 
 #### Scenario: A hand-written code edge is rejected
 
@@ -35,7 +35,7 @@ A CI job SHALL run Tracey on each pull request. It SHALL read only the spec file
 
 ### Requirement: The gate fails on a gap
 
-The job SHALL fail on each requirement in the scope that has no `impl` marker or no `verify` marker, and SHALL list each one. No requirement SHALL be exempt.
+The job SHALL fail on each requirement in the scope that has no `impl` marker or no `verify` marker, and on each requirement block with no `r[id]` line in a spec that has `r[id]` lines. It SHALL list each one. No requirement SHALL be exempt.
 
 #### Scenario: A spec gains ids before its markers
 
@@ -47,9 +47,14 @@ The job SHALL fail on each requirement in the scope that has no `impl` marker or
 - **WHEN** a pull request removes the only `verify` marker of `sphinx.size-classes`
 - **THEN** the job fails and names `sphinx.size-classes`
 
+#### Scenario: A requirement has no id
+
+- **WHEN** a pull request adds a requirement to `mix-node-delay` with no `r[id]` line
+- **THEN** the job fails and names the spec file and the requirement
+
 ### Requirement: The gate covers the specs in the scope and every path of their markers
 
-The Tracey config SHALL list the specs `sphinx-packet-format`, `client-cover-traffic`, `mix-node-delay`, `sdk-mixnet-stream`, `nym-network-monitor`, `network-monitor-config-score` and `network-monitor-epoch-performance`. For each spec, it SHALL list every code path that holds a marker for that spec. When `add-mixnet-core-specs` is archived, the config SHALL name the archived spec files in the same commit.
+The Tracey config SHALL list the specs `sphinx-packet-format`, `client-cover-traffic`, `mix-node-delay`, `sdk-mixnet-stream`, `nym-network-monitor`, `network-monitor-config-score` and `network-monitor-epoch-performance`. It SHALL list every code path that holds a marker for one of these specs. When `add-mixnet-core-specs` is archived, the config SHALL name the archived spec files in the same commit.
 
 #### Scenario: A marker in the gateway counts
 
@@ -63,16 +68,21 @@ The Tracey config SHALL list the specs `sphinx-packet-format`, `client-cover-tra
 
 ### Requirement: The gate fails on its own canary
 
-Before the gate runs on the repository, the CI job SHALL add a marker with an unknown id to a code path in its own checkout, and run the gate. The job SHALL fail unless that run fails and names the planted id. The job SHALL then remove the marker and stop the Tracey daemon, so that the gate reads the checkout again.
+Before the gate runs on the repository, the CI job SHALL add a marker with an unknown id to a code path in its own checkout, and a spec file with a requirement that no marker names and a requirement with no `r[id]` line. It SHALL then run the gate and the gaps check. The job SHALL fail unless both fail and name the planted id and the two planted requirements. The job SHALL then remove the files and stop the Tracey daemon, so that the gate reads the checkout again.
 
 #### Scenario: The gate stops catching unknown ids
 
 - **WHEN** a change to the gate command or its config makes it pass a marker with an unknown id
 - **THEN** the canary step fails
 
+#### Scenario: The gaps check stops reading Tracey
+
+- **WHEN** a change to Tracey's JSON output makes the gaps check read an empty list
+- **THEN** the canary step fails, because the check does not name `canary.gap`
+
 ### Requirement: A commit runs the reference check first
 
-A lefthook pre-commit job on staged Rust files SHALL run the Tracey reference check and print its result. The job SHALL exit 0 in each case, including when `tracey` is missing.
+A lefthook pre-commit job on staged Rust and Markdown files SHALL run the Tracey reference check and the gaps check, and print their results. The job SHALL exit 0 in each case, including when `tracey` is missing.
 
 #### Scenario: A commit adds a broken marker
 

@@ -1,4 +1,4 @@
-The PR of `max/mixnet-core-specs` holds sections 1, 2, 3 and 6. Sections 4, 5 and 7 land in later PRs.
+Sections 1, 2, 3 and 6 come first. Sections 4, 5 and 7 come in later pull requests.
 
 ## 1. Check what the gate fails on
 
@@ -14,9 +14,10 @@ The PR of `max/mixnet-core-specs` holds sections 1, 2, 3 and 6. Sections 4, 5 an
 ## 3. The config and the gate
 
 - [x] 3.1 `.config/tracey/config.styx`: the three core specs with the code paths of T3, including `gateway/**`. Done 2026-11-09. SDK and Network Monitor V3 paths join in 4.2 and 5.3.
-- [x] 3.2 `.github/workflows/ci-spec-trace.yml`, as in T6, with Tracey 1.4.0 and its SHA-256. Written 2026-11-10. The workflow has not run on GitHub yet: the first PR run checks it.
-- [x] 3.3 The canary of T8: the CI job plants an unknown id in its checkout and expects Tracey to fail and name it. Done 2026-11-10. Task 1.1 run 2 is the same check by hand.
+- [x] 3.2 `.github/workflows/ci-spec-trace.yml`, as in T6, with Tracey 1.4.0 and its SHA-256. Written 2026-11-10. The first runs on GitHub showed that the canary must run before the gate (T8).
+- [x] 3.3 The canary of T8: the CI job plants an unknown id in its checkout and expects Tracey to fail and name it. Done 2026-11-10. Task 1.1 run 2 is the same check by hand. The canary also plants a requirement with no marker and one with no `r[id]` line, and expects the gaps script to name both.
 - [ ] 3.4 Ask a repository admin to make `ci-spec-trace` a required check on `develop`.
+- [x] 3.5 `tools/internal/spec-trace-gaps.sh` lists each gap of T2, including a requirement block with no `r[id]` line. The gaps step, the canary and lefthook run it.
 
 ## 4. The SDK spec
 
@@ -33,7 +34,7 @@ The PR of `max/mixnet-core-specs` holds sections 1, 2, 3 and 6. Sections 4, 5 an
 
 ## 6. The check at commit time
 
-- [x] 6.1 A lefthook pre-commit job runs `tracey query validate --deny warnings` on staged Rust files. It always exits 0, and it prints one line and exits 0 when `tracey` is missing. Done 2026-11-10.
+- [x] 6.1 A lefthook pre-commit job runs `tracey query validate --deny warnings` and the gaps script on staged Rust and Markdown files. It always exits 0, and it prints one line and exits 0 when `tracey` is missing. Done 2026-11-10.
 
 ## 7. When add-mixnet-core-specs is archived
 

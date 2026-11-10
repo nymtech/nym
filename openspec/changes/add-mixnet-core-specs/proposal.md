@@ -10,7 +10,7 @@ The gap breaks the chain from code to the reason the code exists at its most imp
   - `sphinx-packet-format`: size classes, the route, what a node learns, payload padding, frame rejection, replay protection, and acknowledgement packets.
   - `client-cover-traffic`: the loop cover stream, the main stream and its cover slots, the shared format of cover and real packets, the defaults, the settings that turn cover off, and the conditions that lower the send rate.
   - `mix-node-delay`: the per-hop delay that the sender draws, where it lives in the header, the delays of acknowledgements, replies and cover, how a node holds a packet, the cap, and the settings that remove the delay.
-- Each requirement names the code that realises it, as `<path>#<symbol>`.
+- Each requirement has a Tracey id. `// r[impl <id>]` markers name the code that realises it, and `// r[verify <id>]` markers name its witness tests.
 - Propose `realises` and `mitigates` edges from the requirements to the threat model, in `edges.proposed.json`. The threat-model owner reviews them before they go into `.nym-codex/edges.json`. The links from code to the requirements are Tracey markers in the code (`add-spec-trace-gate`, T1).
 - Record in `design.md` what the specs do not promise: a trust table, the conditions under which each protection is absent, explicit non-goals, and what has a test against what has none.
 - Record five findings for the code owners, where code and comments disagree or a setting has no effect.
@@ -29,8 +29,8 @@ None.
 
 ## Impact
 
-- New spec files only. No product code changes.
-- After the owner reviews the edges and the change is archived, the coverage report can show 21 new requirements. 13 have a proposed `realises` or `mitigates` edge to the threat model, and 8 state that they serve none. 20 of the 21 have `impl` markers (50 links). The 21st, the delay-encoding requirement, cites only the `sphinx-packet` crate, which is not in this repository. A trial run on 2026-11-04 applied the specs and the edges, built the records with no error, and ran the coverage report: 13 requirements link to the threat model, 20 have code that realises them, and 12 complete chains go from code to the threat model, from 0 today. On 2026-11-04, the extractor's own matcher (`items()` and `matchSymbol()` in `documentation/docs/lib/retrieval/items.mjs`) resolved each of the 44 distinct code anchors to exactly one item. The full records check runs when the accepted edges move into `edges.json`.
+- New spec files, marker comments and witness tests. No product behaviour changes.
+- After the owner reviews the edges and the change is archived, the coverage report can show 21 new requirements. 13 have a proposed `realises` or `mitigates` edge to the threat model, and 8 state that they serve none. Each of the 21 has an `impl` marker and a `verify` marker (2026-11-10). A trial run on 2026-11-04 applied the specs and the edges, built the records with no error, and ran the coverage report: 13 requirements link to the threat model, 20 have code that realises them, and 12 complete chains go from code to the threat model, from 0 today. That run used hand-written code edges, which the markers have since replaced. The full records check runs when the accepted edges move into `edges.json`.
 - `add-codex-assurance` uses these requirements for its first statements with a witness and a canary. Each one has a witness test (see `design.md`), and each starts as `asserted` until a person promotes it.
 
 ## Non-Goals

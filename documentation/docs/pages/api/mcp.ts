@@ -19,9 +19,9 @@ import path from 'node:path';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { buildMcpServer } from '../../lib/mcp/build-server';
 import { createTools, type McpTool } from '../../lib/mcp/tools';
-import type { DocIndex } from '../../packages/retrieval-indexer/types';
+import type { DocIndex } from '@nymproject/retrieval-indexer/types';
 // allowJs resolves the plain-ESM embed module; types are inferred from the .mjs.
-import { voyageProvider, embedQuery } from '../../packages/retrieval-indexer/embed.ts';
+import { voyageProvider, embedQuery } from '@nymproject/retrieval-indexer/embed';
 
 // Heavy, immutable state: loaded once per serverless instance (cold start).
 const INDEX_PATH = path.join(process.cwd(), 'public/docs-index.json');

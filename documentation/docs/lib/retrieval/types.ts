@@ -2,7 +2,7 @@
 // (codex, the docs site, the index). See openspec/changes/add-codex-snippets.
 //
 // The retrieval index types (pages, chunks, the index file) live in
-// packages/retrieval-indexer/types.ts.
+// @nymproject/retrieval-indexer (types).
 
 export type SnippetKind = "prose" | "code" | "diagram" | "model";
 

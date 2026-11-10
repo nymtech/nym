@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { fenceTracker } from '../../packages/retrieval-indexer/mdx.ts';
+import { fenceTracker } from '@nymproject/retrieval-indexer/mdx';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPTS = path.resolve(HERE, '../../../scripts/next-scripts');

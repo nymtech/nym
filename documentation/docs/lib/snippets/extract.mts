@@ -8,22 +8,13 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { CITATION, fenceTracker } from '../../packages/retrieval-indexer/mdx.ts';
-import { items, matchSymbol } from '../../packages/retrieval-indexer/items.ts';
+import { CITATION, fenceTracker } from '@nymproject/retrieval-indexer/mdx';
+import { items, matchSymbol, type Item } from '@nymproject/retrieval-indexer/items';
 import type { Snippet } from '../retrieval/types.ts';
 import type { Repo } from './repo.mts';
 import { loadEdges } from './edges.mts';
 
 const LANGS: Record<string, string> = { '.rs': 'rust' };
-
-/** An item of a source file, as items.mjs returns it. */
-interface Item {
-  name: string;
-  qualifiedName: string;
-  kind: string;
-  startLine: number;
-  endLine: number;
-}
 
 export interface CodeCitation {
   id: string;

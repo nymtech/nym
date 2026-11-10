@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { slug } from 'github-slugger';
-import { fenceTracker } from '../../packages/retrieval-indexer/mdx.ts';
+import { fenceTracker } from '@nymproject/retrieval-indexer/mdx';
 import type { Snippet } from '../retrieval/types.ts';
 import type { Repo } from './repo.mts';
 import { openRepo } from './repo.mts';

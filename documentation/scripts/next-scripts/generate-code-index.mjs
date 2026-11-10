@@ -16,20 +16,20 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { chunkCodeFile } from "../../docs/packages/retrieval-indexer/code-chunker.ts";
+import { chunkCodeFile } from "@nymproject/retrieval-indexer/code-chunker";
 import {
   voyageProvider,
   embedChunks,
   resolveEmbedKey,
   loadCache,
   saveCache,
-} from "../../docs/packages/retrieval-indexer/embed.ts";
+} from "@nymproject/retrieval-indexer/embed";
 import {
   assertNoSilentDrops,
   assertRootsYieldChunks,
   collectSourceFiles,
   MAX_FILE_BYTES,
-} from "../../docs/packages/retrieval-indexer/walk.ts";
+} from "@nymproject/retrieval-indexer/walk";
 import { ROOTS } from "../../indexed-sources.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

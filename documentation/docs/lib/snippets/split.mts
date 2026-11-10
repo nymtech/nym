@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import GithubSlugger from 'github-slugger';
-import { HEADING_ANCHOR, fenceTracker } from '../../packages/retrieval-indexer/mdx.ts';
+import { HEADING_ANCHOR, fenceTracker } from '@nymproject/retrieval-indexer/mdx';
 import { REPO_ROOT, CODEX_DIR, routeOf, openRepo, siteConfig } from './repo.mts';
 
 const CUT = /^(#{2,4})\s+(.+?)\s*$/;

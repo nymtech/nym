@@ -6,8 +6,8 @@
 // `sources` restricts results to a subset of the index; the MCP omits it and
 // sees everything.
 
-import type { DocIndex, EmbeddedChunk, SearchHit } from '../../packages/retrieval-indexer/types';
-import { TEST_SCORE_PENALTY } from '../../packages/retrieval-indexer/code-chunker.ts';
+import type { DocIndex, EmbeddedChunk, SearchHit } from '@nymproject/retrieval-indexer/types';
+import { TEST_SCORE_PENALTY } from '@nymproject/retrieval-indexer/code-chunker';
 
 /** Cosine similarity, guarding against zero-length vectors. */
 export function cosineSimilarity(a: number[], b: number[]): number {

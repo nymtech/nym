@@ -52,6 +52,7 @@
     "@nymproject/mix-fetch": "^2.1.1",
     "@nymproject/mix-tunnel": "^0.2.1",
     "@nymproject/mix-websocket": "^0.2.1",
+    "@nymproject/retrieval-indexer": "github:mfahampshire/shared-index-spike#f68b499c80a57f663f363e5229f5afe07961537c&path:/packages/retrieval-indexer",
     "@nymproject/sdk-full-fat": ">=1.5.1-rc.0 || ^1.4.1",
     "@redocly/cli": "^1.25.15",
     "@types/mdx": "^2.0.13",

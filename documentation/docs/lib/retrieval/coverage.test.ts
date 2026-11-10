@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseFrontmatter, stripMdx, inlineMdxPartials, resolveImport } from '../../packages/retrieval-indexer/mdx.ts';
+import { parseFrontmatter, stripMdx, inlineMdxPartials, resolveImport } from '@nymproject/retrieval-indexer/mdx';
 // @ts-expect-error - plain ESM JS module
 import { loadSnippets, composeOptions } from './pages-source.mjs';
 import { openRepo } from '../snippets/repo.mts';

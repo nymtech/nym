@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fenceTracker } from '../../packages/retrieval-indexer/mdx.ts';
+import { fenceTracker } from '@nymproject/retrieval-indexer/mdx';
 import { REPO_ROOT, CODEX_DIR } from './repo.mts';
 
 // `a/b`, `a/b.rs`, `a/b/`: no space, no scheme, at least one slash.

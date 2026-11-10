@@ -23,8 +23,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { chunkPages } from '../../docs/packages/retrieval-indexer/chunker.ts';
-import { voyageProvider, embedChunks, resolveEmbedKey, loadCache, saveCache } from '../../docs/packages/retrieval-indexer/embed.ts';
+import { chunkPages } from '@nymproject/retrieval-indexer/chunker';
+import { voyageProvider, embedChunks, resolveEmbedKey, loadCache, saveCache } from '@nymproject/retrieval-indexer/embed';
 import { PAGES_DIR, PUBLIC_DIR, SITE_URL, collectPages, loadSnippets } from '../../docs/lib/retrieval/pages-source.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 

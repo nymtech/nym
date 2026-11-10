@@ -11,7 +11,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseFrontmatter, HEADING_ANCHOR, CITATION, fenceTracker, frontmatterLines } from '../../packages/retrieval-indexer/mdx.ts';
+import { parseFrontmatter, HEADING_ANCHOR, CITATION, fenceTracker, frontmatterLines } from '@nymproject/retrieval-indexer/mdx';
 import type { Authority, RefRel, Snippet, SnippetRef } from '../retrieval/types.ts';
 import type { Repo, SnippetImport } from './repo.mts';
 import { openRepo, snippetImports, pageFiles, citationText, pageLinks, CODEX_DIR } from './repo.mts';

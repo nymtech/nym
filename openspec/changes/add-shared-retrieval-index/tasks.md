@@ -17,7 +17,7 @@
 ## 3. Shared indexer package
 
 - [x] 3.1 Extract the package modules in the decision 4 table (`code-chunker`, `items`, `chunker`, the generic half of `mdx`, `embed`, `types`, the code walk) into `@nymproject/retrieval-indexer` as TypeScript; parametrise site URL, deep-link base, roots, cache name. nym consumers, including the Next-compiled `pages/api/mcp.ts` and `lib/archetypes/inline.mts`, import the package; the vectorless docs and code indexes stay byte-identical (timestamp aside) across the move. Done in nym: the one-version pin across producers is task 3.6. Version the package and pin one version across all producers (the public CIs and the private-infra pipeline), so both pipelines chunk a given source identically and a shared id means the same text
-- [ ] 3.2 Add the Postgres upsert module (content-hash skip keyed on embed text + model + dim, per-shard delete of stale rows, last-run timestamp per shard; upsert and delete commit in one transaction per run). Written: `store.ts` (`indexShard`, `SCHEMA`), unverified against Postgres; the round-trip test `store.test.ts` waits on `@electric-sql/pglite`
+- [ ] 3.2 Add the Postgres upsert module (content-hash skip keyed on embed text + model + dim, per-shard delete of stale rows, last-run timestamp per shard; upsert and delete commit in one transaction per run). Written: `store.ts` in the package (`indexShard`, `indexShards`, `SCHEMA`), unverified against Postgres; its round-trip test `src/store.test.ts` runs once the package's dependencies (PGlite among them) are installed
 - [x] 3.3 Keep nym projections in-repo, passed through the `expand` seam
 - [ ] 3.4 Port the existing retrieval tests; add an upsert round-trip test
 - [ ] 3.5 Code chunker in the package uses tree-sitter (design decision 10), covering every language present in producer roots through its grammars; the docs chunker stays heading-based. (The spike already proved coverage and the gate with a line-regex chunker for Rust, TS/JS, Kotlin, Swift, Go, and Python; the package generalises that to tree-sitter, which also reaches C/C++ and multiline signatures the line regex cannot.)
@@ -27,7 +27,7 @@
   - [x] 3.5.4 Make the drop report a fail-closed build gate: a source-like extension neither chunked nor on the accept-drop set fails CI, so a new language cannot silently index to zero
   - [ ] 3.5.5 Demote test-path chunks at rank time (a score penalty, not exclusion), so a test module cannot outrank the production code it exercises. Evidence: 0a query 1, where a speedtest tool's `mod tests` outranked the canonical `FragmentPreparer` send path (shared-index-spike/EXPERIMENTS.md 0a). Built: the package flags test chunks (`test: true`; a test directory, a test file name, or a Rust `mod tests` block) and search subtracts `TEST_SCORE_PENALTY` (0.05, uncalibrated). Left: calibrate the penalty on the 0a query
 
-- [ ] 3.6 Publish the package: choose the registry (npm under `@nymproject` or GitHub Packages) and add a `tsc` emit, since Node does not strip types under `node_modules`. Gates 6.1 and 6.2, whose producers are other repos
+- [ ] 3.6 Publish the package: move the `shared-index` repository to the nymtech org (or make it public) so nym's CI and Vercel can fetch the pinned git dependency; later choose a registry (npm under `@nymproject` or GitHub Packages) to replace the pin. The `tsc` emit is in place (`prepare`). Gates 6.1 and 6.2, whose producers are other repos
 
 ## 4. Infrastructure
 

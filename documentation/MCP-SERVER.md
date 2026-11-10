@@ -55,7 +55,7 @@ The `build` script runs the generators before `next build`, in this order: `gene
 
 ### Chunking
 
-Pages are split into **heading-scoped chunks** rather than fixed-size windows, so a chunk is a section a reader would recognise and can be cited by its own anchor. Four things the chunker (`packages/retrieval-indexer/chunker.ts`) has to get right:
+Pages are split into **heading-scoped chunks** rather than fixed-size windows, so a chunk is a section a reader would recognise and can be cited by its own anchor. Four things the chunker (`@nymproject/retrieval-indexer`, `chunker`) has to get right:
 
 - **Fence awareness.** A `## comment` inside a bash example is not a heading. Both the MDX strip and the heading split track fence state, so code blocks never create false section boundaries.
 - **Anchor de-duplication.** CLI pages repeat "Options" and "Usage" once per subcommand, so naive slugs collide and every deep link points at the first match. Slugs are de-duplicated per page with `-1` / `-2` suffixes, matching Nextra, so `get_section` and chat citations resolve to the section actually quoted.
@@ -89,7 +89,7 @@ because the docs describe something, not because it exists.
 ### Embedding cost and caching
 
 Vectors are cached by chunk content hash
-(`packages/retrieval-indexer/embed.ts`), so a rebuild only embeds chunks whose text actually
+(`@nymproject/retrieval-indexer`, `embed`), so a rebuild only embeds chunks whose text actually
 changed. The cache key includes the model and dimension, so switching embedding
 models invalidates it rather than silently mixing two vector spaces.
 
@@ -201,12 +201,12 @@ Compile-time constants, changed in source rather than the environment:
 | Constant | Where | Default | Effect |
 |----------|-------|---------|--------|
 | `topK` | `lib/mcp/tools.ts` | `6` | Default results per `search_docs` / `search_code` call; the caller can override it per call. |
-| `MAX_CHARS` | `packages/retrieval-indexer/chunker.ts` | `2400` | Hard cap on a chunk. Changing it changes chunk boundaries, so it needs a full re-index. |
+| `MAX_CHARS` | `@nymproject/retrieval-indexer`, `chunker` | `2400` | Hard cap on a chunk. Changing it changes chunk boundaries, so it needs a full re-index. |
 
 <!-- prettier-ignore -->
 > [!IMPORTANT]
 > The query embedding and the index embedding must come from the same model.
-> Changing the provider or model in `packages/retrieval-indexer/embed.ts` requires a full
+> Changing the provider or model in `@nymproject/retrieval-indexer` (`embed`) requires a full
 > re-index: querying a `voyage-3` index with `voyage-3-large` vectors returns
 > meaningless neighbours rather than an error.
 

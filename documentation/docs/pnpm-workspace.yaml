@@ -22,6 +22,9 @@ allowBuilds:
   # The snippet extractor loads the grammar's prebuilt .wasm with web-tree-sitter;
   # the native Node binding is not used, so its build is skipped.
   tree-sitter-rust: false
+  # A git dependency: its `prepare` script builds dist/ with tsc, which is what
+  # Node loads, since Node does not strip types under node_modules.
+  "@nymproject/retrieval-indexer": true
 
 # pnpm's default 24h supply-chain cooldown guards against a compromised third-party
 # package being published and yanked before anyone installs it. It does not apply to

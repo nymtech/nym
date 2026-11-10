@@ -13,7 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, frontmatterLines } from '../../packages/retrieval-indexer/mdx.ts';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, frontmatterLines } from '@nymproject/retrieval-indexer/mdx';
 import { mdxOptions } from './projections.mjs';
 import { openRepo, citationText, pageLinks, linkRoute, routeOf } from '../snippets/repo.mts';
 import { extractCode } from '../snippets/extract.mts';

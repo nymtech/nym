@@ -62,7 +62,8 @@ A marker sits above the code it names, so it moves with the code when the code m
 2. From the repository root, run `tracey query status` for the coverage, and `tracey query validate --deny warnings` for broken references. For an id that two specs define, Tracey 1.4.0 prints `CONFIG ERROR` and exits 0, so read the output.
 3. Run `tracey web --open` for a dashboard of the specs with their coverage.
 4. A lefthook pre-commit job runs `tracey query validate --deny warnings` when `tracey` is on your `PATH`. It prints the result and never fails the commit.
-5. In the editor, `tracey lsp` shows the requirement that a marker names. After a spec moves to `+2`, `tracey query stale` lists each marker whose code you must check against the new text.
+5. For an agent, run `tracey ai --claude` (or `--codex`) once. It registers the `tracey mcp` server with the agent and installs the Tracey skill. The agent can then ask `tracey_rule` for the code and tests of a requirement, and `tracey_validate` for broken references. The docs MCP on the docs site does not hold these links.
+6. In the editor, `tracey lsp` shows the requirement that a marker names. After a spec moves to `+2`, `tracey query stale` lists each marker whose code you must check against the new text.
 
 ## In CI
 

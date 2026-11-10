@@ -7,8 +7,9 @@ use cw_storage_plus::{Bound, Item, Map};
 use nym_contracts_common::digest::DigestItem;
 use nym_geolocation_contract_common::constants::storage_keys;
 use nym_geolocation_contract_common::{
-    AgentPermissions, ContractConfig, EntryKey, GeolocationContractError, GeolocationRecord,
-    InitialAgent, LocationEntry, LocationRecord, Source, Subject, SubjectClass, WhitelistEntry,
+    AgentPermissions, ContractConfig, DigestLeaf, EntryKey, GeolocationContractError,
+    GeolocationRecord, InitialAgent, LocationEntry, LocationRecord, Source, Subject, SubjectClass,
+    WhitelistEntry,
 };
 use nym_lthash::LtHash16;
 

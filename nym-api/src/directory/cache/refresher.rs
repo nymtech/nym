@@ -13,7 +13,7 @@ use nym_contract_attestation::DigestSnapshot;
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_client::anchor::TrustAnchor;
 use nym_directory_client::client::DirectoryClient;
-use nym_directory_client::error::DirectoryClientError;
+use nym_directory_client::error::VerificationError;
 use nym_validator_client::nyxd::contract_traits::{DirectoryQueryClient, NymContractsProvider};
 use nym_validator_client::nyxd::TendermintRpcClient;
 use nym_validator_client::QueryHttpRpcNyxdClient;
@@ -141,7 +141,7 @@ impl DirectoryDataProvider {
         Ok(())
     }
 
-    async fn current_height(&self) -> Result<Height, DirectoryClientError> {
+    async fn current_height(&self) -> Result<Height, VerificationError> {
         Ok(self
             .directory_client
             .client()
@@ -155,9 +155,13 @@ impl DirectoryDataProvider {
     async fn retrieve_directory_snapshot(
         &self,
         height: Height,
-    ) -> Result<CachedDirectory, DirectoryClientError> {
+    ) -> Result<CachedDirectory, VerificationError> {
         let directory = self.directory_client.verified_directory(height).await?;
-        let app_hash = self.directory_client.trusted_app_hash(height).await?;
+        let app_hash = self
+            .directory_client
+            .anchor()
+            .trusted_app_hash(height)
+            .await?;
 
         // SAFETY: the contract address must be available otherwise we wouldn't have been able to retrieve verified directory
         #[allow(clippy::unwrap_used)]
@@ -186,7 +190,7 @@ impl DirectoryDataProvider {
 #[async_trait]
 impl CacheItemProvider for DirectoryDataProvider {
     type Item = DirectoryCacheUpdate;
-    type Error = DirectoryClientError;
+    type Error = VerificationError;
 
     async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         let current_height = self.current_height().await?;

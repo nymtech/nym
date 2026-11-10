@@ -1,8 +1,12 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::error::NyxdError;
+use crate::nyxd::{CosmWasmClient, Height};
 use cosmrs::AccountId;
 use nym_network_defaults::NymContracts;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::str::FromStr;
 
 // TODO: all of those could/should be derived via a macro
@@ -49,7 +53,9 @@ pub use network_monitors_query_client::{
     NetworkMonitorsQueryClient, PagedNetworkMonitorsQueryClient,
 };
 pub use node_families_query_client::{NodeFamiliesQueryClient, PagedNodeFamiliesQueryClient};
-pub use performance_query_client::{PagedPerformanceQueryClient, PerformanceQueryClient};
+pub use performance_query_client::{
+    PagedPerformanceQueryClient, PerformanceQueryClient, PinnedPerformanceQueryClient,
+};
 pub use vesting_query_client::{PagedVestingQueryClient, VestingQueryClient};
 
 // re-export signing traits
@@ -156,16 +162,77 @@ impl TryFrom<NymContracts> for TypedNymContracts {
 ///
 /// These reads feed a digest recompute, so they treat the queried node as untrusted, and the
 /// digest check that would catch a lie only runs once the loop has ended. A repeated cursor
-/// is rejected directly at each call site; this bound is the residual guard against a node
-/// that keeps returning *fresh* fabricated records under advancing cursors, which no cursor
-/// check can detect.
+/// is rejected directly by `collect_pages_at_height`; this bound is the residual guard against
+/// a node that keeps returning *fresh* fabricated records under advancing cursors, which no
+/// cursor check can detect.
 ///
 /// Sized against real state rather than intuition: mainnet carries ~1,100 bonded nodes, and
 /// the widest of these reads (geolocation, keyed per subject *and* source) holds roughly one
 /// record per node per measurement agent. 250k therefore covers a twentyfold-grown network
 /// at ~11 sources per node. It is deliberately far above any plausible honest state, because
 /// tripping it on real data would break a verified read in production.
-pub(crate) const MAX_PINNED_READ_RECORDS: usize = 250_000;
+const MAX_PINNED_READ_RECORDS: usize = 250_000;
+
+/// A page of a paginated query whose full result is verified or attested at one height.
+trait AttestationPage: DeserializeOwned {
+    type QueryMsg: Serialize + Sync;
+    type Record;
+    type Cursor: Clone + PartialEq;
+
+    /// The contract named in pagination errors.
+    const CONTRACT: &'static str;
+
+    /// The query for the page after `start_after`.
+    fn query_msg(start_after: Option<Self::Cursor>) -> Self::QueryMsg;
+
+    fn into_parts(self) -> (Vec<Self::Record>, Option<Self::Cursor>);
+}
+
+/// Every record of `P`'s query at exactly `height`, every page requested at that same height so
+/// the result is a consistent snapshot rather than a walk across a moving set.
+async fn collect_pages_at_height<P, C>(
+    client: &C,
+    contract_address: &AccountId,
+    height: Height,
+) -> Result<Vec<P::Record>, NyxdError>
+where
+    P: AttestationPage,
+    C: CosmWasmClient + Sync,
+{
+    let mut records = Vec::new();
+    let mut start_after = None;
+    loop {
+        let page: P = client
+            .query_contract_smart_at_height(
+                contract_address,
+                &P::query_msg(start_after.clone()),
+                Some(height),
+            )
+            .await?;
+
+        let (page_records, start_next_after) = page.into_parts();
+        records.extend(page_records);
+        match start_next_after {
+            Some(cursor) => {
+                if start_after.as_ref() == Some(&cursor) {
+                    return Err(NyxdError::extension_query_failure(
+                        P::CONTRACT,
+                        "pagination cursor did not advance",
+                    ));
+                }
+                if records.len() > MAX_PINNED_READ_RECORDS {
+                    return Err(NyxdError::extension_query_failure(
+                        P::CONTRACT,
+                        "paginated read exceeded the maximum record count",
+                    ));
+                }
+                start_after = Some(cursor)
+            }
+            None => break,
+        }
+    }
+    Ok(records)
+}
 
 // a simple helper macro to define to repeatedly call a paged query until a full response is constructed
 #[macro_export]

@@ -66,10 +66,12 @@ pre-commit:
       run: python3 tools/internal/check_cargo_toml_field_order.py {staged_files}
     spec-trace:
       # Advisory (openspec/changes/add-spec-trace-gate, T7): the CI gate, early. It never fails the commit.
-      glob: "*.rs"
+      # A Tracey daemon that is already running can miss a file that is new, so a gap can show late.
+      glob: "*.{rs,md}"
       run: |
         if ! command -v tracey >/dev/null 2>&1; then
           echo "lefthook spec-trace: tracey not found; skipping." >&2
           exit 0
         fi
         tracey query validate --deny warnings || true
+        tools/internal/spec-trace-gaps.sh || true

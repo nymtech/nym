@@ -30,7 +30,14 @@ interface Ref { file: string; line: number }
 
 /** The markers of one Tracey id. Tracey answers an id that its config does not hold with `{ "error": ... }`. */
 function traceyRule(root: string, id: string): { code: string[]; tests: string[] } {
-  const rule = JSON.parse(execFileSync('tracey', ['query', '--json', 'rule', id], { cwd: root, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] })) as { error?: string; coverage?: { implRefs: Ref[]; verifyRefs: Ref[] }[] };
+  let out: string;
+  try {
+    out = execFileSync('tracey', ['query', '--json', 'rule', id], { cwd: root, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('tracey not found: install it as documentation/TRACEY.md says');
+    throw e;
+  }
+  const rule = JSON.parse(out) as { error?: string; coverage?: { implRefs: Ref[]; verifyRefs: Ref[] }[] };
   if (rule.error) throw new Error(`tracey: ${id}: ${rule.error}; add its spec to .config/tracey/config.styx`);
   const at = (refs: Ref[]): string[] => refs.map((r) => `${r.file}:${r.line}`);
   return { code: (rule.coverage ?? []).flatMap((c) => at(c.implRefs)), tests: (rule.coverage ?? []).flatMap((c) => at(c.verifyRefs)) };

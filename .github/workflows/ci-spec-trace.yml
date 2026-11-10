@@ -1,9 +1,9 @@
 name: ci-spec-trace
 
-# The spec trace gate on each PR (openspec/changes/add-spec-trace-gate, T6).
+# The spec trace gate on each PR (the spec-traceability spec).
 # Tracey reads the specs and the code paths that .config/tracey/config.styx names. The job fails
 # on a marker that names an unknown id or an old version, and on an id that two specs define.
-# The job also fails on a requirement with no code or no test, and lists each one.
+# The job also fails on a requirement with no code, no test or no r[id] line, and lists each one.
 #
 # There is no path filter. A workflow that a path filter skips sends no status, so a required
 # check on it stays pending and the PR cannot merge.
@@ -28,6 +28,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Install Tracey
         run: |
@@ -41,16 +43,26 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Canary
-        # The gate must fail on a marker with an unknown id in a path that the config names (T8).
-        # This step runs first so that its query starts the Tracey daemon after the file exists. The
-        # daemon does not see a new file at once, so `tracey kill` stops it before the gate runs.
+        # The gate must fail on a marker with an unknown id, on a requirement with no marker and on a
+        # requirement with no r[id] line, in paths that the config names. This step runs first so
+        # that its query starts the Tracey daemon after the files exist. The daemon does not see a new
+        # file at once, so `tracey kill` stops it before the gate runs.
         run: |
+          canary_spec=openspec/changes/add-mixnet-core-specs/specs/canary
+          mkdir "$canary_spec"
+          printf '%s\n' '## ADDED Requirements' '' '### Requirement: Canary gap' '' 'r[canary.gap]' 'A requirement with no marker.' '' \
+            '### Requirement: Canary with no id' '' 'A requirement with no r[id] line.' > "$canary_spec/spec.md"
           printf '%s\n' '// r[impl canary.unknown]' 'pub fn canary() {}' > common/nymsphinx/src/canary.rs
           if tracey query validate --deny warnings > "$RUNNER_TEMP/canary.log" 2>&1; then
             cat "$RUNNER_TEMP/canary.log"; echo "canary: the gate passed an unknown id"; exit 1
           fi
-          grep -q canary.unknown "$RUNNER_TEMP/canary.log"
-          rm common/nymsphinx/src/canary.rs
+          grep -q canary.unknown "$RUNNER_TEMP/canary.log" || { cat "$RUNNER_TEMP/canary.log"; exit 1; }
+          if tools/internal/spec-trace-gaps.sh > "$RUNNER_TEMP/canary-gaps.log" 2>&1; then
+            cat "$RUNNER_TEMP/canary-gaps.log"; echo "canary: the gaps check passed two planted gaps"; exit 1
+          fi
+          grep -q canary.gap "$RUNNER_TEMP/canary-gaps.log" && grep -q 'Canary with no id' "$RUNNER_TEMP/canary-gaps.log" \
+            || { cat "$RUNNER_TEMP/canary-gaps.log"; exit 1; }
+          rm -r "$canary_spec" common/nymsphinx/src/canary.rs
           tracey kill
 
       - name: Spec trace gate
@@ -58,16 +70,10 @@ jobs:
         run: |
           tracey query validate --deny warnings > "$RUNNER_TEMP/gate.log" 2>&1 || { cat "$RUNNER_TEMP/gate.log"; exit 1; }
           cat "$RUNNER_TEMP/gate.log"
-          ! grep -q 'CONFIG ERROR' "$RUNNER_TEMP/gate.log"
+          if grep -q 'CONFIG ERROR' "$RUNNER_TEMP/gate.log"; then exit 1; fi
 
       - name: Gaps
-        # A requirement with no impl marker or no verify marker fails the job (T2).
+        # A requirement with no impl marker, no verify marker or no r[id] line fails the job.
         run: |
-          # pipefail: if jq cannot read Tracey's output, the step fails and does not pass with an empty list.
           set -o pipefail
-          gaps=$({ tracey query --json uncovered; tracey query --json untested; } | jq -r '.bySection[].rules[].id.base' | sort -u)
-          [ -z "$gaps" ] && exit 0
-          { echo "### Requirements with no code or no test"; echo "$gaps" | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
-          tracey query uncovered
-          tracey query untested
-          exit 1
+          tools/internal/spec-trace-gaps.sh | tee -a "$GITHUB_STEP_SUMMARY"

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chunkCode, chunkCodeFile, langOf, symbolOf } from './code-chunker.ts';
+import { chunkCode, chunkCodeFile, isTestCode, langOf, symbolOf } from './code-chunker.ts';
 
 describe('langOf', () => {
   it('detects rust, typescript, kotlin, swift, go and python, skips the rest', () => {
@@ -360,4 +360,34 @@ describe('symbolOf: python', () => {
       expect(symbolOf(line, 'python')).toBe(expected);
     });
   }
+});
+
+describe('isTestCode', () => {
+  it.each([
+    ['common/x/tests/stack.rs', 'round_trip', 'rust'],
+    ['sdk/x/src/lib.test.ts', 'it', 'typescript'],
+    ['app/src/androidTest/java/a/FooTest.kt', 'FooTest', 'kotlin'],
+    ['ios/AppTests/TunnelTests.swift', 'TunnelTests', 'swift'],
+    ['ffi/go/client_test.go', 'TestDial', 'go'],
+    ['tools/test_probe.py', 'probe', 'python'],
+    ['tools/nym-lp-client/src/speedtest.rs', 'tests', 'rust'],
+  ] as const)('flags %s', (path, symbol, lang) => {
+    expect(isTestCode(path, symbol, lang)).toBe(true);
+  });
+
+  it.each([
+    ['common/nymsphinx/src/preparer.rs', 'FragmentPreparer', 'rust'],
+    ['sdk/x/src/testing.ts', 'helper', 'typescript'],
+    ['common/attestation/src/latest.rs', 'contest', 'rust'],
+  ] as const)('leaves %s', (path, symbol, lang) => {
+    expect(isTestCode(path, symbol, lang)).toBe(false);
+  });
+
+  it('marks a test chunk and leaves the field off production chunks', () => {
+    const shard = { source: 's', github: 'g' };
+    const src = ['pub fn send() {}', '', '#[cfg(test)]', 'mod tests {', '    fn t() {}', '}'].join('\n');
+    const chunks = chunkCodeFile(src, 'src/lib.rs', shard);
+    expect(chunks.map((c) => [c.heading, c.test])).toEqual([['send', undefined], ['tests', true]]);
+    expect('test' in chunks[0]).toBe(false);
+  });
 });

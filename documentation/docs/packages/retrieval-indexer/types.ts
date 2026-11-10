@@ -22,6 +22,8 @@ export interface Chunk {
   url: string; // deep link, page URL + #anchor
   text: string;
   tokensEst: number;
+  /** test code; search ranks it below production code (TEST_SCORE_PENALTY) */
+  test?: true;
 }
 
 /** A chunk with its embedding vector attached (post embed step). */

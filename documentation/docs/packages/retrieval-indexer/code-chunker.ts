@@ -21,6 +21,23 @@ export interface CodeBlock {
   startLine: number;
 }
 
+// Test code stays in the index as a fallback, but a test module must not outrank
+// the production code it exercises: in the 0a check a speedtest tool's
+// `mod tests` took rank 1 from the canonical `FragmentPreparer` send path.
+// Search subtracts this from the cosine score of a chunk flagged `test`.
+// ponytail: a fixed guess, not yet calibrated on real queries; tune it on the 0a
+// query before the cutover.
+export const TEST_SCORE_PENALTY = 0.05;
+
+const TEST_DIR = /(^|\/)(tests?|__tests__|androidTest)\//;
+const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$|_test\.(go|py)$|(^|\/)test_[^/]*\.py$|Tests?\.(kt|swift)$/;
+const TEST_ITEM = new Set(['tests', 'test']);
+
+/** A test file, a file under a test directory, or a Rust `mod tests` block. */
+export function isTestCode(repoPath: string, symbol: string, lang: Lang): boolean {
+  return TEST_DIR.test(repoPath) || TEST_FILE.test(repoPath) || (lang === 'rust' && TEST_ITEM.has(symbol));
+}
+
 const MAX_CHARS = 2400;
 // Lower than the docs floor: small code items (a one-line fn, a tiny struct) are
 // legitimate and worth indexing; we only want to drop empty/near-empty blocks.
@@ -250,6 +267,7 @@ export function chunkCodeFile(
     url: `${github}/${repoPath}#L${c.startLine}`,
     text: c.text,
     lang,
+    ...(isTestCode(repoPath, c.symbol, lang) && { test: true as const }),
   }));
 }
 

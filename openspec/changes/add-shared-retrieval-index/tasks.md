@@ -25,7 +25,7 @@
   - [ ] 3.5.2 Verify the Android and Apple apps (Kotlin, Swift) produce chunks, not zero, and a search returns app hits
   - [x] 3.5.3 Freeze the accept-drop set in one place (C-family, Objective-C, proto: all generated bindings, a cgo shim, and an FFI example in these repos)
   - [x] 3.5.4 Make the drop report a fail-closed build gate: a source-like extension neither chunked nor on the accept-drop set fails CI, so a new language cannot silently index to zero
-  - [ ] 3.5.5 Demote test-path chunks at rank time (a score penalty, not exclusion), so a test module cannot outrank the production code it exercises. Evidence: 0a query 1, where a speedtest tool's `mod tests` outranked the canonical `FragmentPreparer` send path (shared-index-spike/EXPERIMENTS.md 0a)
+  - [ ] 3.5.5 Demote test-path chunks at rank time (a score penalty, not exclusion), so a test module cannot outrank the production code it exercises. Evidence: 0a query 1, where a speedtest tool's `mod tests` outranked the canonical `FragmentPreparer` send path (shared-index-spike/EXPERIMENTS.md 0a). Built: the package flags test chunks (`test: true`; a test directory, a test file name, or a Rust `mod tests` block) and search subtracts `TEST_SCORE_PENALTY` (0.05, uncalibrated). Left: calibrate the penalty on the 0a query
 
 - [ ] 3.6 Publish the package: choose the registry (npm under `@nymproject` or GitHub Packages) and add a `tsc` emit, since Node does not strip types under `node_modules`. Gates 6.1 and 6.2, whose producers are other repos
 

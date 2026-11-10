@@ -14,6 +14,7 @@ Two nym-api instances asked the same question at the same moment can give differ
 - **BREAKING** `POST /v1/nym-nodes/refresh-described` answers 410 Gone with a message telling the operator to upgrade nym-node. Both `/v1/utility` routes are removed, with the `utility_routes_bearer` config field and the `--utility-routes-bearer` flag.
 - **BREAKING** The override of the public-address rule is renamed to say it is unsafe: `[directory.debug] unsafe_allow_illegal_ips` and the hidden `--unsafe-allow-illegal-ips` flag replace `[describe_cache.debug] allow_illegal_ips` and `--allow-illegal-ips`.
 - The `Expires` header on active-only responses names the moment the first snapshot taken after the epoch is due to change becomes served, computed from the snapshot's block time so every instance sends the same value.
+- The snapshot producer reads an attested contract's records only when its digest changed since the previous retained height, reusing the previous height's verified records otherwise, and requests every whole-set read at the contract's maximum page size.
 - Average node age in node families becomes blocks since bonding times a fixed block time, with no block-timestamp lookups.
 - nym-node reads key rotation information from the chain first and falls back to nym-api, at startup, in its running key rotation controller and in the rotation-id helper. Its stuck-epoch check is fixed and kept in the running controller only, the clock-based rotation-id check is removed, and it no longer posts to `refresh-described`.
 - The part of the epoch driver's node rule that nym-api shares (every entry verifies, node information decodes) moves into shared code. The driver's behaviour does not change.
@@ -26,12 +27,13 @@ Two nym-api instances asked the same question at the same moment can give differ
 - `nym-node-key-rotation-source`: where nym-node reads key rotation information from (chain first, nym-api as fallback), how it treats a stuck epoch, and that it no longer asks nym-api to refresh its description.
 
 ### Modified Capabilities
+- `directory-attestation-provider`: each height's production reads the node details instead of the bond set, and reuses the previous retained height's records of a contract whose digest has not changed.
 - `nym-api-startup`: the startup wait covers only the settled snapshot, since the mixnet contract, describe and node families caches no longer exist; the retry rule for those caches' first build is removed.
 
 ## Impact
 
 - **nym-api**: `node_describe_cache/`, `key_rotation/`, the refreshers under `mixnet_contract_cache/` and `node_families/cache/` are removed; `support/attested_snapshots/` gains the mixnet and node families reads and a per-height node view; about 25 readers of the contract cache in about 12 files are re-pointed at the latest settled snapshot; `nym_nodes`, `unstable_routes` and `utility_routes` handlers change source or go; `support/config` loses three sections and one field and gains one.
-- **validator-client**: new height-pinned queries on the mixnet contract (rewarded set, interval, key rotation state, reward parameters, contract state, config score parameters, version history) and on the node families contract (families, members, pending invitations).
+- **validator-client**: new height-pinned queries on the mixnet contract (rewarded set, interval, key rotation state, reward parameters, contract state, config score parameters, version history) and on the node families contract (families, members, pending invitations); the directory, geolocation and performance whole-set reads request the contract's maximum page.
 - **nym-directory-client / nym-epoch-driver**: the shared part of the node rule moves from the driver binary into `nym-directory-client`; the driver calls it.
 - **nym-node**: `node/key_rotation/controller.rs`, `node/helpers.rs`, `node/mod.rs`, `node/nym_apis_client.rs`, `node/nyx_client.rs`.
 - **nym-api-requests**: `KeyRotationDetails::is_epoch_stuck` fixed, `expected_current_rotation_id` removed (public API).

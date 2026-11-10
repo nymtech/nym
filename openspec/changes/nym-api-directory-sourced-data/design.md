@@ -113,6 +113,15 @@ The helper's own loop over the chain URLs goes: the client talks to one configur
 
 The stuck-epoch check (`KeyRotationDetails::is_epoch_stuck`) never fires today because it tests `1 - progress` in the branch where progress exceeds 1. It is fixed and kept in the running controller, where it logs a warning and retries every 240 s. It is removed from the rotation-id helper: the rotation id follows the on-chain epoch, so it is correct while the epoch is stuck, and refusing to start (or to reset keys, or to migrate a config) during a stall protects nothing. `expected_current_rotation_id` always returns the reported epoch's id and is deleted with its branch; every case it was meant to catch has the epoch past its nominal end, which the "key rotation is overdue" branch below it already handles.
 
+### D12. Unchanged attested contracts are not read again, and pages are read at the contract maximum
+
+A production makes roughly 250 queries per height on mainnet, most of them pages of the directory (about 130 at the default page of 50) and geolocation (about 50) records. Moving the mixnet state onto the cadence lowers the total (about 40 queries per height instead of about 120 from the 150 s refresher over the same blocks), but the attested reads are repeated even when nothing changed.
+
+- Each contract's verified read first establishes the digest trusted at `H` (one proof query; `verify_chain_read` already does this before reading). When it equals the digest signed in that contract's snapshot of the newest retained entry below `H`, that snapshot's records are reused: they already verify against an equal accumulator, so the guarantee is the one a fresh read would give. The snapshot is still signed for `H`, with the identity map read at `H`. Without a retained entry below `H` (a fresh start, or a skipped height) every record is read.
+- Every whole-set read asks for the contract's maximum page: directory and geolocation 100 (default 50), performance latest and epoch performance 200 (default 100), halving those reads where they still happen.
+
+Expected effect: geolocation is reused on most heights and performance on most heights within an epoch; how often the directory is unchanged across 100 blocks is unknown until it is measured. Reading only the changed entries was rejected for now: the contracts have no "changed since height" query, and adding one (an index by update height plus deletion tracking) is a contract migration.
+
 ## Risks / Trade-offs
 
 - [More reads per height, so more ways for an instance to skip one] → the height is all-or-nothing by design; the next poll retries the newest height; three misses in a row lead to 503 (D9), which lets clients move to another instance.

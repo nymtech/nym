@@ -16,7 +16,9 @@
 - [ ] 3.3 Read the node families contract at `H`, join it with the node details of `H` into `NodeFamiliesCacheData`, and hold it in `RetainedHeight`
 - [ ] 3.4 Compute node age as blocks between the bonding height and `H` times one fixed block-time constant (5.687 s), removing the block-timestamp lookup and estimation code; unit test with the spec's example
 - [ ] 3.5 Make a failed mixnet or families read retain nothing for `H` and log what failed; tests for each
-- [ ] 3.6 Update the `RetainedHeight` fixtures (`empty_retained_height`, `populated_entry`, the `populated_cache()` replacement) and the on-disk round-trip test; confirm a file in the previous shape loads as an empty cache
+- [ ] 3.6 Request every whole-set read at the contract's maximum page: directory and geolocation 100, performance latest and epoch performance 200 (the `PinnedPage` impls in validator-client)
+- [ ] 3.7 Establish each attested contract's trusted digest at `H` before reading its records, and reuse the records of that contract's snapshot in the newest retained entry below `H` when the digests are equal (signing for `H` with the identity map read at `H`); unit tests for the reuse case, the changed-digest case and the no-previous-entry case
+- [ ] 3.8 Update the `RetainedHeight` fixtures (`empty_retained_height`, `populated_entry`, the `populated_cache()` replacement) and the on-disk round-trip test; confirm a file in the previous shape loads as an empty cache
 
 ## 4. Per-height node view
 

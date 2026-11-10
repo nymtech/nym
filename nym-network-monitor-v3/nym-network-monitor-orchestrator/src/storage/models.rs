@@ -854,6 +854,25 @@ pub(crate) struct ConfigScoreCandidate {
     pub(crate) is_feegrant_grantee: Option<bool>,
 }
 
+/// The roles a described node declares, which decide the test kinds the scheduler assigns it to.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct DescribedNodeRoles {
+    pub(crate) node_id: i64,
+    pub(crate) mixnode_enabled: bool,
+    pub(crate) gateway_enabled: bool,
+}
+
+impl DescribedNodeRoles {
+    /// Whether the scheduler tests this node with `kind`, by the role `select_candidates` filters
+    /// that kind on.
+    pub(crate) fn is_tested_by(&self, kind: TestKind) -> bool {
+        match kind {
+            TestKind::MixnodeLiveness | TestKind::MixnodeStress => self.mixnode_enabled,
+            TestKind::GatewayLiveness => self.gateway_enabled,
+        }
+    }
+}
+
 /// A row of `mixnet_epoch_config_score`: how one node was configured as one mixnet epoch began, with
 /// the subcomponents that produced the score.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -994,6 +1013,42 @@ pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
         TestKind::MixnodeStress => RunMeasurements::MixnodeStress {
             mix_forwarding: minimal_measurement(),
         },
+    }
+}
+
+/// The epoch [`config_score`] and [`aggregate`] file their rows under.
+#[cfg(test)]
+pub(crate) const FIXTURE_EPOCH: nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId = 7;
+
+#[cfg(test)]
+const FIXTURE_EPOCH_START: OffsetDateTime = time::macros::datetime!(2025-06-01 12:00:00 UTC);
+
+/// `node_id`'s config score for [`FIXTURE_EPOCH`], from an up-to-date node in good standing.
+#[cfg(test)]
+pub(crate) fn config_score(node_id: i64, score: f64) -> MixnetEpochConfigScore {
+    MixnetEpochConfigScore {
+        mixnet_epoch: i64::from(FIXTURE_EPOCH),
+        epoch_start: FIXTURE_EPOCH_START,
+        node_id,
+        score,
+        versions_behind: Some(0),
+        accepted_terms_and_conditions: true,
+        runs_nym_node_binary: true,
+        has_sufficient_tokens: true,
+        is_feegrant_grantee: false,
+    }
+}
+
+/// `node_id`'s aggregate of `test_kind` for [`FIXTURE_EPOCH`], over a single run.
+#[cfg(test)]
+pub(crate) fn aggregate(node_id: i64, test_kind: TestKind, score: f64) -> MixnetEpochAggregate {
+    MixnetEpochAggregate {
+        mixnet_epoch: i64::from(FIXTURE_EPOCH),
+        epoch_start: FIXTURE_EPOCH_START,
+        node_id,
+        test_kind,
+        score,
+        samples: 1,
     }
 }
 

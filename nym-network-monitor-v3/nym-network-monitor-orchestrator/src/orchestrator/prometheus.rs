@@ -320,6 +320,27 @@ pub enum PrometheusMetric {
         help = "The number of mixnode stress test runs whose lease expired before a result arrived, freeing the node for reassignment"
     ))]
     MixnodeStressLeasesExpired,
+
+    // Performance contract submission. Alert when the last complete epoch stops advancing.
+    #[strum(props(
+        help = "The newest epoch with nothing left to submit to the performance contract. Not advancing for longer than an epoch means submissions are not landing"
+    ))]
+    PerformanceSubmissionLastCompleteEpoch,
+
+    #[strum(props(
+        help = "1 when the coverage guard omitted mixnode liveness from the last submitted epoch, as too few eligible nodes had a reachable aggregate"
+    ))]
+    PerformanceSubmissionMixnodeLivenessOmitted,
+
+    #[strum(props(
+        help = "1 when the coverage guard omitted gateway liveness from the last submitted epoch, as too few eligible nodes had a reachable aggregate. Gateway-only nodes then submit nothing"
+    ))]
+    PerformanceSubmissionGatewayLivenessOmitted,
+
+    #[strum(props(
+        help = "1 when the coverage guard omitted stress from the last submitted epoch, as too few eligible nodes had a reachable aggregate"
+    ))]
+    PerformanceSubmissionStressOmitted,
 }
 
 impl PrometheusMetric {
@@ -411,6 +432,18 @@ impl PrometheusMetric {
             PrometheusMetric::MixnodeLivenessLeasesExpired => Metric::new_int_counter(&name, help),
             PrometheusMetric::GatewayLivenessLeasesExpired => Metric::new_int_counter(&name, help),
             PrometheusMetric::MixnodeStressLeasesExpired => Metric::new_int_counter(&name, help),
+            PrometheusMetric::PerformanceSubmissionLastCompleteEpoch => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::PerformanceSubmissionMixnodeLivenessOmitted => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::PerformanceSubmissionGatewayLivenessOmitted => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::PerformanceSubmissionStressOmitted => {
+                Metric::new_int_gauge(&name, help)
+            }
         }
     }
 
@@ -506,7 +539,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(41, PrometheusMetric::COUNT)
+        assert_eq!(45, PrometheusMetric::COUNT)
     }
 
     #[test]

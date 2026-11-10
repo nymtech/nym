@@ -3,10 +3,10 @@
 
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    ConfigScoreCandidate, GatewayLivenessTestRunRow, MixnetEpochAggregate, MixnetEpochConfigScore,
-    MixnodeTestRunRow, NewTestRun, NodeAwaitingCapabilityRefresh, NodeChainCapability,
-    NodeDescription, NymNode, TestKind, TestRunInProgress, TestRunSubmission, TestRunWindow,
-    duration_to_us, next_ip_to_test,
+    ConfigScoreCandidate, DescribedNodeRoles, GatewayLivenessTestRunRow, MixnetEpochAggregate,
+    MixnetEpochConfigScore, MixnodeTestRunRow, NewTestRun, NodeAwaitingCapabilityRefresh,
+    NodeChainCapability, NodeDescription, NymNode, TestKind, TestRunInProgress, TestRunSubmission,
+    TestRunWindow, duration_to_us, next_ip_to_test,
 };
 use nym_network_monitor_orchestrator_requests::models::{InterfaceMeasurement, RunMeasurements};
 use sqlx::SqliteConnection;
@@ -1714,6 +1714,21 @@ impl StorageManager {
         .fetch_all(&self.connection_pool)
         .await?;
         Ok(candidates)
+    }
+
+    /// The declared roles of every described node, ordered by node id.
+    pub(crate) async fn get_described_node_roles(&self) -> anyhow::Result<Vec<DescribedNodeRoles>> {
+        let roles = sqlx::query_as!(
+            DescribedNodeRoles,
+            r#"
+            SELECT node_id AS "node_id!", mixnode_enabled, gateway_enabled
+            FROM nym_node_description
+            ORDER BY node_id
+            "#
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(roles)
     }
 
     /// Stores config scores that are not already stored, leaving any that are exactly as they were,
@@ -3769,6 +3784,50 @@ mod tests {
 
             assert_eq!(candidates[1].balance, None);
             assert_eq!(candidates[1].is_feegrant_grantee, None);
+        }
+    }
+
+    mod get_described_node_roles {
+        use super::*;
+
+        // the coverage guard's eligible nodes are the ones the scheduler tests: described, by the
+        // roles they declare
+        #[tokio::test]
+        async fn every_described_node_is_read_with_both_roles_and_no_undescribed_one() {
+            let db = setup().await;
+            seed_nodes(
+                &db,
+                &[
+                    mixnode(1),
+                    gateway(2),
+                    described_node(3, "1.2.3.4", true, true),
+                    bond_only(mixnode(4)),
+                ],
+            )
+            .await;
+
+            let roles = db.get_described_node_roles().await.unwrap();
+
+            assert_eq!(
+                roles,
+                vec![
+                    DescribedNodeRoles {
+                        node_id: 1,
+                        mixnode_enabled: true,
+                        gateway_enabled: false,
+                    },
+                    DescribedNodeRoles {
+                        node_id: 2,
+                        mixnode_enabled: false,
+                        gateway_enabled: true,
+                    },
+                    DescribedNodeRoles {
+                        node_id: 3,
+                        mixnode_enabled: true,
+                        gateway_enabled: true,
+                    },
+                ]
+            );
         }
     }
 

@@ -1,8 +1,8 @@
 ## 1. Height-pinned queries (validator-client)
 
-- [ ] 1.1 Add the single-value reads to `PinnedMixnetQueryClient`: rewarded set metadata and each role's assignment (with a `get_rewarded_set_at_height` helper mirroring the unpinned one), current interval details, key rotation state, reward parameters, contract state, config score parameters
-- [ ] 1.2 Add the paged reads to `PinnedMixnetQueryClient` through `PinnedPage` and `collect_pages_at_height`, each with its `get_all_*_at_height` helper: legacy mixnodes, legacy gateways, gateway ids, nym-node version history
-- [ ] 1.3 Add a pinned query trait for the node families contract with the paged reads of families, family members and pending invitations and their `get_all_*_at_height` helpers
+- [x] 1.1 Add the single-value reads to `PinnedMixnetQueryClient`: rewarded set metadata and each role's assignment (with a `get_rewarded_set_at_height` helper mirroring the unpinned one), current interval details, key rotation state, reward parameters, contract state, config score parameters
+- [x] 1.2 Add the paged nym-node version history read to `PinnedMixnetQueryClient` through `PinnedPage` and `collect_pages_at_height` (legacy mixnodes, gateways and gateway ids are not read any more)
+- [x] 1.3 Add a pinned query trait for the node families contract with the paged reads of families, family members and pending invitations and their `get_all_*_at_height` helpers
 
 ## 2. Shared node rule
 
@@ -12,7 +12,7 @@
 ## 3. Snapshot production holds mixnet and families data
 
 - [ ] 3.1 Read the node details at `H` in `produce_height` in place of the bond read, deriving the identity map from them
-- [ ] 3.2 Read the rest of the mixnet contract state at `H` (task 1.1 and 1.2 queries) and hold it in `RetainedHeight`, moving `MixnetContractCacheData` and its accessors out of the refreshed cache
+- [ ] 3.2 Read the rest of the mixnet contract state at `H` (task 1.1 and 1.2 queries) and hold it in `RetainedHeight`, moving `MixnetContractCacheData` and its accessors out of the refreshed cache, without the legacy mixnode and gateway fields (and `CachedLegacyGatewayBond`)
 - [ ] 3.3 Read the node families contract at `H`, join it with the node details of `H` into `NodeFamiliesCacheData`, and hold it in `RetainedHeight`
 - [ ] 3.4 Compute node age as blocks between the bonding height and `H` times one fixed block-time constant (5.687 s), removing the block-timestamp lookup and estimation code; unit test with the spec's example
 - [ ] 3.5 Make a failed mixnet or families read retain nothing for `H` and log what failed; tests for each
@@ -27,13 +27,14 @@
 ## 5. Routes read the latest settled snapshot
 
 - [ ] 5.1 Give `AppState` accessors for the mixnet state, the families data and the node view of the latest settled snapshot, answering 503 when none has settled; remove the contract cache, describe cache and families cache handles
-- [ ] 5.2 Re-point every reader of the mixnet contract cache: epoch, reward parameters, key rotation information, rewarded set, bonded nodes, stake saturation, legacy mixnodes and gateways, config score details, circulating supply, annotations, the account collector
+- [ ] 5.2 Re-point every reader of the mixnet contract cache: epoch, reward parameters, key rotation information, rewarded set, bonded nodes, stake saturation, config score details, circulating supply, annotations, the account collector
 - [ ] 5.3 Re-point the node families routes
 - [ ] 5.4 Build the skimmed and semi-skimmed routes of every version, the described routes and the noise-key route from the node view, with `refreshed_at` the block time of the height
 - [ ] 5.5 Compute `Expires` on active-only responses as the design's D7 states; unit tests with the spec's mid-epoch and overdue examples
 - [ ] 5.6 Answer `by-addresses` from the view's address index
 - [ ] 5.7 Make `refresh-described` answer 410 Gone with the upgrade message, removing the forced-refresh state and its request verification
 - [ ] 5.8 Remove the `/v1/utility` routes, the `utility_routes_bearer` config field, the `--utility-routes-bearer` flag and its environment variable
+- [ ] 5.9 Make `GET /v1/legacy/mixnodes` and `GET /v1/legacy/gateways` always answer an empty list (count 0), marked deprecated in OpenAPI and on the handler
 
 ## 6. Removal and configuration
 
@@ -55,5 +56,5 @@
 
 - [ ] 8.1 Run `cargo fmt`, `cargo check --workspace` and the tests of the touched crates (validator-client, nym-directory-client, nym-epoch-driver, nym-api, nym-api-requests, nym-node)
 - [ ] 8.2 Run the build locally against mainnet and diff its described and skimmed responses against the live nym-api with a script kept in `~/workspace/claude-notes/directory-topology-issues/`, recording the result there; rerun once nodes publishing the #7399 fields are deployed
-- [ ] 8.3 Draft the PR description listing every route whose behaviour changes and the operator-facing breaks (removed flags, renamed override, ignored config sections)
+- [ ] 8.3 Draft the PR description listing every route whose behaviour changes and the operator-facing breaks (removed flags, renamed override, ignored config sections), with an explicit "Deprecated, answering empty" group for `GET /v1/legacy/mixnodes` and `GET /v1/legacy/gateways` in the format of the epoch driver PR's "Deprecated, serving frozen data" group (`~/workspace/claude-notes/epoch-driver-issues/pr-description.md`)
 - [ ] 8.4 Archive the change inside the PR and check `git diff openspec/specs`

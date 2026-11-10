@@ -718,6 +718,95 @@ pub trait PinnedMixnetQueryClient {
         &self,
         height: Height,
     ) -> Result<Vec<NymNodeDetails>, NyxdError>;
+
+    async fn get_rewarded_set_metadata_at_height(
+        &self,
+        height: Height,
+    ) -> Result<RolesMetadataResponse, NyxdError>;
+
+    async fn get_role_assignment_at_height(
+        &self,
+        role: Role,
+        height: Height,
+    ) -> Result<EpochAssignmentResponse, NyxdError>;
+
+    async fn get_current_interval_details_at_height(
+        &self,
+        height: Height,
+    ) -> Result<CurrentIntervalResponse, NyxdError>;
+
+    async fn get_key_rotation_state_at_height(
+        &self,
+        height: Height,
+    ) -> Result<KeyRotationState, NyxdError>;
+
+    async fn get_rewarding_parameters_at_height(
+        &self,
+        height: Height,
+    ) -> Result<RewardingParams, NyxdError>;
+
+    async fn get_mixnet_contract_state_at_height(
+        &self,
+        height: Height,
+    ) -> Result<ContractState, NyxdError>;
+
+    /// The admin-adjustable parameters at `height`, the config score parameters among them.
+    async fn get_mixnet_contract_state_params_at_height(
+        &self,
+        height: Height,
+    ) -> Result<ContractStateParams, NyxdError>;
+
+    /// The whole nym-node version history at exactly `height`, every page requested at that
+    /// same height.
+    async fn get_full_nym_node_version_history_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<HistoricalNymNodeVersionEntry>, NyxdError>;
+
+    /// The rewarded set at exactly `height`, every role's assignment checked to belong to the
+    /// epoch its metadata names. The default set while a fresh contract has assigned none.
+    async fn get_rewarded_set_at_height(
+        &self,
+        height: Height,
+    ) -> Result<EpochRewardedSet, NyxdError> {
+        let metadata = self
+            .get_rewarded_set_metadata_at_height(height)
+            .await?
+            .metadata;
+        if metadata == RewardedSetMetadata::default() {
+            return Ok(Default::default());
+        }
+        if !metadata.fully_assigned {
+            return Err(NyxdError::extension_query_failure(
+                "mixnet",
+                "the rewarded set hasn't been fully assigned for this epoch",
+            ));
+        }
+
+        let epoch_id = metadata.epoch_id;
+        let assigned = move |role| async move {
+            let assignment = self.get_role_assignment_at_height(role, height).await?;
+            if assignment.epoch_id != epoch_id {
+                return Err(NyxdError::extension_query_failure(
+                    "mixnet",
+                    format!("the nodes assigned for '{role}' returned unexpected epoch_id"),
+                ));
+            }
+            Ok(assignment.nodes)
+        };
+
+        Ok(EpochRewardedSet {
+            epoch_id,
+            assignment: RewardedSet {
+                entry_gateways: assigned(Role::EntryGateway).await?,
+                exit_gateways: assigned(Role::ExitGateway).await?,
+                layer1: assigned(Role::Layer1).await?,
+                layer2: assigned(Role::Layer2).await?,
+                layer3: assigned(Role::Layer3).await?,
+                standby: assigned(Role::Standby).await?,
+            },
+        })
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -731,16 +820,8 @@ where
         node_id: NodeId,
         height: Height,
     ) -> Result<NodeDetailsResponse, NyxdError> {
-        let contract_address = self
-            .mixnet_contract_address()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
-
-        self.query_contract_smart_at_height(
-            contract_address,
-            &MixnetQueryMsg::GetNymNodeDetails { node_id },
-            Some(height),
-        )
-        .await
+        query_mixnet_contract_at_height(self, MixnetQueryMsg::GetNymNodeDetails { node_id }, height)
+            .await
     }
 
     async fn get_all_nymnode_bonds_at_height(
@@ -755,6 +836,66 @@ where
         height: Height,
     ) -> Result<Vec<NymNodeDetails>, NyxdError> {
         collect_pages_at_height::<PagedNymNodeDetailsResponse, _>(self, height, ()).await
+    }
+
+    async fn get_rewarded_set_metadata_at_height(
+        &self,
+        height: Height,
+    ) -> Result<RolesMetadataResponse, NyxdError> {
+        query_mixnet_contract_at_height(self, MixnetQueryMsg::GetRewardedSetMetadata {}, height)
+            .await
+    }
+
+    async fn get_role_assignment_at_height(
+        &self,
+        role: Role,
+        height: Height,
+    ) -> Result<EpochAssignmentResponse, NyxdError> {
+        query_mixnet_contract_at_height(self, MixnetQueryMsg::GetRoleAssignment { role }, height)
+            .await
+    }
+
+    async fn get_current_interval_details_at_height(
+        &self,
+        height: Height,
+    ) -> Result<CurrentIntervalResponse, NyxdError> {
+        query_mixnet_contract_at_height(self, MixnetQueryMsg::GetCurrentIntervalDetails {}, height)
+            .await
+    }
+
+    async fn get_key_rotation_state_at_height(
+        &self,
+        height: Height,
+    ) -> Result<KeyRotationState, NyxdError> {
+        query_mixnet_contract_at_height(self, MixnetQueryMsg::GetKeyRotationState {}, height).await
+    }
+
+    async fn get_rewarding_parameters_at_height(
+        &self,
+        height: Height,
+    ) -> Result<RewardingParams, NyxdError> {
+        query_mixnet_contract_at_height(self, MixnetQueryMsg::GetRewardingParams {}, height).await
+    }
+
+    async fn get_mixnet_contract_state_at_height(
+        &self,
+        height: Height,
+    ) -> Result<ContractState, NyxdError> {
+        query_mixnet_contract_at_height(self, MixnetQueryMsg::GetState {}, height).await
+    }
+
+    async fn get_mixnet_contract_state_params_at_height(
+        &self,
+        height: Height,
+    ) -> Result<ContractStateParams, NyxdError> {
+        query_mixnet_contract_at_height(self, MixnetQueryMsg::GetStateParams {}, height).await
+    }
+
+    async fn get_full_nym_node_version_history_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<HistoricalNymNodeVersionEntry>, NyxdError> {
+        collect_pages_at_height::<NymNodeVersionHistoryResponse, _>(self, height, ()).await
     }
 }
 
@@ -806,6 +947,49 @@ impl PinnedPage for PagedNymNodeDetailsResponse {
     fn into_parts(self) -> (Vec<NymNodeDetails>, Option<NodeId>) {
         (self.nodes, self.start_next_after)
     }
+}
+
+impl PinnedPage for NymNodeVersionHistoryResponse {
+    type QueryMsg = MixnetQueryMsg;
+    type QueryArgs = ();
+    type Record = HistoricalNymNodeVersionEntry;
+    type Cursor = u32;
+
+    const CONTRACT: &'static str = "mixnet contract";
+
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.mixnet_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<u32>) -> MixnetQueryMsg {
+        MixnetQueryMsg::GetNymNodeVersionHistory {
+            limit: None,
+            start_after,
+        }
+    }
+
+    fn into_parts(self) -> (Vec<HistoricalNymNodeVersionEntry>, Option<u32>) {
+        (self.history, self.start_next_after)
+    }
+}
+
+/// `query` answered by the mixnet contract at exactly `height`.
+async fn query_mixnet_contract_at_height<C, T>(
+    client: &C,
+    query: MixnetQueryMsg,
+    height: Height,
+) -> Result<T, NyxdError>
+where
+    C: CosmWasmClient + NymContractsProvider + Sync,
+    for<'a> T: Deserialize<'a>,
+{
+    let contract_address = client
+        .mixnet_contract_address()
+        .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
+
+    client
+        .query_contract_smart_at_height(contract_address, &query, Some(height))
+        .await
 }
 
 // extension help to provide extra functionalities based on existing queries:

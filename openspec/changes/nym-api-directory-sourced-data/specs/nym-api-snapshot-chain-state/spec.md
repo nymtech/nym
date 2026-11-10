@@ -2,7 +2,7 @@
 
 ### Requirement: Mixnet contract state is read beside each snapshot
 
-At each height `H` it snapshots, the producer SHALL also read from the mixnet contract, every query pinned at `H`: the node details of every bonded node, the rewarded set (its metadata and every role's assignment), the interval, the key rotation state, the reward parameters, the contract state, the config score parameters and the nym-node version history, and the legacy mixnodes, the legacy gateways and their ids. The identity map every attested contract is verified with at `H` SHALL be derived from those node details, so the bond set is read once per height.
+At each height `H` it snapshots, the producer SHALL also read from the mixnet contract, every query pinned at `H`: the node details of every bonded node, the rewarded set (its metadata and every role's assignment), the interval, the key rotation state, the reward parameters, the contract state, the config score parameters and the nym-node version history. The identity map every attested contract is verified with at `H` SHALL be derived from those node details, so the bond set is read once per height.
 
 These SHALL be held with the retained entry for `H`, for every retained height. They MUST NOT enter any signed snapshot and MUST NOT be served under an attestation route tree. When any of these reads fails, nothing SHALL be retained for `H`, as when verification fails.
 
@@ -52,7 +52,7 @@ A node's age SHALL be the number of blocks between its bonding height and the sn
 
 ### Requirement: Epoch, rewarded set, bonded node and family routes are served from the latest settled snapshot
 
-Every route that reads mixnet contract state or node families data SHALL read the values held for the latest settled snapshot: among them the current epoch, the reward parameters and the key rotation information, the rewarded set, the bonded nodes and their stake saturation, the legacy mixnodes and gateways, the config score details, the mixnet-derived part of the circulating supply, and the node families routes. While no snapshot has settled these routes MUST answer 503.
+Every route that reads mixnet contract state or node families data SHALL read the values held for the latest settled snapshot: among them the current epoch, the reward parameters and the key rotation information, the rewarded set, the bonded nodes and their stake saturation, the config score details, the mixnet-derived part of the circulating supply, and the node families routes. While no snapshot has settled these routes MUST answer 503.
 
 #### Scenario: An epoch change is served once its snapshot settles
 - **WHEN** the epoch advances on chain at a height after the latest settled snapshot
@@ -65,6 +65,14 @@ Every route that reads mixnet contract state or node families data SHALL read th
 #### Scenario: Nothing has settled
 - **WHEN** no snapshot has settled
 - **THEN** these routes answer 503
+
+### Requirement: Legacy mixnode and gateway bonds are not read
+
+nym-api MUST NOT read legacy mixnode or gateway bonds from the mixnet contract. `GET /v1/legacy/mixnodes` and `GET /v1/legacy/gateways` SHALL keep their response types, SHALL be marked deprecated, and SHALL always answer with a count of 0 and no nodes.
+
+#### Scenario: The legacy routes answer empty
+- **WHEN** a client asks `GET /v1/legacy/mixnodes` or `GET /v1/legacy/gateways`, whatever legacy bonds the contract still holds
+- **THEN** it receives 200 with `count` 0 and an empty `nodes` list
 
 ### Requirement: Account lookups price live reads with the snapshot's reward state
 

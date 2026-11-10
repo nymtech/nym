@@ -36,7 +36,7 @@ Constraints:
 The snapshot production at height H additionally reads, every query pinned at H:
 
 - the node details of every bonded node (this replaces the bond read: the identity map every contract is verified with is derived from it, as the epoch driver already does);
-- the rest of what the mixnet contract cache held: rewarded set, interval, key rotation state, reward parameters, contract state, config score parameters and version history, legacy mixnodes, legacy gateways and their ids;
+- the rest of what the mixnet contract cache held, except the legacy mixnode and gateway bonds (D10): rewarded set, interval, key rotation state, reward parameters, contract state, config score parameters and version history;
 - the node families contract: families, members, pending invitations.
 
 They are held in the same retained entry as the three attested snapshots, are never signed and never served under the attestation route trees, and a height is retained only when every one of these reads succeeded, like the performance auxiliary reads today. Routes read the latest settled entry.
@@ -47,7 +47,7 @@ The data is kept for all three retained heights, not only the latest. The served
 
 ### D2. Height-pinned queries are added where they are missing
 
-`PinnedMixnetQueryClient` has node details and bonds only. It gains the single-value reads (rewarded set metadata and role assignments, interval, key rotation state, reward parameters, contract state, config score parameters) and the paged ones (legacy mixnodes, legacy gateways, gateway ids, version history) through the existing `PinnedPage` and `collect_pages_at_height`. A pinned trait is added for the node families contract with its three paged reads. The helpers live in validator-client next to the unpinned ones.
+`PinnedMixnetQueryClient` has node details and bonds only. It gains the single-value reads (rewarded set metadata and role assignments, interval, key rotation state, reward parameters, contract state, config score parameters) and the paged version history through the existing `PinnedPage` and `collect_pages_at_height`. A pinned trait is added for the node families contract with its three paged reads. The helpers live in validator-client next to the unpinned ones.
 
 ### D3. A per-height node view is derived once, not per request
 
@@ -99,6 +99,7 @@ This is what the performance routes do already and `AppState::latest_snapshot` r
 
 - `POST /v1/nym-nodes/refresh-described` answers 410 Gone with a plain-text body saying the endpoint was removed, nym-api reads node data from the directory, and the node should be upgraded. nym-node logs the body of such a response in its warning.
 - Both `/v1/utility` routes are removed with their bearer setting and flag, an explicit exception to keeping routes.
+- Legacy mixnode and gateway bonds are no longer read. `GET /v1/legacy/mixnodes` and `GET /v1/legacy/gateways` stay with their response types, are marked deprecated in OpenAPI and on the handler, and always answer an empty list, since no route serving nodes lists legacy bonds any more.
 - The `[describe_cache]`, `[mixnet_contract_cache]` and `[node_families_cache]` sections are no longer read; a config file still holding them loads without complaint. Their cache files are left on disk.
 
 ### D11. nym-node reads key rotation from the chain first

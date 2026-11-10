@@ -117,3 +117,50 @@ describe('loadCache / saveCache', () => {
     expect(() => loadCache(file)).toThrow(/unreadable/);
   });
 });
+
+describe('embedChunks concurrency', () => {
+  // A provider that holds each request open for a tick and records the peak
+  // number of requests in flight.
+  function slowProvider({ failOnCall }: { failOnCall?: number } = {}) {
+    const base = mockProvider({ dim: 4 });
+    const state = { inFlight: 0, peak: 0, calls: 0 };
+    return {
+      state,
+      name: base.name,
+      model: base.model,
+      dim: base.dim,
+      async embed(texts: string[]) {
+        const call = ++state.calls;
+        state.inFlight++;
+        state.peak = Math.max(state.peak, state.inFlight);
+        await new Promise((r) => setTimeout(r, 5));
+        state.inFlight--;
+        if (call === failOnCall) throw new Error('provider down');
+        return base.embed(texts);
+      },
+    };
+  }
+
+  const texts = Array.from({ length: 10 }, (_, i) => `chunk ${i}`);
+
+  it('keeps at most `concurrency` batches in flight and gives the same vectors as a serial run', async () => {
+    const serial = await embedChunks(makeChunks(texts), mockProvider({ dim: 4 }), new Map(), { batchSize: 1 });
+    const provider = slowProvider();
+    const parallel = await embedChunks(makeChunks(texts), provider, new Map(), { batchSize: 1, concurrency: 3 });
+    expect(provider.state.peak).toBe(3);
+    expect(parallel.embedded).toEqual(serial.embedded);
+  });
+
+  it('defaults to one batch at a time', async () => {
+    const provider = slowProvider();
+    await embedChunks(makeChunks(texts), provider, new Map(), { batchSize: 1 });
+    expect(provider.state.peak).toBe(1);
+  });
+
+  it('rejects on a failed batch and claims no further batches', async () => {
+    const provider = slowProvider({ failOnCall: 2 });
+    await expect(embedChunks(makeChunks(texts), provider, new Map(), { batchSize: 1, concurrency: 2 })).rejects.toThrow('provider down');
+    await new Promise((r) => setTimeout(r, 20));
+    expect(provider.state.calls).toBeLessThanOrEqual(3);
+  });
+});

@@ -172,13 +172,22 @@ export function mockProvider({ dim = 8 }: { dim?: number } = {}): EmbedProvider 
 
 /**
  * Embed chunks, reusing cached vectors by content hash. Only cache-miss chunks
- * are sent to the provider, in batches. `cache` is mutated and returned.
+ * are sent to the provider, in batches, with at most `concurrency` batches in
+ * flight. `cache` is mutated and returned.
+ *
+ * The default of one batch at a time suits a rate-limited hosted API. A
+ * self-hosted server (text-embeddings-inference takes hundreds of concurrent
+ * requests) is round-trip bound when fed serially, so its pipeline raises it.
  */
 export async function embedChunks<C extends Embeddable>(
   chunks: C[],
   provider: EmbedProvider,
   cache: EmbedCache = new Map(),
-  { batchSize = 128, onProgress }: { batchSize?: number; onProgress?: (p: { done: number; total: number; cache: EmbedCache }) => void } = {},
+  { batchSize = 128, concurrency = 1, onProgress }: {
+    batchSize?: number;
+    concurrency?: number;
+    onProgress?: (p: { done: number; total: number; cache: EmbedCache }) => void;
+  } = {},
 ): Promise<{ embedded: (C & { vector: number[] })[]; cache: EmbedCache; stats: EmbedStats }> {
   // Key on model + dim as well as content: vectors from different models live in
   // different spaces, so a model change must invalidate the cache rather than
@@ -214,6 +223,7 @@ export async function embedChunks<C extends Embeddable>(
     }
   }
 
+  const batches: number[][] = [];
   let b = 0;
   while (b < missIdx.length) {
     const batch: number[] = [];
@@ -227,10 +237,29 @@ export async function embedChunks<C extends Embeddable>(
       batch.push(missIdx[b]);
       b++;
     }
-    const vectors = await embedBatch(batch.map((i) => embedText(chunks[i])));
-    batch.forEach((i, j) => cache.set(hashes[i], vectors[j]));
-    if (onProgress) onProgress({ done: b, total: missIdx.length, cache });
+    batches.push(batch);
   }
+
+  // Each worker takes the next unclaimed batch. After a failure no worker claims
+  // another, so a dead provider is not sent the rest of the run.
+  let next = 0;
+  let done = 0;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && next < batches.length) {
+      const batch = batches[next++];
+      try {
+        const vectors = await embedBatch(batch.map((i) => embedText(chunks[i])));
+        batch.forEach((i, j) => cache.set(hashes[i], vectors[j]));
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+      done += batch.length;
+      if (onProgress) onProgress({ done, total: missIdx.length, cache });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, concurrency), batches.length) }, worker));
 
   const embedded = chunks.map((c, i) => ({ ...c, vector: cache.get(hashes[i]) }));
   return {

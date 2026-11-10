@@ -34,7 +34,7 @@
 - [ ] 4.1 Provision the two stores: a public Postgres + pgvector (may be managed, since it holds only public content) and a self-hosted private Postgres + pgvector on Nym infra. Per-store schema; a read-only credential on the public store for the public MCP; the private store reachable only from the private infrastructure
 - [ ] 4.2 Stand up the embedding service (scope depends on Q1: private shard at minimum)
 - [ ] 4.3 Build the retrieval benchmark against the current index as baseline
-- [ ] 4.4 Make the indexer embed concurrently: replace the one-batch-at-a-time loop in `embedChunks` with a bounded in-flight pool, so a self-hosted re-index is not serialised on request round-trips (the spike measured ~7 chunks/s serialised on CPU; this is the throughput lever for a 20k+ chunk re-index against a self-hosted model). See design Q1; verify against the embedding service (4.2)
+- [ ] 4.4 Make the indexer embed concurrently: replace the one-batch-at-a-time loop in `embedChunks` with a bounded in-flight pool, so a self-hosted re-index is not serialised on request round-trips (the spike measured ~7 chunks/s serialised on CPU; this is the throughput lever for a 20k+ chunk re-index against a self-hosted model). See design Q1; verify against the embedding service (4.2). Built: `embedChunks` takes `concurrency` (default 1, so the Voyage request pattern is unchanged); left: pick the self-hosted value against 4.2
 
 ## 5. Cutover (nym repo)
 

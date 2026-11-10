@@ -1,9 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::lp::active_sessions::LpPeer;
 use crate::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
 use crate::node::lp::control::ingress::handshake::complete_ingress_handshake;
+use crate::node::lp::control::ingress::node_handler::LpNodeConnectionHandler;
 use crate::node::lp::control::stats::LpConnectionStats;
 use crate::node::lp::directory::LpNodeDetails;
 use crate::node::lp::error::LpHandlerError;
@@ -149,16 +149,11 @@ where
         debug!("completed ingress KKT/PSQ handshake with {remote}");
 
         // a one-way opener is a client's; a mutual one claims to be the node listed here
-        let binding = session.session_binding();
-        if binding.initiator_pq_pk.is_none() {
-            return self.serve_client(session).await;
+        if session.session_binding().initiator_pq_pk.is_none() {
+            self.serve_client(session).await
+        } else {
+            self.serve_node(session).await
         }
-        if let Err(err) = self.check_node_identity(binding) {
-            // neither stored nor served
-            self.stats.emit_lifecycle_node_metrics(false);
-            return Err(err);
-        }
-        self.store_node_session(session)
     }
 
     /// Whether a mutual opener really is the listed node's, by the x25519 key the handshake proved.
@@ -201,20 +196,6 @@ where
         }
     }
 
-    fn store_node_session(&self, session: LpTransportSession) -> Result<(), LpHandlerError> {
-        self.state
-            .sessions
-            .insert_addressed_session(LpPeer::node(self.remote_addr.ip()), session)?;
-
-        debug!(
-            "stored LP session with node at {}; closing control connection",
-            self.remote_addr.ip()
-        );
-
-        self.stats.emit_lifecycle_node_metrics(true);
-        Ok(())
-    }
-
     async fn serve_client(self, session: LpTransportSession) -> Result<(), LpHandlerError> {
         let remote = self.remote_addr;
         let forwarded = self.is_from_node_address();
@@ -250,5 +231,22 @@ where
             metrics.network.closed_ingress_lp_client_connection();
         }
         result
+    }
+
+    async fn serve_node(self, session: LpTransportSession) -> Result<(), LpHandlerError> {
+        if let Err(err) = self.check_node_identity(session.session_binding()) {
+            // neither stored nor served
+            self.stats.emit_lifecycle_node_metrics(false);
+            return Err(err);
+        }
+
+        let mut handler = LpNodeConnectionHandler::with_session(
+            self.stream,
+            self.remote_addr,
+            self.state,
+            session,
+            self.stats,
+        )?;
+        handler.run().await
     }
 }

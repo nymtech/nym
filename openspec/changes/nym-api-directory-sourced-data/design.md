@@ -57,7 +57,7 @@ It is derived when a height is produced and again when retained heights are load
 
 ### D4. One node rule, shared where it is shared
 
-The part common to the epoch driver and nym-api (a node counts only when every one of its directory entries verifies against its bonded identity and its node information decodes) becomes a method on the verified directory node in `nym-directory-client`, and the driver's `network_view` calls it. Each side adds its own conditions:
+The part common to the epoch driver and nym-api (a node counts only when every one of its directory entries verifies against its bonded identity and its node information decodes) moves into `DirectoryNode::payload` in `nym-directory-client`, which today decodes an entry whether or not the node's entries verify. It returns `Result<T, PayloadError>`: `Unverified` unless every entry of the node verifies, `Missing` when the node publishes no entry under the label, `Undecodable` otherwise. `Missing` stays explicit because nym-node writes no entry for a payload whose encoding is empty, so a reader decides per payload whether a missing entry means "none" (service providers) or rules the node out (node information); decoding empty bytes instead would give a default `NodeInformation` that passes. The method is replaced rather than joined by a gated sibling: its only caller, the driver, already checks the flag first, and `known_labels` stays public for a reader that wants unverified bytes. Each side adds its own conditions:
 
 - the driver keeps its role derivation from the modes and its unbonding filter, unchanged;
 - nym-api additionally requires a sphinx key for the key rotation current at the height and public addresses (D6).

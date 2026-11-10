@@ -6,8 +6,8 @@
 
 ## 2. Shared node rule
 
-- [ ] 2.1 Add a method on `DirectoryNode` (`common/nym-directory-client/src/verify.rs`) that returns a decoded payload only when every entry of the node verifies, with unit tests for an unverified node, a missing entry and an undecodable entry
-- [ ] 2.2 Make `node_roles` in `nym-epoch-driver/src/network_view.rs` use it, leaving the driver's role derivation, unbonding filter and tests as they are
+- [x] 2.1 Replace `DirectoryNode::payload` (`common/nym-directory-client/src/verify.rs`) with one returning `Result<T, PayloadError>`: `Unverified` unless every entry of the node verifies, `Missing` when the node publishes no entry under `T`'s label, `Undecodable` when it does not decode; unit tests for an unverified node, a missing entry, an undecodable entry and a decoded one
+- [x] 2.2 Make `node_roles` in `nym-epoch-driver/src/network_view.rs` read the node information through it in one match arm, logging the error, leaving the driver's role derivation, unbonding filter and tests as they are
 
 ## 3. Snapshot production holds mixnet and families data
 

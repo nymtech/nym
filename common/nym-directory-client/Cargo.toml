@@ -15,6 +15,7 @@ publish = true
 async-trait = { workspace = true }
 cosmrs = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
 tracing = { workspace = true }
 
 nym-contract-anchor = { workspace = true }
@@ -27,7 +28,6 @@ nym-directory-types = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 
 [dev-dependencies]
-thiserror = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 cw-storage-plus = { workspace = true }

@@ -25,6 +25,7 @@ import {
   saveCache,
 } from "../../docs/packages/retrieval-indexer/embed.ts";
 import {
+  assertNoSilentDrops,
   collectSourceFiles,
   MAX_FILE_BYTES,
 } from "../../docs/packages/retrieval-indexer/walk.ts";
@@ -51,7 +52,10 @@ const SHARD = {
 // The canonical scope lives at the root of documentation/ rather than here, so
 // the list that decides what the docs can be held to is not buried in a build
 // script. See that file for what adding a root costs.
-const { files, oversized } = collectSourceFiles(REPO, ROOTS);
+const { files, oversized, dropped } = collectSourceFiles(REPO, ROOTS);
+assertNoSilentDrops(dropped);
+const accepted = Object.entries(dropped).map(([ext, f]) => `.${ext} ${f.length}`);
+if (accepted.length) console.log(`Not chunked, accepted: ${accepted.join(", ")}`);
 console.log(
   `Scanning ${ROOTS.length} roots (documentation/indexed-sources.mjs) -> ${files.length} source files ...`,
 );

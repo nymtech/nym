@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { collectSourceFiles } from './walk.ts';
+import { assertNoSilentDrops, collectSourceFiles } from './walk.ts';
 
 describe('collectSourceFiles', () => {
   it('keeps chunkable files under the roots and skips excludes, oversized files, and missing roots', () => {
@@ -16,10 +16,22 @@ describe('collectSourceFiles', () => {
     write('crate/target/debug/build.rs', 'fn built() {}');
     write('crate/src/big.rs', 'x'.repeat(64));
     write('outside/src/lib.rs', 'pub fn b() {}');
+    write('crate/ffi/shim.c', 'int x;');
 
-    const { files, oversized } = collectSourceFiles(repo, ['crate', 'gone'], { maxBytes: 32 });
+    const { files, oversized, dropped } = collectSourceFiles(repo, ['crate', 'gone'], { maxBytes: 32 });
 
     expect(files).toEqual([{ path: 'crate/src/lib.rs', content: 'pub fn a() {}' }]);
     expect(oversized).toEqual(['crate/src/big.rs']);
+    expect(dropped).toEqual({ c: ['crate/ffi/shim.c'] });
+  });
+});
+
+describe('assertNoSilentDrops', () => {
+  it('passes an accepted drop', () => {
+    expect(() => assertNoSilentDrops({ c: ['a.c'], proto: ['b.proto'] })).not.toThrow();
+  });
+
+  it('fails on a dropped language that is not accepted, naming the files', () => {
+    expect(() => assertNoSilentDrops({ c: ['a.c'], rb: ['app/x.rb', 'app/y.rb'] })).toThrow(/\.rb \(2\): app\/x\.rb, app\/y\.rb/);
   });
 });

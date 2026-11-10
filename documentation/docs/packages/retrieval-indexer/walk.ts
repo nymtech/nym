@@ -1,5 +1,7 @@
 // Source file collection for the code index: walk a producer's roots, skip build
-// output and dependency trees, and cap file size.
+// output and dependency trees, cap file size, and count the source files the
+// chunker cannot read, so a language that indexes to zero is a recorded
+// decision, not an accident (design decision 10).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,6 +16,20 @@ export const DEFAULT_EXCLUDE =
 // explode the index (one 30MB file is ~13k chunks). Skip anything above the cap.
 export const MAX_FILE_BYTES = 256 * 1024;
 
+// Extensions that look like source. A file with one of these that langOf()
+// cannot chunk is counted as dropped.
+export const SOURCE_LIKE = new Set([
+  'kt', 'kts', 'swift', 'go', 'py', 'rb', 'java', 'scala', 'cs',
+  'c', 'h', 'cpp', 'cc', 'cxx', 'hpp', 'hxx', 'm', 'mm', 'cjs', 'proto',
+]);
+
+// Source-like extensions dropped on purpose: in the producer repos these are
+// generated bindings, a cgo shim, an FFI example, and a handful of Objective-C
+// and proto files. Any other dropped source-like extension fails the build
+// (assertNoSilentDrops). To index a language, give code-chunker a rule for it;
+// to skip one on purpose, add its extension here.
+export const ACCEPTED_DROP = new Set(['c', 'h', 'cc', 'cpp', 'cxx', 'hpp', 'hxx', 'm', 'mm', 'proto']);
+
 export interface SourceFile {
   /** repo-relative, `/`-separated */
   path: string;
@@ -22,16 +38,17 @@ export interface SourceFile {
 
 /**
  * The chunkable source files under `roots` (repo-relative) in `repoRoot`, in walk
- * order, and the repo-relative paths skipped for size. A root that does not exist
- * on this checkout is skipped.
+ * order, the repo-relative paths skipped for size, and the dropped source-like
+ * files by extension. A root that does not exist on this checkout is skipped.
  */
 export function collectSourceFiles(
   repoRoot: string,
   roots: string[],
   { exclude = DEFAULT_EXCLUDE, maxBytes = MAX_FILE_BYTES }: { exclude?: RegExp; maxBytes?: number } = {},
-): { files: SourceFile[]; oversized: string[] } {
+): { files: SourceFile[]; oversized: string[]; dropped: Record<string, string[]> } {
   const found: string[] = [];
   const oversized: string[] = [];
+  const dropped: Record<string, string[]> = {};
 
   const walk = (dir: string) => {
     let entries: fs.Dirent[];
@@ -48,6 +65,9 @@ export function collectSourceFiles(
       else if (langOf(e.name)) {
         if (fs.statSync(full).size > maxBytes) oversized.push(rel);
         else found.push(full);
+      } else {
+        const ext = path.extname(e.name).slice(1).toLowerCase();
+        if (SOURCE_LIKE.has(ext)) (dropped[ext] ??= []).push(rel);
       }
     }
   };
@@ -57,5 +77,16 @@ export function collectSourceFiles(
     path: path.relative(repoRoot, full).split(path.sep).join('/'),
     content: fs.readFileSync(full, 'utf-8'),
   }));
-  return { files, oversized };
+  return { files, oversized, dropped };
+}
+
+/** Throw, naming each file, if any dropped extension is not on the accepted set. */
+export function assertNoSilentDrops(dropped: Record<string, string[]>, accepted: Set<string> = ACCEPTED_DROP): void {
+  const silent = Object.entries(dropped).filter(([ext]) => !accepted.has(ext));
+  if (silent.length === 0) return;
+  const detail = silent.map(([ext, files]) => `  .${ext} (${files.length}): ${files.join(', ')}`).join('\n');
+  throw new Error(
+    `source files the code chunker cannot read would index to zero:\n${detail}\n` +
+      'Give code-chunker a rule for the language, or add the extension to ACCEPTED_DROP in walk.ts.',
+  );
 }

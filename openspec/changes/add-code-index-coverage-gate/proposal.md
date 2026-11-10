@@ -10,7 +10,7 @@ The shared-index change (`add-shared-retrieval-index`) makes it worse in a secon
 
 ## What Changes
 
-- Move the coverage probes out of the shell script into a data structure keyed by root — `{ root: { label, query } }` — in a sibling file that is NOT traced into the `/api/mcp` lambda, so probe queries never ship to production.
+- Move the coverage probes out of the shell script into a data structure keyed by the probed path, `{ path: { label, query } }`, where each path is a root or a subpath of one, in a sibling file that is NOT traced into the `/api/mcp` lambda, so probe queries never ship to production.
 - Add a static completeness check (a unit test) asserting every entry in `ROOTS` is covered by at least one probe. A root with none fails the test, so adding a root forces adding its probe.
 - Keep the live citability probe in `check-mcp-server.sh`, now reading the shared probe data: it still *skips* a root absent from the checkout (the existing branch-predates-a-crate behaviour) and *fails* only when a present root's probe returns no hit under it.
 - Make roots and probes repo-aware, so a second producer repo's roots are covered rather than silently omitted. The per-repo roots shape is the one produced by the `add-shared-retrieval-index` audience-scope spike (Q3 / task 2.3).

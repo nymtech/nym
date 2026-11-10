@@ -278,7 +278,7 @@ missing, so `tools/list` failing outright points at the key while `tools/list`
 succeeding and `search_docs` failing points at the index.
 
 **All of the above at once, against a deployment.**
-`scripts/check-mcp-server.sh` runs 37 checks over HTTP: the tool list, transport
+`scripts/check-mcp-server.sh` runs 46 checks over HTTP: the tool list, transport
 negotiation, retrieval and a `get_section` round-trip, code search, index
 coverage, config validation, every live network tool, argument-schema rejection,
 and error shapes. It covers what unit tests cannot,
@@ -289,7 +289,10 @@ The **index coverage** group asserts that `search_code` can cite each root in
 `ROOTS`, matching on the returned file path rather than on the search term, since
 prose elsewhere in the corpus mentions all of these by name. A failure there
 normally means the deployed index predates a `ROOTS` change, not that the tool
-broke; rebuild with `VOYAGE_API_KEY` set and redeploy.
+broke; rebuild with `VOYAGE_API_KEY` set and redeploy. The probe queries live in
+`scripts/index-coverage-probes.mjs`, and `lib/retrieval/index-coverage.test.ts`
+fails at PR time if a root in `ROOTS` has no probe, so adding a root means adding
+its probe.
 
 ```bash
 # from documentation/

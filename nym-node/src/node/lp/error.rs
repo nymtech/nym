@@ -34,9 +34,6 @@ pub enum LpHandlerError {
     #[error(transparent)]
     LpProtocolError(#[from] LpError),
 
-    #[error("the initial KKT/PSQ handshake has not been completed")]
-    IncompleteHandshake,
-
     #[error("timed out while attempting the initial KKT/PSQ handshake")]
     HandshakeTimeout,
 

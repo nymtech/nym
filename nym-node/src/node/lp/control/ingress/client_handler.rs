@@ -38,10 +38,8 @@ pub struct LpClientConnectionHandler<S = TcpStream> {
 
     // /// Flag indicating whether this is a connection from an entry gateway serving as a proxy
     // forwarded_connection: bool,
-    /// Bound receiver_idx for this connection (set after first packet).
-    /// All subsequent packets on this connection must use this receiver_idx.
-    /// Set from ClientHello's proposed receiver_index, or from header for non-bootstrap packets.
-    bound_receiver_idx: Option<LpReceiverIndex>,
+    /// The session this connection was established with; every packet must carry its index.
+    bound_receiver_idx: LpReceiverIndex,
 
     /// Persistent connection to exit gateway for forwarding.
     /// Opened on first forward, reused for subsequent forwards, closed when client disconnects.
@@ -58,6 +56,7 @@ where
         remote_addr: SocketAddr,
         state: SharedLpControlState,
         gateway_state: SharedGatewayLpControlState,
+        bound_receiver_idx: LpReceiverIndex,
         stats: LpConnectionStats,
     ) -> Self {
         Self {
@@ -66,12 +65,12 @@ where
             state,
             gateway_state,
             stats,
-            bound_receiver_idx: None,
+            bound_receiver_idx,
             exit_stream: None,
         }
     }
 
-    /// A handler for a session established over `stream`, continuing the connection's `stats`.
+    /// Deposit `session` in the shared store and serve it over `stream`, continuing its `stats`.
     pub(crate) fn with_session(
         stream: S,
         remote_addr: SocketAddr,
@@ -80,17 +79,16 @@ where
         session: LpTransportSession,
         stats: LpConnectionStats,
     ) -> Result<Self, LpHandlerError> {
-        let mut handler = Self::new(stream, remote_addr, state, gateway_state, stats);
-        handler.bind_session(session)?;
-        Ok(handler)
-    }
-
-    /// Deposit the session in the shared store and tie this connection to its receiver index.
-    fn bind_session(&mut self, session: LpTransportSession) -> Result<(), LpHandlerError> {
-        let receiver_idx = session.receiver_index();
-        self.state.sessions.insert_new_session(session)?;
-        self.bound_receiver_idx = Some(receiver_idx);
-        Ok(())
+        let bound_receiver_idx = session.receiver_index();
+        state.sessions.insert_new_session(session)?;
+        Ok(Self::new(
+            stream,
+            remote_addr,
+            state,
+            gateway_state,
+            bound_receiver_idx,
+            stats,
+        ))
     }
 
     /// Get the mutable reference to the state machine associated with this client.
@@ -99,8 +97,9 @@ where
         &self,
     ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpTransportSession>>, LpHandlerError>
     {
-        let receiver_index = self.bound_receiver_index()?;
-        self.state.sessions.get_state_entry_mut(receiver_index)
+        self.state
+            .sessions
+            .get_state_entry_mut(self.bound_receiver_idx)
     }
 
     /// The frame loop on a bound session, until the client closes the connection.
@@ -143,14 +142,9 @@ where
         Ok(())
     }
 
-    fn bound_receiver_index(&self) -> Result<LpReceiverIndex, LpHandlerError> {
-        self.bound_receiver_idx
-            .ok_or_else(|| LpHandlerError::IncompleteHandshake)
-    }
-
     /// Validate that the receiver_idx matches the bound session.
     fn validate_binding(&self, receiver_idx: LpReceiverIndex) -> Result<(), LpHandlerError> {
-        let bound_receiver_idx = self.bound_receiver_index()?;
+        let bound_receiver_idx = self.bound_receiver_idx;
 
         if bound_receiver_idx != receiver_idx {
             warn!(
@@ -631,6 +625,7 @@ mod tests {
                 remote_addr,
                 state,
                 gateway_state,
+                id,
                 LpConnectionStats::new(),
             );
             // Two-phase: receive raw bytes + header, then parse full packet

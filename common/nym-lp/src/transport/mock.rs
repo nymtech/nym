@@ -6,8 +6,9 @@
 
 use crate::transport::error::LpTransportError;
 use crate::transport::traits::{
-    LpHandshakeChannel, LpTransportChannel, receive_length_prefixed_bytes_async_read,
-    send_serialised_packet_async_write,
+    LpHandshakeChannel, LpTransportChannel, read_n_bytes_async_read,
+    receive_length_prefixed_bytes_async_read, send_serialised_packet_async_write,
+    write_all_and_flush_async_write,
 };
 use async_trait::async_trait;
 use nym_lp_data::packet::EncryptedLpPacket;
@@ -95,6 +96,17 @@ impl LpTransportChannel for MockTransport {
         &mut self,
     ) -> Result<Vec<u8>, LpTransportError> {
         receive_length_prefixed_bytes_async_read(&mut self.stream).await
+    }
+}
+
+#[async_trait]
+impl LpHandshakeChannel for MockIOStream {
+    async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError> {
+        write_all_and_flush_async_write(self, data).await
+    }
+
+    async fn read_n_bytes(&mut self, n: usize) -> Result<Vec<u8>, LpTransportError> {
+        read_n_bytes_async_read(self, n).await
     }
 }
 

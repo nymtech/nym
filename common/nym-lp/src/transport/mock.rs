@@ -13,25 +13,28 @@ use crate::transport::traits::{
 use async_trait::async_trait;
 use nym_lp_data::packet::EncryptedLpPacket;
 use nym_test_utils::mocks::async_read_write::MockIOStream;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
 
-/// An in-memory transport: one end of a `MockIOStream` pair, plus the connections it will open.
+// per thread, so tests sharing addresses do not see each other's; a test and the handlers it
+// spawns share a thread only on a current-thread runtime
+thread_local! {
+    /// What `connect` returns on this thread, by endpoint.
+    static EXPECTED_CONNECTIONS: RefCell<HashMap<SocketAddr, MockTransport>> = RefCell::default();
+}
+
+/// An in-memory transport: one end of a `MockIOStream` pair.
 #[derive(Default)]
 pub struct MockTransport {
     stream: MockIOStream,
-
-    /// What `connect_to` from either end of this pair returns, by endpoint.
-    expected_connections: Arc<Mutex<HashMap<SocketAddr, MockTransport>>>,
 }
 
 impl MockTransport {
-    /// The other end of this transport's stream, sharing its expected connections.
+    /// The other end of this transport's stream.
     pub fn try_get_remote_handle(&self) -> Self {
         MockTransport {
             stream: self.stream.try_get_remote_handle(),
-            expected_connections: self.expected_connections.clone(),
         }
     }
 
@@ -39,20 +42,17 @@ impl MockTransport {
         self.stream.set_id(id)
     }
 
-    /// Register what `connect_to(addr)` from either end of this pair returns; gives back its remote end.
-    pub fn expect_connection(&self, addr: SocketAddr) -> Self {
+    /// Register what `connect(addr)` returns on this thread; gives back its remote end.
+    pub fn expect_connection(addr: SocketAddr) -> Self {
         let transport = MockTransport::default();
         let remote = transport.try_get_remote_handle();
-        self.expected_connections
-            .lock()
-            .unwrap()
-            .insert(addr, transport);
+        EXPECTED_CONNECTIONS.with_borrow_mut(|expected| expected.insert(addr, transport));
         remote
     }
 
     /// Take the transport registered for `addr` by [`Self::expect_connection`], if any.
-    pub fn take_expected_connection(&self, addr: SocketAddr) -> Option<Self> {
-        self.expected_connections.lock().unwrap().remove(&addr)
+    fn take_expected_connection(addr: SocketAddr) -> Option<Self> {
+        EXPECTED_CONNECTIONS.with_borrow_mut(|expected| expected.remove(&addr))
     }
 }
 
@@ -69,16 +69,12 @@ impl LpHandshakeChannel for MockTransport {
 
 #[async_trait]
 impl LpTransportChannel for MockTransport {
-    /// A loose end: nothing holds the other side.
+    /// The transport registered for `endpoint`, or a loose end nothing holds the other side of.
     async fn connect_from(
-        _endpoint: SocketAddr,
+        endpoint: SocketAddr,
         _local: Option<SocketAddr>,
     ) -> Result<Self, LpTransportError> {
-        Ok(MockTransport::default())
-    }
-
-    async fn connect_to(&mut self, endpoint: SocketAddr) -> Result<Self, LpTransportError> {
-        Ok(self.take_expected_connection(endpoint).unwrap_or_default())
+        Ok(Self::take_expected_connection(endpoint).unwrap_or_default())
     }
 
     fn set_no_delay(&mut self, _nodelay: bool) -> Result<(), LpTransportError> {
@@ -115,19 +111,16 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn an_expected_connection_is_what_connect_to_returns_from_either_end() {
+    async fn an_expected_connection_is_what_connect_returns() {
         let addr: SocketAddr = "127.0.0.1:4242".parse().unwrap();
-        let mut near_end = MockTransport::default();
-        let far_end = near_end.try_get_remote_handle();
 
-        // registered on one end of the pair, opened from the other
-        let mut remote = far_end.expect_connection(addr);
-        let mut local = near_end.connect_to(addr).await.unwrap();
+        let mut remote = MockTransport::expect_connection(addr);
+        let mut local = MockTransport::connect(addr).await.unwrap();
 
         local.write_all_and_flush(b"hi").await.unwrap();
         assert_eq!(remote.read_n_bytes(2).await.unwrap(), b"hi");
 
         // one registration, one connection
-        assert!(near_end.take_expected_connection(addr).is_none());
+        assert!(MockTransport::take_expected_connection(addr).is_none());
     }
 }

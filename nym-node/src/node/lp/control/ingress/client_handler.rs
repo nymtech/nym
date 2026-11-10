@@ -357,24 +357,23 @@ where
         };
 
         // Connect to target gateway with timeout
-        let mut stream =
-            match timeout(Duration::from_secs(5), self.stream.connect_to(target_addr)).await {
-                Ok(Ok(stream)) => stream,
-                Ok(Err(e)) => {
-                    inc!("lp_forward_failed");
-                    return Err(LpHandlerError::ConnectionFailure {
-                        egress: target_addr,
-                        reason: e.to_string(),
-                    });
-                }
-                Err(_) => {
-                    inc!("lp_forward_failed");
-                    return Err(LpHandlerError::ConnectionFailure {
-                        egress: target_addr,
-                        reason: "target gateway connection timeout".to_string(),
-                    });
-                }
-            };
+        let mut stream = match timeout(Duration::from_secs(5), S::connect(target_addr)).await {
+            Ok(Ok(stream)) => stream,
+            Ok(Err(e)) => {
+                inc!("lp_forward_failed");
+                return Err(LpHandlerError::ConnectionFailure {
+                    egress: target_addr,
+                    reason: e.to_string(),
+                });
+            }
+            Err(_) => {
+                inc!("lp_forward_failed");
+                return Err(LpHandlerError::ConnectionFailure {
+                    egress: target_addr,
+                    reason: "target gateway connection timeout".to_string(),
+                });
+            }
+        };
 
         // Disable Nagle's algorithm: the forward stream carries small request/response
         // handshake packets, so we want them sent immediately rather than coalesced.

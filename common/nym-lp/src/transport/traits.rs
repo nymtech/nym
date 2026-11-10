@@ -122,11 +122,6 @@ pub trait LpTransportChannel: Sized + Send {
         Self::connect_from(endpoint, None).await
     }
 
-    /// Open a further connection to `endpoint` from the side of this one.
-    async fn connect_to(&mut self, endpoint: SocketAddr) -> Result<Self, LpTransportError> {
-        Self::connect(endpoint).await
-    }
-
     fn set_no_delay(&mut self, nodelay: bool) -> Result<(), LpTransportError>;
 
     /// Sends a serialised and encrypted LP packet over the data stream with length-prefixed framing.

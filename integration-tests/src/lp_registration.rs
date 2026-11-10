@@ -615,7 +615,7 @@ mod tests {
             entry_conn.set_id(1);
 
             // 2. the exit's end of the connection the entry opens when it first forwards
-            let exit_conn = entry_conn.expect_connection(exit.base.socket_addr);
+            let exit_conn = MockTransport::expect_connection(exit.base.socket_addr);
             exit_conn.set_id(255);
 
             // 3. create handler for the client connection (entry)

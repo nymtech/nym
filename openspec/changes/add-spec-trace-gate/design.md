@@ -88,7 +88,7 @@ To see which requirement a piece of code names while you edit it, use `tracey ls
 
 ### T8: The gate has its own canary
 
-A check that cannot fail is a constant (`add-codex-assurance`, A2). The CI job writes `// r[impl canary.unknown]` into `common/nymsphinx/src/` in its own checkout, after the real run. The job fails unless Tracey then fails and names `canary.unknown`. This also checks that the real config scans the code paths. The SHA-256 pins the binary, so the canary has no other Tracey behaviour to guard.
+A check that cannot fail is a constant (`add-codex-assurance`, A2). The CI job writes `// r[impl canary.unknown]` into `common/nymsphinx/src/` in its own checkout, before the real run. Then it removes the file and stops the Tracey daemon (`tracey kill`), because a running daemon does not see a new file at once. The first CI run showed this: with the canary after the gate, the daemon of the gate passed the planted id. The job fails unless Tracey then fails and names `canary.unknown`. This also checks that the real config scans the code paths. The SHA-256 pins the binary, so the canary has no other Tracey behaviour to guard.
 
 ## Risks
 

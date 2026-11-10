@@ -58,7 +58,7 @@ The Tracey config SHALL list the specs `sphinx-packet-format`, `client-cover-tra
 
 ### Requirement: The gate fails on its own canary
 
-After the gate passes on the repository, the CI job SHALL add a marker with an unknown id to a code path in its own checkout, and run the gate again. The job SHALL fail unless the second run fails and names the planted id.
+Before the gate runs on the repository, the CI job SHALL add a marker with an unknown id to a code path in its own checkout, and run the gate. The job SHALL fail unless that run fails and names the planted id. The job SHALL then remove the marker and stop the Tracey daemon, so that the gate reads the checkout again.
 
 #### Scenario: The gate stops catching unknown ids
 

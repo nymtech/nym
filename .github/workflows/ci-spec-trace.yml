@@ -40,21 +40,25 @@ jobs:
           install -m 755 "$RUNNER_TEMP/$name/tracey" "$RUNNER_TEMP/bin/tracey"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: Spec trace gate
-        # Tracey 1.4.0 reports an id that two specs define as CONFIG ERROR, and exits 0.
-        run: |
-          tracey query validate --deny warnings > "$RUNNER_TEMP/gate.log" 2>&1 || { cat "$RUNNER_TEMP/gate.log"; exit 1; }
-          cat "$RUNNER_TEMP/gate.log"
-          ! grep -q 'CONFIG ERROR' "$RUNNER_TEMP/gate.log"
-
       - name: Canary
         # The gate must fail on a marker with an unknown id in a path that the config names (T8).
+        # This step runs first so that its query starts the Tracey daemon after the file exists. The
+        # daemon does not see a new file at once, so `tracey kill` stops it before the gate runs.
         run: |
           printf '%s\n' '// r[impl canary.unknown]' 'pub fn canary() {}' > common/nymsphinx/src/canary.rs
           if tracey query validate --deny warnings > "$RUNNER_TEMP/canary.log" 2>&1; then
             cat "$RUNNER_TEMP/canary.log"; echo "canary: the gate passed an unknown id"; exit 1
           fi
           grep -q canary.unknown "$RUNNER_TEMP/canary.log"
+          rm common/nymsphinx/src/canary.rs
+          tracey kill
+
+      - name: Spec trace gate
+        # Tracey 1.4.0 reports an id that two specs define as CONFIG ERROR, and exits 0.
+        run: |
+          tracey query validate --deny warnings > "$RUNNER_TEMP/gate.log" 2>&1 || { cat "$RUNNER_TEMP/gate.log"; exit 1; }
+          cat "$RUNNER_TEMP/gate.log"
+          ! grep -q 'CONFIG ERROR' "$RUNNER_TEMP/gate.log"
 
       - name: Gaps
         # Reported, not failed (T2).

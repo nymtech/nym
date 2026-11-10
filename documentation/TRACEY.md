@@ -67,6 +67,6 @@ A marker sits above the code it names, so it moves with the code when the code m
 
 ## In CI
 
-The `ci-spec-trace` workflow runs `tracey query validate --deny warnings` on each pull request, and also fails when the output holds `CONFIG ERROR`: Tracey 1.4.0 reports an id that two specs define that way, and exits 0. Then the workflow plants a marker with an unknown id in its checkout and checks that Tracey fails on it.
+The `ci-spec-trace` workflow runs `tracey query validate --deny warnings` on each pull request, and also fails when the output holds `CONFIG ERROR`: Tracey 1.4.0 reports an id that two specs define that way, and exits 0. Before that, the workflow plants a marker with an unknown id in its checkout and checks that Tracey fails on it. Then it removes the marker and runs `tracey kill`, because a running daemon does not see a new file at once.
 
 Tracey 1.4.0 lets a marker with no code item below it pass, and nothing else checks it.

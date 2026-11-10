@@ -107,19 +107,7 @@ The procedures (change a section, add a section, split a page) are in [`docs/.ny
 
 ### Requirements and the threat model
 
-Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. Two open changes extend this: `openspec/changes/add-mixnet-core-specs/` (specs for the Sphinx packet format, cover traffic and the mix-node delay, with proposed edges) and `openspec/changes/add-codex-assurance/` (what backs a claim, and the assurance view). The code carries [Tracey](https://github.com/bearcove/tracey) references to these requirements, which [`TRACEY.md`](TRACEY.md) explains, and `tracey query status` reports the coverage.
-
-### What the branch shows as a PoC
-
-Claim: you can write the mixnet's privacy promises down as short requirements. Then a machine can link each one to the code that keeps it, to a test that checks it, and to the threat-model entry it serves. Once the links exist, the gaps can be counted.
-
-| What it shows | Evidence on the branch |
-|---|---|
-| The three core mechanisms can be specified from the code as it is | 21 requirements (Sphinx 7, cover 8, delay 6). Each one comes from code that was read twice |
-| The specs can say what they do not promise | `design.md`: what each party sees, 14 conditions under which a protection is absent, the non-goals |
-| Code-to-spec links can live in the code | 60 Tracey markers. Tracey reads them, and the docs coverage report asks Tracey for them |
-| The gap can be measured | 20 of 21 requirements have code, but only 5 of 21 have a test. With the proposed edges applied, the chains from code to the threat model go from 0 to 12 |
-| Writing specs finds real faults | 5 findings, for example the replay filter comment that says the opposite of what the code does |
+Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. For a requirement with a Tracey id, the `realises` links are comments in the code, which [Tracey](https://github.com/bearcove/tracey) reads. [`TRACEY.md`](TRACEY.md) explains them, and `tracey query status` reports the coverage.
 
 ### The threat-model step of the build
 

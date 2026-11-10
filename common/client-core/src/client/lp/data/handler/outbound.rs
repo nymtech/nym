@@ -8,7 +8,6 @@
 //! either is deleting its file and its field.
 
 use std::net::SocketAddr;
-use std::sync::mpsc;
 use std::time::Instant;
 
 use nym_crypto::rng::OsRng;
@@ -21,36 +20,18 @@ use tracing::warn;
 
 use super::pipeline::{LpOutboundOptions, LpOutboundPipeline};
 use super::worker_pool::{Worker, WorkerPool};
-use crate::client::inbound_messages::{InputMessage, InputMessageReceiver};
 use crate::client::lp::LpDataHandlerError;
+use crate::client::lp::data::input::LpOutboundMessageReceiver;
 use crate::client::lp::data::shared::SharedLpDataState;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 
 /// The packets one message became, each with the time it may go out.
 type OutboundOutput = Result<Vec<AddressedTimedData<EncryptedLpPacket>>, LpDataHandlerError>;
 
-/// What the wrapping pipeline is defined over: a payload, what the stages need to know about it,
-/// and where it goes.
-///
-/// No timestamp: a sender knows its message, not the handler's tick, so the stamp is put on at this
-/// end - see [`ClientOutbound::dispatch_waiting`].
-pub(crate) type LpOutboundInput = PipelineInput<LpOutboundOptions>;
-
-/// Sends jobs to the LP outbound direction.
-pub(crate) type LpOutboundJobSender = mpsc::Sender<LpOutboundInput>;
-
 /// Takes what the client wants to send to packets on the wire, released when they are due.
-///
-/// Two ways in, and only one of them is meant to last. [`LpOutboundInput`] is the pipeline's own
-/// language; [`InputMessage`] is a dialect of it that carries no destination, adapted by
-/// [`outbound_job`] against the gateway this client registered with. When everything submits a
-/// [`PipelineInput`], that adapter and its channel are what goes.
 pub(crate) struct ClientOutbound {
-    /// Messages the client has handed to the LP path, needing a gateway chosen for them.
-    input_rx: InputMessageReceiver,
-
-    /// Jobs that already say where they are going.
-    job_rx: mpsc::Receiver<LpOutboundInput>,
+    /// Messages the client has handed to the LP path.
+    input_rx: LpOutboundMessageReceiver,
 
     /// Where a message is chunked, sphinx-wrapped, framed and encrypted.
     pool: WorkerPool<PipelinePayload<LpOutboundOptions>, OutboundOutput>,
@@ -58,12 +39,11 @@ pub(crate) struct ClientOutbound {
     /// The sessions this client holds
     shared_state: SharedLpDataState,
 
-    /// The gateway chosen for messages that name none.
+    /// The gateway a message leaves through when it names none.
     ///
-    /// One, fixed, because nothing yet picks between several - see [`Self::dispatch_waiting`]. It
-    /// is named by identity rather than address so that a message arriving before there is a
-    /// session still says which gateway it was for.
-    gateway: NodeIdentity,
+    /// Named by identity rather than address so that a message arriving before there is a session
+    /// still says which gateway it was for.
+    main_gateway: NodeIdentity,
 
     /// Prepared packets waiting for their release time.
     packet_buffer: Vec<AddressedTimedData<EncryptedLpPacket>>,
@@ -73,14 +53,12 @@ pub(crate) struct ClientOutbound {
 }
 
 impl ClientOutbound {
-    #[expect(clippy::too_many_arguments)]
     pub(crate) fn new(
         pipeline: LpOutboundPipeline<OsRng>,
-        input_rx: InputMessageReceiver,
-        job_rx: mpsc::Receiver<LpOutboundInput>,
+        input_rx: LpOutboundMessageReceiver,
         output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
         shared_state: SharedLpDataState,
-        gateway: NodeIdentity,
+        main_gateway: NodeIdentity,
         worker_count: usize,
         shutdown_tracker: &ShutdownTracker,
     ) -> Self {
@@ -89,10 +67,9 @@ impl ClientOutbound {
 
         ClientOutbound {
             input_rx,
-            job_rx,
             pool,
             shared_state,
-            gateway,
+            main_gateway,
             packet_buffer: Vec::new(),
             output_tx,
         }
@@ -120,36 +97,30 @@ impl ClientOutbound {
         }
     }
 
-    /// Hand everything waiting on either input to a worker, stamped with this tick.
+    /// Hand everything waiting to a worker, stamped with this tick.
     ///
     /// The stamp is put on here because a sender knows its message but not the clock this loop runs
     /// on, and the workers need one: a job crosses a thread boundary, so it carries its own time.
     fn dispatch_waiting(&mut self, now: Instant) {
-        while let Ok(input) = self.job_rx.try_recv() {
-            self.pool.dispatch(input.into_payload(now));
-        }
-
-        // the dialect that names no gateway, so one is chosen for it and resolved to where it
-        // answers - from here down the pipeline deals only in addresses
-        let gateway = self.shared_state.sessions().data_address(self.gateway);
-
-        // drained either way: holding messages back for a gateway we cannot reach would fill a
-        // channel of capacity one and stall every sender behind it, silently
+        // drained either way: holding messages back for a gateway we cannot reach would fill the
+        // channel and stall every sender behind it, silently
         while let Ok(message) = self.input_rx.try_recv() {
-            // dropped rather than queued or dialled for: nothing here asks for a session, so a
-            // message with no session to travel on has nothing to wait for
-            let Some(gateway) = gateway else {
-                warn!(
-                    "LP outbound: no session with gateway {}, dropping a message",
-                    self.gateway
-                );
+            let gateway = message.gateway.unwrap_or(self.main_gateway);
+
+            // resolved to where the gateway answers - from here down the pipeline deals only in
+            // addresses. Dropped rather than queued or dialled for: nothing here asks for a
+            // session, so a message with no session to travel on has nothing to wait for
+            let Some(address) = self.shared_state.sessions().data_address(gateway) else {
+                warn!("LP outbound: no session with gateway {gateway}, dropping a message");
                 continue;
             };
 
-            let Some(job) = outbound_job(message, gateway, now) else {
-                continue;
-            };
-            self.pool.dispatch(job);
+            self.pool.dispatch(PipelinePayload::new(
+                now,
+                message.data,
+                message.options,
+                address,
+            ));
         }
     }
 
@@ -194,46 +165,5 @@ impl Worker for LpOutboundPipeline<OsRng> {
             Some(PipelineInput::new(job.data.data, job.options, job.dst)),
             job.data.timestamp,
         )
-    }
-}
-
-/// What an outbound worker can do with an [`InputMessage`], if anything.
-fn outbound_job(
-    message: InputMessage,
-    gateway: SocketAddr,
-    timestamp: Instant,
-) -> Option<PipelinePayload<LpOutboundOptions>> {
-    match message {
-        InputMessage::Regular {
-            recipient, data, ..
-        } => Some(PipelinePayload::new(
-            timestamp,
-            data,
-            LpOutboundOptions { recipient },
-            gateway,
-        )),
-
-        InputMessage::MessageWrapper { message, .. } => outbound_job(*message, gateway, timestamp),
-
-        // ---- where reply-SURB support lands ----
-        //
-        // Both of these are a SURB away from working: `Anonymous` carries reply SURBs out, `Reply`
-        // spends one that came in. LP has no room for either yet, so they are dropped here - and
-        // when it grows them, this is the arm that stops dropping and starts building.
-        InputMessage::Anonymous { .. } | InputMessage::Reply { .. } => {
-            warn!(
-                "LP data handler: dropping a message that needs a reply SURB, which LP has none of"
-            );
-            None
-        }
-
-        // Not a gap, unlike the two above: `Premade` is already sphinx, wrapped for a route drawn
-        // somewhere else. This path draws its own per fragment, so there is nothing to do with one.
-        InputMessage::Premade { .. } => {
-            warn!(
-                "LP data handler: dropping an already-sphinx message, built for a route LP does not take"
-            );
-            None
-        }
     }
 }

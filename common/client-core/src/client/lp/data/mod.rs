@@ -3,11 +3,11 @@
 
 use std::sync::{Arc, mpsc};
 
-use crate::client::inbound_messages::InputMessageReceiver;
 use crate::client::lp::data::handler::LpDataHandler;
 use crate::client::lp::data::handler::inbound::ClientInbound;
-use crate::client::lp::data::handler::outbound::{ClientOutbound, LpOutboundJobSender};
+use crate::client::lp::data::handler::outbound::ClientOutbound;
 use crate::client::lp::data::handler::pipeline::{LpInboundPipeline, LpOutboundPipeline};
+use crate::client::lp::data::input::LpOutboundMessageReceiver;
 use crate::client::lp::data::listener::LpDataListener;
 use crate::client::lp::data::shared::{LpGatewaySessions, SharedLpDataState};
 use crate::client::topology_control::LpTopologyAccessor;
@@ -26,6 +26,7 @@ use tracing::info;
 pub(crate) const PACKET_BUFFER_SIZE: usize = 100;
 
 pub mod handler;
+pub mod input;
 mod listener;
 pub mod shared;
 
@@ -36,14 +37,6 @@ where
     listener: LpDataListener<D>,
 
     handler: LpDataHandler,
-
-    /// Where a caller that names its own destination submits work.
-    ///
-    /// Handed out by [`Self::job_sender`]; nothing in the client uses it yet, which is the point -
-    /// it is the way in that does not go through [`InputMessage`].
-    ///
-    /// [`InputMessage`]: crate::client::inbound_messages::InputMessage
-    job_tx: LpOutboundJobSender,
 
     /// Shutdown coordination
     shutdown: ShutdownTracker,
@@ -65,7 +58,7 @@ where
         gateway_sessions: LpGatewaySessions,
         topology_accessor: LpTopologyAccessor,
         received_tx: tokio::sync::mpsc::Sender<Vec<u8>>,
-        outbound_input_rx: InputMessageReceiver,
+        outbound_input_rx: LpOutboundMessageReceiver,
         gateway: NodeIdentity,
         shutdown: ShutdownTracker,
     ) -> Result<Self, ClientCoreError> {
@@ -107,13 +100,10 @@ where
             worker_count,
             &shutdown,
         );
-        // the pipeline's own language, for anything that can name where its message goes
-        let (job_tx, job_rx) = mpsc::channel();
 
         let outbound = ClientOutbound::new(
             outbound_pipeline,
             outbound_input_rx,
-            job_rx,
             outbound_output_tx,
             shared_state,
             gateway,
@@ -126,16 +116,8 @@ where
         Ok(LpDataSetup {
             listener,
             handler,
-            job_tx,
             shutdown,
         })
-    }
-
-    /// Submit work naming its own destination, rather than going through an [`InputMessage`].
-    ///
-    /// [`InputMessage`]: crate::client::inbound_messages::InputMessage
-    pub fn job_sender(&self) -> LpOutboundJobSender {
-        self.job_tx.clone()
     }
 
     pub fn start_tasks(mut self) {

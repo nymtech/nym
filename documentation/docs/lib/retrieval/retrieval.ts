@@ -6,7 +6,7 @@
 // `sources` restricts results to a subset of the index; the MCP omits it and
 // sees everything.
 
-import type { DocIndex, EmbeddedChunk, SearchHit } from './types';
+import type { DocIndex, EmbeddedChunk, SearchHit } from '../../packages/retrieval-indexer/types';
 
 /** Cosine similarity, guarding against zero-length vectors. */
 export function cosineSimilarity(a: number[], b: number[]): number {

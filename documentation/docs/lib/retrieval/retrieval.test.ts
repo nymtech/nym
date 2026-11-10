@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { cosineSimilarity, search, getSection } from './retrieval';
-import type { DocIndex, EmbeddedChunk } from './types';
+import type { DocIndex, EmbeddedChunk } from '../../packages/retrieval-indexer/types';
 
 describe('cosineSimilarity', () => {
   it('is 1 for identical direction, 0 for orthogonal', () => {

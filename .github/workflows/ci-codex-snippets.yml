@@ -16,6 +16,7 @@ on:
       - "documentation/docs/content/**"
       - "documentation/docs/lib/snippets/**"
       - "documentation/docs/lib/retrieval/**"
+      - "documentation/docs/packages/retrieval-indexer/**"
       - "documentation/docs/lib/privacy-model/**"
       - "documentation/docs/components/**"
       - "documentation/docs/mdx-components.jsx"

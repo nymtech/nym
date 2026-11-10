@@ -8,7 +8,7 @@
 // Dependencies are injected (index, query embedder, network client) so tests
 // run hermetically with fakes and no docs-index.json or live network.
 
-import type { DocIndex } from '../retrieval/types';
+import type { DocIndex } from '../../packages/retrieval-indexer/types';
 import { search, getSection } from '../retrieval/retrieval';
 import * as nymApi from '../nym-api/client';
 import { unymToNym } from '../nym-api/client';

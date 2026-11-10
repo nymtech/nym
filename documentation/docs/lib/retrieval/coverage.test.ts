@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { parseFrontmatter, stripMdx, inlineMdxPartials, resolveImport } from './mdx.mjs';
+import { parseFrontmatter, stripMdx, inlineMdxPartials, resolveImport } from '../../packages/retrieval-indexer/mdx.mjs';
 // @ts-expect-error - plain ESM JS module
 import { loadSnippets, composeOptions } from './pages-source.mjs';
 import { openRepo } from '../snippets/repo.mts';

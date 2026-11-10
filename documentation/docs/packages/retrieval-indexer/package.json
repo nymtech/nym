@@ -1,0 +1,21 @@
+{
+  "name": "@nymproject/retrieval-indexer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Chunks, embeds, and indexes docs and source code for the Nym retrieval index",
+  "type": "module",
+  "exports": {
+    "./chunker": "./chunker.mjs",
+    "./code-chunker": "./code-chunker.mjs",
+    "./embed": "./embed.mjs",
+    "./items": "./items.mjs",
+    "./mdx": "./mdx.mjs",
+    "./types": "./types.ts"
+  },
+  "dependencies": {
+    "github-slugger": "^2.0.0",
+    "gray-matter": "^4.0.3",
+    "tree-sitter-rust": "0.24.0",
+    "web-tree-sitter": "0.25.10"
+  }
+}

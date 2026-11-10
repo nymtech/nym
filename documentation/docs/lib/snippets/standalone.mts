@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseFrontmatter, fenceTracker, HEADING_ANCHOR } from '../retrieval/mdx.mjs';
+import { parseFrontmatter, fenceTracker, HEADING_ANCHOR } from '../../packages/retrieval-indexer/mdx.mjs';
 import { openRepo } from './repo.mts';
 
 // Phrases that only make sense with the surrounding page. Each is narrow on

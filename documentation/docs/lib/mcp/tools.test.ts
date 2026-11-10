@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTools } from './tools';
 import type { ToolDeps } from './tools';
-import type { DocIndex, EmbeddedChunk } from '../retrieval/types';
+import type { DocIndex, EmbeddedChunk } from '../../packages/retrieval-indexer/types';
 
 function chunk(id: string, vector: number[], text: string): EmbeddedChunk {
   return { id, source: 'nym-docs', title: 'Quick Start', heading: id, url: `https://nym.com/docs/${id}`, text, tokensEst: 1, vector };

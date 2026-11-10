@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 // @ts-expect-error - plain ESM JS modules, no type declarations
 import { loadProjections, loadDocValues } from './projections.mjs';
 // @ts-expect-error - plain ESM JS module
-import { stripMdx } from './mdx.mjs';
+import { stripMdx } from '../../packages/retrieval-indexer/mdx.mjs';
 
 // The threat-model pages are two sentences of prose plus a component that holds
 // every definition, so dropping the tag drops the canonical actors and vectors

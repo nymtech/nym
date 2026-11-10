@@ -2,30 +2,32 @@
 
 ## 1. Ride-along fixes
 
-- [ ] 1.1 Fix `MCP-SERVER.md:83` `ROOTS` location (points at `generate-code-index.mjs`; lives in `indexed-sources.mjs`) and the matching comment in `check-mcp-server.sh:216`
-- [ ] 1.2 Refresh stale sizing figures in `MCP-SERVER.md` (chunk counts, ~120 MB bundle estimate)
-- [ ] 1.3 Extend the vectorless-index cold-start guard in `pages/api/mcp.ts` to the code index, and only expose `search_code` when the code index is vectored
-- [ ] 1.4 Correct `ai-assistant-mcp-scratch.md` claims about `/api/chat` (route does not exist, is not traced)
+- [x] 1.1 Fix `MCP-SERVER.md:83` `ROOTS` location (points at `generate-code-index.mjs`; lives in `indexed-sources.mjs`) and the matching comment in `check-mcp-server.sh:216`
+- [x] 1.2 Refresh stale sizing figures in `MCP-SERVER.md` (chunk counts, ~120 MB bundle estimate)
+- [x] 1.3 Extend the vectorless-index cold-start guard in `pages/api/mcp.ts` to the code index, and only expose `search_code` when the code index is vectored
+- [x] 1.4 Correct `ai-assistant-mcp-scratch.md` claims about `/api/chat` (route does not exist, is not traced). The file is an untracked local scratch; corrected in place 2026-09-23
 - [ ] 1.5 Verify the Voyage organisation opt-out toggle is set (dashboard action, record the date)
 
 ## 2. Proposal review
 
 - [ ] 2.1 Share proposal with colleagues; collect positions on Open Question Q1 (embedding path)
-- [ ] 2.2 Q1 direction decided (Option B: Voyage public, self-hosted private); Q2 still open in design.md; the benchmark (4.3) gates the private-model choice and cutover
-- [ ] 2.3 Spike (Q3): corpus scope by audience. Sample plausible queries per audience (SDK/app developers, node operators, external reviewers) against the current index; measure which `ROOTS` entries are actually cited and at what embedding cost; propose a per-repo scoped roots list. Offline-runnable against the current index; gates the roots list in 3.1 and the shards in 6.1
+- [x] 2.2 Q1 direction decided (Option B: Voyage public, self-hosted private); Q2 still open in design.md; the benchmark (4.3) gates the private-model choice and cutover
+- [x] 2.3 Spike (Q3): corpus scope by audience. Sample plausible queries per audience (SDK/app developers, node operators, external reviewers) against the current index; measure which `ROOTS` entries are actually cited and at what embedding cost; propose a per-repo scoped roots list. Offline-runnable against the current index; gates the roots list in 3.1 and the shards in 6.1
 
 ## 3. Shared indexer package
 
-- [ ] 3.1 Extract `pages-source` / `chunker` / `code-chunker` / `mdx` / `ts-data` / `embed` into a package; parametrise site URL, deep-link base, roots, cache name. Version the package and pin one version across all producers (the public CIs and the private-infra pipeline), so both pipelines chunk a given source identically and a shared id means the same text
+- [ ] 3.1 Extract the package modules in the decision 4 table (`code-chunker`, `items`, `chunker`, the generic half of `mdx`, `embed`, `types`, the code walk) into `@nymproject/retrieval-indexer` as TypeScript; parametrise site URL, deep-link base, roots, cache name. nym consumers, including the Next-compiled `pages/api/mcp.ts` and `lib/archetypes/inline.mts`, import the package; the vectorless docs and code indexes stay byte-identical (timestamp aside) across the move. Version the package and pin one version across all producers (the public CIs and the private-infra pipeline), so both pipelines chunk a given source identically and a shared id means the same text
 - [ ] 3.2 Add the Postgres upsert module (content-hash skip keyed on embed text + model + dim, per-shard delete of stale rows, last-run timestamp per shard; upsert and delete commit in one transaction per run)
 - [ ] 3.3 Keep nym projections in-repo, passed through the `expand` seam
 - [ ] 3.4 Port the existing retrieval tests; add an upsert round-trip test
 - [ ] 3.5 Code chunker in the package uses tree-sitter (design decision 10), covering every language present in producer roots through its grammars; the docs chunker stays heading-based. (The spike already proved coverage and the gate with a line-regex chunker for Rust, TS/JS, Kotlin, Swift, Go, and Python; the package generalises that to tree-sitter, which also reaches C/C++ and multiline signatures the line regex cannot.)
-  - [ ] 3.5.1 Wire tree-sitter grammars for the languages present (Rust, TS/JS, Kotlin, Swift, Go, Python), extracting top-level item boundaries and symbol names; port the spike's chunker fixture tests to the tree-sitter output
+  - [ ] 3.5.1 Extend `items()` (already tree-sitter, Rust only) with grammars for the other languages present (TS/JS, Kotlin, Swift, Go, Python), and build the code chunker on its item boundaries and names; port the spike's chunker fixture tests to the tree-sitter output. Each grammar package must ship a prebuilt `.wasm` that the pinned `web-tree-sitter` can load (ABI match), as `tree-sitter-rust` does. Keep the Rust output shape the codex snippet extractor depends on
   - [ ] 3.5.2 Verify the Android and Apple apps (Kotlin, Swift) produce chunks, not zero, and a search returns app hits
   - [ ] 3.5.3 Freeze the accept-drop set in one place (C-family, Objective-C, proto: all generated bindings, a cgo shim, and an FFI example in these repos)
   - [ ] 3.5.4 Make the drop report a fail-closed build gate: a source-like extension neither chunked nor on the accept-drop set fails CI, so a new language cannot silently index to zero
   - [ ] 3.5.5 Demote test-path chunks at rank time (a score penalty, not exclusion), so a test module cannot outrank the production code it exercises. Evidence: 0a query 1, where a speedtest tool's `mod tests` outranked the canonical `FragmentPreparer` send path (shared-index-spike/EXPERIMENTS.md 0a)
+
+- [ ] 3.6 Publish the package: choose the registry (npm under `@nymproject` or GitHub Packages) and add a `tsc` emit, since Node does not strip types under `node_modules`. Gates 6.1 and 6.2, whose producers are other repos
 
 ## 4. Infrastructure
 

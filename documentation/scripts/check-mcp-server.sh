@@ -243,10 +243,10 @@ covers() {
   fi
 }
 
-PROBES_TSV="$(node --input-type=module -e "
-  const { PROBES } = await import('$REPO_ROOT/documentation/scripts/index-coverage-probes.mjs');
-  for (const [path, { label, query }] of Object.entries(PROBES)) console.log([path, label, query].join('\t'));
-")" || { bad "could not load index-coverage-probes.mjs"; PROBES_TSV=""; }
+PROBES_TSV="$(node --input-type=module -e '
+  const { PROBES } = await import(process.argv[1]);
+  for (const [path, { label, query }] of Object.entries(PROBES)) console.log([path, label, query].join("\t"));
+' "$REPO_ROOT/documentation/scripts/index-coverage-probes.mjs")" || { bad "could not load index-coverage-probes.mjs"; PROBES_TSV=""; }
 
 while IFS=$'\t' read -r path label query; do
   [[ -n "$path" ]] && covers "$label" "$query" "$path"

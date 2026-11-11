@@ -12,8 +12,9 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
 use crate::support::config::DirectoryConfigDebug;
 use anyhow::{anyhow, Context};
+use nym_contract_anchor::anchor::TrustAnchor;
 use nym_contract_anchor::error::VerificationError;
-use nym_contract_anchor::whole_set::{verify_chain_read, VerifiedRecords};
+use nym_contract_anchor::whole_set::{verify_records, VerifiedRecords};
 use nym_contract_attestation::{node_identities_hash, DigestSnapshot, DirectoryEntryRecord};
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_client::cadence::SnapshotCadence;
@@ -37,6 +38,7 @@ use std::time::Duration;
 use tendermint::block::Height;
 use tendermint::hash::AppHash;
 use time::OffsetDateTime;
+use tokio::sync::RwLockReadGuard;
 use tracing::{debug, error, trace};
 
 /// A cadence height is produced as soon as it is provable; the settle lag applies only to which
@@ -269,14 +271,17 @@ impl AttestedSnapshotsProducer {
             .is_ok_and(|cache| cache.contains_entry(height))
     }
 
-    /// The auxiliary value of the newest retained height below `height`, cloned so the cache is
-    /// not held across the chain reads.
+    /// The newest retained entry below `height`, under the cache's guard: take what is needed and
+    /// drop it before any chain read.
+    async fn previous_entry(&self, height: Height) -> Option<RwLockReadGuard<'_, RetainedHeight>> {
+        let guard = self.cache.get().await.ok()?;
+        RwLockReadGuard::try_map(guard, |cache| cache.previous_entry(height)).ok()
+    }
+
+    /// The auxiliary value of the newest retained height below `height`.
     async fn previous_auxiliary(&self, height: Height) -> Option<PerformanceAuxiliary> {
-        self.cache
-            .get()
+        self.previous_entry(height)
             .await
-            .ok()?
-            .previous_entry(height)
             .map(|entry| entry.performance_auxiliary.clone())
     }
 
@@ -285,50 +290,110 @@ impl AttestedSnapshotsProducer {
         let _ = cache.try_serialise_to_file(&self.on_disk_cache_file);
     }
 
-    /// The directory contract's whole committed set at `height`.
+    /// The directory contract's whole committed set at `height`, taken from the newest retained
+    /// height below it when the contract's digest is unchanged.
     async fn verified_directory(
         &self,
         height: Height,
         node_identities: BTreeMap<NodeId, ed25519::PublicKey>,
     ) -> Result<VerifiedRecords<DirectoryEntryRecord>, VerificationError> {
-        let records = self
-            .chain_anchor
-            .query_client()
-            .get_all_directory_entries_at_height(height);
-        verify_chain_read(&self.directory, height, records, node_identities).await
+        let trusted = self.directory.trusted_digest(height).await?;
+        let unchanged = self
+            .previous_entry(height)
+            .await
+            .and_then(|entry| entry.directory.records_if_unchanged(&trusted));
+
+        let records = match unchanged {
+            Some(records) => records,
+            None => {
+                let records = self
+                    .chain_anchor
+                    .query_client()
+                    .get_all_directory_entries_at_height(height)
+                    .await?;
+                verify_records(&records, &trusted.accumulator)?;
+                records
+            }
+        };
+
+        Ok(VerifiedRecords {
+            height,
+            accumulator: trusted.accumulator,
+            records,
+            node_identities,
+        })
     }
 
-    /// The geolocation contract's whole committed set at `height`, whitelisted agents included.
+    /// The geolocation contract's whole committed set at `height`, whitelisted agents included,
+    /// taken from the newest retained height below it when the contract's digest is unchanged.
     async fn verified_geolocation(
         &self,
         height: Height,
         node_identities: BTreeMap<NodeId, ed25519::PublicKey>,
     ) -> Result<VerifiedRecords<GeolocationRecord>, VerificationError> {
-        let records = self
-            .chain_anchor
-            .query_client()
-            .get_all_geolocation_records_at_height(height);
-        verify_chain_read(&self.geolocation, height, records, node_identities).await
+        let trusted = self.geolocation.trusted_digest(height).await?;
+        let unchanged = self
+            .previous_entry(height)
+            .await
+            .and_then(|entry| entry.geolocation.records_if_unchanged(&trusted));
+
+        let records = match unchanged {
+            Some(records) => records,
+            None => {
+                let records = self
+                    .chain_anchor
+                    .query_client()
+                    .get_all_geolocation_records_at_height(height)
+                    .await?;
+                verify_records(&records, &trusted.accumulator)?;
+                records
+            }
+        };
+
+        Ok(VerifiedRecords {
+            height,
+            accumulator: trusted.accumulator,
+            records,
+            node_identities,
+        })
     }
 
-    /// The performance contract's committed entries at `height`, in ascending node order.
+    /// The performance contract's committed entries at `height`, in ascending node order, taken
+    /// from the newest retained height below it when the contract's digest is unchanged.
     async fn verified_performance(
         &self,
         height: Height,
         node_identities: BTreeMap<NodeId, ed25519::PublicKey>,
     ) -> Result<VerifiedRecords<LatestPerformance>, VerificationError> {
-        let records = self
-            .chain_anchor
-            .query_client()
-            .get_all_latest_performance_at_height(height);
-        let mut verified =
-            verify_chain_read(&self.performance, height, records, node_identities).await?;
-        // the per-node lookup's binary search relies on node order, which the digest does not
-        // commit to
-        verified
-            .records
-            .sort_unstable_by_key(|record| record.node_id);
-        Ok(verified)
+        let trusted = self.performance.trusted_digest(height).await?;
+        let unchanged = self
+            .previous_entry(height)
+            .await
+            .and_then(|entry| entry.performance.snapshot().records_if_unchanged(&trusted));
+
+        let records = match unchanged {
+            // retained in node order already
+            Some(records) => records,
+            None => {
+                let mut records = self
+                    .chain_anchor
+                    .query_client()
+                    .get_all_latest_performance_at_height(height)
+                    .await?;
+                verify_records(&records, &trusted.accumulator)?;
+                // the per-node lookup's binary search relies on node order, which the digest
+                // does not commit to
+                records.sort_unstable_by_key(|record| record.node_id);
+                records
+            }
+        };
+
+        Ok(VerifiedRecords {
+            height,
+            accumulator: trusted.accumulator,
+            records,
+            node_identities,
+        })
     }
 
     /// What the annotations need beside the performance `records` at `height`, read there with

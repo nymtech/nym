@@ -5,6 +5,7 @@ use crate::mixnet_contract_cache::data::MixnetContractData;
 use crate::node_families::data::NodeFamiliesData;
 use crate::node_performance::attestation::auxiliary::PerformanceAuxiliary;
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
+use nym_contract_anchor::anchor::TrustedDigest;
 use nym_contract_attestation::{DirectoryEntryRecord, SignedDigestSnapshot};
 use nym_crypto::asymmetric::ed25519;
 use nym_geolocation_contract_common::GeolocationRecord;
@@ -61,6 +62,13 @@ impl<R> AttestedSnapshot<R> {
 }
 
 impl<R: Clone> AttestedSnapshot<R> {
+    /// The records, cloned, when `trusted` is the digest they were verified against: an equal
+    /// accumulator commits to the same set.
+    pub(crate) fn records_if_unchanged(&self, trusted: &TrustedDigest) -> Option<Vec<R>> {
+        (self.digest_snapshot.snapshot.accumulator == trusted.accumulator)
+            .then(|| self.records.clone())
+    }
+
     /// One page of the records, `per_page` defaulting to 200 and capped at 500.
     pub(crate) fn paged_records(&self, page: u32, per_page: Option<u32>) -> PaginatedResponse<R> {
         let per_page = per_page
@@ -263,6 +271,8 @@ mod tests {
     use crate::node_performance::attestation::test_helpers::{block_time, committed};
     use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
     use cosmwasm_std::{Addr, Binary};
+    use nym_contract_anchor::whole_set::recompute_accumulator;
+    use nym_contract_attestation::source::mock::mock_digest_snapshot;
     use nym_directory_contract_common::{CuratedEntry, NodeEntry};
     use nym_geolocation_contract_common::{
         AgentPermissions, LocationAttestation, LocationEntry, LocationPayload, Method, Source,
@@ -488,6 +498,47 @@ mod tests {
         let last = snapshot.paged_records(2, None);
         assert_eq!(last.data.first().map(|record| record.node_id), Some(401));
         assert_eq!(last.data.len(), 200);
+    }
+
+    /// A snapshot signed at `height` over the digest of `records`.
+    fn snapshot_committing(
+        height: u32,
+        records: Vec<LatestPerformance>,
+    ) -> AttestedSnapshot<LatestPerformance> {
+        let mut digest_snapshot = mock_digest_snapshot(Height::from(height));
+        digest_snapshot.accumulator = recompute_accumulator(&records);
+        AttestedSnapshot::new(
+            digest_snapshot.signed(&dummy_ed25519_keypair(height as u64)),
+            records,
+            BTreeMap::new(),
+        )
+    }
+
+    fn trusted_digest(height: u32, records: &[LatestPerformance]) -> TrustedDigest {
+        TrustedDigest {
+            height: Height::from(height),
+            accumulator: recompute_accumulator(records),
+        }
+    }
+
+    #[test]
+    fn an_unchanged_digest_offers_the_retained_records() {
+        let records = vec![committed(1, 10, Some(50))];
+        let previous = snapshot_committing(1000, records.clone());
+
+        let reused = previous.records_if_unchanged(&trusted_digest(1100, &records));
+
+        assert_eq!(reused, Some(records));
+    }
+
+    #[test]
+    fn a_changed_digest_offers_nothing() {
+        let previous = snapshot_committing(1000, vec![committed(1, 10, Some(50))]);
+        let changed = [committed(1, 10, Some(50)), committed(2, 10, Some(60))];
+
+        assert!(previous
+            .records_if_unchanged(&trusted_digest(1100, &changed))
+            .is_none());
     }
 
     // The cache is persisted to disk with bincode; a populated value must survive that

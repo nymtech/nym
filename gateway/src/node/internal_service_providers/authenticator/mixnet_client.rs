@@ -41,7 +41,11 @@ pub async fn create_mixnet_client(
         client_builder = client_builder.enable_credentials_mode();
     }
     if let Some(gateway_transceiver) = custom_transceiver {
-        client_builder = client_builder.custom_gateway_transceiver(gateway_transceiver);
+        // embedded: this provider reaches its gateway in-process and carries LP over its own
+        // pipeline, so a data plane here would have nothing to talk to
+        client_builder = client_builder
+            .custom_gateway_transceiver(gateway_transceiver)
+            .without_lp();
     }
     if let Some(topology_provider) = custom_topology_provider {
         client_builder = client_builder.custom_topology_provider(topology_provider);

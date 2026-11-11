@@ -4,6 +4,30 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.22-istanbul] (2026-11-11)
+
+- bugfix: initiator-derived KKT mode ([#7403])
+- bugfix: improve nym-node shutdown speed ([#7391])
+- [LP-DATA] Nym nodes : Alpha control and data experimental ([#7386])
+- Add conformance to Eq for KeyPairUser and SecretKeyUser ([#7380])
+- Wire up console_error_panic_hook feature in nym-wasm-client-core ([#7374])
+- Remove unused dependencies ([#7373])
+- Declare a [lints] table in every workspace crate ([#7372])
+- Remove redundant package.homepage ([#7371])
+- Fix clippy lints reported by newer toolchain ([#7370])
+- Accept key pair in NyxdCredentialFetcher ([#7368])
+
+[#7403]: https://github.com/nymtech/nym/pull/7403
+[#7391]: https://github.com/nymtech/nym/pull/7391
+[#7386]: https://github.com/nymtech/nym/pull/7386
+[#7380]: https://github.com/nymtech/nym/pull/7380
+[#7374]: https://github.com/nymtech/nym/pull/7374
+[#7373]: https://github.com/nymtech/nym/pull/7373
+[#7372]: https://github.com/nymtech/nym/pull/7372
+[#7371]: https://github.com/nymtech/nym/pull/7371
+[#7370]: https://github.com/nymtech/nym/pull/7370
+[#7368]: https://github.com/nymtech/nym/pull/7368
+
 ## [2026.21-hanoi] (2026-10-28)
 
 - Add conformance to Eq for KeyPairUser and SecretKeyUser ([#7380])

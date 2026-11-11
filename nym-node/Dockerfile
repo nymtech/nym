@@ -4,7 +4,10 @@ FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 COPY ./ /usr/src/nym
 WORKDIR /usr/src/nym/nym-node
 
-RUN cargo build --release
+# tokio-console only instruments the runtime when tokio itself is built with
+# tokio_unstable. console-subscriber listens on 127.0.0.1:6669.
+ENV RUSTFLAGS="--cfg tokio_unstable"
+RUN cargo build --release --features tokio-console
 
 #-------------------------------------------------------------------
 # The following environment variables are required at runtime:

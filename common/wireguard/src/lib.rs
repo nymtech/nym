@@ -4,14 +4,14 @@
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 
 use defguard_wireguard_rs::{
-    WGApi, WireguardInterfaceApi, error::WireguardInterfaceError, host::Peer, key::Key,
-    net::IpAddrMask,
+    InterfaceConfiguration, WGApi, WireguardInterfaceApi, error::WireguardInterfaceError,
+    host::Peer, key::Key, net::IpAddrMask,
 };
 use nym_crypto::asymmetric::x25519::KeyPair;
 use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tracing::error;
+use tracing::{error, warn};
 
 #[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
@@ -42,16 +42,24 @@ pub enum WgApiWrapperError {
     Interface(#[from] WireguardInterfaceError),
 }
 
+type WgBackend = Box<dyn WireguardInterfaceApi + Sync + Send>;
+
 pub struct WgApiWrapper {
-    inner: Box<dyn WireguardInterfaceApi + Sync + Send>,
+    backend: WgBackend,
+    /// The interface configuration with its peers stripped, applied right before the interface is removed.
+    peerless_config: InterfaceConfiguration,
 }
 
 impl WgApiWrapper {
     /// Create new instance of `WgApiWrapper` choosing internal implementation based on `use_userspace` flag and platform availability.
     ///
     /// Falls back to userspace implementation when kernel implementation is requested but not available.
-    pub fn new(ifname: &str, use_userspace: bool) -> Result<Self, WgApiWrapperError> {
-        if use_userspace {
+    pub fn new(
+        ifname: &str,
+        use_userspace: bool,
+        config: &InterfaceConfiguration,
+    ) -> Result<Self, WgApiWrapperError> {
+        let backend = if use_userspace {
             Self::userspace(ifname)
         } else {
             Self::kernel(ifname).or_else(|err| {
@@ -61,11 +69,27 @@ impl WgApiWrapper {
                     Err(err)
                 }
             })
+        }?;
+        Ok(Self::with_backend(backend, config))
+    }
+
+    fn with_backend(backend: WgBackend, config: &InterfaceConfiguration) -> Self {
+        let peerless_config = InterfaceConfiguration {
+            name: config.name.clone(),
+            prvkey: config.prvkey.clone(),
+            addresses: config.addresses.clone(),
+            port: config.port,
+            peers: Vec::new(),
+            mtu: config.mtu,
+        };
+        Self {
+            backend,
+            peerless_config,
         }
     }
 
     /// Create userspace implementation
-    fn userspace(_ifname: &str) -> Result<Self, WgApiWrapperError> {
+    fn userspace(_ifname: &str) -> Result<WgBackend, WgApiWrapperError> {
         #[cfg(any(
             target_os = "linux",
             target_os = "macos",
@@ -74,9 +98,7 @@ impl WgApiWrapper {
         ))]
         {
             let api = WGApi::<defguard_wireguard_rs::Userspace>::new(_ifname)?;
-            Ok(Self {
-                inner: Box::new(api),
-            })
+            Ok(Box::new(api))
         }
 
         #[cfg(not(any(
@@ -91,7 +113,7 @@ impl WgApiWrapper {
     }
 
     /// Create kernel implementation if available.
-    fn kernel(_ifname: &str) -> Result<Self, WgApiWrapperError> {
+    fn kernel(_ifname: &str) -> Result<WgBackend, WgApiWrapperError> {
         #[cfg(any(
             target_os = "linux",
             target_os = "windows",
@@ -100,9 +122,7 @@ impl WgApiWrapper {
         ))]
         {
             let api = WGApi::<defguard_wireguard_rs::Kernel>::new(_ifname)?;
-            Ok(Self {
-                inner: Box::new(api),
-            })
+            Ok(Box::new(api))
         }
 
         #[cfg(not(any(
@@ -119,7 +139,16 @@ impl WgApiWrapper {
 
 impl Drop for WgApiWrapper {
     fn drop(&mut self) {
-        if let Err(e) = self.inner.remove_interface() {
+        // Deleting the interface tears its peers down after RTNL has been released, so each
+        // peer's `netif_napi_del` waits a full `synchronize_rcu` grace period: ~5.7ms per peer,
+        // i.e. ~4 minutes of uninterruptible sleep for the ~40k peers seen on sandbox.
+        // Replacing the peers with none first runs the same teardown inside `wg_set_device`,
+        // which holds RTNL and therefore gets `synchronize_rcu_expedited`: ~7µs per peer,
+        // under a second for 40k.
+        if let Err(e) = self.backend.configure_interface(&self.peerless_config) {
+            warn!("Could not remove the wireguard peers before removing the interface: {e:?}");
+        }
+        if let Err(e) = self.backend.remove_interface() {
             error!("Could not remove the wireguard interface: {e:?}");
         }
     }
@@ -129,56 +158,56 @@ impl WireguardInterfaceApi for WgApiWrapper {
     fn create_interface(
         &mut self,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.create_interface()
+        self.backend.create_interface()
     }
 
     fn assign_address(
         &self,
         address: &IpAddrMask,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.assign_address(address)
+        self.backend.assign_address(address)
     }
 
     fn configure_peer_routing(
         &self,
         peers: &[Peer],
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.configure_peer_routing(peers)
+        self.backend.configure_peer_routing(peers)
     }
 
     fn configure_interface(
         &self,
         config: &defguard_wireguard_rs::InterfaceConfiguration,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.configure_interface(config)
+        self.backend.configure_interface(config)
     }
 
     #[cfg(not(windows))]
     fn remove_interface(
         &self,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.remove_interface()
+        self.backend.remove_interface()
     }
 
     #[cfg(windows)]
     fn remove_interface(
         &mut self,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.remove_interface()
+        self.backend.remove_interface()
     }
 
     fn configure_peer(
         &self,
         peer: &Peer,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.configure_peer(peer)
+        self.backend.configure_peer(peer)
     }
 
     fn remove_peer(
         &self,
         peer_pubkey: &Key,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.remove_peer(peer_pubkey)
+        self.backend.remove_peer(peer_pubkey)
     }
 
     fn read_interface_data(
@@ -187,7 +216,7 @@ impl WireguardInterfaceApi for WgApiWrapper {
         defguard_wireguard_rs::host::Host,
         defguard_wireguard_rs::error::WireguardInterfaceError,
     > {
-        self.inner.read_interface_data()
+        self.backend.read_interface_data()
     }
 
     fn configure_dns(
@@ -195,7 +224,7 @@ impl WireguardInterfaceApi for WgApiWrapper {
         dns: &[IpAddr],
         search_domains: &[&str],
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.configure_dns(dns, search_domains)
+        self.backend.configure_dns(dns, search_domains)
     }
 }
 
@@ -253,7 +282,6 @@ pub async fn start_wireguard(
     use_userspace: bool,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{Engine, prelude::BASE64_STANDARD};
-    use defguard_wireguard_rs::InterfaceConfiguration;
     use ip_network::IpNetwork;
     use peer_controller::PeerController;
     use std::collections::HashMap;
@@ -265,7 +293,6 @@ pub async fn start_wireguard(
         "Initializing WireGuard interface '{}' with use_userspace={}",
         ifname, use_userspace
     );
-    let mut wg_api = WgApiWrapper::new(&ifname, use_userspace)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
     let mut good_peers = Vec::with_capacity(peers.len());
 
@@ -326,7 +353,6 @@ pub async fn start_wireguard(
         }
     }
 
-    wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
@@ -337,6 +363,8 @@ pub async fn start_wireguard(
         peers,
         mtu: None,
     };
+    let mut wg_api = WgApiWrapper::new(&ifname, use_userspace, &interface_config)?;
+    wg_api.create_interface()?;
     info!(
         "attempting to configure wireguard interface '{ifname}': addresses=[{}], port={}",
         interface_config
@@ -404,4 +432,103 @@ pub async fn start_wireguard(
     tokio::spawn(async move { controller.run().await });
 
     Ok(wg_api)
+}
+
+#[cfg(test)]
+// unimplemented and unwraps are fine in test code
+#[allow(clippy::unimplemented)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use defguard_wireguard_rs::host::Host;
+    use std::sync::Mutex;
+
+    /// Records the backend calls made by `Drop`. Only the two calls it is expected to make are
+    /// implemented, so any other call panics and fails the test.
+    struct RecordingWgApi {
+        calls: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl WireguardInterfaceApi for RecordingWgApi {
+        fn create_interface(&mut self) -> Result<(), WireguardInterfaceError> {
+            unimplemented!()
+        }
+
+        fn assign_address(&self, _address: &IpAddrMask) -> Result<(), WireguardInterfaceError> {
+            unimplemented!()
+        }
+
+        fn configure_peer_routing(&self, _peers: &[Peer]) -> Result<(), WireguardInterfaceError> {
+            unimplemented!()
+        }
+
+        fn configure_interface(
+            &self,
+            config: &InterfaceConfiguration,
+        ) -> Result<(), WireguardInterfaceError> {
+            self.calls
+                .lock()
+                .unwrap()
+                .push(format!("configure_interface({} peers)", config.peers.len()));
+            Ok(())
+        }
+
+        #[cfg(not(windows))]
+        fn remove_interface(&self) -> Result<(), WireguardInterfaceError> {
+            self.calls.lock().unwrap().push("remove_interface".into());
+            Ok(())
+        }
+
+        #[cfg(windows)]
+        fn remove_interface(&mut self) -> Result<(), WireguardInterfaceError> {
+            self.calls.lock().unwrap().push("remove_interface".into());
+            Ok(())
+        }
+
+        fn configure_peer(&self, _peer: &Peer) -> Result<(), WireguardInterfaceError> {
+            unimplemented!()
+        }
+
+        fn remove_peer(&self, _peer_pubkey: &Key) -> Result<(), WireguardInterfaceError> {
+            unimplemented!()
+        }
+
+        fn read_interface_data(&self) -> Result<Host, WireguardInterfaceError> {
+            unimplemented!()
+        }
+
+        fn configure_dns(
+            &self,
+            _dns: &[IpAddr],
+            _search_domains: &[&str],
+        ) -> Result<(), WireguardInterfaceError> {
+            unimplemented!()
+        }
+    }
+
+    /// Proves the shutdown stays off the per-peer `synchronize_rcu` path: the interface is
+    /// reconfigured with zero peers (even though the wrapper was built from a config with peers)
+    /// before it is removed, and nothing else is called.
+    #[test]
+    fn drop_removes_all_peers_before_removing_interface() {
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let config = InterfaceConfiguration {
+            name: "wgtest".into(),
+            prvkey: String::new(),
+            addresses: Vec::new(),
+            port: 0,
+            peers: vec![Peer::new(Key::new([1; 32]))],
+            mtu: None,
+        };
+        let backend = RecordingWgApi {
+            calls: calls.clone(),
+        };
+
+        drop(WgApiWrapper::with_backend(Box::new(backend), &config));
+
+        assert_eq!(
+            *calls.lock().unwrap(),
+            ["configure_interface(0 peers)", "remove_interface"]
+        );
+    }
 }

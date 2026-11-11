@@ -645,9 +645,41 @@ add_base_input_rules() {
     add_managed_input_rule "$cmd" -p udp --sport 67 --dport 68
     add_managed_input_rule "$cmd" -p icmp --icmp-type echo-request
   else
-    # icmpv6 carries neighbor discovery; ipv6 stops working without it
     add_managed_input_rule "$cmd" -p udp --sport 547 --dport 546
-    add_managed_input_rule "$cmd" -p ipv6-icmp
+    # icmpv6 carries neighbor discovery and path mtu; ipv6 breaks without it. same types
+    # ufw's before6.rules accepts (neighbor discovery only with hop limit 255, i.e. on-link)
+    local rule
+    local icmpv6_rules=(
+      "--icmpv6-type echo-reply"
+      "--icmpv6-type destination-unreachable"
+      "--icmpv6-type packet-too-big"
+      "--icmpv6-type time-exceeded"
+      "--icmpv6-type parameter-problem"
+      "--icmpv6-type echo-request"
+      "--icmpv6-type router-solicitation -m hl --hl-eq 255"
+      "--icmpv6-type router-advertisement -m hl --hl-eq 255"
+      "--icmpv6-type neighbor-solicitation -m hl --hl-eq 255"
+      "--icmpv6-type neighbor-advertisement -m hl --hl-eq 255"
+      "--icmpv6-type 141 -m hl --hl-eq 255"
+      "--icmpv6-type 142 -m hl --hl-eq 255"
+      "--icmpv6-type 130 -s fe80::/10"
+      "--icmpv6-type 131 -s fe80::/10"
+      "--icmpv6-type 132 -s fe80::/10"
+      "--icmpv6-type 143 -s fe80::/10"
+      "--icmpv6-type 148 -m hl --hl-eq 255"
+      "--icmpv6-type 149 -m hl --hl-eq 255"
+      "--icmpv6-type 151 -s fe80::/10 -m hl --hl-eq 1"
+      "--icmpv6-type 152 -s fe80::/10 -m hl --hl-eq 1"
+      "--icmpv6-type 153 -s fe80::/10 -m hl --hl-eq 1"
+      "--icmpv6-type 144"
+      "--icmpv6-type 145"
+      "--icmpv6-type 146"
+      "--icmpv6-type 147"
+    )
+    for rule in "${icmpv6_rules[@]}"; do
+      # shellcheck disable=SC2086 # rule spec, word splitting intended
+      add_managed_input_rule "$cmd" -p ipv6-icmp $rule
+    done
   fi
   add_managed_input_rule "$cmd" -m conntrack --ctstate ESTABLISHED,RELATED
   add_managed_input_rule "$cmd" -i lo

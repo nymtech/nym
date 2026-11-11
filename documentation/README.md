@@ -107,7 +107,30 @@ The procedures (change a section, add a section, split a page) are in [`docs/.ny
 
 ### Requirements and the threat model
 
-Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. For a requirement with a Tracey id, the `realises` links are comments in the code, which [Tracey](https://github.com/bearcove/tracey) reads. [`TRACEY.md`](TRACEY.md) explains them, and `tracey query status` reports the coverage.
+Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. For a requirement with a Tracey id, the `realises` links are comments in the code, which Tracey reads (see the next section).
+
+### The spec trace (Tracey)
+
+Some specs have an id on each requirement, for example `r[sphinx.size-classes]`. A comment above the code that keeps the requirement names the id: `// r[impl sphinx.size-classes]`. A comment above the test that checks it names the id too: `// r[verify sphinx.size-classes]`. [Tracey](https://github.com/bearcove/tracey) reads the ids and the comments, and reports, for each requirement, its code and its tests.
+
+```
+  spec: r[sphinx.size-classes]  <---  code: // r[impl sphinx.size-classes]
+                                <---  test: // r[verify sphinx.size-classes]
+```
+
+`.config/tracey/config.styx` names the specs and the code paths that Tracey reads. Today these are the three mixnet core specs in `openspec/changes/add-mixnet-core-specs/`. The `ci-spec-trace` workflow fails a pull request in these cases:
+
+- A marker names an unknown id or an old version.
+- Two specs define the same id.
+- A requirement has no code, no test or no id.
+
+| Task | Command, from the repository root |
+|---|---|
+| See the coverage | `tracey query status` |
+| See the code and the tests of one requirement | `tracey query rule <id>` |
+| List every gap that fails CI | `tools/internal/spec-trace-gaps.sh` |
+
+[`TRACEY.md`](TRACEY.md) explains what Tracey is, how it reads specs and code, how the CI checks work, how to install it, and how to add a requirement to the trace.
 
 ### The threat-model step of the build
 

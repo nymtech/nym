@@ -7,7 +7,12 @@
 
 - name: Download quic_bridge_deployment.sh
   command:
-    cmd: "curl -fsSL {{ quic_bridge_deployment_url }} -o {{ nym_install_dir }}/quic_bridge_deployment.sh"
+    argv:
+      - curl
+      - -fsSL
+      - "{{ quic_bridge_deployment_url }}"
+      - -o
+      - "{{ nym_install_dir }}/quic_bridge_deployment.sh"
   tags: quic
 
 - name: Set quic_bridge_deployment permissions
@@ -19,7 +24,9 @@
 - name: Run quic_bridge_deployment.sh
   become: true
   command:
-    cmd: "{{ nym_install_dir }}/quic_bridge_deployment.sh {{ item }}"
+    argv:
+      - "{{ nym_install_dir }}/quic_bridge_deployment.sh"
+      - "{{ item }}"
   environment:
     NONINTERACTIVE: "1"
   loop:

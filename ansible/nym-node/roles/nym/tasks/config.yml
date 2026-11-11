@@ -12,8 +12,9 @@
 
 - name: Initialize nym node
   # --hostname is passed whenever one is set. --landing-page-assets-path follows
-  # the nginx role (every gateway with a hostname, or a mixnode with nginx_enabled=true)
-  # --wireguard-enabled and --announce-wss-port are gateway-only
+  # the nginx role (every gateway with a hostname, or a mixnode with nginx_enabled=true).
+  # --wireguard-enabled and --announce-wss-port are gateway-only. WSS is announced
+  # when nginx runs, or set announce_wss=true for an external WSS proxy.
   command:
     cmd: >
       {{ nym_install_dir }}/nym-node run
@@ -31,7 +32,7 @@
       {% if (nginx_enabled | default(mode != 'mixnode') | bool) and (hostname | default('') | length > 0) %}--landing-page-assets-path {{ landing_page_assets_base_dir }}/{{ hostname }}/{% endif %}
       {% if nym_write_flag %}-w{% endif %}
       {% if nym_init_only_flag %}--init-only{% endif %}
-      {% if mode != 'mixnode' and (nginx_enabled | default(mode != 'mixnode') | bool) and (hostname | default('') | length > 0) %}--announce-wss-port {{ wss_port }}{% endif %}
+      {% if mode != 'mixnode' and (announce_wss | default((nginx_enabled | default(mode != 'mixnode') | bool) and (hostname | default('') | length > 0)) | bool) %}--announce-wss-port {{ wss_port }}{% endif %}
 
 
 - name: Update nym description

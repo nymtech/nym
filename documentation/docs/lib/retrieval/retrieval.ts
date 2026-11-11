@@ -7,7 +7,7 @@
 // sees everything.
 
 import type { DocIndex, EmbeddedChunk, SearchHit } from '@nymproject/retrieval-indexer/types';
-import { TEST_SCORE_PENALTY } from '@nymproject/retrieval-indexer/code-chunker';
+import { TEST_SCORE_PENALTY } from '@nymproject/retrieval-indexer/search';
 
 /** Cosine similarity, guarding against zero-length vectors. */
 export function cosineSimilarity(a: number[], b: number[]): number {

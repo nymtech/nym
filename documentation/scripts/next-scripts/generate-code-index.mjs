@@ -66,7 +66,7 @@ if (oversized.length) {
   );
 }
 
-const chunks = files.flatMap((f) => chunkCodeFile(f.content, f.path, SHARD));
+const chunks = (await Promise.all(files.map((f) => chunkCodeFile(f.content, f.path, SHARD)))).flat();
 assertRootsYieldChunks(ROOTS, files, chunks.map((c) => c.title));
 console.log(`Chunked into ${chunks.length} code chunks.`);
 

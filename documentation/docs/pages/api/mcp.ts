@@ -10,8 +10,9 @@
 // first. Fallback is a standalone Node process, where the transport gets a real
 // http.ServerResponse from createServer.
 //
-// Public, unauthenticated, and every search costs an embedding call. Needs a
-// rate limiter before real traffic.
+// Public, unauthenticated, and every search costs an embedding call. There is
+// no rate limiter: a spend alert on the Voyage account bounds the cost (design Q2
+// of the add-shared-retrieval-index change).
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { readFileSync } from 'node:fs';

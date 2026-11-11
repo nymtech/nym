@@ -3,10 +3,6 @@
   hosts: all    # or a specific host/group
   become: true
 
-  # Ubuntu's apt-daily.timer / unattended-upgrades hold the dpkg frontend lock
-  # in the background. The apt module waits only 60s by default, which is
-  # shorter than a kernel upgrade takes, so tasks fail on otherwise healthy
-  # nodes. Set once here so every apt task in every role inherits it.
   module_defaults:
     ansible.builtin.apt:
       lock_timeout: 300
@@ -14,6 +10,17 @@
   roles:
     - base
     - nym
-    - nginx
-    - tunnel # comment out for mixnode
-    - quic   # comment out for mixnode or non-wireguard gateway
+
+    # nginx: landing page, reverse proxy and WSS. Runs on every gateway (entry
+    # and exit). Off for mixnodes by default - set nginx_enabled=true in the
+    # inventory if your mixnode has a hostname and should get the reverse proxy.
+    # Needs `hostname` (DNS pointing to the node) and `email` for the certificate.
+    - role: nginx
+      when: nginx_enabled | default(mode != 'mixnode') | bool
+    # NTM runs on exit gateways and any WireGuard gateway and owns their firewall.
+    # A non-WireGuard entry-gateway is ufw-managed (see roles/nym/tasks/main.yml).
+    - role: tunnel
+      when: mode == 'exit-gateway' or (wireguard_enabled | default(false) | bool)
+    # QUIC bridge runs on every gateway (entry and exit).
+    - role: quic
+      when: mode != 'mixnode'

@@ -34,3 +34,9 @@ nym_ufw_rules:
   - { port: 9000,  proto: tcp }
   - { port: 9001,  proto: tcp }
   - { port: 51822, proto: udp }
+  # QUIC bridge entry transports - opened by ufw on a non-WireGuard entry-gateway
+  # (the only ufw-managed node that runs a bridge). NTM opens these on exit/WG gateways
+  - { port: 4443,  proto: tcp, comment: "bridge TLS",  when: "{{ mode == 'entry-gateway' }}" }
+  - { port: 4443,  proto: udp, comment: "bridge QUIC", when: "{{ mode == 'entry-gateway' }}" }
+  - { port: 4422,  proto: tcp, comment: "bridge SSH",  when: "{{ mode == 'entry-gateway' }}" }
+  

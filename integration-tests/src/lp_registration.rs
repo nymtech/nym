@@ -15,18 +15,21 @@ mod tests {
     use nym_kkt::keys::KEMKeys;
     use nym_kkt_ciphersuite::Ciphersuite;
     use nym_lp::peer::LpLocalPeer;
+    use nym_lp::transport::mock::MockTransport;
+    use nym_lp_data::packet::version;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
-    use nym_node::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
+    use nym_node::node::lp::active_sessions::ActiveLpSessions;
+    use nym_node::node::lp::control::ingress::connection_handler::LpIngressConnectionHandler;
+    use nym_node::node::lp::directory::{LpNodeDetails, LpNodes};
     use nym_node::node::lp::error::LpHandlerError;
-    use nym_node::node::lp::state::ActiveLpSessions;
-    use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
+    use nym_node::node::lp::registration_nonces::RegistrationNonces;
+    use nym_node::node::lp::{SharedGatewayLpControlState, SharedLpControlState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{
         LpClientError, LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient,
     };
     use nym_test_utils::helpers::CryptoRng010;
-    use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::Timeboxed;
     use nym_wireguard::peer_controller::IpPair;
     use nym_wireguard::peer_controller::mock::{
@@ -34,6 +37,7 @@ mod tests {
         RegisteredResponse, mock_peer_controller,
     };
     use nym_wireguard::{IpPool, PeerControlRequest, WireguardConfig, WireguardGatewayData};
+    use std::collections::HashMap;
     use std::mem;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
     use std::sync::Arc;
@@ -84,8 +88,21 @@ mod tests {
                     .with_kem_keys(lp_kem_keys),
                 x25519_wg_keys,
                 socket_addr: SocketAddr::from((ip, u16::from_le_bytes(port))),
-                lp_version: 1,
+                lp_version: version::CURRENT,
             }
+        }
+
+        /// What the directory would publish for this party as an LP node.
+        fn lp_node_details(&self) -> LpNodeDetails {
+            let remote = self.peer.as_remote();
+            LpNodeDetails::new(
+                u32::from(self.socket_addr.port()),
+                remote.kem_key_digests().clone(),
+                *remote.x25519(),
+                self.socket_addr.port(),
+                self.socket_addr.port().wrapping_add(1),
+                self.lp_version,
+            )
         }
     }
 
@@ -118,7 +135,7 @@ mod tests {
     enum SpawnedLpConnectionHandlerState {
         NotCreated,
         Ready {
-            handler: LpClientConnectionHandler<MockIOStream>,
+            handler: LpIngressConnectionHandler<MockTransport>,
         },
         Running {
             handle: JoinHandle<Option<Result<(), LpHandlerError>>>,
@@ -128,7 +145,8 @@ mod tests {
 
     struct Gateway {
         base: Party,
-        lp_state: SharedLpClientControlState,
+        lp_state: SharedLpControlState,
+        gateway_lp_state: SharedGatewayLpControlState,
         ip_pool: IpPool,
         mock_peer_controller: SpawnedPeerController,
 
@@ -223,23 +241,31 @@ mod tests {
                 upgrade_mode_details,
             );
 
-            let lp_state = SharedLpClientControlState {
+            let sessions = ActiveLpSessions::new();
+
+            let lp_state = SharedLpControlState {
                 local_lp_peer: base.peer.clone(),
+                nodes: LpNodes::new_empty(),
+                sessions: sessions.clone(),
+                metrics: Default::default(),
+                lp_config,
+            };
+
+            let gateway_lp_state = SharedGatewayLpControlState {
+                identity: *base.identity.public_key(),
+                sessions,
+                registration_nonces: RegistrationNonces::new(),
 
                 forward_semaphore,
 
                 // handles for dealing with new peers
                 peer_registrator: Some(peer_registrator),
-                shared: SharedLpState {
-                    metrics: Default::default(),
-                    lp_config,
-                    session_states: ActiveLpSessions::new(),
-                },
             };
 
             Ok(Gateway {
                 base,
                 lp_state,
+                gateway_lp_state,
                 ip_pool: Self::ip_pool(),
                 mock_peer_controller: SpawnedPeerController::Ready {
                     controller: mock_peer_controller,
@@ -250,45 +276,40 @@ mod tests {
             })
         }
 
-        fn create_lp_handler(
-            &mut self,
-            client_connection: MockIOStream,
-            client_address: SocketAddr,
-        ) {
+        /// Create the handler the listener would for a connection arriving from `remote_addr`.
+        fn create_lp_handler(&mut self, connection: MockTransport, remote_addr: SocketAddr) {
             let SpawnedLpConnectionHandlerState::NotCreated = self.lp_connection_handler else {
                 panic!("lp connection handler in invalid state")
             };
 
+            // the listener's own lookup: a known node's address takes the node-address path
+            let known_node = self.lp_state.nodes.get_node_details(remote_addr.ip());
+
             self.lp_connection_handler = SpawnedLpConnectionHandlerState::Ready {
-                handler: LpClientConnectionHandler::new(
-                    client_connection,
-                    client_address,
+                handler: LpIngressConnectionHandler::new(
+                    connection,
+                    remote_addr,
+                    known_node,
                     self.lp_state.clone(),
+                    Some(self.gateway_lp_state.clone()),
                 ),
             };
         }
 
-        async fn establish_forwarding_channel(
-            &mut self,
-            exit_address: SocketAddr,
-        ) -> anyhow::Result<MockIOStream> {
-            let SpawnedLpConnectionHandlerState::Ready { handler } =
-                &mut self.lp_connection_handler
-            else {
-                panic!("lp connection handler in invalid state")
-            };
+        fn advertise_lp_version(&mut self, version: u8) {
+            self.base.lp_version = version;
+        }
 
-            handler.establish_exit_stream(exit_address).await?;
-            Ok(handler
-                .forwarding_channel()
-                .as_ref()
-                .context("mock connection has failed!")?
-                .0
-                .try_get_remote_handle())
+        /// Make this gateway's directory view know `other` as an LP node.
+        fn learn_node(&mut self, other: &Party) {
+            self.lp_state.nodes.swap_view(HashMap::from([(
+                other.socket_addr.ip(),
+                other.lp_node_details(),
+            )]));
         }
 
         fn spawn_lp_handler(&mut self) {
-            let SpawnedLpConnectionHandlerState::Ready { mut handler } = mem::replace(
+            let SpawnedLpConnectionHandlerState::Ready { handler } = mem::replace(
                 &mut self.lp_connection_handler,
                 SpawnedLpConnectionHandlerState::NotCreated,
             ) else {
@@ -391,7 +412,7 @@ mod tests {
                 let client_key = *client_data.base.x25519_wg_keys.public_key();
                 let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-                let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config(
+                let mut client = LpGatewayClient::<MockTransport>::new_with_default_config(
                     client_data.base.peer.x25519().clone(),
                     entry.base.peer.as_remote(),
                     entry.base.socket_addr,
@@ -497,7 +518,7 @@ mod tests {
 
             let ciphersuite = Ciphersuite::default();
 
-            let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config(
+            let mut client = LpGatewayClient::<MockTransport>::new_with_default_config(
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
@@ -547,8 +568,10 @@ mod tests {
             Ok(())
         }
 
-        #[tokio::test]
-        async fn test_basic_lp_exit_registration() -> anyhow::Result<()> {
+        async fn run_telescoped_registration(
+            gateway_lp_version: u8,
+            exit_knows_entry: bool,
+        ) -> anyhow::Result<()> {
             // nym_test_utils::helpers::setup_test_logger();
 
             // TODO: update the test once mceliece works
@@ -566,7 +589,13 @@ mod tests {
             let mut entry = Gateway::mock(&mut entry_rng).await?;
             let mut exit = Gateway::mock(&mut exit_rng).await?;
 
-            let mut entry_client = LpGatewayClient::<MockIOStream>::new_with_default_config(
+            entry.advertise_lp_version(gateway_lp_version);
+            exit.advertise_lp_version(gateway_lp_version);
+            if exit_knows_entry {
+                exit.learn_node(&entry.base);
+            }
+
+            let mut entry_client = LpGatewayClient::<MockTransport>::new_with_default_config(
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
@@ -585,14 +614,12 @@ mod tests {
                 .try_get_remote_handle();
             entry_conn.set_id(1);
 
-            // 2. create handler for the client connection (entry)
-            entry.create_lp_handler(entry_conn, client_data.base.socket_addr);
-
-            // 3. pre-establish connection between entry and exit
-            let exit_conn = entry
-                .establish_forwarding_channel(exit.base.socket_addr)
-                .await?;
+            // 2. the exit's end of the connection the entry opens when it first forwards
+            let exit_conn = MockTransport::expect_connection(exit.base.socket_addr);
             exit_conn.set_id(255);
+
+            // 3. create handler for the client connection (entry)
+            entry.create_lp_handler(entry_conn, client_data.base.socket_addr);
 
             // 4. register all needed responses for the dvpn registration that will reach the peer controller
             // 1) peer registration - ip pair allocation
@@ -639,8 +666,8 @@ mod tests {
             // END: ENTRY SETUP
             //
             // START: EXIT SETUP:
-            // 8. create handler for the forwarding channel (exit)
-            exit.create_lp_handler(exit_conn, client_data.base.socket_addr);
+            // 8. create handler for the forwarding channel (exit); it arrives from the entry's address
+            exit.create_lp_handler(exit_conn, entry.base.socket_addr);
 
             // 9. spawn the handler
             exit.spawn_lp_handler();
@@ -692,7 +719,10 @@ mod tests {
             );
 
             // 13. Perform handshake and registration with exit gateway (all via entry forwarding)
-            nested_session.perform_handshake(&mut entry_client).await?;
+            nested_session
+                .perform_handshake(&mut entry_client)
+                .timeboxed()
+                .await??;
 
             let exit_registration_result =
                 NestedLpDvpnRegistrationClient::new(&mut nested_session, &mut entry_client)
@@ -750,6 +780,24 @@ mod tests {
             exit.stop_tasks().await?;
 
             Ok(())
+        }
+
+        #[tokio::test]
+        async fn test_basic_lp_exit_registration() -> anyhow::Result<()> {
+            run_telescoped_registration(version::CURRENT, false).await
+        }
+
+        /// The exit serves the entry's forwarded connection the way its listener would for a known node IP.
+        #[tokio::test]
+        async fn telescoped_registration_when_the_exit_knows_the_entry_as_a_node()
+        -> anyhow::Result<()> {
+            run_telescoped_registration(version::CURRENT, true).await
+        }
+
+        /// Gateways still advertising version 1 make the client send version 1 openers.
+        #[tokio::test]
+        async fn telescoped_registration_with_gateways_advertising_v1() -> anyhow::Result<()> {
+            run_telescoped_registration(version::V1, true).await
         }
     }
 }

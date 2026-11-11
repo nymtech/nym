@@ -30,6 +30,119 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo/>
 
+## `v2026.21-hanoi`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.21-hanoi)
+- [`nym-node`](/operators/nodes/nym-node) version `1.43.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-10-28T16:15:33.395437008Z
+Build Version:      1.43.0
+Commit SHA:         f92749c5f45bf1fdaacb824f9796bca2d641c6f9
+Commit Date:        2026-10-28T17:13:38.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="info">
+[**NIP-15 is out, please vote!**](https://governator.nym.com/proposal/prop-589d3e49-1a9c-4a67-85af-499a521cc1a1) Another upgrade of Nym exit policy opened for operators decision, this time expanding service port `8000` to support Railgun desktop application users. connecting through [NymVPN](https://nym.com).
+
+Read full proposal [forum post](https://forum.nym.com/t/nip-15-nym-exit-policy-update-opening-port-8000-for-railgun-app/2682) before you vote.
+</Callout>
+
+- [New Mixnode `stress_testing_score` troubleshooting guide](/operators/troubleshooting/nodes#): Please check out if you run a `nym-node` in `--mode mixnode`. Select the *Mode `mixnode`* tab on the page.
+
+- [Updated Mixnode machine specs](/operators/nodes/preliminary-steps/vps-setup#mixnode): Please check out if you run a `nym-node` in `--mode mixnode`.
+
+<Callout type="warning" emoji="⚠️">
+If you [moved your `nym-node`](/operators/nodes/maintenance#moving-a-node) from one server to another, please re-do [routing configuration](/operators/nodes/nym-node/configuration#routing-configuration) by running [NTM](/operators/nodes/nym-node/configuration#download-network-tunnel-managersh-make-executable-and-run-with---help-command) and [QUIC](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) helpers. 
+</Callout>
+
+#### Updated Delegations Program & Service Grant Program Rules
+
+We’ve updated the binary version requirements for both the Delegations Program and the Service Grant Program to ensure that participating nodes are kept up to date and that delegation and service grants go to well-maintained nodes.
+
+Under the updated rules, operators must run either the `Latest` binary version or the immediately preceding version. Nodes running older versions will no longer be eligible for either program.
+
+The consequences differ slightly between the two programs:
+
+- **Delegations Program:** Nodes that do not meet the version requirements will be disqualified, and their delegated stake will be withdrawn. Operators will not be notified individually. Operators can [re-apply](https://nym.com/network/DP) once their nodes are fixed and stable. 
+
+- **Service Grant Program:** Nodes that do not meet the version requirements will be removed from the program, and operators will be notified. Nodes removed for this reason will not be eligible to rejoin the program.
+
+These changes reflect the need to keep the network well-maintained while ensuring that available delegations and service grants are allocated to operators who keep their nodes up to date.
+
+<Callout>
+*Delegations Program:** [Applications to DP](https://nym.com/network/DP) are open continuously and Nym team re-delegates every two weeks at latest.
+
+**Service Grant Program:** Slots will be opened soon only for [residential IP nodes](/operators/residential-ip) or [CN2 nodes optimized for China](https://edgeone.ai/blog/details/what-is-cn2). In case of interest, send a direct message request on Matrix to [serinko](https://matrix.to/#/@serinko:nymtech.chat) - Nym Head of Network.
+</Callout>
+
+
+#### Network Upgrade
+
+Thank you to all our validators for successfully completing the network upgrade.
+
+This was primarily a maintenance release that also addresses several security vulnerabilities and reduces mixnet transaction costs by 20–40%.
+
+### Features
+
+- [Performance contract: multiple kinds](https://github.com/nymtech/nym/pull/7213)
+
+- [NMv3: config score calculation](https://github.com/nymtech/nym/pull/7188)
+
+- [NMv3: node score aggregation](https://github.com/nymtech/nym/pull/7181)
+
+- [NMv3: review nits: additional tests and updated docs](https://github.com/nymtech/nym/pull/7176)
+
+- [Use Geolocation contract within NS API](https://github.com/nymtech/nym/pull/7168)
+
+- [Attested geolocation retrieval](https://github.com/nymtech/nym/pull/7156)
+
+- [NMv3: Nym API integration](https://github.com/nymtech/nym/pull/7136)
+
+- [NMv3: gateway liveness probes](https://github.com/nymtech/nym/pull/7128)
+
+- [NMv3: mixnode liveness sending](https://github.com/nymtech/nym/pull/7115)
+
+- [NMv3: per kind submission](https://github.com/nymtech/nym/pull/7100)
+
+- [NMv3: per kind scheduling](https://github.com/nymtech/nym/pull/7095)
+
+- [NMv3: allow storing different test results](https://github.com/nymtech/nym/pull/7086)
+
+- [NMv3: announce agents' ed25519 identities to the contract](https://github.com/nymtech/nym/pull/7080)
+
+- [NMv3: unmetered ephemeral client sessions](https://github.com/nymtech/nym/pull/7078)
+
+- [NMv3: forwarding of final hop network monitor packets](https://github.com/nymtech/nym/pull/7063)
+
+- [Add network monitor agent ed25519 key to announced data](https://github.com/nymtech/nym/pull/7059)
+
+- [NMv3: liveness checks](https://github.com/nymtech/nym/pull/7058)
+
+### Bugfix
+
+- [Update trait function signature for domain fronting](https://github.com/nymtech/nym/pull/7221)
+
+- [Mixfetch connect retry DoH](https://github.com/nymtech/nym/pull/7151)
+
+### Refactors & Maintenance
+
+- [Remove already run mixnet contract migrations](https://github.com/nymtech/nym/pull/7220)
+
+- [Upgrade libcrux libraries and re-enable nonce control](https://github.com/nymtech/nym/pull/7214)
+
+- [Update validator rewarder](https://github.com/nymtech/nym/pull/7186)
+
+- [Fixing clippy lints and stuff](https://github.com/nymtech/nym/pull/7228)
+
+
 ## `v2026.20-glasgow`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.20-glasgow)

@@ -5,7 +5,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 readme.workspace = true
 publish = false
@@ -22,3 +21,5 @@ cosmwasm-schema = { workspace = true }
 [features]
 default = ["library"]
 library = []
+
+[lints]

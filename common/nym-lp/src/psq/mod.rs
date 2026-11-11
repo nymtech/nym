@@ -22,6 +22,11 @@ pub(crate) const AAD_INITIATOR_INNER_V1: &[u8] = b"NYM-PQ-AAD-INIT-INNER-V1";
 pub(crate) const AAD_RESPONDER_V1: &[u8] = b"NYM-PQ-AAD-RESP-V1";
 pub(crate) const SESSION_CONTEXT_V1: &[u8] = b"NYM-PQ-SESSION-CONTEXT-V1";
 
+pub(crate) const AAD_INITIATOR_OUTER_V2: &[u8] = b"NYM-PQ-AAD-INIT-OUTER-V2";
+pub(crate) const AAD_INITIATOR_INNER_V2: &[u8] = b"NYM-PQ-AAD-INIT-INNER-V2";
+pub(crate) const AAD_RESPONDER_V2: &[u8] = b"NYM-PQ-AAD-RESP-V2";
+pub(crate) const SESSION_CONTEXT_V2: &[u8] = b"NYM-PQ-SESSION-CONTEXT-V2";
+
 /// Size of the first (initiator) PSQ message including all serialisation overheads if no additional payload has been attached
 pub(crate) fn psq_msg1_size(kem: KEM) -> usize {
     match kem {
@@ -72,9 +77,7 @@ pub struct ResponderData {
     /// List of supported outer (LP) protocol version by this Responder
     pub supported_outer_protocol_versions: Vec<u8>,
 
-    /// Expected KEM hashes of the initiator.
-    /// It is only expected to be populated for the mutual mode of the KKT.
-    /// Otherwise the map is empty.
+    /// Expected KEM key digests of a known-node initiator; a mutual opener is verified against them.
     pub initiator_kem_hashes: BTreeMap<KEM, KEMKeyDigests>,
 }
 
@@ -142,6 +145,7 @@ mod tests {
     use crate::peer::mock_peers;
     use crate::peer_config::{LP_PEER_CONFIG_SIZE, LpPeerConfig};
     use crate::test_helpers::assert_frame_delivered;
+    use crate::transport::LpTransportError;
     use libcrux_psq::handshake::types::Authenticator;
     use libcrux_psq::session::{Session, SessionBinding};
     use libcrux_psq::{Channel, IntoSession};
@@ -156,57 +160,64 @@ mod tests {
 
     #[tokio::test]
     async fn e2e_psq_handshake() -> anyhow::Result<()> {
-        for kem in KEM::iter() {
-            let conn_init = MockIOStream::default();
-            let conn_resp = conn_init.try_get_remote_handle();
+        for protocol_version in version::SUPPORTED {
+            for kem in KEM::iter() {
+                let conn_init = MockIOStream::default();
+                let conn_resp = conn_init.try_get_remote_handle();
 
-            // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
-            // so they'd get 'static lifetime
-            let conn_init = conn_init.leak();
-            let conn_resp = conn_resp.leak();
-            let ciphersuite = Ciphersuite::default().with_kem(kem);
+                // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
+                // so they'd get 'static lifetime
+                let conn_init = conn_init.leak();
+                let conn_resp = conn_resp.leak();
+                let ciphersuite = Ciphersuite::default().with_kem(kem);
 
-            let (mut init, mut resp) = mock_peers();
-            init.ciphersuite = ciphersuite;
-            resp.ciphersuite = ciphersuite;
-            let resp_remote = resp.as_remote();
+                let (mut init, mut resp) = mock_peers();
+                init.ciphersuite = ciphersuite;
+                resp.ciphersuite = ciphersuite;
+                let resp_remote = resp.as_remote();
 
-            let handshake_init = PSQHandshakeState::new(conn_init, init).as_initiator(
-                InitiatorData::new(1, resp_remote),
-                HandshakeMode::OneWayEntry,
-            )?;
-            let handshake_resp =
-                PSQHandshakeState::new(conn_resp, resp).as_responder(ResponderData::default());
+                let handshake_init = PSQHandshakeState::new(conn_init, init).as_initiator(
+                    InitiatorData::new(*protocol_version, resp_remote),
+                    HandshakeMode::OneWayEntry,
+                )?;
+                let handshake_resp =
+                    PSQHandshakeState::new(conn_resp, resp).as_responder(ResponderData::default());
 
-            let init_rng = DeterministicRngSend::new(u64_seeded_rng(1));
-            let resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
+                let init_rng = DeterministicRngSend::new(u64_seeded_rng(1));
+                let resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
 
-            // similarly leak the rngs to get the static lifetimes
-            let init_rng = init_rng.leak();
-            let resp_rng = resp_rng.leak();
+                // similarly leak the rngs to get the static lifetimes
+                let init_rng = init_rng.leak();
+                let resp_rng = resp_rng.leak();
 
-            let init_fut = handshake_init
-                .complete_handshake_with_rng(init_rng)
-                .spawn_timeboxed();
-            let resp_fut = handshake_resp
-                .complete_handshake_with_rng(resp_rng)
-                .spawn_timeboxed();
+                let init_fut = handshake_init
+                    .complete_handshake_with_rng(init_rng)
+                    .spawn_timeboxed();
+                let resp_fut = handshake_resp
+                    .complete_handshake_with_rng(resp_rng)
+                    .spawn_timeboxed();
 
-            let (session_init, session_resp) = join!(init_fut, resp_fut);
+                let (session_init, session_resp) = join!(init_fut, resp_fut);
 
-            let mut session_init = session_init???;
-            let mut session_resp = session_resp???;
+                let mut session_init = session_init???;
+                let mut session_resp = session_resp???;
 
-            assert_eq!(session_init.receiver_index(), session_resp.receiver_index());
+                assert_eq!(session_init.receiver_index(), session_resp.receiver_index());
+                assert_eq!(*protocol_version, session_resp.negotiated_version());
 
-            assert_eq!(
-                session_init.session_identifier(),
-                session_resp.session_identifier()
-            );
+                assert_eq!(
+                    session_init.session_identifier(),
+                    session_resp.session_identifier()
+                );
 
-            // both sides must have derived the same transport keys
-            assert_frame_delivered(&mut session_init, &mut session_resp, b"Derived session hey");
-            assert_frame_delivered(&mut session_resp, &mut session_init, b"Derived session ho");
+                // both sides must have derived the same transport keys
+                assert_frame_delivered(
+                    &mut session_init,
+                    &mut session_resp,
+                    b"Derived session hey",
+                );
+                assert_frame_delivered(&mut session_resp, &mut session_init, b"Derived session ho");
+            }
         }
 
         Ok(())
@@ -214,6 +225,78 @@ mod tests {
 
     #[tokio::test]
     async fn e2e_psq_mutual_handshake() -> anyhow::Result<()> {
+        // a version 1 opener is always read as one-way, so mutual handshakes exist from version 2
+        for protocol_version in version::SUPPORTED.iter().filter(|v| **v >= version::V2) {
+            for kem in KEM::iter() {
+                let conn_init = MockIOStream::default();
+                let conn_resp = conn_init.try_get_remote_handle();
+
+                // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
+                // so they'd get 'static lifetime
+                let conn_init = conn_init.leak();
+                let conn_resp = conn_resp.leak();
+                let ciphersuite = Ciphersuite::default().with_kem(kem);
+
+                let (mut init, mut resp) = mock_peers();
+                init.ciphersuite = ciphersuite;
+                resp.ciphersuite = ciphersuite;
+                let resp_remote = resp.as_remote();
+                let init_remote = init.as_remote();
+
+                let handshake_init = PSQHandshakeState::new(conn_init, init).as_initiator(
+                    InitiatorData::new(*protocol_version, resp_remote),
+                    HandshakeMode::MutualInternode,
+                )?;
+                let handshake_resp = PSQHandshakeState::new(conn_resp, resp).as_responder(
+                    ResponderData::default()
+                        .with_initiator_kem_hashes(init_remote.expected_kem_key_digests),
+                );
+
+                let init_rng = DeterministicRngSend::new(u64_seeded_rng(1));
+                let resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
+
+                // similarly leak the rngs to get the static lifetimes
+                let init_rng = init_rng.leak();
+                let resp_rng = resp_rng.leak();
+
+                let init_fut = handshake_init
+                    .complete_handshake_with_rng(init_rng)
+                    .spawn_timeboxed();
+                let resp_fut = handshake_resp
+                    .complete_handshake_with_rng(resp_rng)
+                    .spawn_timeboxed();
+
+                let (session_init, session_resp) = join!(init_fut, resp_fut);
+
+                let mut session_init = session_init???;
+                let mut session_resp = session_resp???;
+
+                assert_eq!(session_init.receiver_index(), session_resp.receiver_index());
+                assert_eq!(*protocol_version, session_resp.negotiated_version());
+                assert!(session_resp.session_binding().initiator_pq_pk.is_some());
+
+                assert_eq!(
+                    session_init.session_identifier(),
+                    session_resp.session_identifier()
+                );
+
+                // both sides must have derived the same transport keys
+                assert_frame_delivered(
+                    &mut session_init,
+                    &mut session_resp,
+                    b"Derived session hey",
+                );
+                assert_frame_delivered(&mut session_resp, &mut session_init, b"Derived session ho");
+            }
+        }
+
+        Ok(())
+    }
+
+    /// A forwarded client reaches a responder that holds the entry's digests; the opener says one-way.
+    #[tokio::test]
+    async fn a_one_way_opener_completes_against_a_responder_holding_digests() -> anyhow::Result<()>
+    {
         for kem in KEM::iter() {
             let conn_init = MockIOStream::default();
             let conn_resp = conn_init.try_get_remote_handle();
@@ -231,8 +314,8 @@ mod tests {
             let init_remote = init.as_remote();
 
             let handshake_init = PSQHandshakeState::new(conn_init, init).as_initiator(
-                InitiatorData::new(1, resp_remote),
-                HandshakeMode::MutualInternode,
+                InitiatorData::new(version::CURRENT, resp_remote),
+                HandshakeMode::OneWayExit,
             )?;
             let handshake_resp = PSQHandshakeState::new(conn_resp, resp).as_responder(
                 ResponderData::default()
@@ -255,20 +338,57 @@ mod tests {
 
             let (session_init, session_resp) = join!(init_fut, resp_fut);
 
-            let mut session_init = session_init???;
-            let mut session_resp = session_resp???;
+            let session_init = session_init???;
+            let session_resp = session_resp???;
 
             assert_eq!(session_init.receiver_index(), session_resp.receiver_index());
-
-            assert_eq!(
-                session_init.session_identifier(),
-                session_resp.session_identifier()
-            );
-
-            // both sides must have derived the same transport keys
-            assert_frame_delivered(&mut session_init, &mut session_resp, b"Derived session hey");
-            assert_frame_delivered(&mut session_resp, &mut session_init, b"Derived session ho");
+            assert!(session_resp.session_binding().initiator_pq_pk.is_none());
         }
+
+        Ok(())
+    }
+
+    /// A responder holding no digests refuses a mutual opener rather than completing it unverified.
+    #[tokio::test]
+    async fn a_mutual_opener_against_a_responder_without_digests_is_refused() -> anyhow::Result<()>
+    {
+        let conn_init = MockIOStream::default();
+        let conn_resp = conn_init.try_get_remote_handle();
+        let conn_init = conn_init.leak();
+        let conn_resp = conn_resp.leak();
+
+        let (init, resp) = mock_peers();
+        let resp_remote = resp.as_remote();
+
+        let handshake_init = PSQHandshakeState::new(conn_init, init).as_initiator(
+            InitiatorData::new(version::CURRENT, resp_remote),
+            HandshakeMode::MutualInternode,
+        )?;
+        let handshake_resp =
+            PSQHandshakeState::new(conn_resp, resp).as_responder(ResponderData::default());
+
+        let init_rng = DeterministicRngSend::new(u64_seeded_rng(1)).leak();
+        let resp_rng = DeterministicRngSend::new(u64_seeded_rng(2)).leak();
+
+        let init_fut = handshake_init
+            .complete_handshake_with_rng(init_rng)
+            .spawn_timeboxed();
+        let resp_fut = handshake_resp
+            .complete_handshake_with_rng(resp_rng)
+            .spawn_timeboxed();
+
+        // the initiator is left waiting for a response that never comes; only the responder's
+        // verdict matters here
+        let (_, session_resp) = join!(init_fut, resp_fut);
+
+        // at version 2 the opener's declared length already gives it away as mutual, so it is
+        // refused before a byte of it is read; the KKT digest check behind that would refuse it too
+        assert!(matches!(
+            session_resp??,
+            Err(LpError::TransportFailure(
+                LpTransportError::MalformedPacket(_)
+            ))
+        ));
 
         Ok(())
     }

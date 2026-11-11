@@ -1,11 +1,10 @@
 [package]
 name = "nymvisor"
-version = "0.1.53"
+version = "0.1.54"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 publish = false
 
@@ -40,3 +39,5 @@ nym-task = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+
+[lints]

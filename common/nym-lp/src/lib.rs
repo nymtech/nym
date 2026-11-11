@@ -38,6 +38,9 @@ use crate::session::PersistentSessionBinding;
 use libcrux_psq::{Channel, IntoSession};
 
 #[cfg(any(feature = "mock", test))]
+use nym_lp_data::packet::version;
+
+#[cfg(any(feature = "mock", test))]
 pub struct SessionsMock {
     pub initiator: LpTransportSession,
     pub responder: LpTransportSession,
@@ -71,11 +74,13 @@ impl SessionsMock {
         let initiator_ciphersuite =
             initiator::build_psq_ciphersuite(&init, &resp_remote, &enc_key).unwrap();
         let mut initiator =
-            initiator::build_psq_principal(init_rng, 1, initiator_ciphersuite).unwrap();
+            initiator::build_psq_principal(init_rng, version::CURRENT, initiator_ciphersuite)
+                .unwrap();
 
         let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem).unwrap();
         let mut responder =
-            responder::build_psq_principal(resp_rng, 1, responder_ciphersuite).unwrap();
+            responder::build_psq_principal(resp_rng, version::CURRENT, responder_ciphersuite)
+                .unwrap();
 
         // run PSQ
         let mut payload_buf_responder = vec![0u8; 4096];
@@ -121,14 +126,14 @@ impl SessionsMock {
                 initiator.into_session().unwrap(),
                 binding.clone(),
                 receiver_index,
-                1,
+                version::CURRENT,
             )
             .unwrap(),
             responder: LpTransportSession::new(
                 responder.into_session().unwrap(),
                 binding,
                 receiver_index,
-                1,
+                version::CURRENT,
             )
             .unwrap(),
         }

@@ -44,35 +44,6 @@ pub fn best_supported_version(node_version: &semver::Version) -> Option<u8> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const _: () = {
-        assert!(SPHINX_STREAM_VERSION_THRESHOLD > MAX_NON_STREAM_VERSION);
-    };
-
-    #[test]
-    fn stream_transport_threshold_is_consistent() {
-        assert_eq!(MAX_NON_STREAM_VERSION, 8);
-        assert_eq!(SPHINX_STREAM_VERSION_THRESHOLD, 9);
-        const _: () = assert!(SPHINX_STREAM_VERSION_THRESHOLD > MAX_NON_STREAM_VERSION);
-    }
-
-    #[test]
-    fn best_supported_version_ladder() {
-        use semver::Version;
-        let v = |s: &str| Version::parse(s).unwrap();
-
-        assert_eq!(best_supported_version(&v("1.37.0")), Some(v10::VERSION));
-        assert_eq!(best_supported_version(&v("1.37.1")), Some(v10::VERSION));
-        assert_eq!(best_supported_version(&v("1.40.0")), Some(v10::VERSION));
-        assert_eq!(best_supported_version(&v("1.36.9")), Some(v9::VERSION));
-        assert_eq!(best_supported_version(&v("1.30.0")), Some(v9::VERSION));
-        assert_eq!(best_supported_version(&v("1.29.9")), None);
-    }
-}
-
 // Wire-protocol history (v8 is the current floor; v3-v7 removed):
 // version 3: initial version
 // version 4: IPv6 support
@@ -107,4 +78,33 @@ fn make_bincode_serializer() -> impl bincode::Options {
     bincode::DefaultOptions::new()
         .with_big_endian()
         .with_varint_encoding()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const _: () = {
+        assert!(SPHINX_STREAM_VERSION_THRESHOLD > MAX_NON_STREAM_VERSION);
+    };
+
+    #[test]
+    fn stream_transport_threshold_is_consistent() {
+        assert_eq!(MAX_NON_STREAM_VERSION, 8);
+        assert_eq!(SPHINX_STREAM_VERSION_THRESHOLD, 9);
+        const _: () = assert!(SPHINX_STREAM_VERSION_THRESHOLD > MAX_NON_STREAM_VERSION);
+    }
+
+    #[test]
+    fn best_supported_version_ladder() {
+        use semver::Version;
+        let v = |s: &str| Version::parse(s).unwrap();
+
+        assert_eq!(best_supported_version(&v("1.37.0")), Some(v10::VERSION));
+        assert_eq!(best_supported_version(&v("1.37.1")), Some(v10::VERSION));
+        assert_eq!(best_supported_version(&v("1.40.0")), Some(v10::VERSION));
+        assert_eq!(best_supported_version(&v("1.36.9")), Some(v9::VERSION));
+        assert_eq!(best_supported_version(&v("1.30.0")), Some(v9::VERSION));
+        assert_eq!(best_supported_version(&v("1.29.9")), None);
+    }
 }

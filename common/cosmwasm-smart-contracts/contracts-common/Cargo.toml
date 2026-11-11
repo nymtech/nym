@@ -6,7 +6,6 @@ authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-homepage.workspace = true
 documentation.workspace = true
 rust-version = "1.85"
 readme.workspace = true
@@ -32,3 +31,5 @@ vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "carg
 [features]
 naive_float = []
 utoipa = ["dep:utoipa"]
+
+[lints]

@@ -1395,8 +1395,8 @@ mod tests {
         );
 
         // Verify sequence numbers in snd_buf
-        for i in 0..cwnd {
-            assert_eq!(session.snd_buf[i].sn, i as u32);
+        for (i, segment) in session.snd_buf.iter().take(cwnd).enumerate() {
+            assert_eq!(segment.sn, i as u32);
         }
         // Since queue is empty, no need to check snd_queue[0].sn
         // assert_eq!(session.snd_queue[0].sn, cwnd as u32);

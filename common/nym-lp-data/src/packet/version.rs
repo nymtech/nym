@@ -6,8 +6,11 @@
 /// The initial version of the Lewes Protocol, and the only inner-header layout implemented.
 pub const V1: u8 = 1;
 
+/// Same packet layout as [`V1`]; the KKT opener carries the length of its encrypted frame.
+pub const V2: u8 = 2;
+
 /// The current version of the Lewes Protocol that is put into each new constructed header.
-pub const CURRENT: u8 = V1;
+pub const CURRENT: u8 = V2;
 
 /// Every version this build can still speak, and therefore everything a responder will accept
 /// during negotiation. Must contain [`CURRENT`].
@@ -19,13 +22,30 @@ pub const CURRENT: u8 = V1;
 /// context and AAD constants with arms in both `build_psq_principal` functions, which
 /// otherwise reject it right after negotiation succeeds, and an [`super::InnerHeader::parse`]
 /// branch if it changes the header layout.
-pub const SUPPORTED: &[u8] = &[V1];
+pub const SUPPORTED: &[u8] = &[V1, V2];
+
+/// The version to speak with a node advertising `advertised`, or `None` when there is none both
+/// ends know.
+///
+/// A node at least as new as this build is met at [`CURRENT`]: it knows every version we do. An
+/// older one is met at its own version, so long as that version is still in [`SUPPORTED`].
+pub fn negotiate(advertised: u8) -> Option<u8> {
+    if advertised >= CURRENT {
+        return Some(CURRENT);
+    }
+
+    SUPPORTED.contains(&advertised).then_some(advertised)
+}
 
 pub mod node_compatibility {
     /// Indicates the initial version where LP has been introduced, alongside the KKT
     /// handshake it is built on.
     /// 1.27.0 Raclette release
     pub const INTRODUCTION: semver::Version = semver::Version::new(1, 27, 0);
+
+    /// First build whose KKT opener carries its frame length, i.e. speaks [`super::V2`].
+    /// 1.44.0 Istanbul release
+    pub const LENGTH_PREFIXED_OPENER: semver::Version = semver::Version::new(1, 44, 0);
 }
 
 /// Determine the LP protocol version spoken by a node of the given build version.
@@ -37,10 +57,10 @@ pub fn from_node_version(semver: semver::Version) -> Option<u8> {
         // node can't possibly speak LP
         return None;
     }
-    // currently there are no other branches known to the client
-    // once a new version is introduced, follow the pattern implemented in
-    // `common/authenticator-requests/src/version.rs`
-    Some(V1)
+    if semver < node_compatibility::LENGTH_PREFIXED_OPENER {
+        return Some(V1);
+    }
+    Some(V2)
 }
 
 #[cfg(test)]
@@ -54,6 +74,28 @@ mod tests {
     }
 
     #[test]
+    fn a_node_newer_than_this_build_is_met_at_our_current_version() {
+        assert_eq!(Some(CURRENT), negotiate(CURRENT));
+        assert_eq!(Some(CURRENT), negotiate(CURRENT + 1));
+        assert_eq!(Some(CURRENT), negotiate(u8::MAX));
+    }
+
+    #[test]
+    fn every_supported_version_negotiates_to_a_supported_one() {
+        for &supported in SUPPORTED {
+            let agreed = negotiate(supported).expect("a supported version must negotiate");
+            assert!(SUPPORTED.contains(&agreed));
+        }
+    }
+
+    #[test]
+    fn an_unsupported_version_finds_no_overlap() {
+        // 0 is below V1, so it can never be in `SUPPORTED` - it stands in for any version
+        // eventually dropped from the list
+        assert_eq!(None, negotiate(0));
+    }
+
+    #[test]
     fn nodes_predating_lp_speak_no_version() {
         for too_old in ["1.26.9", "1.0.0", "0.1.0"] {
             assert_eq!(None, from_node_version(too_old.parse().unwrap()));
@@ -61,10 +103,22 @@ mod tests {
     }
 
     #[test]
-    fn nodes_from_the_introduction_onwards_speak_v1() {
-        for supported in ["1.27.0", "1.38.0", "2.0.0"] {
-            assert_eq!(Some(V1), from_node_version(supported.parse().unwrap()));
+    fn nodes_before_the_length_prefixed_opener_speak_v1() {
+        for v1_only in ["1.27.0", "1.38.0", "1.43.9"] {
+            assert_eq!(Some(V1), from_node_version(v1_only.parse().unwrap()));
         }
+    }
+
+    #[test]
+    fn nodes_from_the_length_prefixed_opener_onwards_speak_v2() {
+        for v2 in ["1.44.0", "1.50.0", "2.0.0"] {
+            assert_eq!(Some(V2), from_node_version(v2.parse().unwrap()));
+        }
+    }
+
+    #[test]
+    fn an_older_supported_version_is_met_at_its_own() {
+        assert_eq!(Some(V1), negotiate(V1));
     }
 
     #[test]

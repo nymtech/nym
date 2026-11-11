@@ -35,14 +35,13 @@ pub struct LewesProtocol {
 
 impl LewesProtocol {
     pub fn new(
-        enabled: bool,
         control_port: u16,
         data_port: u16,
         x25519: x25519::DHPublicKey,
         kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
     ) -> Self {
         LewesProtocol {
-            enabled,
+            enabled: true,
             control_port,
             data_port,
             x25519,

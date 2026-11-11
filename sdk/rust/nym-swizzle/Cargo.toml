@@ -9,7 +9,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository = "https://github.com/nymtech/nym/sdk/rust/nym-swizzle/"
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme = "README.md"
@@ -35,3 +34,5 @@ getrandom = { workspace = true, features = ["sys_rng", "wasm_js"] }
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "sync", "test-util"] }
 plotters = { version = "0.3", default-features = false, features = ["svg_backend", "line_series"] }
+
+[lints]

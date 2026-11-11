@@ -8,7 +8,6 @@
 //! a data-plane client wants [`LpGatewayClient`] with none of this attached.
 
 use crate::clients::lp::bandwidth_claim::produce_bandwidth_claim;
-use crate::clients::lp::helpers::{LpFrameDeliverExt, LpFrameSendExt};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};

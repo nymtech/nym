@@ -2,16 +2,36 @@
 # -*- coding: utf-8 -*-
 
 """
-This script fetches operators rewards based on provided Nyx account addresses provided in data/wallet-addresses.csv.
-Output is:
-    1. Printet table in terminal
-    2. Sheet with complete info stored in data/node-balances.csv
-    3. Hiostorical data yaml file stored in data/data.yaml - this file should not be changed by hand, as
-    all values older than 30 days get auto-removed
-Before you start fill first column of data/wallet-addresses with your Nyx account addresses and (optionally) second column
-with a tag, for example "mysquad" and "personal" to get sorted output per entity.
+Fetch operator rewards for the Nyx account addresses listed in
+data/wallet-addresses.csv.
+
+Output:
+    1. Per-entity tables printed in the terminal, plus a grand summary
+    2. Full sheet written to data/node-balances.csv
+    3. Historical snapshots in data/data.yaml - do not edit by hand; entries
+       older than the retention window are pruned automatically
+
+data/wallet-addresses.csv columns:
+
+    address   your Nyx account address (required)
+    tag       entity name, e.g. "mysquad" or "personal", to group the output
+    members   how many people share this entity's rewards (optional, default 1)
+
+`members` drives the "your share" figures: a tag with 3 members reports both the
+full node rewards and your 1/3 of them. Leaving the column out keeps the old
+behaviour exactly, since every entity then counts as a single member.
+
+PRIVACY: by default every API call fetches the whole network in one request and
+filters locally, so an API operator cannot tell which wallets you care about.
+Passing --fetch-wallet-balances makes one request per wallet, which lets whoever
+runs that API correlate all your wallets into a single identity. It is off by
+default for that reason.
+
+Run it from anywhere: paths are resolved relative to this file, not the shell's
+working directory.
 """
 
+import argparse
 import csv
 import os
 import sys
@@ -19,16 +39,28 @@ import time
 import yaml
 import requests
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Dict, List, Tuple, Optional
 from tabulate import tabulate
 from colorama import init as colorama_init, Fore, Style
 
 colorama_init()
 
-DATA_DIR = os.path.join(os.getcwd(), "data")
+# Resolve against this file so the script works from any working directory.
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_DIR = str(SCRIPT_DIR / "data")
 ADDR_CSV = os.path.join(DATA_DIR, "wallet-addresses.csv")
 OUT_CSV = os.path.join(DATA_DIR, "node-balances.csv")
 HIST_FILE = os.path.join(DATA_DIR, "data.yaml")
+
+ADDR_CSV_TEMPLATE = """\
+address,tag,members
+# Fill in one row per Nyx account address.
+#   address  required
+#   tag      optional entity name, groups the output
+#   members  optional, how many people share this entity (default 1)
+# Delete these comment lines once you have added your own rows.
+"""
 
 SPECTRE_NODES_URL = "https://api.nym.spectredao.net/api/v1/nodes"
 VALIDATOR_BONDED_URL = "https://validator.nymtech.net/api/v1/nym-nodes/bonded"
@@ -44,7 +76,14 @@ SESSION = requests.Session()
 SESSION.headers.update({"User-Agent": "nym-tools/1.0"})
 
 
+# When --raw is used the script must emit exactly one machine-readable number
+# on stdout and nothing else, so progress logging is suppressed.
+RAW_MODE = False
+
+
 def log(msg: str) -> None:
+    if RAW_MODE:
+        return
     print(msg, flush=True)
 
 
@@ -157,17 +196,43 @@ def _fetch_all_any(url: str, timeout: int = 60) -> list:
 
 # load data
 
-def read_wallets_csv(path: str) -> List[Tuple[str, str]]:
+def ensure_addr_csv(path: str) -> bool:
+    """Create a template wallet CSV on first run. Returns True if it was created.
+
+    Written locally rather than fetched from GitHub: it is three lines, and a
+    local template keeps first-run working even if the repo moves, the raw host
+    rate-limits, or the machine is behind a restrictive proxy.
+    """
+    if os.path.exists(path):
+        return False
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(ADDR_CSV_TEMPLATE)
+    return True
+
+
+def read_wallets_csv(path: str) -> List[Tuple[str, str, int]]:
+    """Return [(address, tag, members)].
+
+    `members` is optional and defaults to 1, so a pre-existing two-column file
+    keeps working untouched. Values below 1 are clamped to 1 so a typo cannot
+    divide by zero or invert the share.
+    """
     if not os.path.exists(path):
         raise FileNotFoundError(f"Input CSV not found: {path}")
-    rows: List[Tuple[str, str]] = []
+    rows: List[Tuple[str, str, int]] = []
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             addr = (row.get("address") or "").strip()
+            # tolerate the commented template lines
+            if not addr or addr.startswith("#"):
+                continue
             tag = (row.get("tag") or "").strip()
-            if addr:
-                rows.append((addr, tag))
+            members = to_int(row.get("members"), 1)
+            if members < 1:
+                members = 1
+            rows.append((addr, tag, members))
     return rows
 
 def fetch_nodes_all() -> List[Dict[str, Any]]:
@@ -243,13 +308,51 @@ def extract_version_from_desc(d: Dict[str, Any]) -> str:
 # history storage in data/data.yaml + 30d cleanup + window helpers
 
 def load_history(path: str) -> Dict[str, Any]:
+    """Load data.yaml, repairing older/malformed shapes rather than discarding.
+
+    Earlier versions of this script wrote entries that the window maths cannot
+    read (missing `ts`, a bare number instead of a mapping, or a scalar in place
+    of the per-node list). Those used to make every window report "no data"
+    while appearing to have history. Anything unreadable is skipped per-entry;
+    everything valid is kept, so no usable history is ever lost.
+    """
     if not os.path.exists(path):
         return {}
     with open(path, "r", encoding="utf-8") as f:
         try:
-            return yaml.safe_load(f) or {}
+            raw = yaml.safe_load(f) or {}
         except Exception:
             return {}
+    if not isinstance(raw, dict):
+        return {}
+
+    cleaned: Dict[str, Any] = {}
+    dropped = 0
+    for key, lst in raw.items():
+        if not isinstance(lst, list):
+            dropped += 1
+            continue
+        good = []
+        for e in lst:
+            if not isinstance(e, dict):
+                dropped += 1
+                continue
+            ts = to_float(e.get("ts"), 0.0)
+            if ts <= 0:
+                dropped += 1
+                continue
+            good.append({
+                "ts": ts,
+                "uptime": to_float(e.get("uptime"), 0.0),
+                "operator_balance": to_float(e.get("operator_balance"), 0.0),
+            })
+        if good:
+            cleaned[str(key)] = good
+    if dropped:
+        log(f"{Fore.YELLOW}* * * note: skipped {dropped} unreadable history "
+            f"entr{'y' if dropped == 1 else 'ies'} in {os.path.basename(path)} "
+            f"(older format); the rest was kept * * *{Style.RESET_ALL}")
+    return cleaned
 
 def save_history(path: str, data: Dict[str, Any]) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -289,7 +392,15 @@ def scaled_window_change(
     now: float,
     window_days: float,
     current_balance: float
-) -> Optional[Tuple[float, float, float]]:
+) -> Optional[Tuple[float, float, float, bool]]:
+    """Return (profit_scaled, span_hours, hourly_scaled, projected) or None.
+
+    `projected` is True when the stored history is shorter than the requested
+    window, meaning the figure is an extrapolation from a shorter span rather
+    than a measurement over the full window. Reporting that flag matters: with
+    under 30 days of history a 30-day figure is just the 7-day one scaled up,
+    and presenting it unqualified reads as real data when it is not.
+    """
     key = str(node_id)
     if key not in hist or not hist[key]:
         return None
@@ -297,11 +408,11 @@ def scaled_window_change(
     ordered = sorted(hist[key], key=lambda x: to_float(x.get("ts"), 0.0))
 
     # Prefer the most recent snapshot at/older than the cutoff (a true
-    # window-length comparison). If none is that old yet (history younger than
-    # the window), fall back to the OLDEST snapshot we have: the result is still
-    # meaningful because the change is scaled by the actual elapsed span below.
+    # window-length comparison). If none is that old yet, fall back to the
+    # OLDEST snapshot and flag the result as projected.
     candidates = [e for e in ordered if to_float(e.get("ts"), 0.0) <= cutoff_ts]
     snap = candidates[-1] if candidates else ordered[0]
+    projected = not candidates
 
     span_hours = max(0.0, (now - to_float(snap.get("ts"), now)) / 3600.0)
     if span_hours <= 0:
@@ -310,7 +421,17 @@ def scaled_window_change(
     target_hours = window_days * 24.0
     profit_scaled = profit_raw * (target_hours / span_hours)
     hourly_scaled = profit_scaled / target_hours
-    return profit_scaled, span_hours, hourly_scaled
+    return profit_scaled, span_hours, hourly_scaled, projected
+
+
+def window_cell(win: Optional[Tuple[float, float, float, bool]], idx: int, days: int) -> str:
+    """Format a window value, marking projections with ~ and the real span."""
+    if not win:
+        return f"no {days}d data"
+    val = win[idx]
+    if win[3]:
+        return f"~{val:.6f} ({win[1] / 24.0:.1f}d)"
+    return f"{val:.6f}"
 
 
 # output coloring fns
@@ -339,17 +460,109 @@ def uptime_color_name(u: float) -> str:
 
 # main program body
 
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Track Nym operator rewards per wallet and entity.",
+    )
+    p.add_argument(
+        "--fetch-wallet-balances",
+        action="store_true",
+        help=(
+            "Query each wallet's balance individually when bulk data reports "
+            "nothing. PRIVACY: this makes one request per wallet from your IP, "
+            "letting the API operator correlate all your wallets into one "
+            "identity. Off by default."
+        ),
+    )
+    p.add_argument(
+        "--raw",
+        choices=["total", "share"],
+        default=None,
+        help=(
+            "Print a single raw number to stdout and nothing else, for piping "
+            "into other programs. 'total' is the gross rewards across all "
+            "entities, 'share' is the sum after the per-entity 1/N split. "
+            "All tables, progress output and colour are suppressed; the CSV "
+            "and history file are still written as usual."
+        ),
+    )
+    p.add_argument(
+        "--no-write",
+        action="store_true",
+        help=(
+            "Do not touch anything in the data directory: no history snapshot, "
+            "no CSV. A read-only query. Implied by --raw, since that is meant "
+            "for piping a number into another program rather than recording a "
+            "measurement."
+        ),
+    )
+    p.add_argument(
+        "--write",
+        action="store_true",
+        help=(
+            "Force the normal writes even with --raw. Use this if you want a "
+            "raw number AND a history snapshot recorded from the same run."
+        ),
+    )
+    p.add_argument(
+        "--data-dir",
+        default=None,
+        help="Override the data directory (default: ./data beside this script).",
+    )
+    return p.parse_args()
+
+
 def main() -> None:
-    os.makedirs(DATA_DIR, exist_ok=True)
+    global DATA_DIR, ADDR_CSV, OUT_CSV, HIST_FILE, RAW_MODE
+    args = parse_args()
+    RAW_MODE = args.raw is not None
+    if args.data_dir:
+        DATA_DIR = str(Path(args.data_dir).expanduser().resolve())
+        ADDR_CSV = os.path.join(DATA_DIR, "wallet-addresses.csv")
+        OUT_CSV = os.path.join(DATA_DIR, "node-balances.csv")
+        HIST_FILE = os.path.join(DATA_DIR, "data.yaml")
+
+    # --raw is a query, so it defaults to leaving the data directory alone.
+    # --write opts back in; --no-write forces read-only in any mode.
+    writes_enabled = not (args.no_write or (RAW_MODE and not args.write))
+
+    if writes_enabled:
+        os.makedirs(DATA_DIR, exist_ok=True)
+
+    # In raw mode the caller is parsing stdout, so a missing wallet CSV must be
+    # a hard error on stderr rather than silence: log() is suppressed, and
+    # exiting 0 with no output looks like "no rewards" to the calling program.
+    if not os.path.exists(ADDR_CSV):
+        # Creating the template is itself a write, so a read-only run must
+        # report the missing file instead: --no-write promises not to touch
+        # anything in the data directory, and that has to include not creating
+        # the directory or the template in the first place.
+        if RAW_MODE or not writes_enabled:
+            print(f"error: no wallet list at {ADDR_CSV}", file=sys.stderr)
+            sys.exit(1)
+        os.makedirs(DATA_DIR, exist_ok=True)
+        if ensure_addr_csv(ADDR_CSV):
+            log(f"{Fore.GREEN}Created {ADDR_CSV}{Style.RESET_ALL}")
+            log("Add your Nyx account addresses to it, then run this again.")
+            log("Columns: address, tag (optional), members (optional, default 1)")
+            return
 
     wallets = read_wallets_csv(ADDR_CSV)
     if not wallets:
+        if RAW_MODE:
+            print(f"error: no wallets listed in {ADDR_CSV}", file=sys.stderr)
+            sys.exit(1)
         log(f"{Fore.RED}No wallets found in {ADDR_CSV}{Style.RESET_ALL}")
+        log("Add at least one row with an `address` value, then run again.")
         sys.exit(1)
     log(f"Found {len(wallets)} wallet(s) in {ADDR_CSV}")
 
     # preserve input order per wallet for per-tag tables
-    wallet_order = {addr: idx for idx, (addr, _tag) in enumerate(wallets)}
+    wallet_order = {addr: idx for idx, (addr, _tag, _m) in enumerate(wallets)}
+    # members is declared per wallet row; a tag takes the largest value seen for it
+    members_by_tag: Dict[str, int] = {}
+    for _addr, tag, m in wallets:
+        members_by_tag[tag] = max(members_by_tag.get(tag, 1), m)
 
     nodes = fetch_nodes_all()
     bonded = fetch_bonded_all()
@@ -391,6 +604,8 @@ def main() -> None:
         "30_days",
         "30_days_average",
         "tag",
+        "members",
+        "your_share",
     ]
 
     hist = load_history(HIST_FILE)
@@ -409,7 +624,7 @@ def main() -> None:
     RETENTION_SEC = 32 * 24 * 3600
     cleanup_history_older_than(hist, now - RETENTION_SEC)  # prune before use
 
-    for wallet_addr, tag in wallets:
+    for wallet_addr, tag, members in wallets:
         wallet_nodes = idx_nodes_by_wallet.get(wallet_addr, [])
 
         if not wallet_nodes:
@@ -426,7 +641,8 @@ def main() -> None:
                 node = bi.get("node", {}) if isinstance(bi, dict) else {}
                 identity_key = node.get("identity_key") or ""
 
-                op_bal = fetch_balance_total_nym(wallet_addr)
+                op_bal = (fetch_balance_total_nym(wallet_addr)
+                          if args.fetch_wallet_balances else 0.0)
                 uptime = 0.0
 
                 # since last time change calculation
@@ -454,11 +670,13 @@ def main() -> None:
                     "profit_difference": diff,
                     "epochs": hours,
                     "average_hour": (diff / hours) if hours > 0 else 0.0,
-                    "7_days": f"{seven[0]:.6f}" if seven else "no 7 days data stored",
-                    "7_days_average": f"{seven[2]:.6f}" if seven else "no 7 days data stored",
-                    "30_days": f"{thirty[0]:.6f}" if thirty else "no 30 days data stored",
-                    "30_days_average": f"{thirty[2]:.6f}" if thirty else "no 30 days data stored",
+                    "7_days": window_cell(seven, 0, 7),
+                    "7_days_average": window_cell(seven, 2, 7),
+                    "30_days": window_cell(thirty, 0, 30),
+                    "30_days_average": window_cell(thirty, 2, 30),
                     "tag": tag,
+                    "members": members,
+                    "your_share": op_bal / members,
                     "_prev_balance": prev_bal,
                     "_prev_ts": prev_ts,
                     "_wallet_order": wallet_order.get(wallet_addr, 10**9),
@@ -483,7 +701,7 @@ def main() -> None:
             hostname = hostinfo.get("hostname") or ""
             op_unym = to_float(n.get("rewarding_details", {}).get("operator"), 0.0)
             op_bal = op_unym / 1_000_000.0
-            if op_bal <= 0:
+            if op_bal <= 0 and args.fetch_wallet_balances:
                 op_bal = fetch_balance_total_nym(wallet_addr)
 
             prev = last_snapshot(hist, nid)
@@ -510,11 +728,13 @@ def main() -> None:
                 "profit_difference": diff,
                 "epochs": hours,
                 "average_hour": (diff / hours) if hours > 0 else 0.0,
-                "7_days": f"{seven[0]:.6f}" if seven else "no 7 days data stored",
-                "7_days_average": f"{seven[2]:.6f}" if seven else "no 7 days data stored",
-                "30_days": f"{thirty[0]:.6f}" if thirty else "no 30 days data stored",
-                "30_days_average": f"{thirty[2]:.6f}" if thirty else "no 30 days data stored",
+                "7_days": window_cell(seven, 0, 7),
+                "7_days_average": window_cell(seven, 2, 7),
+                "30_days": window_cell(thirty, 0, 30),
+                "30_days_average": window_cell(thirty, 2, 30),
                 "tag": tag,
+                "members": members,
+                "your_share": op_bal / members,
                 "_prev_balance": prev_bal,
                 "_prev_ts": prev_ts,
                 "_wallet_order": wallet_order.get(wallet_addr, 10**9),
@@ -527,47 +747,59 @@ def main() -> None:
 
     # final prune & save — prune to the retention buffer (not the 30d window)
     # so the comparison point just outside 30 days survives into the next run.
-    cleanup_history_older_than(hist, now - RETENTION_SEC)
-    save_history(HIST_FILE, hist)
+    # Skipped entirely when writes are disabled: a read-only query must not
+    # record a snapshot, and must never risk clobbering data.yaml if it runs
+    # concurrently with a scheduled full run.
+    if writes_enabled:
+        cleanup_history_older_than(hist, now - RETENTION_SEC)
+        save_history(HIST_FILE, hist)
 
-    # write CSV
-    headers_csv = [
-        "node_id","hostname","identity_key","wallet","uptime","version","operator_balance",
-        "profit_difference","epochs","average_hour","7_days","7_days_average",
-        "30_days","30_days_average","tag",
-    ]
-    with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=headers_csv)
-        writer.writeheader()
-        for r in out_rows:
-            writer.writerow({
-                "node_id": r.get("node_id",""),
-                "hostname": r.get("hostname",""),
-                "identity_key": r.get("identity_key",""),
-                "wallet": r.get("wallet",""),
-                "uptime": f"{to_float(r.get('uptime'),0.0):.6f}",
-                "version": r.get("version",""),
-                "operator_balance": f"{to_float(r.get('operator_balance'),0.0):.6f}",
-                "profit_difference": f"{to_float(r.get('profit_difference'),0.0):.6f}",
-                "epochs": f"{to_float(r.get('epochs'),0.0):.6f}",
-                "average_hour": f"{to_float(r.get('average_hour'),0.0):.6f}",
-                "7_days": r.get("7_days",""),
-                "7_days_average": r.get("7_days_average",""),
-                "30_days": r.get("30_days",""),
-                "30_days_average": r.get("30_days_average",""),
-                "tag": r.get("tag",""),
-            })
+    # write CSV (skipped in read-only mode)
+    if writes_enabled:
+        headers_csv = [
+            "node_id","hostname","identity_key","wallet","uptime","version","operator_balance",
+            "profit_difference","epochs","average_hour","7_days","7_days_average",
+            "30_days","30_days_average","tag","members","your_share",
+        ]
+        with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=headers_csv)
+            writer.writeheader()
+            for r in out_rows:
+                writer.writerow({
+                    "node_id": r.get("node_id",""),
+                    "hostname": r.get("hostname",""),
+                    "identity_key": r.get("identity_key",""),
+                    "wallet": r.get("wallet",""),
+                    "uptime": f"{to_float(r.get('uptime'),0.0):.6f}",
+                    "version": r.get("version",""),
+                    "operator_balance": f"{to_float(r.get('operator_balance'),0.0):.6f}",
+                    "profit_difference": f"{to_float(r.get('profit_difference'),0.0):.6f}",
+                    "epochs": f"{to_float(r.get('epochs'),0.0):.6f}",
+                    "average_hour": f"{to_float(r.get('average_hour'),0.0):.6f}",
+                    "7_days": r.get("7_days",""),
+                    "7_days_average": r.get("7_days_average",""),
+                    "30_days": r.get("30_days",""),
+                    "30_days_average": r.get("30_days_average",""),
+                    "tag": r.get("tag",""),
+                    "members": r.get("members", 1),
+                    "your_share": f"{to_float(r.get('your_share'),0.0):.6f}",
+                })
 
     if not out_rows:
         log(f"{Fore.YELLOW}No rows produced — check inputs and endpoints.{Style.RESET_ALL}")
         return
+
+    # accumulate across entities for the final summary
+    grand_total = 0.0
+    grand_share = 0.0
+    entity_lines: List[Tuple[str, int, int, float, float]] = []
 
     # per-tag output (preserve input order)
     for tag, rows in sorted(rows_by_tag.items(), key=lambda kv: kv[0] or ""):
         headers_print = [
             "node_id","hostname","wallet","uptime","version",
             "operator_balance","profit_difference","epochs","average_hour",
-            "7_days","7_days_average","30_days","30_days_average",
+            "7_days","7_days_average","30_days","30_days_average","your_share",
         ]
         view: List[List[str]] = []
         for r in rows:
@@ -587,14 +819,23 @@ def main() -> None:
                 r.get("7_days_average"),
                 r.get("30_days"),
                 r.get("30_days_average"),
+                f"{to_float(r.get('your_share'), 0.0):.2f}",
             ])
 
         title = f"Tag: {tag or '(untagged)'}   —   {len(rows)} node(s)"
-        print("\n" + title)
-        print(tabulate(view, headers=headers_print, tablefmt="github", stralign="right", disable_numparse=True))
+        if not RAW_MODE:
+            print("\n" + title)
+            print(tabulate(view, headers=headers_print, tablefmt="github",
+                           stralign="right", disable_numparse=True))
 
         # per-tag summary
         tag_total_now = sum(to_float(r.get("operator_balance"), 0.0) for r in rows)
+        tag_members = members_by_tag.get(tag, 1)
+        tag_share_now = tag_total_now / tag_members
+        grand_total += tag_total_now
+        grand_share += tag_share_now
+        entity_lines.append((tag or "(untagged)", len(rows), tag_members,
+                             tag_total_now, tag_share_now))
 
         # since last time: sum diffs, average hours across nodes that existed
         prev_sum = 0.0
@@ -628,9 +869,11 @@ def main() -> None:
         hourly30 = (total30 / hours30) if hours30 > 0 else 0.0
 
         # print output with colored numbers
-        print(
+        if not RAW_MODE:
+            print(
             "\n"
             f"Total balance across all wallets: {Style.BRIGHT}{Fore.GREEN}{tag_total_now:.2f}{Style.RESET_ALL} NYM\n"
+            f"Your share (1/{tag_members}): {Style.BRIGHT}{Fore.YELLOW}{tag_share_now:.2f}{Style.RESET_ALL} NYM\n"
             f"Difference of total balance from last time: {Fore.CYAN}{diff_total:.2f}{Style.RESET_ALL} NYM\n"
             f"Time since last time: {Fore.BLUE}{hours_since:.2f}{Style.RESET_ALL} hours\n"
             f"Approx hourly difference: {Style.BRIGHT}{Fore.GREEN}{hourly:.2f}{Style.RESET_ALL} NYM/h\n"
@@ -640,13 +883,54 @@ def main() -> None:
             f"{('no 30 days data stored' if not thirty_vals else f'{Fore.CYAN}{total30:.2f}{Style.RESET_ALL} NYM, hours: {Fore.BLUE}{hours30:.2f}{Style.RESET_ALL}, hourly: {Style.BRIGHT}{Fore.GREEN}{hourly30:.2f}{Style.RESET_ALL} NYM/h')}\n"
         )
 
-    log(f"\nCSV written to: {OUT_CSV}")
-    log(f"History saved to: {HIST_FILE}")
+    # grand summary across every entity
+    if entity_lines and not RAW_MODE:
+        print("\n" + "=" * 72)
+        print(f"{Style.BRIGHT}SUMMARY - ALL ENTITIES{Style.RESET_ALL}")
+        print("=" * 72)
+        summary_rows = [
+            [name, nodes_n, mem, f"{tot:.2f}", f"{shr:.2f}"]
+            for name, nodes_n, mem, tot, shr in entity_lines
+        ]
+        print(tabulate(
+            summary_rows,
+            headers=["entity", "nodes", "members", "total NYM", "your share NYM"],
+            tablefmt="github",
+            stralign="right",
+            disable_numparse=True,
+        ))
+        print(
+            "\n"
+            f"Total rewards on all nodes:      "
+            f"{Style.BRIGHT}{Fore.GREEN}{grand_total:.2f}{Style.RESET_ALL} NYM\n"
+            f"Total your share (after 1/N):    "
+            f"{Style.BRIGHT}{Fore.YELLOW}{grand_share:.2f}{Style.RESET_ALL} NYM"
+        )
+        if not args.fetch_wallet_balances:
+            print(
+                f"\n{Fore.BLUE}Bulk API mode: no per-wallet requests were made, "
+                f"so your wallets cannot be correlated by the API operator.\n"
+                f"Use --fetch-wallet-balances only if you accept that trade-off."
+                f"{Style.RESET_ALL}"
+            )
+
+    # --raw: exactly one number on stdout, nothing else, for piping
+    if args.raw:
+        value = grand_total if args.raw == "total" else grand_share
+        print(f"{value:.6f}")
+        return
+
+    if writes_enabled:
+        log(f"\nCSV written to: {OUT_CSV}")
+        log(f"History saved to: {HIST_FILE}")
+    else:
+        log(f"\n{Fore.BLUE}Read-only run: no files in {DATA_DIR} were "
+            f"changed.{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\nInterrupted.", file=sys.stderr)
         sys.exit(130)
+        

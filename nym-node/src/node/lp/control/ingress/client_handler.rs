@@ -1,10 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::lp::cleanup::TimestampedState;
-use crate::node::lp::control::{LP_DURATION_BUCKETS, LpConnectionStats};
+use crate::node::lp::control::stats::{LP_DURATION_BUCKETS, LpConnectionStats};
 use crate::node::lp::error::LpHandlerError;
-use crate::node::lp::state::SharedLpClientControlState;
+use crate::node::lp::state::{SharedGatewayLpControlState, SharedLpControlState, TimestampedState};
 use dashmap::mapref::one::RefMut;
 use nym_lp::LpTransportSession;
 use nym_lp::session::{LpAction, LpInput};
@@ -16,7 +15,6 @@ use nym_lp_data::packet::{
     EncryptedLpPacket, ForwardPacketData, LpFrame, frame::ExpectedResponseSize,
 };
 use nym_metrics::{add_histogram_obs, inc};
-use nym_node_metrics::NymNodeMetrics;
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -31,15 +29,17 @@ const FORWARD_IO_TIMEOUT_SECS: u64 = 30;
 pub struct LpClientConnectionHandler<S = TcpStream> {
     stream: S,
     remote_addr: SocketAddr,
-    state: SharedLpClientControlState,
+    state: SharedLpControlState,
+
+    /// Never optional here: this handler only runs on a node that serves clients, which is the
+    /// same condition under which the gateway state is built at all.
+    gateway_state: SharedGatewayLpControlState,
     stats: LpConnectionStats,
 
     // /// Flag indicating whether this is a connection from an entry gateway serving as a proxy
     // forwarded_connection: bool,
-    /// Bound receiver_idx for this connection (set after first packet).
-    /// All subsequent packets on this connection must use this receiver_idx.
-    /// Set from ClientHello's proposed receiver_index, or from header for non-bootstrap packets.
-    bound_receiver_idx: Option<LpReceiverIndex>,
+    /// The session this connection was established with; every packet must carry its index.
+    bound_receiver_idx: LpReceiverIndex,
 
     /// Persistent connection to exit gateway for forwarding.
     /// Opened on first forward, reused for subsequent forwards, closed when client disconnects.
@@ -51,19 +51,44 @@ impl<S> LpClientConnectionHandler<S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
-    pub fn new(stream: S, remote_addr: SocketAddr, state: SharedLpClientControlState) -> Self {
+    fn new(
+        stream: S,
+        remote_addr: SocketAddr,
+        state: SharedLpControlState,
+        gateway_state: SharedGatewayLpControlState,
+        bound_receiver_idx: LpReceiverIndex,
+        stats: LpConnectionStats,
+    ) -> Self {
         Self {
             stream,
             remote_addr,
             state,
-            stats: LpConnectionStats::new(),
-            bound_receiver_idx: None,
+            gateway_state,
+            stats,
+            bound_receiver_idx,
             exit_stream: None,
         }
     }
 
-    pub(crate) fn metrics(&self) -> &NymNodeMetrics {
-        &self.state.shared.metrics
+    /// Deposit `session` in the shared store and serve it over `stream`, continuing its `stats`.
+    pub(crate) fn with_session(
+        stream: S,
+        remote_addr: SocketAddr,
+        state: SharedLpControlState,
+        gateway_state: SharedGatewayLpControlState,
+        session: LpTransportSession,
+        stats: LpConnectionStats,
+    ) -> Result<Self, LpHandlerError> {
+        let bound_receiver_idx = session.receiver_index();
+        state.sessions.insert_new_session(session)?;
+        Ok(Self::new(
+            stream,
+            remote_addr,
+            state,
+            gateway_state,
+            bound_receiver_idx,
+            stats,
+        ))
     }
 
     /// Get the mutable reference to the state machine associated with this client.
@@ -72,63 +97,15 @@ where
         &self,
     ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpTransportSession>>, LpHandlerError>
     {
-        let receiver_index = self.bound_receiver_index()?;
         self.state
-            .shared
-            .session_states
-            .get_state_entry_mut(receiver_index)
+            .sessions
+            .get_state_entry_mut(self.bound_receiver_idx)
     }
 
-    /// AIDEV-NOTE: Stream-oriented packet loop
-    /// This handler processes multiple packets on a single TCP connection.
-    /// Connection lifecycle: handshake + registration, then client closes.
-    /// First packet binds the connection to a receiver_idx (session-affine).
-    /// Binding is set by handle_client_hello() from payload's receiver_index,
-    /// or by validate_or_set_binding() for non-bootstrap first packets.
-    pub async fn handle(&mut self) -> Result<(), LpHandlerError> {
+    /// The frame loop on a bound session, until the client closes the connection.
+    pub(crate) async fn run(&mut self) -> Result<(), LpHandlerError> {
         let remote = self.remote_addr;
-        debug!("Handling LP connection from {remote}");
 
-        // Track total LP connections handled
-        inc!("lp_client_connections_total");
-
-        // ============================================================
-        // STREAM-ORIENTED PROCESSING: Loop until connection closes
-        // State persists in LpHandlerState maps across packets
-        // ============================================================
-
-        // 1. complete KKT/PSQ handshake before doing anything else.
-        // bail if it takes too long
-        let timeout = self.state.shared.lp_config.debug.handshake_ttl;
-        let local_peer = self.state.local_lp_peer.clone();
-        let stream = &mut self.stream;
-
-        let session = match tokio::time::timeout(timeout, async move {
-            LpTransportSession::psq_handshake_responder(stream, local_peer)
-                .complete_handshake()
-                .await
-        })
-        .await
-        {
-            Err(_timeout) => {
-                debug!("timed out attempting to complete KTT/PSQ handshake with {remote}");
-                self.emit_lifecycle_metrics(false);
-                return Ok(());
-            }
-            Ok(Err(handshake_failure)) => {
-                debug!("failed to complete KKT/PSQ handshake with {remote}: {handshake_failure}",);
-                self.emit_lifecycle_metrics(false);
-                return Ok(());
-            }
-            Ok(Ok(session)) => session,
-        };
-        let receiver_idx = session.receiver_index();
-
-        // 2. insert the state machine into the shared state
-        self.state.shared.session_states.insert_new_session(session);
-        self.bound_receiver_idx = Some(receiver_idx);
-
-        // 3. handle any new incoming packet
         loop {
             // Step 1: Receive raw packet bytes and parse header only (for routing)
             let encrypted_packet = match self.receive_raw_packet().await {
@@ -165,14 +142,9 @@ where
         Ok(())
     }
 
-    fn bound_receiver_index(&self) -> Result<LpReceiverIndex, LpHandlerError> {
-        self.bound_receiver_idx
-            .ok_or_else(|| LpHandlerError::IncompleteHandshake)
-    }
-
     /// Validate that the receiver_idx matches the bound session.
     fn validate_binding(&self, receiver_idx: LpReceiverIndex) -> Result<(), LpHandlerError> {
-        let bound_receiver_idx = self.bound_receiver_index()?;
+        let bound_receiver_idx = self.bound_receiver_idx;
 
         if bound_receiver_idx != receiver_idx {
             warn!(
@@ -263,27 +235,14 @@ where
                 self.handle_forwarding_request(receiver_idx, forward_data)
                     .await
             }
-            LpFrameKind::Opaque => {
+            other => {
                 // Neither registration nor forwarding - unknown payload type
                 warn!(
                     "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",
                     bytes.len()
                 );
                 inc!("lp_errors_unknown_payload_type");
-                Err(LpHandlerError::UnexpectedLpPayload {
-                    typ: LpFrameKind::Opaque,
-                })
-            }
-            LpFrameKind::SphinxStream => {
-                // Neither registration nor forwarding - unknown payload type
-                warn!(
-                    "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",
-                    bytes.len()
-                );
-                inc!("lp_errors_unknown_payload_type");
-                Err(LpHandlerError::UnexpectedLpPayload {
-                    typ: LpFrameKind::SphinxStream,
-                })
+                Err(LpHandlerError::UnexpectedLpPayload { typ: other })
             }
         }
     }
@@ -322,7 +281,10 @@ where
         request: LpRegistrationRequest,
     ) -> Result<(), LpHandlerError> {
         // Process registration (might modify state)
-        let response = self.state.process_registration(receiver_idx, request).await;
+        let response = self
+            .gateway_state
+            .process_registration(receiver_idx, request)
+            .await;
         let response_bytes = response
             .serialise()
             .map_err(|source| LpHandlerError::MalformedRegistrationRequest { source })?;
@@ -375,27 +337,18 @@ where
         Ok(())
     }
 
-    /// Returns reference to the established forwarding channel to the exit.
-    #[allow(dead_code)]
-    pub fn forwarding_channel(&self) -> &Option<(S, SocketAddr)> {
-        &self.exit_stream
-    }
-
     /// This method establishes connection to the target gateway in order to
     /// forward received packets and retrieve any responses
     //
     // In the future it will also perform identity validation to make sure
     // the target node is a valid gateway present in the network
-    //
-    // Do not manually call this function. It is only exposed for the purposes of integration tests
-    #[doc(hidden)]
-    pub async fn establish_exit_stream(
+    async fn establish_exit_stream(
         &mut self,
         target_addr: SocketAddr,
     ) -> Result<(), LpHandlerError> {
         // Acquire semaphore permit to limit concurrent connection opens (FD exhaustion protection)
         // Permit is scoped to this block - only protects the connect() call, not stream reuse
-        let _permit = match self.state.forward_semaphore.try_acquire() {
+        let _permit = match self.gateway_state.forward_semaphore.try_acquire() {
             Ok(permit) => permit,
             Err(_) => {
                 inc!("lp_forward_rejected");
@@ -599,7 +552,8 @@ mod tests {
     use super::*;
     use crate::config::LpConfig;
     use crate::config::lp::LpDebug;
-    use crate::node::lp::state::{ActiveLpSessions, SharedLpState};
+    use crate::node::lp::active_sessions::ActiveLpSessions;
+    use crate::node::lp::directory::LpNodes;
     use nym_lp::peer::{KEMKeys, LpLocalPeer, generate_keypair_mceliece, generate_keypair_mlkem};
     use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
     use nym_test_utils::helpers::deterministic_rng;
@@ -607,7 +561,7 @@ mod tests {
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests
-    async fn create_minimal_test_state() -> SharedLpClientControlState {
+    async fn create_minimal_test_state() -> (SharedLpControlState, SharedGatewayLpControlState) {
         use nym_crypto::asymmetric::ed25519;
 
         let mut rng = deterministic_rng();
@@ -618,9 +572,6 @@ mod tests {
             },
             ..Default::default()
         };
-        let forward_semaphore = Arc::new(tokio::sync::Semaphore::new(
-            lp_config.debug.max_concurrent_forwards,
-        ));
 
         let id_keys = Arc::new(ed25519::KeyPair::new(&mut rng));
         let x_keys = Arc::new(id_keys.to_x25519().try_into().unwrap());
@@ -631,16 +582,19 @@ mod tests {
         );
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), x_keys).with_kem_keys(kem_keys);
 
-        SharedLpClientControlState {
+        let sessions = ActiveLpSessions::new();
+        let shared = SharedLpControlState {
             local_lp_peer: lp_peer,
-            peer_registrator: None,
-            forward_semaphore,
-            shared: SharedLpState {
-                lp_config,
-                metrics: nym_node_metrics::NymNodeMetrics::default(),
-                session_states: ActiveLpSessions::new(),
-            },
-        }
+            nodes: LpNodes::new_empty(),
+            sessions: sessions.clone(),
+            metrics: nym_node_metrics::NymNodeMetrics::default(),
+            lp_config,
+        };
+
+        let gateway =
+            SharedGatewayLpControlState::new(*id_keys.public_key(), sessions, None, &lp_config);
+
+        (shared, gateway)
     }
 
     // ==================== Existing Tests ====================
@@ -664,8 +618,15 @@ mod tests {
         // Spawn server task
         let server_task = tokio::spawn(async move {
             let (stream, remote_addr) = listener.accept().await.unwrap();
-            let state = create_minimal_test_state().await;
-            let mut handler = LpClientConnectionHandler::new(stream, remote_addr, state);
+            let (state, gateway_state) = create_minimal_test_state().await;
+            let mut handler = LpClientConnectionHandler::new(
+                stream,
+                remote_addr,
+                state,
+                gateway_state,
+                id,
+                LpConnectionStats::new(),
+            );
             // Two-phase: receive raw bytes + header, then parse full packet
             let packet = handler.receive_raw_packet().await?;
             let header = packet.outer_header();

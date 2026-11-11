@@ -6,8 +6,9 @@ use crate::peer_config::LpPeerConfig;
 use crate::psq::handshake_message::{PSQMsg1, PSQMsg2};
 use crate::psq::helpers::kem_to_ciphersuite;
 use crate::psq::{
-    AAD_INITIATOR_INNER_V1, AAD_INITIATOR_OUTER_V1, InitiatorData, PSQ_MSG2_SIZE,
-    PSQHandshakeState, SESSION_CONTEXT_V1, handshake_message, psq_msg1_size,
+    AAD_INITIATOR_INNER_V1, AAD_INITIATOR_INNER_V2, AAD_INITIATOR_OUTER_V1, AAD_INITIATOR_OUTER_V2,
+    InitiatorData, PSQ_MSG2_SIZE, PSQHandshakeState, SESSION_CONTEXT_V1, SESSION_CONTEXT_V2,
+    handshake_message, psq_msg1_size,
 };
 use crate::session::PersistentSessionBinding;
 use crate::transport::traits::LpHandshakeChannel;
@@ -66,6 +67,11 @@ where
             AAD_INITIATOR_INNER_V1,
             AAD_INITIATOR_OUTER_V1,
         ),
+        2 => (
+            SESSION_CONTEXT_V2,
+            AAD_INITIATOR_INNER_V2,
+            AAD_INITIATOR_OUTER_V2,
+        ),
         other => return Err(LpError::UnsupportedVersion { version: other }),
     };
 
@@ -122,10 +128,12 @@ where
     /// Attempt to send KKT request to begin the handshake
     async fn send_kkt_request(&mut self, request: KKTRequest) -> Result<(), LpError> {
         let kem = self.inner_state.local_peer.ciphersuite.kem();
+        let message =
+            handshake_message::KKTRequest::new(request, self.initiator_data.protocol_version);
 
         self.inner_state
             .connection
-            .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
+            .send_handshake_message(message, kem)
             .await?;
         Ok(())
     }

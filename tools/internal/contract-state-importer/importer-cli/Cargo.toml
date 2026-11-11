@@ -5,7 +5,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -28,3 +27,5 @@ nym-network-defaults = { workspace = true }
 
 nym-mixnet-contract-common = { workspace = true }
 nym-vesting-contract-common = { workspace = true }
+
+[lints]

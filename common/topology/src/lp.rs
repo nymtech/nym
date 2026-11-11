@@ -300,6 +300,18 @@ impl LpTopology {
             .find(|n| n.identity_key == node_identity)
     }
 
+    /// The nodes a client can use as its gateway right now: declared as an entry, and not acting
+    /// as a mixnode this epoch, which would also make them an invalid egress.
+    pub fn gateways(&self) -> impl Iterator<Item = &LpRoutingNode> {
+        self.node_details.values().filter(|node| {
+            node.supported_roles.mixnet_entry
+                && !self
+                    .rewarded_set
+                    .role(node.node_id)
+                    .is_some_and(|role| role.is_mixnode())
+        })
+    }
+
     pub fn egress_by_identity(
         &self,
         node_identity: NodeIdentity,

@@ -21,14 +21,15 @@ use crate::client::topology_control::{
 };
 use crate::config::{self, Config};
 use crate::error::ClientCoreError;
-use crate::init::types::GatewaySetup;
 use futures::Stream;
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownTracker;
 use nym_validator_client::{UserAgent, nyxd::contract_traits::DkgQueryClient};
+use rand::seq::IteratorRandom;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -117,7 +118,8 @@ pub struct LpBaseClientBuilder<C, S: MixnetClientStorage> {
     shutdown: Option<ShutdownTracker>,
     user_agent: Option<UserAgent>,
 
-    setup_method: GatewaySetup,
+    /// `None` picks one at random from the LP topology on startup.
+    gateway: Option<NodeIdentity>,
 
     derivation_material: Option<DerivationMaterial>,
 }
@@ -141,7 +143,7 @@ where
             custom_bandwidth_provider: None,
             shutdown: None,
             user_agent: None,
-            setup_method: GatewaySetup::MustLoad { gateway_id: None },
+            gateway: None,
             derivation_material: None,
         }
     }
@@ -162,11 +164,10 @@ where
         self
     }
 
-    /// Only the chosen gateway's identity is used: the LP control plane handshakes and registers
-    /// with it itself, so nothing else from the stored registration matters here.
+    /// Use this gateway rather than one picked at random from the LP topology.
     #[must_use]
-    pub fn with_gateway_setup(mut self, setup: GatewaySetup) -> Self {
-        self.setup_method = setup;
+    pub fn with_gateway(mut self, gateway: NodeIdentity) -> Self {
+        self.gateway = Some(gateway);
         self
     }
 
@@ -298,13 +299,13 @@ where
     pub async fn start(self) -> Result<LpBaseClient, ClientCoreError> {
         info!("Starting LP client");
 
-        let init_res = BaseClientBuilder::<C, S>::initialise_keys_and_gateway(
-            self.setup_method,
+        let client_keys = BaseClientBuilder::<C, S>::initialise_keys(
             self.client_store.key_store(),
-            self.client_store.gateway_details_store(),
             self.derivation_material,
         )
         .await?;
+        let encryption_keys = client_keys.encryption_keypair();
+        let identity_keys = client_keys.identity_keypair();
 
         let (_, credential_store, _) = self.client_store.into_runtime_stores();
 
@@ -312,10 +313,6 @@ where
             Some(parent_tracker) => parent_tracker,
             None => nym_task::create_sdk_shutdown_tracker()?,
         };
-
-        let self_address = init_res.client_address();
-        let encryption_keys = init_res.client_keys.encryption_keypair();
-        let identity_keys = init_res.client_keys.identity_keypair();
 
         let bandwidth_provider = BaseClientBuilder::<C, S>::start_bandwidth_controller(
             self.custom_bandwidth_provider,
@@ -347,6 +344,16 @@ where
         )
         .await?;
 
+        let gateway = match self.gateway {
+            Some(gateway) => gateway,
+            None => random_gateway(&topology_accessor)?,
+        };
+        let self_address = Recipient::new(
+            *identity_keys.public_key(),
+            *encryption_keys.public_key(),
+            gateway,
+        );
+
         let (input_sender, input_receiver) = mpsc::channel(1);
         let (output_sender, output_receiver) = mpsc::channel(10_000);
 
@@ -375,4 +382,18 @@ where
             shutdown_handle: shutdown_tracker,
         })
     }
+}
+
+/// Any gateway the LP topology currently offers.
+fn random_gateway(topology_accessor: &LpTopologyAccessor) -> Result<NodeIdentity, ClientCoreError> {
+    let route_provider = topology_accessor
+        .current_route_provider()
+        .ok_or(ClientCoreError::NoGatewaysOnNetwork)?;
+
+    route_provider
+        .topology
+        .gateways()
+        .choose(&mut rand::rng())
+        .map(|gateway| gateway.identity_key)
+        .ok_or(ClientCoreError::NoGatewaysOnNetwork)
 }

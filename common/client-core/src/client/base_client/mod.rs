@@ -871,16 +871,14 @@ where
         Ok(mem_store)
     }
 
-    pub(crate) async fn initialise_keys_and_gateway(
-        setup_method: GatewaySetup,
+    pub(crate) async fn initialise_keys(
         key_store: &S::KeyStore,
-        details_store: &S::GatewaysDetailsStore,
         derivation_material: Option<DerivationMaterial>,
-    ) -> Result<InitialisationResult, ClientCoreError> {
+    ) -> Result<ClientKeys, ClientCoreError> {
         // if client keys do not exist already, create and persist them; any other load failure
         // means existing keys could not be read and must not be overwritten
         match key_store.load_keys().await {
-            Ok(_) => {}
+            Ok(keys) => Ok(keys),
             Err(err) if err.keys_missing() => {
                 tracing::info!("could not find client keys - a new set will be generated");
                 // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await` below
@@ -893,15 +891,22 @@ where
                         ClientKeys::generate_new(&mut rng)
                     }
                 };
-                store_client_keys(keys, key_store).await?;
+                store_client_keys(keys.clone(), key_store).await?;
+                Ok(keys)
             }
-            Err(err) => {
-                return Err(ClientCoreError::KeyStoreError {
-                    source: Box::new(err),
-                });
-            }
+            Err(err) => Err(ClientCoreError::KeyStoreError {
+                source: Box::new(err),
+            }),
         }
+    }
 
+    async fn initialise_keys_and_gateway(
+        setup_method: GatewaySetup,
+        key_store: &S::KeyStore,
+        details_store: &S::GatewaysDetailsStore,
+        derivation_material: Option<DerivationMaterial>,
+    ) -> Result<InitialisationResult, ClientCoreError> {
+        Self::initialise_keys(key_store, derivation_material).await?;
         setup_gateway(setup_method, key_store, details_store).await
     }
 

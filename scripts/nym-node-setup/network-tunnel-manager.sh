@@ -696,13 +696,31 @@ ufw_denies_outgoing() {
 }
 
 # a migrated ufw rule allows this port (possibly only from some sources): leave it to that
-# rule, an extra open-to-all allow from NTM would widen it
+# rule, an extra open-to-all allow from NTM would widen it. covers a single port, a range
+# (a:b), a multiport list, and rules without any port (e.g. "allow from <ip>")
 port_allowed_by_ufw_rule() {
   local port="$1"
-  local cmd
+  local cmd rule ports item items
   for cmd in iptables ip6tables; do
-    $cmd -S INPUT 2>/dev/null | grep -F -- "$UFW_MIGRATED_COMMENT" |
-      grep -qE -- "--dport ${port}( .*)? -j ACCEPT" && return 0
+    while read -r rule; do
+      [[ "$rule" == *" -j ACCEPT"* ]] || continue
+      [[ "$rule" == *" -p udp "* ]] && continue
+      if [[ "$rule" =~ --dports?\ ([0-9:,]+) ]]; then
+        ports="${BASH_REMATCH[1]}"
+      elif [[ "$rule" == *" -p tcp "* || "$rule" != *" -p "* ]]; then
+        return 0 # no port: the rule covers every port
+      else
+        continue
+      fi
+      IFS=',' read -ra items <<< "$ports"
+      for item in "${items[@]}"; do
+        if [[ "$item" == *:* ]]; then
+          (( port >= ${item%%:*} && port <= ${item##*:} )) && return 0
+        else
+          (( port == item )) && return 0
+        fi
+      done
+    done < <($cmd -S INPUT 2>/dev/null | grep -F -- "$UFW_MIGRATED_COMMENT" || true)
   done
   return 1
 }
@@ -728,16 +746,25 @@ remove_ufw_chains() {
 
 # older deployments ran ufw on every node. NTM owns the host firewall now, so take over:
 # ufw's chains (and a REJECT default) would otherwise sit in front of NTM's rules
+# snapshot the firewall exactly as it is, before NTM changes anything
+backup_ufw_state() {
+  UFW_BACKUP_DIR="/etc/iptables/pre-ntm-ufw-$(date +%F-%H%M%S)"
+  mkdir -p "$UFW_BACKUP_DIR"
+  ufw status verbose > "$UFW_BACKUP_DIR/ufw-status.txt" 2>&1 || true
+  iptables-save > "$UFW_BACKUP_DIR/rules.v4"
+  ip6tables-save > "$UFW_BACKUP_DIR/rules.v6" 2>/dev/null || true
+  cat > "$UFW_BACKUP_DIR/RESTORE.txt" <<EOF
+restore the firewall as it was before NTM took over from ufw:
+  iptables-restore < $UFW_BACKUP_DIR/rules.v4
+  ip6tables-restore < $UFW_BACKUP_DIR/rules.v6
+  ufw --force enable
+then remove /etc/iptables/rules.v4 and rules.v6 (or re-save them) so the NTM state is not restored at boot
+EOF
+}
+
 migrate_from_ufw() {
   ufw_is_active || return 0
-
-  local backup
-  backup="/etc/iptables/pre-ntm-ufw-$(date +%F-%H%M%S)"
-  mkdir -p "$backup"
-  ufw status verbose > "$backup/ufw-status.txt" 2>&1 || true
-  iptables-save > "$backup/rules.v4"
-  ip6tables-save > "$backup/rules.v6" 2>/dev/null || true
-  warn "ufw is active: NTM takes over the host firewall and disables ufw (backup: $backup)"
+  warn "ufw is active: NTM takes over the host firewall and disables ufw (backup: $UFW_BACKUP_DIR)"
 
   local rules_v4 rules_v6 out_v4 out_v6 fwd_v4 fwd_v6 forward_v4 forward_v6
   rules_v4="$(iptables -S ufw-user-input 2>/dev/null | grep '^-A ' || true)"
@@ -772,20 +799,29 @@ migrate_from_ufw() {
   fi
 }
 
-configure_network_firewall() {
-  info "configuring host network firewall for nym node services"
-
+# refuse before anything is changed: a nym node needs outbound traffic allowed
+ufw_takeover_preflight() {
   if [[ "$HOST_INPUT_POLICY" == "DROP" ]] && ufw_denies_outgoing; then
     error "ufw is active and denies outgoing traffic; a nym node needs outbound allowed. nothing was changed."
     error "allow outgoing in ufw ('ufw default allow outgoing') and rerun, or rerun with HOST_INPUT_POLICY=KEEP"
     return 1
   fi
+}
 
-  # fail open while rules are rebuilt: if this aborts midway the host stays reachable
+configure_network_firewall() {
+  info "configuring host network firewall for nym node services"
+
+  ufw_takeover_preflight || return 1
+
   if [[ "$HOST_INPUT_POLICY" == "DROP" ]]; then
+    ufw_is_active && backup_ufw_state
+    # fail open while rules are rebuilt: if this aborts midway the host stays reachable
     iptables -P INPUT ACCEPT
     ip6tables -P INPUT ACCEPT
     migrate_from_ufw
+  elif ufw_is_active; then
+    warn "HOST_INPUT_POLICY=KEEP with ufw active: ufw is evaluated before NTM's rules and its default can block them."
+    warn "allow these ports in ufw yourself: tcp ${NETWORK_FIREWALL_TCP_PORTS[*]}, udp ${NETWORK_FIREWALL_UDP_PORTS[*]}, tcp ${NETWORK_FIREWALL_WG_TCP_PORT} on ${WG_INTERFACE}"
   fi
 
   delete_managed_input_rules iptables
@@ -1862,6 +1898,7 @@ exit_policy_install() {
 complete_networking_configuration() {
   info "starting complete networking configuration: tunnels + host firewall + exit policy"
 
+  ufw_takeover_preflight || return 1
   nym_tunnel_setup
   configure_network_firewall
   exit_policy_install

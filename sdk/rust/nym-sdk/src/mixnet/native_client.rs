@@ -218,6 +218,7 @@ impl MixnetClient {
         clippy::expect_used,
         reason = "using a legacy-only feature on an LP client is a coding error"
     )]
+    #[cfg(feature = "stream")]
     pub(crate) fn legacy_mut(&mut self) -> &mut LegacyClient {
         match &mut self.inner {
             MixnetClientInner::Legacy(legacy) => Some(legacy),

@@ -8,6 +8,7 @@ use nym_sphinx_params::{PacketSize, PacketType};
 use nym_statistics_common::types::SessionType;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::num::NonZero;
 use std::time::Duration;
 use url::Url;
 
@@ -83,7 +84,8 @@ const DEFAULT_LP_CONTROL_SOCKET_ADDR: SocketAddr =
 // what a nym-node allows itself when dialling its peers - see its `LpDebug`
 const DEFAULT_LP_DIAL_BACKOFF_INITIAL: Duration = Duration::from_secs(1);
 const DEFAULT_LP_DIAL_BACKOFF_MAX: Duration = Duration::from_secs(60);
-const DEFAULT_LP_MAX_CONCURRENT_HANDSHAKES: usize = 50;
+const DEFAULT_LP_MAX_CONCURRENT_HANDSHAKES: NonZero<usize> =
+    NonZero::new(50).expect("0 in a non zero type");
 
 // stats reporting related
 
@@ -805,7 +807,7 @@ pub struct LewesProtocol {
     ///
     /// A handshake is post-quantum and not cheap; this is what stops a client that suddenly wants
     /// many gateways from starting all of them at the same moment.
-    pub max_concurrent_handshakes: usize,
+    pub max_concurrent_handshakes: NonZero<usize>,
 }
 
 impl Default for LewesProtocol {

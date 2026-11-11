@@ -78,7 +78,9 @@ impl NymApiLpTopologyProvider {
 
         let nodes_filtered = all_nodes
             .into_iter()
-            .filter(|n| n.performance.round_to_integer() >= self.config.min_node_performance())
+            .filter(|n| {
+                n.performance.round_to_integer() >= self.config.min_performance_for(&n.role)
+            })
             .collect::<Vec<_>>();
 
         let epoch_rewarded_set: EpochRewardedSet = rewarded_set.into();

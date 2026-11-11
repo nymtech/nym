@@ -163,7 +163,7 @@ where
             identity_keys,
             encryption_key,
             dials: Arc::new(DashMap::new()),
-            permits: Arc::new(Semaphore::new(config.max_concurrent_handshakes)),
+            permits: Arc::new(Semaphore::new(config.max_concurrent_handshakes.get())),
             backoff_initial: config.dial_backoff_initial,
             backoff_max: config.dial_backoff_max,
             control_socket_addr: config.control_socket_addr,

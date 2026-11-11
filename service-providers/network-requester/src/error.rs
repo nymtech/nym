@@ -13,6 +13,9 @@ pub enum NetworkRequesterError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error(transparent)]
+    LpDataPlane(#[from] nym_service_providers_common::lp::error::LpProviderError),
+
     #[error("client-core error: {0}")]
     ClientCoreError(#[from] ClientCoreError),
 

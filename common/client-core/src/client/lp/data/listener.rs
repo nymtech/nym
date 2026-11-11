@@ -51,7 +51,6 @@ where
     }
 
     pub async fn run(&mut self) {
-        //-> Result<(), ClientCoreError> {
         info!("Started the LP data listener");
 
         loop {
@@ -101,6 +100,5 @@ where
         }
 
         info!("LP data listener shutdown complete");
-        //Ok(())
     }
 }

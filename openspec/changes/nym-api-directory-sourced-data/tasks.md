@@ -12,7 +12,7 @@
 ## 3. Snapshot production holds mixnet and families data
 
 - [x] 3.1 Read the node details at `H` in `produce_height` in place of the bond read, deriving the identity map from them
-- [x] 3.2 Read the rest of the mixnet contract state at `H` (task 1.1 and 1.2 queries) into `MixnetContractCacheData`, moved out of the refreshed cache without the legacy mixnode and gateway fields (and `CachedLegacyGatewayBond`), and hold it in `RetainedHeight`; a failed read fails the height with an error naming the read; its accessors move with their readers (task 5.2); fixtures and the populated on-disk round-trip test of `RetainedHeight` cover it, replacing the cache's own round-trip test
+- [x] 3.2 Read the rest of the mixnet contract state at `H` (task 1.1 and 1.2 queries) into `MixnetContractCacheData`, moved out of the refreshed cache without the legacy mixnode and gateway fields (and `CachedLegacyGatewayBond`), and hold it in `RetainedHeight`, deleting the cache's refresher; a failed read fails the height with an error naming the read; its accessors move with their readers (task 5.2); fixtures and the populated on-disk round-trip test of `RetainedHeight` cover it, replacing the cache's own round-trip test
 - [x] 3.3 Read the node families contract at `H`, join it with the node details of `H` into `NodeFamiliesCacheData` and hold it in `RetainedHeight`, a failed read failing the height like task 3.2; node age is the blocks between the bonding height and `H` times one fixed block-time constant (5.687 s), with `block_timestamps` and `BlockTime` removed and the refresher with its estimation code deleted; unit test with the spec's example; the `RetainedHeight` round-trip test covers it, replacing the families' own
 - [x] 3.4 Request every whole-set read at the contract's maximum page: directory and geolocation 100, performance latest and epoch performance 200 (the `PinnedPage` impls in validator-client)
 - [ ] 3.5 Establish each attested contract's trusted digest at `H` before reading its records, and reuse the records of that contract's snapshot in the newest retained entry below `H` when the digests are equal (signing for `H` with the identity map read at `H`); unit tests for the reuse case, the changed-digest case and the no-previous-entry case
@@ -37,7 +37,7 @@
 
 ## 6. Removal and configuration
 
-- [ ] 6.1 Delete `node_describe_cache/`, nym-api's `key_rotation/` controller and the mixnet contract cache refresher, with their wiring and the node families refresher's in `support/cli/run.rs`
+- [ ] 6.1 Delete `node_describe_cache/` and nym-api's `key_rotation/` controller, with their wiring and that of the mixnet contract cache and node families refreshers (deleted in tasks 3.2 and 3.3) in `support/cli/run.rs`
 - [ ] 6.2 Reduce `StartupCaches` to the settled snapshot and update its tests
 - [ ] 6.3 Remove the `[describe_cache]`, `[mixnet_contract_cache]` and `[node_families_cache]` config structs, defaults and template entries, keeping old config files loadable
 - [ ] 6.4 Add `[directory.debug] unsafe_allow_illegal_ips` to the config and its template, and rename the hidden flag to `--unsafe-allow-illegal-ips`

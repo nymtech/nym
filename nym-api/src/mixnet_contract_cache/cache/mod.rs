@@ -19,9 +19,6 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 
-pub(crate) mod data;
-pub(crate) mod refresher;
-
 const TOTAL_SUPPLY_AMOUNT: u128 = 1_000_000_000_000_000; // 1B tokens
 
 #[derive(Clone)]

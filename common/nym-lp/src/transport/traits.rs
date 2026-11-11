@@ -8,7 +8,7 @@ use nym_kkt_ciphersuite::KEM;
 use nym_lp_data::packet::{EncryptedLpPacket, OuterHeader};
 use std::net::SocketAddr;
 
-// only the stream impls below use these: the sockets', and the mock's
+// only the stream helpers below use these, for the socket impls and the mock's
 #[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 #[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
@@ -18,9 +18,6 @@ use tracing::debug;
 use std::net::IpAddr;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::{TcpSocket, TcpStream, UdpSocket};
-
-#[cfg(any(feature = "mock", test))]
-use nym_test_utils::mocks::async_read_write::MockIOStream;
 
 pub const MAX_TRANSPORT_PACKET_SIZE: usize = 65536; // 64KB max
 pub const MAX_HANDSHAKE_PACKET_SIZE: usize = 524287; // 524'160 for mceliece key + a bit of overhead for safety
@@ -70,7 +67,7 @@ pub trait HandshakeMessage: Sized {
 }
 
 #[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
-async fn write_all_and_flush_async_write<W>(
+pub(super) async fn write_all_and_flush_async_write<W>(
     writer: &mut W,
     data: &[u8],
 ) -> Result<(), LpTransportError>
@@ -85,7 +82,10 @@ where
 }
 
 #[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
-async fn read_n_bytes_async_read<R>(reader: &mut R, n: usize) -> Result<Vec<u8>, LpTransportError>
+pub(super) async fn read_n_bytes_async_read<R>(
+    reader: &mut R,
+    n: usize,
+) -> Result<Vec<u8>, LpTransportError>
 where
     R: AsyncRead + Unpin,
 {
@@ -179,7 +179,7 @@ pub trait LpTransportChannel: Sized + Send {
 }
 
 #[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
-async fn send_serialised_packet_async_write<W>(
+pub(super) async fn send_serialised_packet_async_write<W>(
     writer: &mut W,
     packet: &EncryptedLpPacket,
 ) -> Result<(), LpTransportError>
@@ -226,7 +226,7 @@ where
 }
 
 #[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
-async fn receive_length_prefixed_bytes_async_read<R>(
+pub(super) async fn receive_length_prefixed_bytes_async_read<R>(
     reader: &mut R,
 ) -> Result<Vec<u8>, LpTransportError>
 where
@@ -323,46 +323,6 @@ impl LpTransportChannel for TcpStream {
         &mut self,
     ) -> Result<Vec<u8>, LpTransportError> {
         receive_length_prefixed_bytes_async_read(self).await
-    }
-}
-
-#[cfg(any(feature = "mock", test))]
-#[async_trait]
-impl LpTransportChannel for MockIOStream {
-    async fn connect_from(
-        _endpoint: SocketAddr,
-        _local: Option<SocketAddr>,
-    ) -> Result<Self, LpTransportError> {
-        Ok(MockIOStream::default())
-    }
-
-    fn set_no_delay(&mut self, _nodelay: bool) -> Result<(), LpTransportError> {
-        Ok(())
-    }
-
-    async fn send_length_prefixed_transport_packet(
-        &mut self,
-        packet: &EncryptedLpPacket,
-    ) -> Result<(), LpTransportError> {
-        send_serialised_packet_async_write(self, packet).await
-    }
-
-    async fn receive_length_prefixed_transport_bytes(
-        &mut self,
-    ) -> Result<Vec<u8>, LpTransportError> {
-        receive_length_prefixed_bytes_async_read(self).await
-    }
-}
-
-#[cfg(any(feature = "mock", test))]
-#[async_trait]
-impl LpHandshakeChannel for MockIOStream {
-    async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError> {
-        write_all_and_flush_async_write(self, data).await
-    }
-
-    async fn read_n_bytes(&mut self, n: usize) -> Result<Vec<u8>, LpTransportError> {
-        read_n_bytes_async_read(self, n).await
     }
 }
 

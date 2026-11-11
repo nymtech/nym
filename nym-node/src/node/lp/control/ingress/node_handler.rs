@@ -3,119 +3,55 @@
 
 use crate::node::lp::active_sessions::LpPeer;
 use crate::node::lp::control::stats::LpConnectionStats;
-use crate::node::lp::directory::LpNodeDetails;
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::SharedLpControlState;
 use nym_lp::LpTransportSession;
-use nym_lp::transport::{LpHandshakeChannel, LpTransportChannel};
-use nym_lp_data::packet::header::LpReceiverIndex;
-use nym_metrics::inc;
-use nym_node_metrics::NymNodeMetrics;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tracing::debug;
 
-/// Initial connection handler for an ingress LP node before completing the KKT/PSQ handshake.
-pub struct InitialLpIngressNodeConnectionHandler<S = TcpStream> {
+/// Handler for an LP control connection from another node, once its session is established.
+pub(crate) struct LpNodeConnectionHandler<S = TcpStream> {
+    // nothing reads this until the control connection carries node traffic
+    #[allow(dead_code)]
     stream: S,
     remote_addr: SocketAddr,
-    initiator_details: LpNodeDetails,
 
+    // nothing reads this until the control connection carries node traffic
+    #[allow(dead_code)]
     state: SharedLpControlState,
     stats: LpConnectionStats,
 }
 
-impl<S> InitialLpIngressNodeConnectionHandler<S>
-where
-    S: LpHandshakeChannel + LpTransportChannel + Unpin,
-{
-    pub fn new(
+impl<S> LpNodeConnectionHandler<S> {
+    /// Deposit `session` as the node's at `remote_addr`, continuing the connection's `stats`.
+    pub(crate) fn with_session(
         stream: S,
         remote_addr: SocketAddr,
-        initiator_details: LpNodeDetails,
         state: SharedLpControlState,
-    ) -> Self {
-        Self {
+        session: LpTransportSession,
+        stats: LpConnectionStats,
+    ) -> Result<Self, LpHandlerError> {
+        state
+            .sessions
+            .insert_addressed_session(LpPeer::node(remote_addr.ip()), session)?;
+
+        Ok(Self {
             stream,
             remote_addr,
-            initiator_details,
             state,
-            stats: LpConnectionStats::new(),
-        }
-    }
-
-    pub(crate) fn metrics(&self) -> &NymNodeMetrics {
-        &self.state.metrics
-    }
-
-    pub(crate) async fn complete_initial_handshake(
-        mut self,
-    ) -> Result<LpReceiverIndex, LpHandlerError> {
-        let remote = self.remote_addr;
-
-        if self.initiator_details.kem_key_hashes.is_empty() {
-            return Err(LpHandlerError::MissingNodeKEMKeyHashes {
-                node_ip: self.remote_addr.ip(),
-                node_id: self.initiator_details.node_id,
-            });
-        }
-
-        // 1. complete KKT/PSQ handshake before doing anything else.
-        // bail if it takes too long
-        let timeout = self.state.lp_config.debug.handshake_ttl;
-        let local_peer = self.state.local_lp_peer.clone();
-        let stream = &mut self.stream;
-        let kem_hashes = self.initiator_details.kem_key_hashes.clone();
-
-        let session = match tokio::time::timeout(timeout, async move {
-            LpTransportSession::psq_handshake_responder_mutual(stream, local_peer, kem_hashes)
-                .complete_handshake()
-                .await
+            stats,
         })
-        .await
-        {
-            Err(_timeout) => {
-                debug!("timed out attempting to complete mutual KTT/PSQ handshake with {remote}");
-                self.stats.emit_lifecycle_node_metrics(false);
-                return Err(LpHandlerError::HandshakeTimeout);
-            }
-            Ok(Err(handshake_failure)) => {
-                debug!(
-                    "failed to complete mutual KKT/PSQ handshake with {remote}: {handshake_failure}"
-                );
-                self.stats.emit_lifecycle_node_metrics(false);
-                return Err(handshake_failure.into());
-            }
-            Ok(Ok(session)) => session,
-        };
+    }
 
+    /// Nothing is exchanged on a node's control connection yet; it ends once the session is stored.
+    pub(crate) async fn run(&mut self) -> Result<(), LpHandlerError> {
         debug!(
-            "completed ingress KKT/PSQ handshake with node {}: {remote}",
-            self.initiator_details.node_id
-        );
-
-        let receiver_index = session.receiver_index();
-        self.state
-            .sessions
-            .insert_addressed_session(LpPeer::node(self.remote_addr.ip()), session)?;
-
-        debug!(
-            "stored LP session with node {} ({}); closing control connection",
-            self.initiator_details.node_id,
+            "stored LP session with node at {}; closing control connection",
             self.remote_addr.ip()
         );
 
         self.stats.emit_lifecycle_node_metrics(true);
-        Ok(receiver_index)
-    }
-
-    pub async fn handle(self) -> Result<(), LpHandlerError> {
-        // Track total LP connections handled
-        inc!("lp_node_connections_total");
-
-        // attempt to complete initial handshake
-        self.complete_initial_handshake().await?;
-
         Ok(())
     }
 }

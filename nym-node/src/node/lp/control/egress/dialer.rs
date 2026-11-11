@@ -465,7 +465,7 @@ mod tests {
     use super::*;
     use crate::node::lp::active_sessions::ActiveLpSessions;
     use crate::node::lp::directory::LpNodes;
-    use nym_test_utils::mocks::async_read_write::MockIOStream;
+    use nym_lp::transport::mock::MockTransport;
     use nym_topology::NodeId;
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
@@ -477,10 +477,10 @@ mod tests {
 
     /// A dialer whose directory contains exactly `known` peers.
     ///
-    /// Instantiated over [`MockIOStream`] so nothing here touches a socket. The mock's `connect`
+    /// Instantiated over [`MockTransport`] so nothing here touches a socket. The mock's `connect`
     /// hands back an unpaired stream, so these tests assert on what `dial` records; a completing
     /// handshake needs a mock that pairs the two halves.
-    fn dialer_knowing(known: &[IpAddr]) -> LpDialer<MockIOStream> {
+    fn dialer_knowing(known: &[IpAddr]) -> LpDialer<MockTransport> {
         use nym_lp::peer::mock_peers;
         use nym_lp_data::packet::version;
 

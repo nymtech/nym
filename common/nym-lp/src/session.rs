@@ -138,6 +138,16 @@ pub struct PersistentSessionBinding {
     pub initiator_pq_pk: Option<EncapsulationKey>,
 }
 
+impl PersistentSessionBinding {
+    /// The x25519 key the initiator proved possession of, if that is what it authenticated with.
+    pub fn initiator_x25519(&self) -> Option<&DHPublicKey> {
+        match &self.initiator_authenticator {
+            Authenticator::Dh(key) => Some(key),
+            Authenticator::Sig(_) => None,
+        }
+    }
+}
+
 impl Debug for PersistentSessionBinding {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PersistentSessionBinding")
@@ -265,28 +275,19 @@ impl LpTransportSession {
         )
     }
 
-    /// Helper function to create `PSQHandshakeState` for the handshake responder
+    /// Responder for the next opener, verifying a mutual one against `initiator_kem_hashes`.
     pub fn psq_handshake_responder<S>(
         connection: &'_ mut S,
         local_peer: LpLocalPeer,
+        initiator_kem_hashes: Option<BTreeMap<KEM, KEMKeyDigests>>,
     ) -> PSQHandshakeStateResponder<'_, S>
     where
         S: LpHandshakeChannel + Unpin,
     {
-        PSQHandshakeState::new(connection, local_peer).as_responder(ResponderData::default())
-    }
-
-    /// Helper function to create `PSQHandshakeState` for the handshake responder for mutual KKT
-    pub fn psq_handshake_responder_mutual<S>(
-        connection: &'_ mut S,
-        local_peer: LpLocalPeer,
-        initiator_kem_hashes: BTreeMap<KEM, KEMKeyDigests>,
-    ) -> PSQHandshakeStateResponder<'_, S>
-    where
-        S: LpHandshakeChannel + Unpin,
-    {
-        PSQHandshakeState::new(connection, local_peer)
-            .as_responder(ResponderData::default().with_initiator_kem_hashes(initiator_kem_hashes))
+        PSQHandshakeState::new(connection, local_peer).as_responder(
+            ResponderData::default()
+                .with_initiator_kem_hashes(initiator_kem_hashes.unwrap_or_default()),
+        )
     }
 
     pub fn session_binding(&self) -> &PersistentSessionBinding {
@@ -471,7 +472,8 @@ mod tests {
     fn packet_version_must_match_the_negotiated_one() {
         let mut sessions = SessionsMock::mock_post_handshake(KEM::default());
 
-        // a genuine V1 packet arriving on a session that negotiated something else
+        // a genuine packet at this build's version arriving on a session that negotiated
+        // something else
         sessions.responder.protocol_version = version::CURRENT + 1;
 
         let packet = sessions

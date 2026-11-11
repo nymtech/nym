@@ -9722,6 +9722,7 @@ dependencies = [
  "nym-crypto",
  "nym-kkt-ciphersuite",
  "nym-lp",
+ "nym-lp-data",
  "nym-mixnet-contract-common",
  "nym-sphinx-addressing",
  "nym-sphinx-types",

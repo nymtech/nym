@@ -339,7 +339,7 @@ where
             }
             RegistrationStatus::PendingMoreData => {
                 info!(
-                    "we required more deta from {} to complete registration",
+                    "we require more data from {} to complete registration",
                     self.remote_addr
                 );
             }

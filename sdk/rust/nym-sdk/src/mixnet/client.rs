@@ -26,6 +26,7 @@ use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::init::{refresh_gateway_published_data, setup_gateway};
 use nym_crypto::hkdf::DerivationMaterial;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::RoutingNode;
@@ -867,11 +868,20 @@ where
 
     /// Build and start a client over LP.
     ///
-    /// The gateway is chosen and registered the same way as for a legacy client; the LP
-    /// client only uses its identity, and handshakes and registers with it over LP itself.
+    /// No websocket and no stored gateway details: the gateway is the requested one, or a random
+    /// one from the LP topology, and the client handshakes and registers with it over LP itself.
     async fn connect_to_lp(mut self) -> Result<MixnetClient> {
-        self.setup_client_keys().await?;
-        self.setup_gateway().await?;
+        if !matches!(self.state, BuilderState::New) {
+            return Err(Error::ReregisteringGatewayNotSupported);
+        }
+
+        let requested_gateway = self
+            .config
+            .user_chosen_gateway
+            .as_deref()
+            .map(NodeIdentity::from_base58_string)
+            .transpose()
+            .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
         let base_config = self
             .config
@@ -881,6 +891,10 @@ where
             LpBaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
                 .with_derivation_material(self.derivation_material)
                 .with_nym_api_urls(self.config.network_details.nym_api_urls());
+
+        if let Some(gateway) = requested_gateway {
+            lp_builder = lp_builder.with_gateway(gateway);
+        }
 
         if let Some(user_agent) = self.user_agent {
             lp_builder = lp_builder.with_user_agent(user_agent);

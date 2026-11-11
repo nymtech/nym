@@ -556,6 +556,7 @@ apply_smtps_465_rate_limit() {
 ###############################################################################
 
 NETWORK_FIREWALL_COMMENT="NYM-NETWORK-FW"
+UFW_MIGRATED_COMMENT="NYM-UFW-MIGRATED"
 HOST_SSH_PORT="${HOST_SSH_PORT:-22}"
 NETWORK_FIREWALL_TCP_PORTS=("$HOST_SSH_PORT" 80 443 1789 1790 4422 4443 8080 9000 9001 41264)
 NETWORK_FIREWALL_UDP_PORTS=(4443 51822 51264)
@@ -583,7 +584,7 @@ if [[ "$HOST_INPUT_POLICY" != "DROP" && "$HOST_INPUT_POLICY" != "KEEP" ]]; then
 fi
 
 build_network_firewall_status_pattern() {
-  local patterns=("$NETWORK_FIREWALL_COMMENT")
+  local patterns=("$NETWORK_FIREWALL_COMMENT" "$UFW_MIGRATED_COMMENT")
   local port
 
   for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}" "${NETWORK_FIREWALL_UDP_PORTS[@]}" "$NETWORK_FIREWALL_WG_TCP_PORT"; do
@@ -658,6 +659,83 @@ detect_ssh_ports() {
   } | grep -E '^[0-9]+$' | sort -un
 }
 
+# re-add operator ufw rules as plain INPUT rules, at the top and in their original order,
+# so first-match precedence (an allow before a deny, or the other way round) is unchanged
+migrate_ufw_rules() {
+  local cmd="$1"
+  local rules="$2"
+  local line spec pos=1
+
+  [[ -z "$rules" ]] && return 0
+  while IFS= read -r line; do
+    spec="${line#-A ufw-user-input }"
+    spec="${spec#-A ufw6-user-input }"
+    if [[ "$spec" == *" -j ufw-user-limit-accept" ]]; then
+      # ufw limit: keep access as a plain allow, the rate limit itself is not migrated
+      spec="${spec% -j ufw-user-limit-accept} -j ACCEPT"
+      warn "ufw limit migrated as a plain allow (rate limit dropped): $spec"
+    elif [[ "$spec" == *"-j ufw"* || "$spec" != *" -j "* ]]; then
+      continue # ufw-internal: limit tracking or logging
+    fi
+    spec="$(sed -E 's/ -m comment --comment ("([^"\\]|\\.)*"|[^ ]+)//' <<< "$spec")"
+    # shellcheck disable=SC2086 # spec is an iptables rule spec, word splitting intended
+    $cmd -I INPUT "$pos" $spec -m comment --comment "$UFW_MIGRATED_COMMENT"
+    pos=$((pos + 1))
+  done <<< "$rules"
+  ok "$cmd: migrated $((pos - 1)) ufw rule(s)"
+}
+
+# ufw disable empties its chains but leaves them and their jumps behind; remove both
+remove_ufw_chains() {
+  local cmd="$1"
+  local chain rule
+  for chain in INPUT OUTPUT FORWARD; do
+    while read -r rule; do
+      [[ -z "$rule" ]] && continue
+      # shellcheck disable=SC2086 # rule spec, word splitting intended
+      $cmd -D "$chain" ${rule#-A "$chain" } 2>/dev/null || true
+    done < <($cmd -S "$chain" 2>/dev/null | grep -E -- '-j ufw6?-' || true)
+  done
+  while read -r chain; do
+    [[ -n "$chain" ]] && $cmd -F "$chain" 2>/dev/null || true
+  done < <($cmd -S 2>/dev/null | awk '$1 == "-N" && $2 ~ /^ufw6?-/ {print $2}')
+  while read -r chain; do
+    [[ -n "$chain" ]] && $cmd -X "$chain" 2>/dev/null || true
+  done < <($cmd -S 2>/dev/null | awk '$1 == "-N" && $2 ~ /^ufw6?-/ {print $2}')
+}
+
+# older deployments ran ufw on every node. NTM owns the host firewall now, so take over:
+# ufw's chains (and a REJECT default) would otherwise sit in front of NTM's rules
+migrate_from_ufw() {
+  command -v ufw >/dev/null 2>&1 || return 0
+  [[ "$(ufw status 2>/dev/null)" == *"Status: active"* ]] || return 0
+
+  local backup
+  backup="/etc/iptables/pre-ntm-ufw-$(date +%F-%H%M%S)"
+  mkdir -p "$backup"
+  ufw status verbose > "$backup/ufw-status.txt" 2>&1 || true
+  iptables-save > "$backup/rules.v4"
+  ip6tables-save > "$backup/rules.v6" 2>/dev/null || true
+  warn "ufw is active: NTM takes over the host firewall and disables ufw (backup: $backup)"
+
+  local rules_v4 rules_v6 forward_v4 forward_v6
+  rules_v4="$(iptables -S ufw-user-input 2>/dev/null | grep '^-A ' || true)"
+  rules_v6="$(ip6tables -S ufw6-user-input 2>/dev/null | grep '^-A ' || true)"
+  forward_v4="$(iptables -S FORWARD | awk 'NR==1 {print $3}')"
+  forward_v6="$(ip6tables -S FORWARD 2>/dev/null | awk 'NR==1 {print $3}' || true)"
+
+  ufw disable >/dev/null
+  remove_ufw_chains iptables
+  remove_ufw_chains ip6tables
+
+  # ufw disable resets FORWARD to ACCEPT; keep what the host had
+  iptables -P FORWARD "$forward_v4"
+  [[ -n "$forward_v6" ]] && ip6tables -P FORWARD "$forward_v6"
+
+  migrate_ufw_rules iptables "$rules_v4"
+  migrate_ufw_rules ip6tables "$rules_v6"
+}
+
 configure_network_firewall() {
   info "configuring host network firewall for nym node services"
 
@@ -665,6 +743,7 @@ configure_network_firewall() {
   if [[ "$HOST_INPUT_POLICY" == "DROP" ]]; then
     iptables -P INPUT ACCEPT
     ip6tables -P INPUT ACCEPT
+    migrate_from_ufw
   fi
 
   delete_managed_input_rules iptables

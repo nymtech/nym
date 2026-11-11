@@ -557,6 +557,9 @@ apply_smtps_465_rate_limit() {
 
 NETWORK_FIREWALL_COMMENT="NYM-NETWORK-FW"
 UFW_MIGRATED_COMMENT="NYM-UFW-MIGRATED"
+# address families ufw managed before NTM took over (written once, at migration)
+UFW_FAMILIES_FILE="/etc/iptables/ntm-ufw-families"
+UFW_BACKUP_DIR=""
 HOST_SSH_PORT="${HOST_SSH_PORT:-22}"
 NETWORK_FIREWALL_TCP_PORTS=("$HOST_SSH_PORT" 80 443 1789 1790 4422 4443 8080 9000 9001 41264)
 NETWORK_FIREWALL_UDP_PORTS=(4443 51822 51264)
@@ -700,28 +703,41 @@ ufw_denies_outgoing() {
 # (a:b), a multiport list, and rules without any port (e.g. "allow from <ip>")
 port_allowed_by_ufw_rule() {
   local port="$1"
-  local cmd rule ports item items
-  for cmd in iptables ip6tables; do
-    while read -r rule; do
-      [[ "$rule" == *" -j ACCEPT"* ]] || continue
-      [[ "$rule" == *" -p udp "* ]] && continue
-      if [[ "$rule" =~ --dports?\ ([0-9:,]+) ]]; then
-        ports="${BASH_REMATCH[1]}"
-      elif [[ "$rule" == *" -p tcp "* || "$rule" != *" -p "* ]]; then
-        return 0 # no port: the rule covers every port
+  local cmd="$2"
+  local rule ports item items
+  while read -r rule; do
+    [[ "$rule" == *" -j ACCEPT"* ]] || continue
+    [[ "$rule" == *" -p udp "* ]] && continue
+    if [[ "$rule" =~ --dports?\ ([0-9:,]+) ]]; then
+      ports="${BASH_REMATCH[1]}"
+    elif [[ "$rule" == *" -p tcp "* || "$rule" != *" -p "* ]]; then
+      return 0 # no port: the rule covers every port
+    else
+      continue
+    fi
+    IFS=',' read -ra items <<< "$ports"
+    for item in "${items[@]}"; do
+      if [[ "$item" == *:* ]]; then
+        (( port >= ${item%%:*} && port <= ${item##*:} )) && return 0
       else
-        continue
+        (( port == item )) && return 0
       fi
-      IFS=',' read -ra items <<< "$ports"
-      for item in "${items[@]}"; do
-        if [[ "$item" == *:* ]]; then
-          (( port >= ${item%%:*} && port <= ${item##*:} )) && return 0
-        else
-          (( port == item )) && return 0
-        fi
-      done
-    done < <($cmd -S INPUT 2>/dev/null | grep -F -- "$UFW_MIGRATED_COMMENT" || true)
-  done
+    done
+  done < <($cmd -S INPUT 2>/dev/null | grep -F -- "$UFW_MIGRATED_COMMENT" || true)
+  return 1
+}
+
+# leave this ssh port to the migrated ufw rules in this address family? yes when a rule here
+# covers it; also yes in a family ufw managed when only the other family has a rule (ufw kept
+# the port closed here). a family ufw never managed gets NTM's normal ssh allow
+ssh_port_left_to_ufw() {
+  local port="$1"
+  local cmd="$2"
+  port_allowed_by_ufw_rule "$port" "$cmd" && return 0
+  if grep -qw -- "$cmd" "$UFW_FAMILIES_FILE" 2>/dev/null; then
+    port_allowed_by_ufw_rule "$port" iptables || port_allowed_by_ufw_rule "$port" ip6tables
+    return
+  fi
   return 1
 }
 
@@ -748,11 +764,20 @@ remove_ufw_chains() {
 # ufw's chains (and a REJECT default) would otherwise sit in front of NTM's rules
 # snapshot the firewall exactly as it is, before NTM changes anything
 backup_ufw_state() {
+  [[ -n "$UFW_BACKUP_DIR" ]] && return 0 # already taken earlier in this run
   UFW_BACKUP_DIR="/etc/iptables/pre-ntm-ufw-$(date +%F-%H%M%S)"
   mkdir -p "$UFW_BACKUP_DIR"
   ufw status verbose > "$UFW_BACKUP_DIR/ufw-status.txt" 2>&1 || true
   iptables-save > "$UFW_BACKUP_DIR/rules.v4"
   ip6tables-save > "$UFW_BACKUP_DIR/rules.v6" 2>/dev/null || true
+  # iptables-save skips tables that were never used; add them empty, so a restore also
+  # flushes what this run adds there (e.g. the tunnel's nat rules)
+  local file table
+  for file in "$UFW_BACKUP_DIR/rules.v4" "$UFW_BACKUP_DIR/rules.v6"; do
+    for table in nat mangle; do
+      grep -q "^\*${table}$" "$file" || printf '*%s\nCOMMIT\n' "$table" >> "$file"
+    done
+  done
   cat > "$UFW_BACKUP_DIR/RESTORE.txt" <<EOF
 restore the firewall as it was before NTM took over from ufw:
   iptables-restore < $UFW_BACKUP_DIR/rules.v4
@@ -775,6 +800,10 @@ migrate_from_ufw() {
   fwd_v6="$(ip6tables -S ufw6-user-forward 2>/dev/null | grep '^-A ' || true)"
   forward_v4="$(iptables -S FORWARD | awk 'NR==1 {print $3}')"
   forward_v6="$(ip6tables -S FORWARD 2>/dev/null | awk 'NR==1 {print $3}' || true)"
+
+  local families="iptables"
+  ip6tables -S ufw6-user-input >/dev/null 2>&1 && families+=" ip6tables"
+  echo "$families" > "$UFW_FAMILIES_FILE"
 
   ufw disable >/dev/null
   remove_ufw_chains iptables
@@ -832,13 +861,15 @@ configure_network_firewall() {
 
   local port ssh_ports
   ssh_ports=" $(detect_ssh_ports | tr '\n' ' ') "
+  local cmd
   for port in $ssh_ports; do
-    if port_allowed_by_ufw_rule "$port"; then
-      warn "ssh port $port keeps its migrated ufw rules (source/rate limits); not opened to everyone"
-      continue
-    fi
-    add_input_port_rule iptables "$port" tcp
-    add_input_port_rule ip6tables "$port" tcp
+    for cmd in iptables ip6tables; do
+      if ssh_port_left_to_ufw "$port" "$cmd"; then
+        warn "$cmd: ssh port $port keeps its migrated ufw rules (source/rate limits); not opened to everyone"
+        continue
+      fi
+      add_input_port_rule "$cmd" "$port" tcp
+    done
   done
 
   for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}"; do
@@ -892,7 +923,7 @@ test_network_firewall_rules() {
   local ssh_ports
   ssh_ports=" $(detect_ssh_ports | tr '\n' ' ') "
   for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}"; do
-    if [[ "$ssh_ports" == *" $port "* ]] && port_allowed_by_ufw_rule "$port"; then
+    if [[ "$ssh_ports" == *" $port "* ]] && ssh_port_left_to_ufw "$port" iptables; then
       ok "tcp port $port handled by migrated ufw rules"
       continue
     fi
@@ -1899,6 +1930,10 @@ complete_networking_configuration() {
   info "starting complete networking configuration: tunnels + host firewall + exit policy"
 
   ufw_takeover_preflight || return 1
+  # snapshot before anything in this run changes the firewall (tunnel setup included)
+  if [[ "$HOST_INPUT_POLICY" == "DROP" ]] && ufw_is_active; then
+    backup_ufw_state
+  fi
   nym_tunnel_setup
   configure_network_firewall
   exit_policy_install

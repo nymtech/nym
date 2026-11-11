@@ -349,8 +349,10 @@ class NodeSetupCLI:
         #
         # From that:
         #   needs_quic       -> any gateway (entry or exit) runs a QUIC bridge
+        #   needs_nginx      -> any gateway (entry or exit): landing page,
+        #                       reverse proxy and WSS; runs only with a hostname
         #   needs_exit_setup -> exit-gateway OR any WireGuard node
-        #                       (nginx/WSS, NTM routing, exit-policy iptables)
+        #                       (NTM routing + firewall, exit-policy iptables)
         #   needs_ufw        -> only where NTM does NOT manage the firewall:
         #                       mixnodes, and entry-only nodes without WireGuard
         is_mix = self.mode == "mixnode"
@@ -358,6 +360,7 @@ class NodeSetupCLI:
         is_exit = self.mode == "exit-gateway"
 
         self.needs_quic = is_entry or is_exit
+        self.needs_nginx = is_entry or is_exit
         self.needs_exit_setup = is_exit or self.wg_enabled
         self.needs_ufw = is_mix or (is_entry and not self.wg_enabled)
 
@@ -383,9 +386,11 @@ class NodeSetupCLI:
         self.tunnel_manager_sh = None
         self.quic_bridge_deployment_sh = None
 
-        if self.needs_exit_setup:
+        if self.needs_nginx:
             self.landing_page_html = self.fetch_script("landing-page.html")
             self.nginx_proxy_wss_sh = self.fetch_script("setup-nginx-proxy-wss.sh")
+
+        if self.needs_exit_setup:
             self.tunnel_manager_sh = self.fetch_script("network_tunnel_manager.sh")
 
         if self.needs_quic:
@@ -843,6 +848,12 @@ class NodeSetupCLI:
         if self.mode == "entry-gateway":
             rules.append("9001/tcp")  # WSS
 
+        # A non-WireGuard entry-gateway runs the QUIC bridge but is NOT managed by
+        # NTM, so ufw must open the bridge ports itself (TLS/SSH/QUIC). On exit and
+        # WireGuard gateways these are opened by complete_networking_configuration.
+        if self.needs_quic:
+            rules += ["4443/tcp", "4443/udp", "4422/tcp"]  # bridge TLS / QUIC / SSH
+
         script_lines = [
             "#!/usr/bin/env bash",
             "set -euo pipefail",
@@ -1103,10 +1114,14 @@ class NodeSetupCLI:
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)
 
-        # nginx reverse proxy + WSS: only nodes doing exit setup (exit-gateway
-        # or any WireGuard node) serve the landing page and WSS endpoint.
-        if self.needs_exit_setup:
-            self.run_script(self.nginx_proxy_wss_sh)
+        # nginx reverse proxy + WSS: every gateway (entry or exit) serves the
+        # landing page and WSS endpoint. The certificate needs a DNS hostname,
+        # so this is skipped when none was provided.
+        if self.needs_nginx:
+            if os.environ.get("HOSTNAME"):
+                self.run_script(self.nginx_proxy_wss_sh)
+            else:
+                print("\n[INFO] No hostname set - skipping nginx reverse proxy and WSS setup.")
 
         # Firewall: ufw is only used where NTM does NOT manage iptables, i.e.
         # mixnodes and entry-only nodes without WireGuard. On exit / WireGuard

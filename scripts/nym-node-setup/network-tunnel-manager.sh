@@ -573,6 +573,15 @@ validate_port_value() {
 
 validate_port_value "HOST_SSH_PORT" "$HOST_SSH_PORT"
 
+# inbound policy once the allow rules are in place: DROP (default, ufw-like: everything
+# not allowed below is dropped) or KEEP (leave the existing INPUT policy untouched)
+HOST_INPUT_POLICY="${HOST_INPUT_POLICY:-DROP}"
+HOST_INPUT_POLICY="${HOST_INPUT_POLICY^^}"
+if [[ "$HOST_INPUT_POLICY" != "DROP" && "$HOST_INPUT_POLICY" != "KEEP" ]]; then
+  error "invalid HOST_INPUT_POLICY='${HOST_INPUT_POLICY}'. expected DROP or KEEP"
+  exit 1
+fi
+
 build_network_firewall_status_pattern() {
   local patterns=("$NETWORK_FIREWALL_COMMENT")
   local port
@@ -615,13 +624,61 @@ add_input_port_rule() {
   fi
 }
 
+add_managed_input_rule() {
+  local cmd="$1"
+  shift
+  if ! $cmd -C INPUT "$@" -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+    $cmd -A INPUT "$@" -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT
+  fi
+}
+
+# what any default-deny host needs: loopback, replies to its own traffic, icmp, dhcp
+add_base_input_rules() {
+  local cmd="$1"
+  add_managed_input_rule "$cmd" -i lo
+  add_managed_input_rule "$cmd" -m conntrack --ctstate ESTABLISHED,RELATED
+  if [[ "$cmd" == "iptables" ]]; then
+    add_managed_input_rule "$cmd" -p icmp --icmp-type echo-request
+    add_managed_input_rule "$cmd" -p udp --sport 67 --dport 68
+  else
+    # icmpv6 carries neighbor discovery; ipv6 stops working without it
+    add_managed_input_rule "$cmd" -p ipv6-icmp
+    add_managed_input_rule "$cmd" -p udp --sport 547 --dport 546
+  fi
+}
+
+# every port ssh must stay reachable on: HOST_SSH_PORT, the port(s) sshd is configured
+# on, and the port of the current ssh session - a custom ssh port can't lock you out
+detect_ssh_ports() {
+  {
+    echo "$HOST_SSH_PORT"
+    sshd -T 2>/dev/null | awk '$1 == "port" {print $2}' || true
+    ss -Htlnp 2>/dev/null | awk '/"sshd/ {n = split($4, a, ":"); print a[n]}' || true
+    if [[ -n "${SSH_CONNECTION:-}" ]]; then awk '{print $4}' <<< "$SSH_CONNECTION"; fi
+  } | grep -E '^[0-9]+$' | sort -un
+}
+
 configure_network_firewall() {
   info "configuring host network firewall for nym node services"
+
+  # fail open while rules are rebuilt: if this aborts midway the host stays reachable
+  if [[ "$HOST_INPUT_POLICY" == "DROP" ]]; then
+    iptables -P INPUT ACCEPT
+    ip6tables -P INPUT ACCEPT
+  fi
 
   delete_managed_input_rules iptables
   delete_managed_input_rules ip6tables
 
+  add_base_input_rules iptables
+  add_base_input_rules ip6tables
+
   local port
+  for port in $(detect_ssh_ports); do
+    add_input_port_rule iptables "$port" tcp
+    add_input_port_rule ip6tables "$port" tcp
+  done
+
   for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}"; do
     add_input_port_rule iptables "$port" tcp
     add_input_port_rule ip6tables "$port" tcp
@@ -635,6 +692,14 @@ configure_network_firewall() {
   add_input_port_rule iptables "$NETWORK_FIREWALL_WG_TCP_PORT" tcp "$WG_INTERFACE"
   add_input_port_rule ip6tables "$NETWORK_FIREWALL_WG_TCP_PORT" tcp "$WG_INTERFACE"
 
+  if [[ "$HOST_INPUT_POLICY" == "DROP" ]]; then
+    iptables -P INPUT DROP
+    ip6tables -P INPUT DROP
+    ok "inbound traffic not allowed above is now dropped (ipv4 + ipv6)"
+  else
+    warn "HOST_INPUT_POLICY=KEEP: INPUT policy left unchanged ($(iptables -S INPUT | awk 'NR==1 {print $3}'))"
+  fi
+
   save_iptables_rules
   ok "host network firewall configuration completed"
 }
@@ -645,6 +710,8 @@ show_network_firewall_status() {
 
   status_pattern="$(build_network_firewall_status_pattern)"
 
+  echo
+  info "input policy: ipv4 $(iptables -S INPUT | awk 'NR==1 {print $3}'), ipv6 $(ip6tables -S INPUT | awk 'NR==1 {print $3}')"
   echo
   info "ipv4 input rules:"
   iptables -L INPUT -n -v --line-numbers | grep -E "(${status_pattern})" || true
@@ -703,6 +770,19 @@ test_network_firewall_rules() {
   else
     error "ipv6 tcp port $NETWORK_FIREWALL_WG_TCP_PORT missing on $WG_INTERFACE"
     ((failures++))
+  fi
+
+  if [[ "$HOST_INPUT_POLICY" == "DROP" ]]; then
+    local cmd policy
+    for cmd in iptables ip6tables; do
+      policy="$($cmd -S INPUT | awk 'NR==1 {print $3}')"
+      if [[ "$policy" == "DROP" ]]; then
+        ok "$cmd INPUT policy is DROP"
+      else
+        error "$cmd INPUT policy is $policy, expected DROP"
+        ((failures++))
+      fi
+    done
   fi
 
   return "$failures"
@@ -1773,7 +1853,7 @@ usage: $0 <command> [args]
 high level workflows:
   complete_networking_configuration Install tunnel interfaces, setup networking, host firewall, iptables, wg exit policy & tests
   nym_tunnel_setup                  Install tunnel interfaces & setup networking
-  configure_network_firewall        Install host firewall rules for nym services
+  configure_network_firewall        Allow nym service ports, drop all other inbound (HOST_INPUT_POLICY=KEEP to skip the drop)
   exit_policy_install               Install and configure wireguard exit policy
 
 tunnel and nat helpers:

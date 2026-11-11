@@ -432,7 +432,7 @@ mod tests {
     use nym_crypto::asymmetric::x25519;
     use nym_kkt_ciphersuite::KEM;
     use nym_lp::peer::mock_peers;
-    use nym_test_utils::mocks::async_read_write::MockIOStream;
+    use nym_lp::transport::mock::MockTransport;
     use nym_topology::lp::{LpRoutingNode, LpTopology};
     use nym_topology::{CachedEpochRewardedSet, NodeId, NymTopologyMetadata, SupportedRoles};
     use time::OffsetDateTime;
@@ -462,10 +462,10 @@ mod tests {
 
     /// A dialer whose topology contains exactly `gateways` gateways, and their identities.
     ///
-    /// Instantiated over [`MockIOStream`] so nothing here touches a socket. The mock's `connect`
-    /// hands back an unpaired stream, so these tests assert on what `dial` records; a completing
-    /// handshake needs a mock that pairs the two halves.
-    fn dialer_over(gateways: usize) -> (LpGatewayDialer<MockIOStream>, Vec<NodeIdentity>) {
+    /// Instantiated over [`MockTransport`] so nothing here touches a socket. No connection is
+    /// registered with [`MockTransport::expect_connection`], so `connect` hands back an unpaired
+    /// stream and these tests assert on what `dial` records, not on a completed handshake.
+    fn dialer_over(gateways: usize) -> (LpGatewayDialer<MockTransport>, Vec<NodeIdentity>) {
         let nodes: Vec<_> = (1..=gateways)
             .map(|node_id| gateway_node(node_id as NodeId))
             .collect();

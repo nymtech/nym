@@ -365,7 +365,8 @@ impl PinnedPage for LatestPerformancePagedResponse {
     fn query_msg(_args: &(), start_after: Option<NodeId>) -> PerformanceQueryMsg {
         PerformanceQueryMsg::LatestPerformancePaged {
             start_after,
-            limit: None,
+            // the contract's maximum page (it caps anything larger), half the default's queries
+            limit: Some(200),
         }
     }
 
@@ -390,7 +391,8 @@ impl PinnedPage for EpochPerformancePagedResponse {
         PerformanceQueryMsg::EpochPerformancePaged {
             epoch_id: *epoch_id,
             start_after,
-            limit: None,
+            // the contract's maximum page (it caps anything larger), half the default's queries
+            limit: Some(200),
         }
     }
 

@@ -162,7 +162,8 @@ impl PinnedPage for AllRecordsPagedResponse {
     fn query_msg(_args: &(), start_after: Option<RecordKey>) -> GeolocationQueryMsg {
         GeolocationQueryMsg::AllRecords {
             start_after,
-            limit: None,
+            // the contract's maximum page (it caps anything larger), half the default's queries
+            limit: Some(100),
         }
     }
 

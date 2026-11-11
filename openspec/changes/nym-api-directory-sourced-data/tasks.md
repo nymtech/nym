@@ -11,14 +11,11 @@
 
 ## 3. Snapshot production holds mixnet and families data
 
-- [ ] 3.1 Read the node details at `H` in `produce_height` in place of the bond read, deriving the identity map from them
-- [ ] 3.2 Read the rest of the mixnet contract state at `H` (task 1.1 and 1.2 queries) and hold it in `RetainedHeight`, moving `MixnetContractCacheData` and its accessors out of the refreshed cache, without the legacy mixnode and gateway fields (and `CachedLegacyGatewayBond`)
-- [ ] 3.3 Read the node families contract at `H`, join it with the node details of `H` into `NodeFamiliesCacheData`, and hold it in `RetainedHeight`
-- [ ] 3.4 Compute node age as blocks between the bonding height and `H` times one fixed block-time constant (5.687 s), removing the block-timestamp lookup and estimation code; unit test with the spec's example
-- [ ] 3.5 Make a failed mixnet or families read retain nothing for `H` and log what failed; tests for each
-- [ ] 3.6 Request every whole-set read at the contract's maximum page: directory and geolocation 100, performance latest and epoch performance 200 (the `PinnedPage` impls in validator-client)
-- [ ] 3.7 Establish each attested contract's trusted digest at `H` before reading its records, and reuse the records of that contract's snapshot in the newest retained entry below `H` when the digests are equal (signing for `H` with the identity map read at `H`); unit tests for the reuse case, the changed-digest case and the no-previous-entry case
-- [ ] 3.8 Update the `RetainedHeight` fixtures (`empty_retained_height`, `populated_entry`, the `populated_cache()` replacement) and the on-disk round-trip test; confirm a file in the previous shape loads as an empty cache
+- [x] 3.1 Read the node details at `H` in `produce_height` in place of the bond read, deriving the identity map from them
+- [ ] 3.2 Read the rest of the mixnet contract state at `H` (task 1.1 and 1.2 queries) into `MixnetContractCacheData`, moved out of the refreshed cache without the legacy mixnode and gateway fields (and `CachedLegacyGatewayBond`), and hold it in `RetainedHeight`; a failed read fails the height with an error naming the read; its accessors move with their readers (task 5.2); fixtures and the populated on-disk round-trip test of `RetainedHeight` cover it, replacing the cache's own round-trip test
+- [ ] 3.3 Read the node families contract at `H`, join it with the node details of `H` into `NodeFamiliesCacheData` and hold it in `RetainedHeight`, a failed read failing the height like task 3.2; node age is the blocks between the bonding height and `H` times one fixed block-time constant (5.687 s), with `block_timestamps` and `BlockTime` removed (the refresher and its estimation code go with task 6.1); unit test with the spec's example; the `RetainedHeight` round-trip test covers it, replacing the families' own
+- [ ] 3.4 Request every whole-set read at the contract's maximum page: directory and geolocation 100, performance latest and epoch performance 200 (the `PinnedPage` impls in validator-client)
+- [ ] 3.5 Establish each attested contract's trusted digest at `H` before reading its records, and reuse the records of that contract's snapshot in the newest retained entry below `H` when the digests are equal (signing for `H` with the identity map read at `H`); unit tests for the reuse case, the changed-digest case and the no-previous-entry case
 
 ## 4. Per-height node view
 
@@ -29,7 +26,7 @@
 ## 5. Routes read the latest settled snapshot
 
 - [ ] 5.1 Give `AppState` accessors for the mixnet state, the families data and the node view of the latest settled snapshot, answering 503 when none has settled; remove the contract cache, describe cache and families cache handles
-- [ ] 5.2 Re-point every reader of the mixnet contract cache: epoch, reward parameters, key rotation information, rewarded set, bonded nodes, stake saturation, config score details, circulating supply, annotations, the account collector
+- [ ] 5.2 Re-point every reader of the mixnet contract cache: epoch, reward parameters, key rotation information, rewarded set, bonded nodes, stake saturation, config score details, circulating supply, annotations, the account collector; derived values (key rotation id, circulating supply) become methods on the moved data type
 - [ ] 5.3 Re-point the node families routes
 - [ ] 5.4 Build the skimmed and semi-skimmed routes of every version, the described routes and the noise-key route from the node view, with `refreshed_at` the block time of the height
 - [ ] 5.5 Compute `Expires` on active-only responses as the design's D7 states; unit tests with the spec's mid-epoch and overdue examples

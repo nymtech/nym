@@ -11,7 +11,7 @@ use crate::support::caching::Cache;
 use crate::support::config::DirectoryConfigDebug;
 use anyhow::{anyhow, Context};
 use nym_contract_anchor::error::VerificationError;
-use nym_contract_anchor::whole_set::{node_identities_at, verify_chain_read, VerifiedRecords};
+use nym_contract_anchor::whole_set::{node_identities, verify_chain_read, VerifiedRecords};
 use nym_contract_attestation::{node_identities_hash, DigestSnapshot, DirectoryEntryRecord};
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_client::cadence::SnapshotCadence;
@@ -24,7 +24,7 @@ use nym_performance_contract_common::LatestPerformance;
 use nym_task::ShutdownToken;
 use nym_validator_client::nyxd::contract_traits::{
     NymContractsProvider, PinnedDirectoryQueryClient, PinnedGeolocationQueryClient,
-    PinnedPerformanceQueryClient,
+    PinnedMixnetQueryClient, PinnedPerformanceQueryClient,
 };
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::TendermintRpcClient;
@@ -192,9 +192,14 @@ impl AttestedSnapshotsProducer {
             .trusted_app_hash(height)
             .await
             .context("failed to establish the app hash")?;
-        let node_identities = node_identities_at(self.chain_anchor.query_client(), height)
+        let nym_nodes = self
+            .chain_anchor
+            .query_client()
+            .get_all_nymnodes_detailed_at_height(height)
             .await
-            .context("failed to read the bond set")?;
+            .context("failed to read the node details")?;
+        // the details' identity keys are the map every contract is verified with
+        let node_identities = node_identities(nym_nodes.iter().map(|node| &node.bond_information));
 
         let (directory, performance, geolocation) = tokio::join!(
             self.verified_directory(height, node_identities.clone()),

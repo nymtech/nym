@@ -13,14 +13,16 @@
 
     # nginx: landing page, reverse proxy and WSS. Runs on every gateway (entry
     # and exit). Off for mixnodes by default - set nginx_enabled=true in the
-    # inventory if your mixnode has a hostname and should get the reverse proxy.
-    # Needs `hostname` (DNS pointing to the node) and `email` for the certificate.
+    # inventory if your mixnode has a hostname and should get the reverse proxy
+    # needs `hostname` (DNS pointing to the node) and `email` for the certificate;
+    # skipped when no hostname is set
     - role: nginx
-      when: nginx_enabled | default(mode != 'mixnode') | bool
-    # NTM runs on exit gateways and any WireGuard gateway and owns their firewall.
-    # A non-WireGuard entry-gateway is ufw-managed (see roles/nym/tasks/main.yml).
+      when: (nginx_enabled | default(mode != 'mixnode') | bool) and (hostname | default('') | length > 0)
+    # NTM runs on exit gateways and WireGuard entry gateways and owns their firewall
+    # A non-WireGuard entry-gateway is ufw-managed (see roles/nym/tasks/main.yml)
+    # Mixnodes never run NTM, even if wireguard_enabled is set
     - role: tunnel
-      when: mode == 'exit-gateway' or (wireguard_enabled | default(false) | bool)
-    # QUIC bridge runs on every gateway (entry and exit).
+      when: mode == 'exit-gateway' or (mode == 'entry-gateway' and (wireguard_enabled | default(false) | bool))
+    # QUIC bridge runs on every gateway (entry and exit)
     - role: quic
       when: mode != 'mixnode'

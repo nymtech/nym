@@ -361,7 +361,7 @@ class NodeSetupCLI:
 
         self.needs_quic = is_entry or is_exit
         self.needs_nginx = is_entry or is_exit
-        self.needs_exit_setup = is_exit or self.wg_enabled
+        self.needs_exit_setup = is_exit or (is_entry and self.wg_enabled)
         self.needs_ufw = is_mix or (is_entry and not self.wg_enabled)
 
         # Inform the operator when an entry-gateway is promoted to an effective
@@ -854,6 +854,10 @@ class NodeSetupCLI:
         if self.needs_quic:
             rules += ["4443/tcp", "4443/udp", "4422/tcp"]  # bridge TLS / QUIC / SSH
 
+        # Lewes Protocol (registration + data); NTM opens these on exit/WG gateways.
+        if self.mode == "entry-gateway":
+            rules += ["41264/tcp", "51264/udp"]
+
         script_lines = [
             "#!/usr/bin/env bash",
             "set -euo pipefail",
@@ -1095,6 +1099,24 @@ class NodeSetupCLI:
         env["ENV_FILE"] = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
         return env
 
+    def run_nginx_setup(self):
+        """Run the nginx/WSS setup script, skip cleanly without hostname/email, report failures"""
+        if not os.environ.get("HOSTNAME"):
+            print("\n[INFO] No hostname set - skipping nginx reverse proxy and WSS setup.")
+            return
+        if not os.environ.get("EMAIL"):
+            print("\n[WARN] No email set - skipping nginx reverse proxy and WSS setup (needed for the certificate).")
+            return
+        rc = self.run_script(self.nginx_proxy_wss_sh)
+        if rc != 0:
+            url = self._return_script_url("setup-nginx-proxy-wss.sh")
+            print(
+                f"\n[WARN] nginx/WSS setup failed (exit code {rc}); the node continues without WSS.\n"
+                "Check that your DNS A/AAAA records point to this server and port 80 is reachable, then rerun:\n"
+                f"  curl -fsSL {url} -o setup-nginx-proxy-wss.sh\n"
+                "  set -a && source env.sh && set +a && bash setup-nginx-proxy-wss.sh"
+            )
+
     def run_node_installation(self,args):
         """Main function called by argparser command install running full node install flow"""
         self.ensure_env_values(args)
@@ -1114,21 +1136,19 @@ class NodeSetupCLI:
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)
 
-        # nginx reverse proxy + WSS: every gateway (entry or exit) serves the
-        # landing page and WSS endpoint. The certificate needs a DNS hostname,
-        # so this is skipped when none was provided.
-        if self.needs_nginx:
-            if os.environ.get("HOSTNAME"):
-                self.run_script(self.nginx_proxy_wss_sh)
-            else:
-                print("\n[INFO] No hostname set - skipping nginx reverse proxy and WSS setup.")
-
         # Firewall: ufw is only used where NTM does NOT manage iptables, i.e.
         # mixnodes and entry-only nodes without WireGuard. On exit / WireGuard
         # nodes, NTM's complete_networking_configuration owns the firewall and
         # running ufw on top would conflict with its rules.
+        # Runs before nginx so port 80 is open for the certificate request.
         if self.needs_ufw:
             self.setup_ufw()
+
+        # nginx reverse proxy + WSS: every gateway (entry or exit) serves the
+        # landing page and WSS endpoint. The certificate needs a DNS hostname
+        # and an email, so this is skipped when either is missing.
+        if self.needs_nginx:
+            self.run_nginx_setup()
 
         self.run_nym_node_as_service()
         self.run_bonding_prompt()

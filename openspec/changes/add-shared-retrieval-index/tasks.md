@@ -27,7 +27,7 @@
   - [x] 3.5.4 Make the drop report a fail-closed build gate: a source-like extension neither chunked nor on the accept-drop set fails CI, so a new language cannot silently index to zero
   - [x] 3.5.5 Demote test-path chunks at rank time (a score penalty, not exclusion), so a test module cannot outrank the production code it exercises. Evidence: 0a query 1, where a speedtest tool's `mod tests` outranked the canonical `FragmentPreparer` send path (shared-index-spike/EXPERIMENTS.md 0a). Built: the package flags test chunks (`test: true`; a test directory, a test file name, or a Rust `mod tests` block) and search subtracts `TEST_SCORE_PENALTY`. Calibrated on the 0a query: 0.05 sits on a plateau from 0.05 to 0.12, so it stays at 0.05
 
-- [ ] 3.6 Publish the package: move the `shared-index` repository to the nymtech org (or make it public) so nym's CI and Vercel can fetch the pinned git dependency; later choose a registry (npm under `@nymproject` or GitHub Packages) to replace the pin. The `tsc` emit is in place (`prepare`). Gates 6.1 and 6.2, whose producers are other repos
+- [ ] 3.6 Publish the package: move the `shared-index` repository to the nymtech org (or make it public). Moved to `nymtech/shared-index-spike` (2026-11-11), and the pin points there so nym's CI and Vercel can fetch the pinned git dependency; later choose a registry (npm under `@nymproject` or GitHub Packages) to replace the pin. The `tsc` emit is in place (`prepare`). Gates 6.1 and 6.2, whose producers are other repos
 
 ## 4. Infrastructure
 

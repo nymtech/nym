@@ -90,8 +90,8 @@ importers:
         specifier: ^0.2.1
         version: 0.2.1
       '@nymproject/retrieval-indexer':
-        specifier: github:mfahampshire/shared-index-spike#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer
-        version: git+https://git@github.com:mfahampshire/shared-index-spike.git#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer
+        specifier: github:nymtech/shared-index-spike#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer
+        version: git+https://git@github.com:nymtech/shared-index-spike.git#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer
       '@nymproject/sdk-full-fat':
         specifier: '>=1.5.1-rc.0 || ^1.4.1'
         version: 1.4.1
@@ -1449,8 +1449,8 @@ packages:
   '@nymproject/mix-websocket@0.2.1':
     resolution: {integrity: sha512-KzK6hW05d86EfBybRhlX4eL9LBD+QkyrHTmJ49cC2uquAJXksf1+dT0HEUmSczwVyoYUxDcw9+8E4B+PFDH+hg==}
 
-  '@nymproject/retrieval-indexer@git+https://git@github.com:mfahampshire/shared-index-spike.git#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer':
-    resolution: {commit: 8b81d1c43942cac44c6847c5011f4c9fd3b931f7, path: /packages/retrieval-indexer, repo: git@github.com:mfahampshire/shared-index-spike.git, type: git}
+  '@nymproject/retrieval-indexer@git+https://git@github.com:nymtech/shared-index-spike.git#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer':
+    resolution: {commit: 8b81d1c43942cac44c6847c5011f4c9fd3b931f7, path: /packages/retrieval-indexer, repo: git@github.com:nymtech/shared-index-spike.git, type: git}
     version: 0.1.0
 
   '@nymproject/sdk-full-fat@1.4.1':
@@ -8259,7 +8259,7 @@ snapshots:
     dependencies:
       '@nymproject/mix-tunnel': 0.2.1
 
-  '@nymproject/retrieval-indexer@git+https://git@github.com:mfahampshire/shared-index-spike.git#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer':
+  '@nymproject/retrieval-indexer@git+https://git@github.com:nymtech/shared-index-spike.git#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer':
     dependencies:
       github-slugger: 2.0.0
       gray-matter: 4.0.3

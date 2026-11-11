@@ -7620,6 +7620,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-network-requester",
  "nym-node-metrics",
+ "nym-pemstore",
  "nym-registration-common",
  "nym-sdk",
  "nym-service-provider-requests-common",
@@ -8264,6 +8265,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-mix-sim"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "getrandom 0.4.2",
+ "libcrux-psq",
+ "nym-bin-common",
+ "nym-client-core",
+ "nym-common",
+ "nym-crypto",
+ "nym-kkt",
+ "nym-kkt-ciphersuite",
+ "nym-lp",
+ "nym-lp-data",
+ "nym-node",
+ "nym-sphinx",
+ "nym-sphinx-addressing",
+ "nym-test-utils",
+ "nym-topology",
+ "rand 0.10.2",
+ "rand_distr",
+ "semver 1.0.28",
+ "serde",
+ "serde_json",
+ "strum 0.28.0",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "nym-mixnet-client"
 version = "2.0.0"
 dependencies = [
@@ -8614,6 +8647,7 @@ dependencies = [
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-registration-common",
+ "nym-service-providers-common",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -9150,10 +9184,21 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core",
  "nym-credential-storage",
+ "nym-crypto",
+ "nym-lp",
+ "nym-lp-data",
+ "nym-pemstore",
+ "nym-sphinx",
  "nym-sphinx-anonymous-replies",
+ "nym-task",
+ "nym-topology",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "time",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

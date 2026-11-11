@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet_contract_cache::data::MixnetContractData;
+use crate::node_families::data::NodeFamiliesData;
 use crate::node_performance::attestation::auxiliary::PerformanceAuxiliary;
 use crate::support::attested_snapshots::chain_anchor::{NyxChainAnchor, NyxContractAnchor};
 use crate::support::attested_snapshots::data::{
@@ -11,7 +13,7 @@ use crate::support::caching::Cache;
 use crate::support::config::DirectoryConfigDebug;
 use anyhow::{anyhow, Context};
 use nym_contract_anchor::error::VerificationError;
-use nym_contract_anchor::whole_set::{node_identities, verify_chain_read, VerifiedRecords};
+use nym_contract_anchor::whole_set::{verify_chain_read, VerifiedRecords};
 use nym_contract_attestation::{node_identities_hash, DigestSnapshot, DirectoryEntryRecord};
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_client::cadence::SnapshotCadence;
@@ -24,7 +26,7 @@ use nym_performance_contract_common::LatestPerformance;
 use nym_task::ShutdownToken;
 use nym_validator_client::nyxd::contract_traits::{
     NymContractsProvider, PinnedDirectoryQueryClient, PinnedGeolocationQueryClient,
-    PinnedMixnetQueryClient, PinnedPerformanceQueryClient,
+    PinnedPerformanceQueryClient,
 };
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::TendermintRpcClient;
@@ -183,8 +185,9 @@ impl AttestedSnapshotsProducer {
         Ok(())
     }
 
-    /// Every attested contract's snapshot at `height`, signed, or an error naming each contract
-    /// that could not be verified there.
+    /// Every attested contract's snapshot at `height`, signed, with the mixnet and node families
+    /// contracts read there, or an error naming each contract that could not be read or verified
+    /// there.
     async fn produce_height(&self, height: Height) -> anyhow::Result<RetainedHeight> {
         // first, so that nothing is read when trust at `height` cannot be established
         let app_hash = self
@@ -192,14 +195,14 @@ impl AttestedSnapshotsProducer {
             .trusted_app_hash(height)
             .await
             .context("failed to establish the app hash")?;
-        let nym_nodes = self
-            .chain_anchor
-            .query_client()
-            .get_all_nymnodes_detailed_at_height(height)
+        let mixnet = MixnetContractData::read(self.chain_anchor.query_client(), height)
             .await
-            .context("failed to read the node details")?;
-        // the details' identity keys are the map every contract is verified with
-        let node_identities = node_identities(nym_nodes.iter().map(|node| &node.bond_information));
+            .context("failed to read the mixnet contract")?;
+        let node_identities = mixnet.node_identities();
+        let node_families =
+            NodeFamiliesData::read(self.chain_anchor.query_client(), height, &mixnet.nym_nodes)
+                .await
+                .context("failed to read the node families contract")?;
 
         let (directory, performance, geolocation) = tokio::join!(
             self.verified_directory(height, node_identities.clone()),
@@ -220,6 +223,8 @@ impl AttestedSnapshotsProducer {
                 .into(),
             performance_auxiliary,
             geolocation: self.attest(&self.geolocation, &app_hash, geolocation),
+            mixnet,
+            node_families,
         })
     }
 

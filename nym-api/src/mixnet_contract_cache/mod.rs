@@ -10,6 +10,7 @@ use nym_validator_client::nyxd::error::NyxdError;
 use std::path::PathBuf;
 
 pub(crate) mod cache;
+pub(crate) mod data;
 pub(crate) mod handlers;
 
 pub(crate) fn build_refresher(

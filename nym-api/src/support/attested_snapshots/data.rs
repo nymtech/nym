@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet_contract_cache::data::MixnetContractData;
+use crate::node_families::data::NodeFamiliesData;
 use crate::node_performance::attestation::auxiliary::PerformanceAuxiliary;
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contract_attestation::{DirectoryEntryRecord, SignedDigestSnapshot};
@@ -129,8 +131,8 @@ impl PerformanceSnapshot {
     }
 }
 
-/// Every attested contract's snapshot at one cadence height, retained together: a height is
-/// held for all of them or for none.
+/// Every attested contract's snapshot at one cadence height and the unproven reads taken beside
+/// them, retained together: a height is held for all of them or for none.
 #[derive(Serialize, Deserialize)]
 pub(crate) struct RetainedHeight {
     pub(crate) directory: AttestedSnapshot<DirectoryEntryRecord>,
@@ -142,6 +144,13 @@ pub(crate) struct RetainedHeight {
     pub(crate) performance_auxiliary: PerformanceAuxiliary,
 
     pub(crate) geolocation: AttestedSnapshot<GeolocationRecord>,
+
+    /// Read at the same height, unproven, and never signed or served on the attestation routes.
+    pub(crate) mixnet: MixnetContractData,
+
+    /// Read at the same height, joined with `mixnet`'s node details, unproven, and never signed
+    /// or served on the attestation routes.
+    pub(crate) node_families: NodeFamiliesData,
 }
 
 impl RetainedHeight {
@@ -212,6 +221,7 @@ impl AttestedSnapshotsCacheData {
 #[cfg(test)]
 pub(crate) mod test_helpers {
     use super::*;
+    use crate::mixnet_contract_cache::data::test_helpers::populated_mixnet_data;
     use crate::node_performance::attestation::test_helpers::{block_time, weights};
     use nym_contract_attestation::source::mock::mock_digest_snapshot;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
@@ -238,6 +248,8 @@ pub(crate) mod test_helpers {
                 BTreeMap::new(),
             ),
             geolocation: snapshot(height, Vec::new(), BTreeMap::new()),
+            mixnet: populated_mixnet_data(),
+            node_families: NodeFamiliesData::default(),
         }
     }
 }
@@ -246,6 +258,8 @@ pub(crate) mod test_helpers {
 mod tests {
     use super::test_helpers::{empty_retained_height, snapshot};
     use super::*;
+    use crate::mixnet_contract_cache::data::test_helpers::populated_mixnet_data;
+    use crate::node_families::data::test_helpers::populated_families_data;
     use crate::node_performance::attestation::test_helpers::{block_time, committed};
     use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
     use cosmwasm_std::{Addr, Binary};
@@ -333,6 +347,8 @@ mod tests {
             .into(),
             performance_auxiliary: PerformanceAuxiliary::populated_for_tests(block_time(height)),
             geolocation: snapshot(height, geolocation, identities),
+            mixnet: populated_mixnet_data(),
+            node_families: populated_families_data(),
         }
     }
 
@@ -503,6 +519,35 @@ mod tests {
         assert_eq!(
             entry.geolocation.node_identities(),
             expected.geolocation.node_identities()
+        );
+        assert_eq!(entry.mixnet.nym_nodes, expected.mixnet.nym_nodes);
+        assert_eq!(
+            entry.mixnet.rewarded_set.layer1,
+            expected.mixnet.rewarded_set.layer1
+        );
+        assert_eq!(
+            entry.mixnet.config_score_data.nym_node_version_history,
+            expected.mixnet.config_score_data.nym_node_version_history
+        );
+        assert_eq!(
+            entry.mixnet.current_interval,
+            expected.mixnet.current_interval
+        );
+        assert_eq!(
+            entry.node_families.family_by_member,
+            expected.node_families.family_by_member
+        );
+        let family = &entry.node_families.families[&1];
+        let expected_family = &expected.node_families.families[&1];
+        assert_eq!(family.average_node_age, expected_family.average_node_age);
+        assert_eq!(family.total_stake, expected_family.total_stake);
+        assert_eq!(
+            family.members[0].bonding_height,
+            expected_family.members[0].bonding_height
+        );
+        assert_eq!(
+            family.pending_invitations[0].node_id,
+            expected_family.pending_invitations[0].node_id
         );
         Ok(())
     }

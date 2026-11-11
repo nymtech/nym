@@ -45,6 +45,8 @@ use nym_lp_gateway_client::LpGatewayControlClient;
 use nym_lp_gateway_client::NestedLpSession;
 use rand::rngs::SysRng;
 use rand::{CryptoRng, Rng, SeedableRng};
+#[cfg(unix)]
+use std::os::fd::RawFd;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
@@ -60,6 +62,8 @@ pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
     pub(crate) bandwidth_provider: Box<dyn BandwidthTicketProvider>,
     pub(crate) cancel_token: CancellationToken,
+    #[cfg(unix)]
+    pub(crate) connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
 }
 
 impl LpBasedRegistrationClient {
@@ -121,6 +125,8 @@ impl LpBasedRegistrationClient {
             entry_lp_protocol,
             self.config.lp_registration_config,
         );
+        #[cfg(unix)]
+        entry_client.set_connection_fd_callback(self.connection_fd_callback.clone());
 
         // Perform handshake with entry gateway (outer session now established)
         entry_client.perform_handshake().await.map_err(|source| {

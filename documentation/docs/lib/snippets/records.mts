@@ -418,7 +418,7 @@ export async function buildAll(repo: Repo): Promise<AllRecords> {
   const warnings = [...built.warnings, ...model.warnings.map((w) => `threat model: ${w}`)];
   const all = [...built.prose, ...requirements.records, ...built.diagram, ...built.code, ...model.records];
   const authored = loadEdges(repo);
-  // The code links of a requirement with a Tracey id are its markers, which Tracey reads (add-spec-trace-gate, T1).
+  // For a requirement with a Tracey id, Tracey reads the code links from the markers (add-spec-trace-gate, T1).
   const traced = new Set(requirements.records.filter((r) => r.meta.tracey).map((r) => r.id));
   for (const e of authored) {
     if (e.rel === 'realises' && typeof e.from === 'string' && e.from.includes('#') && typeof e.to === 'string' && traced.has(e.to)) {

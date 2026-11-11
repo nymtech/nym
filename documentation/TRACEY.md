@@ -1,6 +1,6 @@
 # Tracey: links from specs to code
 
-Some OpenSpec requirements say what the mixnet's core code promises, for example the Sphinx packet format, client cover traffic and the delay that a mix node adds to each packet. Comments in the code link each requirement to the code that keeps it and to the test that checks it. [Tracey](https://github.com/bearcove/tracey) reads those comments and reports which requirements have code and which have a test. This page explains how the pieces relate and how to run the checks.
+Some OpenSpec requirements say what the mixnet's core code promises, for example the Sphinx packet format, client cover traffic and the delay that a mix node adds to each packet. Comments in the code link each requirement to the code that keeps it and to the test that checks it. [Tracey](https://github.com/bearcove/tracey) reads those comments and reports which requirements have code and which have a test.
 
 ## What you can ask
 
@@ -50,14 +50,14 @@ A requirement in a spec file has a Tracey id on the line below its heading. A co
 | A requirement, in a spec file | `r[sphinx.size-classes]` on its own line, above the requirement text | Defines the requirement. A version suffix (`r[sphinx.size-classes+2]`) marks a change to its text |
 | A reference, in a code comment | `// r[impl sphinx.size-classes]` | This code implements the requirement |
 | | `// r[verify sphinx.size-classes]` | This test checks the requirement |
-| | `// r[related sphinx.replay-drop]` | This code is related, without implementing or checking it |
+| | `// r[related sphinx.replay-drop]` | This code is related, but does not implement or check it |
 | The config | `.config/tracey/config.styx` | Which files hold specs, and which hold code |
 
-A marker sits above the code it names, so it moves with the code when the code moves or is renamed. A marker shows where the code is. It does not show what the code does: only a `verify` test that fails when the behaviour changes guards the behaviour.
+A marker sits above the code it names, so it moves with the code when you move or rename the code. A marker shows where the code is. It does not show what the code does: only a `verify` test that fails when the behaviour changes guards the behaviour.
 
 ## How to run it
 
-1. Install the Tracey version that `TRACEY_VERSION` in `.github/workflows/ci-spec-trace.yml` names, from the [release page](https://github.com/bearcove/tracey/releases): download `tracey-x86_64-unknown-linux-gnu.tar.xz`, check it against `TRACEY_SHA256` in the same workflow with `echo "<TRACEY_SHA256>  tracey-x86_64-unknown-linux-gnu.tar.xz" | sha256sum -c -`, and put the binary on your `PATH`.
+1. Install the Tracey version that `TRACEY_VERSION` in `.github/workflows/ci-spec-trace.yml` names. Download `tracey-x86_64-unknown-linux-gnu.tar.xz` from the [release page](https://github.com/bearcove/tracey/releases). Check it against `TRACEY_SHA256` in the same workflow with `echo "<TRACEY_SHA256>  tracey-x86_64-unknown-linux-gnu.tar.xz" | sha256sum -c -`. Put the binary on your `PATH`.
 2. From the repository root, run the commands in "What you can ask". For an id that two specs define, Tracey prints `CONFIG ERROR` and exits 0, so read the output.
 3. Run `tracey web --open` for a dashboard of the specs with their coverage.
 4. Run `tools/internal/spec-trace-gaps.sh` to list each requirement with no code, no test or no `r[id]` line. It needs `jq`.
@@ -67,6 +67,6 @@ A marker sits above the code it names, so it moves with the code when the code m
 
 ## In CI
 
-The `ci-spec-trace` workflow runs on each pull request. It first plants three faults in its checkout: a marker with an unknown id, a requirement with no marker, and a requirement with no `r[id]` line. It checks that Tracey fails on the first and that the gaps script names the other two. Then it removes the planted files and runs `tracey kill`, because a running daemon does not see a new file at once. Then it runs `tracey query validate --deny warnings`, and also fails when the output holds `CONFIG ERROR`. Last, it runs `tools/internal/spec-trace-gaps.sh`, which fails on each requirement with no code, no test or no `r[id]` line, and lists them in the job summary. No requirement is exempt.
+The `ci-spec-trace` workflow runs on each pull request. It first plants three faults in its checkout: a marker with an unknown id, a requirement with no marker, and a requirement with no `r[id]` line. It checks that Tracey fails on the first and that the gaps script names the other two. Then it removes the planted files and runs `tracey kill`, because the daemon does not see a new file at once. Then it runs `tracey query validate --deny warnings`, and also fails when the output holds `CONFIG ERROR`. Last, it runs `tools/internal/spec-trace-gaps.sh`, which fails on each requirement with no code, no test or no `r[id]` line, and lists them in the job summary. No requirement is exempt.
 
 Tracey does not check that a marker has a code item below it.

@@ -490,7 +490,7 @@ mod tests {
         assert_eq!(HEADER_SIZE, 348);
         assert_eq!(forwarded_header.to_bytes().len(), HEADER_SIZE);
         assert_eq!(forwarded_bytes.len(), received_bytes.len());
-        // the group element is blinded before the packet is forwarded
+        // the hop blinds the group element before it forwards the packet
         assert_ne!(forwarded_bytes[..32], received_bytes[..32]);
     }
 

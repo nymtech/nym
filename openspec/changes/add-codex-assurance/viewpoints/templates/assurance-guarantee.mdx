@@ -1,4 +1,4 @@
-{/* Draft template for one property in the assurance view (add-codex-assurance A4). Placeholders in braces are record fields. Provisional. */}
+{/* Draft template for one property in the assurance view (add-codex-assurance A4). Placeholders in braces are record fields. The field names are provisional. */}
 
 ### {property.id}: {property.name} [#{property.id}]
 
@@ -11,4 +11,4 @@
 {for requirement in requirements}| <Snippet id="{requirement.id}" link /> | {requirement.level} | {requirement.status} | {requirement.warrant} | {requirement.code or "none"} | {requirement.canary or "none"} |
 {end}
 
-{if requirements.length == 0}No requirement realises this property. It is listed under open gaps.{end}
+{if requirements.length == 0}No requirement realises this property. The open gaps section lists it.{end}

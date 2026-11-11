@@ -116,7 +116,7 @@ mod tests {
             .forward_client_packet_without_delay(mix_packet())
             .unwrap();
 
-        let forwarded = receiver.try_recv().expect("the packet must be forwarded");
+        let forwarded = receiver.try_recv().expect("nothing reached the forwarder");
         assert!(forwarded.forward_delay_target.is_none());
     }
 }

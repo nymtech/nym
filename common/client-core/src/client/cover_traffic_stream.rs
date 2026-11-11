@@ -358,7 +358,7 @@ pub(crate) mod tests {
             (destination, plaintext)
         }
 
-        /// As `unwrap_all_hops`, and also returns the delay that each forward hop read.
+        /// Same as `unwrap_all_hops`, and also returns the delay that each forward hop reads.
         pub(crate) fn unwrap_all_hops_with_delays(
             &self,
             packet: NymPacket,
@@ -558,7 +558,7 @@ pub(crate) mod tests {
         mix_tx.try_send(Vec::new()).unwrap();
         let mut stream = loop_stream(&network, network.topology_accessor(), mix_tx);
 
-        // a send that waits for space would never finish, because nothing reads the channel
+        // nothing reads the channel, so a send that waits for space does not finish
         tokio::time::timeout(Duration::from_secs(5), stream.on_new_message())
             .await
             .expect("the loop cover stream waited for space in a full channel");

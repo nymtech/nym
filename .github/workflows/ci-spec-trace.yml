@@ -66,7 +66,7 @@ jobs:
           tracey kill
 
       - name: Spec trace gate
-        # Tracey 1.4.0 reports an id that two specs define as CONFIG ERROR, and exits 0.
+        # If two specs define the same id, Tracey 1.4.0 reports CONFIG ERROR and exits 0, so the grep fails the step.
         run: |
           tracey query validate --deny warnings > "$RUNNER_TEMP/gate.log" 2>&1 || { cat "$RUNNER_TEMP/gate.log"; exit 1; }
           cat "$RUNNER_TEMP/gate.log"

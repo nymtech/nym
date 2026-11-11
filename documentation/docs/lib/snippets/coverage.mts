@@ -2,7 +2,7 @@
 // threat-model entities it links to and the records that realise it. A consumer
 // that judges a statement needs to see where the graph is empty. For a requirement
 // with a Tracey id, Tracey gives the code and the tests from their markers
-// (add-spec-trace-gate, T1), so this report needs Tracey once a spec has ids.
+// (add-spec-trace-gate, T1), so this report needs Tracey when a spec has ids.
 //
 //   node lib/snippets/coverage.mts [--list]
 
@@ -28,7 +28,7 @@ type Markers = Map<string, { code: string[]; tests: string[] }>;
 
 interface Ref { file: string; line: number }
 
-/** The markers of one Tracey id. Tracey answers an id that its config does not hold with `{ "error": ... }`. */
+/** The markers of one Tracey id. If the Tracey config does not have the id, Tracey returns `{ "error": ... }`. */
 function traceyRule(root: string, id: string): { code: string[]; tests: string[] } {
   let out: string;
   try {

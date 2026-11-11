@@ -43,7 +43,7 @@ mod tests {
     #[test]
     fn delays_are_fresh_samples_with_the_configured_mean() {
         let mean = Duration::from_millis(15);
-        // no generator goes in, so two calls cannot repeat each other's samples
+        // the function takes no RNG argument, so a second call cannot give the same samples
         assert_ne!(
             generate_hop_delays(mean, 4)
                 .iter()
@@ -55,8 +55,8 @@ mod tests {
                 .collect::<Vec<_>>()
         );
 
-        // an exponential sample has a standard deviation equal to its mean, so the mean of
-        // 10,000 samples is within 5 % of 15 ms with a margin of 5 standard errors
+        // an exponential distribution has a standard deviation equal to its mean, so the standard
+        // error of the mean of 10,000 samples is 1 % of 15 ms. The 5 % limit is 5 standard errors.
         let samples = generate_hop_delays(mean, 10_000);
         let sample_mean = samples.iter().map(Delay::to_nanos).sum::<u64>() / 10_000;
         let expected = mean.as_nanos() as u64;

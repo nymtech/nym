@@ -668,7 +668,7 @@ mod tests {
             PacketSize::RegularPacket.size()
         );
 
-        // the egress has removed the SURB-ACK, so the ephemeral key and the fragment remain
+        // the egress removed the SURB-ACK, so the message holds the ephemeral key and the fragment
         let mut message = deliver(prepared.mix_packet).final_hop.message;
         assert_eq!(
             message.len(),
@@ -698,7 +698,7 @@ mod tests {
         let expected_hops: Vec<_> = [1, 2, 3, EGRESS].into_iter().map(mix_address).collect();
         assert_eq!(ack.hops, expected_hops);
         assert!(ack.final_hop.forward_ack.is_none());
-        // a 16-byte IV, then the 5-byte fragment id encrypted
+        // a 16-byte IV, then the encrypted 5-byte fragment id
         assert_eq!(ack.final_hop.message.len(), 16 + 5);
         assert_eq!(
             recover_identifier(&ack_key, &ack.final_hop.message),

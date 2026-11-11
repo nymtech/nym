@@ -2,7 +2,7 @@
 
 No OpenSpec spec defines the three mechanisms that give the mixnet its privacy properties: the Sphinx packet format, client cover traffic, and the delay that a mix node adds to each packet. `add-codex-snippets` found this gap and made it task 6e.5: "Write OpenSpec changes for the core mechanisms that no spec defines ... Start these before the rest of stage 5."
 
-The gap breaks the chain from code to the reason the code exists at its most important link. The coverage report of 2026-10-16 shows 0 of 492 requirements with a link to a threat-model entity, and 0 complete chains from code to the threat model. The coherence agent also has no commitment to check an idea such as "mix nodes should forward each packet at once" against.
+The gap breaks the chain from code to the reason the code exists at its most important link. The coverage report of 2026-10-16 shows 0 of 492 requirements with a link to a threat-model entity, and 0 complete chains from code to the threat model. Also, the coherence agent has no commitment that it can use to check an idea such as "mix nodes should forward each packet at once".
 
 ## What Changes
 
@@ -30,7 +30,7 @@ None.
 ## Impact
 
 - New spec files, marker comments and witness tests. No product behaviour changes.
-- After the owner reviews the edges and the change is archived, the coverage report can show 21 new requirements. 13 have a proposed `realises` or `mitigates` edge to the threat model, and 8 state that they serve none. Each of the 21 has an `impl` marker and a `verify` marker (2026-11-10). A trial run on 2026-11-04 applied the specs and the edges, built the records with no error, and ran the coverage report: 13 requirements link to the threat model, 20 have code that realises them, and 12 complete chains go from code to the threat model, from 0 today. That run used hand-written code edges, which the markers have since replaced. The full records check runs when the accepted edges move into `edges.json`.
+- After the owner reviews the edges and the change is archived, the coverage report can show 21 new requirements. 13 have a proposed `realises` or `mitigates` edge to the threat model, and 8 state that they serve none. Each of the 21 has an `impl` marker and a `verify` marker (2026-11-10). A trial run on 2026-11-04 applied the specs and the edges, built the records with no error, and ran the coverage report: 13 requirements link to the threat model, 20 have code that realises them, and 12 complete chains go from code to the threat model, from 0 today. That run used hand-written code edges. The markers replaced those edges after the run. The full records check runs when the accepted edges move into `edges.json`.
 - `add-codex-assurance` uses these requirements for its first statements with a witness and a canary. Each one has a witness test (see `design.md`), and each starts as `asserted` until a person promotes it.
 
 ## Non-Goals

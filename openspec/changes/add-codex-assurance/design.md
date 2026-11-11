@@ -4,13 +4,13 @@
 
 ### Where the assurance model comes from
 
-The assurance parts of the design say what a claim commits the project to, what backs it, and what happens when it is not backed. They come from six public sources. The design takes a part of each and copies none of them whole.
+The assurance parts of the design say what a claim commits the project to, what backs it, and what happens when nothing backs it. They come from six public sources. The design takes a part of each and copies none of them whole.
 
 | Source | What the design takes | What it leaves | Where it is used |
 |---|---|---|---|
 | dregg, `docs/ASSURANCE.md` ([emberian/dregg](https://github.com/emberian/dregg)) | One page that a reviewer reads to know what the system guarantees, under which assumptions, and what is still open. When the page and its checked source disagree, the checked source wins | The Lean proofs and the proof system behind each guarantee | `add-codex-assurance` A4: the assurance viewpoint |
-| dregg, `README-LLMs.md`, the architectural laws | Checks run on each change and fail loudly. An overclaim is corrected in the text and a closure starts at the same time. A spec must be able to be false. The deployed system must meet the hypotheses of its claims | The laws that concern circuits and proofs | `add-codex-assurance` A2 and A3. The `authority` rule of P9: the model governs a guarantee |
-| dregg, `GOAL-GREENS-THAT-MEAN-SOMETHING.md` | "A green only counts if it REDS when the thing it guards breaks." The ways a check passes without guarding anything. A canary for each check. A found gap goes to an owner at once, because a gap that is only logged is not acted on | The proof-engineering detail | `add-codex-assurance` A2 (canaries) and A3 (obligations) |
+| dregg, `README-LLMs.md`, the architectural laws | Checks run on each change, and each failure is visible. A person corrects an overclaim in the text and starts its closure at the same time. A spec must be able to be false. The deployed system must meet the hypotheses of its claims | The laws that concern circuits and proofs | `add-codex-assurance` A2 and A3. The `authority` rule of P9: the model governs a guarantee |
+| dregg, `GOAL-GREENS-THAT-MEAN-SOMETHING.md` | "A green only counts if it REDS when the thing it guards breaks." The ways a check passes without guarding anything. A canary for each check. The tools give a found gap to an owner at once, because nobody acts on a gap that is only in a log | The proof-engineering detail | `add-codex-assurance` A2 (canaries) and A3 (obligations) |
 | Mini, `docs/TRAFFIC-PRIVACY-PROFILE-P1.md` ([emberian/minidregg](https://github.com/emberian/minidregg)) | The form of a privacy specification: what each party sees, the conditions under which a protection is absent, explicit non-goals, and what is built against what is open | The cohort mix design itself | `add-mixnet-core-specs` `design.md` |
 | Cloudflare, ["How Cloudflare enforces engineering standards using AI"](https://blog.cloudflare.com/engineering-standards-enforcement/) | Normative statements with stable ids and an RFC 2119 level. A status that goes from approved (reported) to enforced (blocks a merge). Agents read statements before the full text | One statement for each SHOULD or MUST sentence: the design uses one for each requirement block | D15. `add-codex-assurance` A2: promotion needs a canary |
 | Assurance cases: Goal Structuring Notation and OMG [SACM](https://www.omg.org/spec/SACM/2.3/About-SACM) | A claim, the strategy that supports it, and the evidence at each leaf. The claim must say when it does not hold | The notation, and the certification process | The `realises` chain from code to requirement to property to goal. `add-codex-assurance` A1 (warrant) |
@@ -25,10 +25,10 @@ ISO/IEC/IEEE 42010 and ArchiMate also shape the assurance viewpoint, through the
 |---|---|---|
 | `checked` | A tool reads the content from the source, and the build fails when they disagree | A code excerpt cited by symbol. A requirement whose statement has a witness, a canary, and a date on which a mutation run saw the canary red (A2) |
 | `entailed` | A rule computes the content from model records | A matrix verdict computed by the rules (after A6) |
-| `asserted` | A person states it, and nothing verifies it | An OpenSpec requirement that lacks a witness, a canary, or a canary date. A matrix verdict typed by hand. A threat-model entity: the integrity check covers its ids, its links and the presence of its assessments, not its content |
+| `asserted` | A person states it, and nothing checks it | An OpenSpec requirement that lacks a witness, a canary, or a canary date. A matrix verdict typed by hand. A threat-model entity: the integrity check covers its ids, its links and the presence of its assessments, and does not cover its content |
 | `narrative` | Prose that claims no truth condition | Explanation prose |
 
-`authority` and `warrant` are two axes. A threat-model property is `normative` and can be `asserted`: the project commits to it, and nothing verifies it yet. A code record is `descriptive` and is the witness for a `checked` claim.
+`authority` and `warrant` are two axes. A threat-model property is `normative` and can be `asserted`: the project commits to it, and nothing checks it yet. A code record is `descriptive` and is the witness for a `checked` claim.
 
 **Measure:** the share of `normative` records for each warrant. **Changes the design:** none. This decision stores data.
 
@@ -43,9 +43,9 @@ A statement record gains two fields in `meta`:
 
 A `MUST` or `SHALL` statement becomes `enforced` only when it has a witness and a canary that a mutation run has turned red. The coverage report lists statements with no witness, and statements whose witness has no canary.
 
-The rule comes from dregg's `GOAL-GREENS-THAT-MEAN-SOMETHING.md`: "a green only counts if it REDS when the thing it guards breaks". That document lists ways a check passes without guarding anything: a check that never runs, a check that compares a value with itself, a tautology, a false hypothesis, a swallowed error, and a check about code the product does not run. A canary catches the first five. The sixth needs a person to confirm that the witness covers the code path that the product uses.
+The rule comes from dregg's `GOAL-GREENS-THAT-MEAN-SOMETHING.md`: "a green only counts if it REDS when the thing it guards breaks". That document lists the ways that a check can pass and guard nothing: a check that never runs, a check that compares a value with itself, a tautology, a false hypothesis, a swallowed error, and a check about code the product does not run. A canary catches the first five. For the sixth, a person must confirm that the witness covers the code path that the product uses.
 
-**Measure:** the share of `enforced` statements whose canary turned red in its last mutation run. Target: 100%. **Changes the design:** if more than one canary in five breaks on a refactor that changes no behaviour, the witness is too close to the text of the code. Then a canary must point at a test of behaviour, not at a syntax match.
+**Measure:** the share of `enforced` statements whose canary turned red in its last mutation run. Target: 100%. **Changes the design:** if more than one canary in five breaks on a refactor that changes no behaviour, the witness is too close to the text of the code. Then a canary must point at a test of behaviour in place of a syntax match.
 
 ### A3: An accepted contradiction becomes an obligation with an owner
 
@@ -81,7 +81,7 @@ The `assurance` viewpoint gives the Nym network the same page, made from records
 
 The draft is `viewpoints/assurance.json`, with its prompt in `viewpoints/prompts/assurance-summary.md`. The field names are provisional.
 
-**Measure:** the stage 7 measure of `add-codex-snippets`: the share of the page that levels 0 and 1 make. **Changes the design:** if levels 0 and 1 make less than half of the page, the records lack the edges or the conditions that the page needs. Then that content work comes before any second viewpoint. Today the guarantees section is empty, because 0 of 492 requirements link to a property. `add-mixnet-core-specs` proposes the first links: 2 requirements that realise property P1, and 11 that mitigate vector V2. The view shows the second kind in its own section, "Mitigations", because a guarantee section that follows only `realises` edges would hide them.
+**Measure:** the stage 7 measure of `add-codex-snippets`: the share of the page that levels 0 and 1 make. **Changes the design:** if levels 0 and 1 make less than half of the page, the records lack the edges or the conditions that the page needs. Then that content work comes before any second viewpoint. Today the guarantees section is empty, because 0 of 492 requirements link to a property. `add-mixnet-core-specs` proposes the first links: 2 requirements that realise property P1, and 11 that mitigate vector V2. The view shows the second kind in its own section, "Mitigations", because a guarantee section that follows only `realises` edges hides them.
 
 A4 proposes this viewpoint as the answer to P27 of `add-codex-snippets` (the first viewpoint, TBD(Max)), for the owner to confirm.
 
@@ -90,11 +90,11 @@ A4 proposes this viewpoint as the answer to P27 of `add-codex-snippets` (the fir
 A viewpoint lists its concerns as questions. For each concern, the viewpoint names the record kinds and facets that an answer needs. The report has two parts:
 
 1. **Deterministic.** For each concern, the generator states whether the selection is empty. An empty selection means the view cannot answer the concern.
-2. **Judged.** A person reads the view and marks each concern as answered, partly answered, or not answered. A model may propose the marks. The person decides.
+2. **Judged.** A person reads the view and marks each concern as answered, partly answered, or not answered. A model can propose the marks. The person decides.
 
 The reason: fidelity to the source is necessary and not sufficient. A view can be faithful and still leave its reader's question open. The concerns are the first written statement of what a reader needs.
 
-**Measure:** answered concerns for each view, from the judged part. **Changes the design:** if the deterministic part and the judged part disagree on more than one concern in four, the concerns are too broad to map to records. Then each concern is split until it names one kind of record.
+**Measure:** answered concerns for each view, from the judged part. **Changes the design:** if the deterministic part and the judged part disagree on more than one concern in four, the concerns are too broad to map to records. Then the owner of the viewpoint splits each concern until it names one kind of record.
 
 ### A6: The threat-model adapter takes its verdicts from the rules
 
@@ -119,8 +119,8 @@ The question: when the MCP server returns `authority` and `warrant` with each re
 
 | Risk | Answer |
 |---|---|
-| Canaries become a second copy that drifts | A canary is one sentence and a date. The mutation run checks it. A canary that the run cannot apply fails the run |
-| Obligations pile up | A3 states the result that moves them to the issue tracker |
+| Canaries become a second copy that goes out of date | A canary is one sentence and a date. The mutation run checks it. A canary that the run cannot apply fails the run |
+| The number of open obligations grows | A3 states the result that moves them to the issue tracker |
 | The assurance page looks complete while the graph is empty | Each section with no input states that the corpus has no evidence. The open gaps section lists the empty parts first |
 | A judged sufficiency mark is one person's opinion | The deterministic part runs first. The judged part records who marked it |
 

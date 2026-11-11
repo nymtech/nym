@@ -11,8 +11,8 @@ This change is task 6e.5 of `add-codex-snippets`. Owner: TBD(stage 5 owner).
 
 ## 2. Threat-model links
 
-- [ ] 2.1 The threat-model owner reviews each edge in `edges.proposed.json`, and each requirement listed as serving no entity
-- [ ] 2.2 Move the accepted edges into `documentation/docs/.nym-codex/edges.json` after the change is archived, so that the requirement ids exist. The `none` list has no place in that file's format (D4c). Task 6e.3 of `add-codex-snippets` decides where a stated none lives
+- [ ] 2.1 The threat-model owner reviews each edge in `edges.proposed.json`, and each requirement in its `none` list
+- [ ] 2.2 Move the accepted edges into `documentation/docs/.nym-codex/edges.json` after the archive of the change. The requirement ids exist only after the archive. The `none` list has no place in that file's format (D4c). Task 6e.3 of `add-codex-snippets` decides where a stated none lives
 - [ ] 2.3 Run the coverage report. Record the count of requirements with a threat-model link, and of complete chains
 
 ## 3. Findings
@@ -21,4 +21,4 @@ This change is task 6e.5 of `add-codex-snippets`. Owner: TBD(stage 5 owner).
 
 ## 4. Witnesses
 
-- [x] 4.1 Each requirement has a witness test. Done 2026-11-10: the gate of `add-spec-trace-gate` fails on a requirement with no `verify` marker, so no requirement is left without one.
+- [x] 4.1 Each requirement has a witness test. Done 2026-11-10. The gate of `add-spec-trace-gate` fails on a requirement with no `verify` marker.

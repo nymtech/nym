@@ -193,7 +193,7 @@ mod tests {
     async fn twenty_failed_sends_in_a_row_cancel_the_shutdown_token() {
         let network = TestNetwork::new();
         let (packet_forwarder, forwarding_rx) = mix_forwarding_channels();
-        // with the receiving end gone, each send to the gateway fails
+        // drop the receiving end, so each send to the gateway fails
         drop(forwarding_rx);
         let (router_tx, _router_rx) = oneshot::channel();
         let gateway = LocalGateway::new(network.address.gateway(), packet_forwarder, router_tx);
@@ -217,7 +217,7 @@ mod tests {
                 MixTrafficEvent::FailedSendingSphinx
             ))
         ));
-        // the controller stopped at the 20th failure, so the 21st packet is still queued
+        // the controller stops at the 20th failure, so the 21st packet stays in the queue
         assert!(controller.mix_rx.try_recv().is_ok());
         assert!(controller.mix_rx.try_recv().is_err());
     }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Lists the gaps of the spec trace (spec-traceability), as Markdown, and exits 1 when there is one:
+# Lists the gaps in the spec trace (spec-traceability) as Markdown, and exits 1 if it finds a gap:
 # - each requirement that Tracey knows with no impl marker or no verify marker;
-# - each requirement block with no r[id] line, in a spec that has r[id] lines. Tracey cannot see it.
+# - each requirement block with no r[id] line, in a spec that has r[id] lines. Tracey cannot see these blocks.
 # The CI canary runs this script on planted gaps, and the CI gate runs it on the tree.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"

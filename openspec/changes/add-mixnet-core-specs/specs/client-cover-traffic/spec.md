@@ -30,7 +30,7 @@ The main stream SHALL send one packet in each slot of a Poisson schedule. In eac
 #### Scenario: An idle client
 
 - **WHEN** no real message is queued at the time of a slot
-- **THEN** the main stream sends a cover packet in that slot, so the client keeps sending while it is idle
+- **THEN** the main stream sends a cover packet in that slot, so the client sends packets while it is idle
 
 #### Scenario: A queued message
 
@@ -89,7 +89,7 @@ These settings turn one or both streams off, or slow them, in code today:
 ### Requirement: The send rate can be lower than the configured rate
 
 r[cover.rate-can-drop]
-The main stream SHALL multiply its mean interval by a factor from `MIN_DELAY_MULTIPLIER` (1) to `MAX_DELAY_MULTIPLIER` (6), which the sending-delay controller raises when the channel to the gateway fills. When the network topology is not valid, the loop cover stream SHALL skip its packet, and the main stream SHALL skip a slot that would carry a cover packet. A slot that carries a real message is not skipped for this reason. The loop cover stream SHALL drop a packet with no error when the channel to the gateway is full.
+The main stream SHALL multiply its mean interval by a factor from `MIN_DELAY_MULTIPLIER` (1) to `MAX_DELAY_MULTIPLIER` (6), which the sending-delay controller raises when the channel to the gateway fills. When the network topology is not valid, the loop cover stream SHALL skip its packet, and the main stream SHALL skip a slot that would carry a cover packet. An invalid topology does not make the main stream skip a slot that carries a real message. The loop cover stream SHALL drop a packet with no error when the channel to the gateway is full.
 
 #### Scenario: Backpressure
 

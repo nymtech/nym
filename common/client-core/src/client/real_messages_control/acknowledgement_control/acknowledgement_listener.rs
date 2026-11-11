@@ -130,7 +130,7 @@ mod tests {
         listener.on_ack(ack_content).await;
         assert!(action_receiver.try_recv().is_err());
 
-        // an ack that failed to decrypt would also send no action, so check that it was read as cover
+        // an ack that fails to decrypt also sends no action, so check the stats for a cover ack
         assert!(matches!(
             stats_rx.try_recv(),
             Ok(ClientStatsEvents::PacketStatistics(

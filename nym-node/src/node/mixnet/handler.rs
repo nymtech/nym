@@ -1087,11 +1087,11 @@ pub(crate) mod tests {
 
         assert!(
             receiver.try_recv().is_ok(),
-            "the first copy must be forwarded"
+            "the node must forward the first copy"
         );
         assert!(
             receiver.try_recv().is_err(),
-            "the replayed copy must be dropped"
+            "the node must drop the replayed copy"
         );
         let ingress = &handler.shared.metrics.mixnet.ingress;
         assert_eq!(ingress.replayed_packets_received(), 1);
@@ -1111,7 +1111,7 @@ pub(crate) mod tests {
         assert!(receiver.try_recv().is_ok());
         assert!(
             receiver.try_recv().is_ok(),
-            "the replayed copy must be forwarded"
+            "the node must forward the replayed copy"
         );
         let ingress = &handler.shared.metrics.mixnet.ingress;
         assert_eq!(ingress.replayed_packets_received(), 0);
@@ -1128,7 +1128,7 @@ pub(crate) mod tests {
         assert!(receiver.try_recv().is_ok());
         assert!(
             receiver.try_recv().is_ok(),
-            "the replayed copy must be forwarded"
+            "the node must forward the replayed copy"
         );
         let ingress = &handler.shared.metrics.mixnet.ingress;
         assert_eq!(ingress.replayed_packets_received(), 0);
@@ -1144,7 +1144,7 @@ pub(crate) mod tests {
             .handle_received_nym_packet(packet_for(key, Duration::from_secs(60)))
             .await;
 
-        let forwarded = receiver.try_recv().expect("the packet must be forwarded");
+        let forwarded = receiver.try_recv().expect("nothing reached the forwarder");
         let target = forwarded
             .forward_delay_target
             .expect("a forward hop has a delay");
@@ -1173,7 +1173,7 @@ pub(crate) mod tests {
 
         let forwarded = receiver
             .try_recv()
-            .expect("a packet over the cap must be forwarded, not dropped");
+            .expect("the handler dropped a packet over the cap");
         assert_eq!(
             forwarded.forward_delay_target,
             Some(now + Duration::from_secs(10))
@@ -1195,7 +1195,7 @@ pub(crate) mod tests {
             PacketTrace::Off,
         );
 
-        let forwarded = receiver.try_recv().expect("the packet must be forwarded");
+        let forwarded = receiver.try_recv().expect("nothing reached the forwarder");
         assert_eq!(forwarded.forward_delay_target, Some(now + header_delay));
     }
 
@@ -1218,7 +1218,7 @@ pub(crate) mod tests {
         );
         assert!(
             receiver.try_recv().is_ok(),
-            "in mixnode mode the packet is forwarded"
+            "in mixnode mode, the node must forward the packet"
         );
 
         handler
@@ -1244,7 +1244,7 @@ pub(crate) mod tests {
             .shared
             .forward_ack_packet(Some(mix_packet()), PacketTrace::Off);
 
-        let forwarded = receiver.try_recv().expect("the ack must be forwarded");
+        let forwarded = receiver.try_recv().expect("no ack reached the forwarder");
         assert!(forwarded.forward_delay_target.is_none());
     }
 

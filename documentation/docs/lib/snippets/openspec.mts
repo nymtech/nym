@@ -30,7 +30,7 @@ export interface RequirementBlock {
   tracey?: { id: string; version: number | null };
 }
 
-/** A Tracey requirement marker on its own line: `r[id]` or `r[id+3]`, optionally in a blockquote. */
+/** A Tracey requirement marker on its own line: `r[id]` or `r[id+3]`, with or without a `>` blockquote prefix. */
 export const TRACEY_SPEC_MARKER = /^>?\s*r\[([a-z0-9][a-z0-9._-]*)(?:\+(\d+))?\]\s*$/;
 
 /** The strongest RFC 2119 keyword in a text, or null. */
@@ -54,7 +54,7 @@ export function requirementBlocks(text: string): RequirementBlock[] {
       return;
     }
     if (!current) return;
-    // The Tracey marker names the requirement; it is not part of its text.
+    // The Tracey marker names the requirement, so the parser keeps it out of the body.
     const marker = inFence ? null : line.match(TRACEY_SPEC_MARKER);
     if (marker?.[1]) current.tracey = { id: marker[1], version: marker[2] ? Number(marker[2]) : null };
     else current.lines.push(line);

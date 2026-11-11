@@ -61,7 +61,7 @@ The node trusts the delay in the header. It does not check a minimum delay, and 
 ### Requirement: Gateways do not delay packets
 
 r[delay.gateways-no-delay]
-The entry gateway SHALL forward each packet from its client with no delay. The egress SHALL forward the acknowledgement that it splits from a packet with no delay. So of the four Sphinx hops of a default route, only the three mixes hold a packet.
+The entry gateway SHALL forward each packet from its client with no delay. The egress SHALL forward the acknowledgement that it splits from a packet with no delay. Of the four Sphinx hops of a default route, only the three mixes hold a packet.
 
 #### Scenario: A packet from a client
 

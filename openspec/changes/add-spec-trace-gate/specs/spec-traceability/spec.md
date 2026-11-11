@@ -9,7 +9,7 @@ The links from code to a requirement in the scope SHALL come from Tracey markers
 - **WHEN** a commit renames a function that carries `// r[impl sphinx.ack-packet]` on the line above it
 - **THEN** `tracey query rule sphinx.ack-packet` and the coverage report give the marker at its new line
 
-#### Scenario: A hand-written code edge is rejected
+#### Scenario: The records check rejects a hand-written code edge
 
 - **WHEN** `.nym-codex/edges.json` has a `realises` edge from a code item to a requirement in the scope
 - **THEN** the records check fails and names the edge
@@ -70,12 +70,12 @@ The Tracey config SHALL list the specs `sphinx-packet-format`, `client-cover-tra
 
 Before the gate runs on the repository, the CI job SHALL add a marker with an unknown id to a code path in its own checkout, and a spec file with a requirement that no marker names and a requirement with no `r[id]` line. It SHALL then run the gate and the gaps check. The job SHALL fail unless both fail and name the planted id and the two planted requirements. The job SHALL then remove the files and stop the Tracey daemon, so that the gate reads the checkout again.
 
-#### Scenario: The gate stops catching unknown ids
+#### Scenario: The gate passes an unknown id
 
 - **WHEN** a change to the gate command or its config makes it pass a marker with an unknown id
 - **THEN** the canary step fails
 
-#### Scenario: The gaps check stops reading Tracey
+#### Scenario: The gaps check reads an empty list from Tracey
 
 - **WHEN** a change to Tracey's JSON output makes the gaps check read an empty list
 - **THEN** the canary step fails, because the check does not name `canary.gap`

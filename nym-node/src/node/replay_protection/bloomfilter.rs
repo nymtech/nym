@@ -458,7 +458,8 @@ mod tests {
 
     // r[related sphinx.replay-drop]
     // The batch check treats a tag whose rotation has no filter as not seen, although the comment
-    // in batch_check_and_set says such a tag is marked as replayed. This test pins the behaviour.
+    // in batch_check_and_set says that the function marks such a tag as replayed. This test
+    // records the current behaviour.
     #[test]
     fn a_tag_with_no_filter_for_its_rotation_is_reported_as_not_seen() {
         let filters = filters_for_rotation(7);

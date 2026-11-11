@@ -1300,6 +1300,6 @@ mod tests {
         shutdown_tracker.close_tracker();
         tokio::time::timeout(Duration::from_secs(5), shutdown_tracker.wait_for_tracker())
             .await
-            .expect("the loop cover stream did not stop after the shutdown token was cancelled");
+            .expect("the loop cover stream did not stop after the test cancelled the token");
     }
 }

@@ -1,6 +1,6 @@
 ## Context
 
-Task 6e.5 of `add-codex-snippets` asks for specs of the Sphinx packet format, client cover traffic, and the mix-node delay. Three reads of the source, on 2026-11-04 at `556a0eacc9`, produced the facts. Each SHALL in the specs comes from code that was read, and the numbers were checked against the source a second time. The `sphinx-packet` crate is a dependency, pinned to 0.8.0 in `Cargo.toml`. Facts from it name the crate, because its code is not in this repository.
+Task 6e.5 of `add-codex-snippets` asks for specs of the Sphinx packet format, client cover traffic, and the mix-node delay. Three reads of the source, on 2026-11-04 at `556a0eacc9`, produced the facts. Each SHALL in the specs comes from code that we read. We checked the numbers against the source a second time. The `sphinx-packet` crate is a dependency, pinned to 0.8.0 in `Cargo.toml`. Facts from it name the crate, because its code is not in this repository.
 
 The form of this document follows the traffic-privacy profile of dregg's Mini system (`emberian/minidregg`, `docs/TRAFFIC-PRIVACY-PROFILE-P1.md`): what each party sees, the conditions under which a protection is absent, explicit non-goals, and what is built against what is open. A spec says what the code does. This document says what that does not promise.
 
@@ -8,19 +8,19 @@ The form of this document follows the traffic-privacy profile of dregg's Mini sy
 
 ### M1: The specs describe the code, including its limits
 
-A requirement states what the code does today, with its conditions. Where a protection depends on a setting that an integrator can change, the requirement says so in its own text. A spec describes code, not prose: a comment or a README is a lead, and the code is the evidence.
+A requirement states what the code does today, with its conditions. Where a protection depends on a setting that an integrator can change, the requirement says so in its own text. A spec describes code. A comment or a README shows where to look, and the code is the evidence.
 
 ### M2: Threat-model links are proposals until the owner reviews them
 
-Stage 5 of `add-codex-snippets` says: "A model proposes, and the owner reviews." So the edges are in `edges.proposed.json`, not in `.nym-codex/edges.json`. Eight requirements state conditions or local behaviour and serve no threat-model entity. Each `mitigates` edge to V2 concerns packets on network links, against L3L and L3G. It does not concern the arrival times that L2 observes, because mixing does not hide those. No requirement links to P2. The proposed link for the replay requirement is `mitigates` V2, because a replay is an active tracing attack on links. The owner can choose P1 instead. The file lists them as `none`, because the coverage report must show a stated "none" and not an empty field.
+Stage 5 of `add-codex-snippets` says: "A model proposes, and the owner reviews." The edges are in `edges.proposed.json`, not in `.nym-codex/edges.json`. Eight requirements state conditions or local behaviour and serve no threat-model entity. The file lists them as `none`, because the coverage report must show a stated "none" and not an empty field. Each `mitigates` edge to V2 concerns packets on network links, against L3L and L3G. It does not concern the arrival times that L2 observes, because mixing does not hide those. No requirement links to P2. The proposed link for the replay requirement is `mitigates` V2, because a replay is an active tracing attack on links. The owner can choose P1 instead.
 
-### M3: Findings in the code are recorded, not fixed
+### M3: This change records findings in the code and does not fix them
 
-Five places where a comment and the code disagree, or where a setting has no effect, are in "Findings for the code owners". The specs describe the code. The owners decide which side is wrong.
+"Findings for the code owners" lists five places where a comment and the code disagree, or where a setting has no effect. The specs describe the code. The owners decide which side is wrong.
 
 ## What each party sees
 
-With the default configuration of a client, in mixnet mode.
+This table uses the default configuration of a client, in mixnet mode.
 
 | Party | Sees | Does not see |
 |---|---|---|
@@ -33,7 +33,7 @@ With the default configuration of a client, in mixnet mode.
 
 ## When a protection is absent
 
-These are the conditions in the code under which a property that the specs support does not hold. Each one is a fact in a requirement.
+These are the conditions in the code under which a property that the specs support does not hold. Each row that names a spec in the Where column is a fact in a requirement of that spec.
 
 | Condition | Effect | Where |
 |---|---|---|
@@ -46,11 +46,11 @@ These are the conditions in the code under which a property that the specs suppo
 | Acknowledgements | An acknowledgement is 386 bytes, not 2,413, so its size class shows that it is an acknowledgement | `sphinx-packet-format` |
 | Gateways | Neither gateway delays. Only the three mixes hold a packet | `mix-node-delay` |
 | The node trusts the header delay | A sender that wants no delay can set zero. A node does not enforce a minimum | `mix-node-delay` |
-| Replay protection | Off when `unsafe_disabled` is set. Bypassed for authorised network-monitor agents. A false-positive rate of 1e-5 by default. A tag is treated as not seen when the node holds a key but no filter for its rotation | `sphinx-packet-format` |
+| Replay protection | Off when `unsafe_disabled` is set. The node forwards a replayed packet from an authorised network-monitor agent. The default false-positive rate is 1e-5. The node treats a tag as not seen when it holds a key but no filter for the rotation of that key | `sphinx-packet-format` |
 | The replay filter is busy | A packet can wait up to 50 ms (`maximum_replay_detection_deferral`), or until 100 packets are pending, before its delay starts. 50 ms is more than three times the mean hop delay | `mix-node-delay` |
 | `unsafe_disable_noise` on a node | Node-to-node links do not use Noise | Not a requirement. `nym-node/src/cli/helpers.rs`, `nym-node/src/node/mod.rs` |
 | A SURB holds each hop's payload key seed | The party that holds the SURB can compute the reply payload as it looks after each hop | Not a requirement. Read from the `sphinx-packet` crate (`SURB::use_surb`) |
-| Single use of a SURB | No code enforces it. `ReplySurb::apply_surb` consumes the value in one process, but the bytes can be copied. A reused SURB gives the same replay tag at the first mix, so replay protection drops it, subject to the exceptions above. This last point is read from code, not tested | Not a requirement |
+| Single use of a SURB | No code enforces it. `ReplySurb::apply_surb` consumes the value in one process, but a party can copy the bytes. A reused SURB gives the same replay tag at the first mix, so replay protection drops it, subject to the exceptions above. We read this last point from the code and did not test it | Not a requirement |
 
 ## Non-goals
 
@@ -60,7 +60,7 @@ The specs do not claim:
 - a constant send rate, or any statistical property of the send times. No test checks the distribution.
 - that cover and real packets are the same under every setting.
 - that the MAC covers the payload, or that a node rejects an unknown Sphinx header version.
-- that links between mixes are always encrypted. Node-to-node TCP is upgraded to Noise, but `unsafe_disable_noise` turns that off, and the fallback to plain TCP was not checked.
+- that links between mixes are always encrypted. A node upgrades node-to-node TCP to Noise, but `unsafe_disable_noise` turns that off. We did not check the fallback to plain TCP.
 - that a node enforces a minimum delay, or drops a packet whose delay is too large.
 - that the hop count of a forward route is configurable. `surb_mix_hops` is in the configuration, but no code in `common/client-core` or `sdk` reads it.
 
@@ -84,13 +84,13 @@ On 2026-11-04, this change added tests for five requirements, each with a commen
 | Named settings remove or reduce the delay | `named_settings_set_the_delays` in `common/client-core/config-types/src/lib.rs` |
 | A node drops a packet whose replay tag it has seen | `a_seen_tag_is_reported_as_replayed` in `nym-node/src/node/replay_protection/bloomfilter.rs`. A second test, `a_tag_with_no_filter_for_its_rotation_is_reported_as_not_seen`, pins the behaviour of finding 1 |
 
-A test for the three-mix route and for the cover slots of the main stream is optional. The route is three plain lines in `random_mix_path_nodes`, and a cited excerpt shows a change in the PR comment. The cover slot needs an async harness, which is a choice for the owners of `client-core`.
+A test for the three-mix route and for the cover slots of the main stream is optional. The route is three plain lines in `random_mix_path_nodes`, and the PR comment cites those lines, so a change to them shows there. The cover slot needs an async harness, which is a choice for the owners of `client-core`.
 
 ### What the tests prove, and what they do not
 
-All the tests passed on 2026-11-04. Each one goes red when the fact it guards changes:
+All the tests passed on 2026-11-04. Each one fails when the fact it guards changes:
 
-| Test | Goes red if a change... |
+| Test | Fails if a change... |
 |---|---|
 | `packet_size_totals`, `outfox_size_tags_are_rejected` | changes a size constant, the Sphinx header layout (for example in a `sphinx-packet` upgrade), the default size, or accepts the Outfox tags |
 | `traffic_defaults` | changes a default delay, or turns a cover stream off by default |
@@ -106,9 +106,9 @@ The tests do not prove:
 - what a mix does with a packet on the wire: the hold for its delay, the 10 s cap, the MAC check. The replay test covers the filter, not the packet handler.
 - that the network is private. They pin facts that the privacy argument depends on. The argument itself is in the threat model.
 
-Five of the 21 requirements had a witness on 2026-11-04. On 2026-11-10, `add-spec-trace-gate` made the CI job fail on each requirement with no `verify` marker, and witness tests were added for the other 16. `tracey query rule <id>` lists the tests of each one. Each requirement can now become `enforced` under `add-codex-assurance` (A2) when a person promotes it and adds a canary date. The limits in "What the tests prove, and what they do not" still apply to the five tests above. The new tests have the same kind of limit: for example, the cover tests do not check the loop stream's timing, because tokio's paused clock is not available to `nym-client-core`, and the `delay.only-hop-reads` test checks that no delay is in clear on a link, which does not prove that the encryption keeps it secret.
+Five of the 21 requirements had a witness on 2026-11-04. On 2026-11-10, `add-spec-trace-gate` made the CI job fail on each requirement with no `verify` marker, and this change added witness tests for the other 16. `tracey query rule <id>` lists the tests of each one. Each requirement can now become `enforced` under `add-codex-assurance` (A2) when a person promotes it and adds a canary date. The limits in "What the tests prove, and what they do not" still apply to the five tests above. The new tests have the same kind of limit. For example, the cover tests do not check the loop stream's timing, because tokio's paused clock is not available to `nym-client-core`. The `delay.only-hop-reads` test checks that no delay is in clear on a link, which does not prove that the encryption keeps it secret.
 
-So each requirement starts as `asserted` under `add-codex-assurance` (A1). That change asks for a witness and a canary before a statement becomes `enforced` (A2). These specs are its first input.
+Each requirement starts as `asserted` under `add-codex-assurance` (A1). That change asks for a witness and a canary before a statement becomes `enforced` (A2). These specs are its first input.
 
 ## Tracey references
 
@@ -120,7 +120,7 @@ Each requirement has a Tracey id (`r[...]` above its text). The code carries `//
 2. **`use_legacy_sphinx_format`.** The client configuration has this field (default `true`), but no packet builder in this tree reads it.
 3. **`surb_mix_hops`.** The configuration has this field, but no code in `common/client-core` or `sdk` reads it.
 4. **The comment on the delay cap.** The comment near `DEFAULT_MAXIMUM_FORWARD_PACKET_DELAY` in `nym-node/src/config/mod.rs` gives a mean delay of 50 ms. The client default is 15 ms (`DEFAULT_AVERAGE_PACKET_DELAY`).
-5. **Hop delays and the injected generator.** `generate_delays` in the `sphinx-packet` crate draws from `rand::rng()`, not from the generator that the preparer receives. `deterministic_route_selection` therefore fixes the route and not the delays. This can be intended. The spec records it.
+5. **Hop delays and the injected generator.** `generate_delays` in the `sphinx-packet` crate draws from `rand::rng()`, not from the generator that the preparer receives. `deterministic_route_selection` therefore fixes the route and not the delays. The owners can intend this behaviour. The spec records it.
 
 ## Risks
 

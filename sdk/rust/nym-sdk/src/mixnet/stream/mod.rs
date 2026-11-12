@@ -455,6 +455,14 @@ impl StreamMap {
         if receiver_dropped {
             inner.streams.remove(stream_id);
         } else {
+            // Frames still buffered after draining means `next_seq` is
+            // missing: time that gap from now, unless it is already timed.
+            if entry.gap_timeout.is_some()
+                && !entry.pending.is_empty()
+                && !matches!(entry.gap_since, Some((seq, _)) if seq == entry.next_seq)
+            {
+                entry.gap_since = Some((entry.next_seq, Instant::now()));
+            }
             // Data proves the peer accepted the stream and is alive, so it
             // resolves wait_established and resumes keepalive on an armed
             // stream that had given up. It does not arm: data proves
@@ -1317,6 +1325,32 @@ mod tests {
 
         // The lost frame turning up late is dropped, not delivered out of order.
         map.send_to_stream(&id, 1, vec![1]).await;
+        assert!(rx.try_recv().is_err());
+    }
+
+    // A gap exposed by draining is timed from when it was exposed, not from
+    // the next arrival.
+    #[tokio::test(start_paused = true)]
+    async fn gap_exposed_by_draining_is_timed_from_exposure() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+        let mut rx = register(&map, id).await;
+        map.set_gap_timeout(&id, Some(GAP_TIMEOUT)).await;
+
+        map.send_to_stream(&id, 2, vec![2]).await;
+        tokio::time::advance(Duration::from_millis(500)).await;
+        // seq 0 fills the first gap; draining exposes missing seq 1.
+        map.send_to_stream(&id, 0, vec![0]).await;
+        tokio::time::advance(Duration::from_millis(1600)).await;
+        map.send_to_stream(&id, 3, vec![3]).await;
+
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![0]);
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            Err(StreamFailure::DataLoss)
+        ));
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![2]);
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![3]);
         assert!(rx.try_recv().is_err());
     }
 

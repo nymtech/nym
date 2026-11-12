@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn credential_roundtrip() {
         let with_epoch = CredentialSpendingRequest {
-            data: spend_one_ticket(OffsetDateTime::now_utc()),
+            data: spend_one_ticket(now_away_from_midnight()),
         };
 
         let bytes = with_epoch.to_bytes();
@@ -86,7 +86,7 @@ mod tests {
     // passes, not the local clock: gateways compare it with their own date.
     #[test]
     fn spend_date_follows_spend_time() {
-        let tomorrow = OffsetDateTime::now_utc() + Duration::days(1);
+        let tomorrow = now_away_from_midnight() + Duration::days(1);
 
         assert_eq!(spend_one_ticket(tomorrow).spend_date, tomorrow.date());
     }
@@ -94,13 +94,26 @@ mod tests {
     // A spend time given with a local offset still yields its UTC date.
     #[test]
     fn spend_date_is_the_utc_date_of_spend_time() {
-        let now = OffsetDateTime::now_utc();
+        let now = now_away_from_midnight();
         // Pick an offset whose local date always differs from the UTC date.
         let offset_hours = if now.hour() >= 12 { 14 } else { -12 };
         let local = now.to_offset(UtcOffset::from_hms(offset_hours, 0, 0).unwrap());
         assert_ne!(local.date(), now.date());
 
         assert_eq!(spend_one_ticket(local).spend_date, now.date());
+    }
+
+    // The fixture dates the ticketbook from the clock when it runs; a spend
+    // time taken on the other side of UTC midnight would fall outside the
+    // book's validity, so stay clear of the day change.
+    fn now_away_from_midnight() -> OffsetDateTime {
+        loop {
+            let now = OffsetDateTime::now_utc();
+            if now.time() < time::Time::from_hms(23, 59, 50).unwrap() {
+                return now;
+            }
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
     }
 
     fn spend_one_ticket(spend_time: OffsetDateTime) -> CredentialSpendingData {

@@ -912,9 +912,9 @@ where
         let lp_client = lp_builder.start().await?;
         self.state = BuilderState::Registered {};
 
-        let nym_address = lp_client.address;
-        let identity_keys = lp_client.identity_keys.clone();
-        let shutdown_handle = lp_client.shutdown_handle.clone();
+        let nym_address = lp_client.address();
+        let identity_keys = lp_client.identity_keys().clone();
+        let shutdown_handle = lp_client.shutdown_handle().clone();
 
         let mut client = MixnetClient::new(
             nym_address,

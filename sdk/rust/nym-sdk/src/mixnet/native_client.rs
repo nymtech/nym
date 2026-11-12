@@ -232,7 +232,7 @@ impl MixnetClient {
             MixnetClientInner::Legacy(legacy) => {
                 MessageInput::Legacy(legacy.client_input.input_sender.clone())
             }
-            MixnetClientInner::Lp(lp) => MessageInput::Lp(lp.client_input.clone()),
+            MixnetClientInner::Lp(lp) => MessageInput::Lp(lp.client_input().clone()),
         }
     }
 

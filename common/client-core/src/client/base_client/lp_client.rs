@@ -75,9 +75,9 @@ impl LpClientInput {
 }
 
 pub struct LpBaseClient {
-    pub address: Recipient,
-    pub identity_keys: Arc<ed25519::KeyPair>,
-    pub client_input: LpClientInput,
+    address: Recipient,
+    identity_keys: Arc<ed25519::KeyPair>,
+    client_input: LpClientInput,
 
     /// The messages this client receives, one per item, waiting to be read through this client's
     /// [`Stream`] impl.
@@ -88,9 +88,28 @@ pub struct LpBaseClient {
 
     /// Nothing on the LP path spends bandwidth yet; this keeps the controller reachable for
     /// whatever will.
-    pub bandwidth_provider: Box<dyn BandwidthTicketProvider>,
+    #[expect(dead_code)]
+    bandwidth_provider: Box<dyn BandwidthTicketProvider>,
 
-    pub shutdown_handle: ShutdownTracker,
+    shutdown_handle: ShutdownTracker,
+}
+
+impl LpBaseClient {
+    pub fn address(&self) -> Recipient {
+        self.address
+    }
+
+    pub fn identity_keys(&self) -> &Arc<ed25519::KeyPair> {
+        &self.identity_keys
+    }
+
+    pub fn client_input(&self) -> &LpClientInput {
+        &self.client_input
+    }
+
+    pub fn shutdown_handle(&self) -> &ShutdownTracker {
+        &self.shutdown_handle
+    }
 }
 
 /// The messages this client receives, one per item.
@@ -344,10 +363,7 @@ where
         )
         .await?;
 
-        let gateway = match self.gateway {
-            Some(gateway) => gateway,
-            None => random_gateway(&topology_accessor)?,
-        };
+        let gateway = choose_gateway(&topology_accessor, self.gateway)?;
         let self_address = Recipient::new(
             *identity_keys.public_key(),
             *encryption_keys.public_key(),
@@ -384,16 +400,25 @@ where
     }
 }
 
-/// Any gateway the LP topology currently offers.
-fn random_gateway(topology_accessor: &LpTopologyAccessor) -> Result<NodeIdentity, ClientCoreError> {
+/// The `requested` gateway if the LP topology offers it as one, or any gateway it offers if none
+/// was requested.
+fn choose_gateway(
+    topology_accessor: &LpTopologyAccessor,
+    requested: Option<NodeIdentity>,
+) -> Result<NodeIdentity, ClientCoreError> {
     let route_provider = topology_accessor
         .current_route_provider()
         .ok_or(ClientCoreError::NoGatewaysOnNetwork)?;
+    let mut gateways = route_provider.topology.gateways();
 
-    route_provider
-        .topology
-        .gateways()
-        .choose(&mut rand::rng())
-        .map(|gateway| gateway.identity_key)
-        .ok_or(ClientCoreError::NoGatewaysOnNetwork)
+    match requested {
+        Some(requested) => gateways
+            .find(|gateway| gateway.identity_key == requested)
+            .map(|gateway| gateway.identity_key)
+            .ok_or_else(|| ClientCoreError::NoGatewayWithId(requested.to_base58_string())),
+        None => gateways
+            .choose(&mut rand::rng())
+            .map(|gateway| gateway.identity_key)
+            .ok_or(ClientCoreError::NoGatewaysOnNetwork),
+    }
 }

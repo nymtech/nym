@@ -177,11 +177,16 @@ async fn handle_load_failure(
     Ok(())
 }
 
+/// Sets up the gateway registrations database.
+///
+/// With `db_key`, the database is encrypted with SQLCipher using the raw 256-bit key, and an
+/// existing plaintext database is encrypted in place first.
 pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
     db_path: P,
+    db_key: Option<&nym_sqlcipher::Key>,
 ) -> Result<OnDiskGatewaysDetails, ClientCoreError> {
     trace!("setting up gateways details storage");
-    OnDiskGatewaysDetails::init(db_path)
+    OnDiskGatewaysDetails::init(db_path, db_key)
         .await
         .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
             source: Box::new(source),

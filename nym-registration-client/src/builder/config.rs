@@ -37,6 +37,11 @@ pub struct BuilderConfig {
     pub entry_node: NymNodeWithKeys,
     pub exit_node: NymNodeWithKeys,
     pub data_path: PathBuf,
+    /// Raw SQLCipher key encrypting the mixnet client databases in `data_path`: credentials,
+    /// reply SURBs and gateway registrations. Plaintext databases get encrypted on first open
+    /// with it. SQLCipher has to be linked in place of SQLite.
+    #[builder(default)]
+    pub database_key: Option<nym_sqlcipher::DatabaseKey>,
     pub mode: RegistrationMode,
     pub bandwidth_request_sender: BandwidthControllerRequestSender,
     /// Clock skew to apply to the system clock when timestamping bandwidth credentials spent
@@ -116,7 +121,8 @@ impl BuilderConfig {
         );
 
         let storage_paths = StoragePaths::new_from_dir(&self.data_path)
-            .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
+            .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?
+            .with_database_key(self.database_key.as_ref().map(|key| *key.as_bytes()));
 
         let mixnet_client_storage = storage_paths
             .initialise_persistent_storage(&self.mixnet_client_debug_config())

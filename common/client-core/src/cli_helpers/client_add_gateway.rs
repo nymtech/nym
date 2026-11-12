@@ -78,7 +78,7 @@ where
     let paths = config.common_paths();
 
     let key_store = OnDiskKeys::with_passphrase(paths.keys.clone(), key_passphrase);
-    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations, None).await?;
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = common_args.gateway_id;

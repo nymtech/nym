@@ -52,8 +52,8 @@ pub struct StoragePaths {
     /// Passphrase protecting the private keys; plaintext keys get encrypted on first load with it.
     key_passphrase: Option<Passphrase>,
 
-    /// Raw SQLCipher key encrypting the credential and reply SURB databases; plaintext databases
-    /// get encrypted on first open with it.
+    /// Raw SQLCipher key encrypting the credential, reply SURB and gateway registration databases;
+    /// plaintext databases get encrypted on first open with it.
     database_key: Option<nym_sqlcipher::DatabaseKey>,
 }
 
@@ -95,9 +95,10 @@ impl StoragePaths {
         self
     }
 
-    /// Encrypts the credential and reply SURB databases with SQLCipher, using the raw 256-bit
-    /// `key` as is, without passphrase key derivation. Databases still in plaintext are encrypted
-    /// the first time they are opened. The same key must be provided on every run.
+    /// Encrypts the credential, reply SURB and gateway registration databases with SQLCipher,
+    /// using the raw 256-bit `key` as is, without passphrase key derivation. Databases still in
+    /// plaintext are encrypted the first time they are opened. The same key must be provided on
+    /// every run.
     ///
     /// SQLCipher has to be linked in place of SQLite, e.g. with the `sqlcipher` feature.
     /// Otherwise opening the databases fails, without creating or changing them.
@@ -174,8 +175,13 @@ impl StoragePaths {
         OnDiskKeys::with_passphrase(self.client_keys_paths(), self.key_passphrase.clone())
     }
 
+    /// Instantiates gateway registrations storage, encrypted if a database key is set.
     pub async fn on_disk_gateway_details_storage(&self) -> Result<OnDiskGatewaysDetails, Error> {
-        Ok(non_wasm_helpers::setup_fs_gateways_storage(&self.gateway_registrations).await?)
+        Ok(non_wasm_helpers::setup_fs_gateways_storage(
+            &self.gateway_registrations,
+            self.database_key(),
+        )
+        .await?)
     }
 
     pub fn credential_database_paths(&self) -> Vec<PathBuf> {

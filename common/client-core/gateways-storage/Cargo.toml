@@ -32,6 +32,10 @@ workspace = true
 features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"]
 optional = true
 
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-sqlcipher]
+workspace = true
+optional = true
+
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
@@ -43,7 +47,7 @@ sqlx = { workspace = true, features = [
 ] }
 
 [features]
-fs-gateways-storage = ["sqlx"]
+fs-gateways-storage = ["sqlx", "dep:nym-sqlcipher"]
 
 [lints]
 workspace = true

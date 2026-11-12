@@ -164,7 +164,7 @@ impl OnDiskPersistent {
             nym_credential_storage::initialise_persistent_storage(paths.credentials_database).await;
 
         let gateway_details_store =
-            non_wasm_helpers::setup_fs_gateways_storage(paths.gateway_registrations).await?;
+            non_wasm_helpers::setup_fs_gateways_storage(paths.gateway_registrations, None).await?;
 
         Ok(OnDiskPersistent {
             key_store,

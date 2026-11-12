@@ -29,7 +29,7 @@ where
     let config = C::try_load_current_config(id).await?;
     let paths = config.common_paths();
 
-    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations, None).await?;
 
     set_active_gateway(&details_store, &common_args.gateway_id.to_base58_string()).await?;
 

@@ -43,7 +43,7 @@ where
     let config = C::try_load_current_config(id).await?;
     let paths = config.common_paths();
 
-    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations, None).await?;
 
     let active_gateway = get_active_gateway_identity(&details_store).await?;
 

@@ -163,7 +163,7 @@ where
     );
 
     let key_store = OnDiskKeys::with_passphrase(paths.keys.clone(), key_passphrase);
-    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations, None).await?;
 
     // `ThreadRng` is not `Send`, and this rng is passed into an async fn
     let mut rng = os_rng();

@@ -18,6 +18,7 @@ import HowItWorks from '@snippets/nym/developers/rust/mixnet/tutorial/how-it-wor
 import CompleteCode from '@snippets/nym/developers/rust/mixnet/tutorial/complete-code.mdx'
 import EphemeralClient from '@snippets/nym/developers/rust/mixnet/tutorial/ephemeral-client.mdx'
 import PersistentIdentity from '@snippets/nym/developers/rust/mixnet/tutorial/persistent-identity.mdx'
+import { RUST_MSRV } from 'components/versions'
 
 # Tutorial: Send Your First Private Message
 
@@ -136,7 +137,7 @@ Every message includes a `sender_tag`, an opaque `AnonymousSenderTag` that lets 
 RUST_LOG=info cargo run
 ```
 
-```
+```text
 Connected: 8gk4Y...@2xU4d...
 Sent, waiting for arrival...
 Received: hello from the mixnet!

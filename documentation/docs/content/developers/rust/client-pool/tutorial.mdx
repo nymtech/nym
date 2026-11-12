@@ -18,6 +18,7 @@ import RunIt from '@snippets/nym/developers/rust/client-pool/tutorial/run-it.mdx
 import WhenToUseThePool from '@snippets/nym/developers/rust/client-pool/tutorial/when-to-use-the-pool.mdx'
 import WhatYouveLearned from '@snippets/nym/developers/rust/client-pool/tutorial/what-youve-learned.mdx'
 import CompleteCode from '@snippets/nym/developers/rust/client-pool/tutorial/complete-code.mdx'
+import { RUST_MSRV } from 'components/versions'
 
 # Tutorial: Handle Bursty Traffic with Client Pool
 
@@ -200,7 +201,7 @@ RUST_LOG=info cargo run
 
 You'll see output like:
 
-```
+```text
 Pool started, waiting for clients to connect...
 Pool has 3 clients ready
 Task 1: got client 8gk4Y...@2xU4d... from pool

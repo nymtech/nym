@@ -18,7 +18,7 @@
     label: "{{ item.port }}/{{ item.proto }}"
   when:
     - nym_ufw_enable
-    - item.when | default(true)
+    - item.when | default(true) | bool
 
 - name: Allow bandwidth/topup rule inside WG tunnel
   command: >
@@ -26,6 +26,7 @@
   changed_when: false
   when:
     - nym_ufw_enable
+    - mode != 'mixnode'
     - (wireguard_enabled | default(false) | bool)
 
 - name: Enable UFW

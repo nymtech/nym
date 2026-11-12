@@ -92,13 +92,26 @@ jobs:
           # the runner is persistent, so OpenSSL may be installed by an earlier run
           $dir = Find-OpenSsl
           if (-not $dir) {
-            if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "winget is not available" }
-            # a stale catalog can point at installers that have since been removed upstream
-            winget source update --disable-interactivity
-            if ($LASTEXITCODE -ne 0) { throw "winget source update failed with exit code $LASTEXITCODE" }
-            winget install --id ShiningLight.OpenSSL.Dev --exact --silent --scope machine `
-              --accept-package-agreements --accept-source-agreements --disable-interactivity
-            if ($LASTEXITCODE -ne 0) { throw "winget failed with exit code $LASTEXITCODE" }
+            # winget's manifest can point at installers Shining Light has already removed, so
+            # pick the current OpenSSL 3.5 LTS installer from their published list instead
+            $hashes = Invoke-RestMethod https://slproweb.com/download/win32_openssl_hashes.json
+            $msi = $hashes.files.PSObject.Properties.Value |
+              Where-Object {
+                $_.installer -eq 'msi' -and $_.arch -eq 'INTEL' -and $_.bits -eq 64 -and
+                -not $_.light -and $_.basever -like '3.5.*'
+              } |
+              Sort-Object { [version]$_.basever } |
+              Select-Object -Last 1
+            if (-not $msi) { throw "no OpenSSL 3.5 installer found" }
+
+            $installer = Join-Path $env:RUNNER_TEMP (Split-Path $msi.url -Leaf)
+            Invoke-WebRequest $msi.url -OutFile $installer
+            $sha256 = (Get-FileHash $installer -Algorithm SHA256).Hash
+            if ($sha256 -ne $msi.sha256) { throw "checksum mismatch for $($msi.url)" }
+
+            $install = Start-Process msiexec.exe -Wait -PassThru `
+              -ArgumentList "/i `"$installer`" /qn /norestart"
+            if ($install.ExitCode -notin 0, 3010) { throw "msiexec failed with exit code $($install.ExitCode)" }
             $dir = Find-OpenSsl
           }
           if (-not $dir) { throw "OpenSSL headers not found after installing" }

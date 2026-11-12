@@ -215,17 +215,6 @@ async fn migrate_plaintext(
         });
     }
 
-    // make sure the encrypted copy is on disk before it replaces the original. Windows only
-    // flushes a file through a handle with write access.
-    tokio::fs::OpenOptions::new()
-        .write(true)
-        .open(migration_path)
-        .await
-        .map_err(|err| SqlCipherError::io(migration_path, err))?
-        .sync_all()
-        .await
-        .map_err(|err| SqlCipherError::io(migration_path, err))?;
-
     // closing the last connection checkpoints the WAL into the database and removes it, so these
     // only exist if something else still has the database open. They belong to the plaintext
     // database and would be replayed into the encrypted one, so they can't be kept.

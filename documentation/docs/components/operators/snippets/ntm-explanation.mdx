@@ -1,0 +1,12 @@
+[Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) manages routing and the host firewall of a gateway. `complete_networking_configuration` runs five phases:
+1. **Preflight** - if ufw is active and denies outgoing traffic, NTM stops before changing anything. If ufw is active otherwise, it backs up the current firewall to `/etc/iptables/pre-ntm-ufw-<timestamp>/`, with restore steps in `RESTORE.txt`
+2. **Tunnel setup** - deduplicates existing iptables rules, enables IPv4/IPv6 forwarding persistently via `/etc/sysctl.d/99-nym-forwarding.conf`, applies NAT MASQUERADE and FORWARD rules for both `nymtun0` and `nymwg`, allows ping and DNS (`53`)
+3. **Host firewall** - works like ufw: allows loopback, established connections, ICMP/ICMPv6 and DHCP, opens the Nym ports and drops all other inbound traffic on IPv4 and IPv6
+    - TCP `22, 80, 443, 1789, 1790, 4422, 4443, 8080, 9000, 9001, 41264`, UDP `4443, 51822, 51264`, and TCP `51830` on `nymwg` only
+    - SSH stays open on `HOST_SSH_PORT`, the port `sshd` is configured on, and the port of your current session
+    - if ufw was active, NTM takes over: your own ufw rules are kept in their original order, then ufw is disabled
+4. **Exit policy** - creates the `NYM-EXIT` iptables chain, applies the full port allowlist, rate-limits SMTPS (TCP/465), applies the Spamhaus blocklist, adds a default REJECT at the end of the chain
+5. **Verification** - checks the firewall rule order and runs automated tests against all exit policy rules, reporting any issues
+All rules are saved to `/etc/iptables/rules.v4` and `/etc/iptables/rules.v6` via `iptables-persistent`, so they survive reboots. The script is idempotent - safe to re-run multiple times.
+ 
+To keep managing the host firewall yourself, run NTM with `HOST_INPUT_POLICY=KEEP`: it then only adds its allow rules and never drops other traffic.

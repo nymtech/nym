@@ -1,0 +1,11 @@
+| Node `--mode` | nginx / WSS | [Nym network tunnel manager (NTM)](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) | [QUIC bridge](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh) | ufw |
+| :-- | :--: | :--: | :--: | :--: |
+| `mixnode` | optional | — | — | ✓ |
+| `entry-gateway` | ✓ | — | ✓ | ✓ |
+| `entry-gateway` + WireGuard | ✓ | ✓ | ✓ | — |
+| `exit-gateway` | ✓ | ✓ | ✓ | — |
+| `exit-gateway` + WireGuard | ✓ | ✓ | ✓ | — |
+
+- **nginx / WSS** needs a `hostname` with DNS pointing to the node and an `email` for the certificate. Without a hostname it's skipped. Mixnodes opt in with `nginx_enabled=true` in the Ansible inventory.
+- **ufw** on a non-WireGuard `entry-gateway` also opens the bridge ports (`4443/tcp`, `4443/udp`, `4422/tcp`) and Lewes Protocol ports (`41264/tcp`, `51264/udp`).
+- [**NTM**](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh)** owns the firewall on the other gateways: like ufw it drops all inbound traffic except its allowed ports, and adds the exit policy on top. Rerun it after changing ports or mode. Mixnodes never run NTM, even with `wireguard_enabled` set.

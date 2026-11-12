@@ -8,6 +8,7 @@ import { MyTab } from 'components/generic-tabs.tsx';
 import { Steps } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
+import AnsibleRolesByMode from 'components/operators/snippets/ansible-roles-by-node-mode.mdx';
 
 # Orchestrating Nym Nodes with Ansible
 
@@ -207,6 +208,16 @@ This playbook runs on all inventory entries **in parallel**. Test on a single no
 cd playbooks
 ansible-playbook deploy.yml
 ```
+
+The playbook is omniponent, so it can be re-run to change some node parameters or host settings while not deleting essential node's configuration files and keys.
+
+This sheet explains how ansible roles manages the server routing configuration in relation to the chosen `--mode` of your `nym-node`.
+
+<AnsibleRolesByMode/ >
+<br />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
 
 #### Bond [#bond]
 

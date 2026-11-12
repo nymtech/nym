@@ -29,22 +29,18 @@ pub(crate) struct PendingCredentialRequestsStorage {
 }
 
 impl PendingCredentialRequestsStorage {
-    pub(crate) async fn new<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
-        let database_path = database_path.as_ref();
-        Self::new_with_options(database_path, Self::connect_options(database_path)).await
-    }
-
-    /// Like [`Self::new`], but encrypted with SQLCipher using the raw 256-bit `key`.
-    /// An existing plaintext database is encrypted in place first.
-    #[cfg(feature = "sqlcipher")]
-    pub(crate) async fn new_encrypted<P: AsRef<Path>>(
+    /// Opens the store at `database_path`. With `key`, it's encrypted with SQLCipher using the raw
+    /// 256-bit key, and an existing plaintext database is encrypted in place first.
+    pub(crate) async fn new<P: AsRef<Path>>(
         database_path: P,
-        key: &nym_sqlcipher::Key,
+        key: Option<&nym_sqlcipher::Key>,
     ) -> Result<Self, StorageError> {
         let database_path = database_path.as_ref();
-        nym_sqlcipher::encrypt_database_if_needed(database_path, key).await?;
-
-        let opts = nym_sqlcipher::with_key(Self::connect_options(database_path), key);
+        let mut opts = Self::connect_options(database_path);
+        if let Some(key) = key {
+            nym_sqlcipher::encrypt_database_if_needed(database_path, key).await?;
+            opts = nym_sqlcipher::with_key(opts, key);
+        }
         Self::new_with_options(database_path, opts).await
     }
 

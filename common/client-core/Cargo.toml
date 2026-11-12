@@ -148,9 +148,6 @@ default = []
 cli = ["clap", "comfy-table"]
 fs-credentials-storage = ["nym-credential-storage/persistent-storage"]
 fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage"]
-# SQLCipher-encrypted reply SURB storage. Builds the bundled SQLCipher in place of SQLite for the
-# whole dependency graph.
-sqlcipher = ["fs-surb-storage", "nym-client-core-surb-storage/sqlcipher"]
 fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]
 wasm = ["nym-gateway-client/wasm"]
 metrics-server = []

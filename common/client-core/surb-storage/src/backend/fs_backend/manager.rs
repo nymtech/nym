@@ -27,7 +27,6 @@ impl StorageManager {
 
     /// Like [`Self::new`], but encrypted with SQLCipher using the raw 256-bit `key`.
     /// An existing plaintext database is encrypted in place first.
-    #[cfg(feature = "sqlcipher")]
     pub async fn new_encrypted<P: AsRef<Path>>(
         database_path: P,
         fresh: bool,

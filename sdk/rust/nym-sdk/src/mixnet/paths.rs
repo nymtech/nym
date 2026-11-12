@@ -54,7 +54,6 @@ pub struct StoragePaths {
 
     /// Raw SQLCipher key encrypting the credential and reply SURB databases; plaintext databases
     /// get encrypted on first open with it.
-    #[cfg(feature = "sqlcipher")]
     database_key: Option<nym_sqlcipher::DatabaseKey>,
 }
 
@@ -83,7 +82,6 @@ impl StoragePaths {
             reply_surb_database_path: dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
             gateway_registrations: dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
             key_passphrase: None,
-            #[cfg(feature = "sqlcipher")]
             database_key: None,
         })
     }
@@ -100,7 +98,9 @@ impl StoragePaths {
     /// Encrypts the credential and reply SURB databases with SQLCipher, using the raw 256-bit
     /// `key` as is, without passphrase key derivation. Databases still in plaintext are encrypted
     /// the first time they are opened. The same key must be provided on every run.
-    #[cfg(feature = "sqlcipher")]
+    ///
+    /// SQLCipher has to be linked in place of SQLite, e.g. with the `sqlcipher` feature.
+    /// Otherwise opening the databases fails, without creating or changing them.
     #[must_use]
     pub fn with_database_key(mut self, key: Option<[u8; 32]>) -> Self {
         self.database_key = key.map(nym_sqlcipher::DatabaseKey::new);
@@ -137,7 +137,6 @@ impl StoragePaths {
     pub async fn persistent_credential_storage(
         &self,
     ) -> Result<PersistentCredentialStorage, Error> {
-        #[cfg(feature = "sqlcipher")]
         if let Some(key) = &self.database_key {
             return PersistentCredentialStorage::new_encrypted(
                 &self.credential_database_path,
@@ -168,7 +167,6 @@ impl StoragePaths {
         surb_config: &config::ReplySurbs,
     ) -> Result<fs_backend::Backend, Error> {
         let database = fs_backend::DatabaseConfig::new(&self.reply_surb_database_path);
-        #[cfg(feature = "sqlcipher")]
         let database = match &self.database_key {
             Some(key) => database.with_key(key.clone()),
             None => database,
@@ -253,7 +251,6 @@ impl From<CommonClientPaths> for StoragePaths {
             reply_surb_database_path: value.reply_surb_database,
             gateway_registrations: value.gateway_registrations,
             key_passphrase: None,
-            #[cfg(feature = "sqlcipher")]
             database_key: None,
         }
     }

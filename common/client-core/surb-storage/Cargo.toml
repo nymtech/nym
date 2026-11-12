@@ -48,10 +48,7 @@ sqlx = { workspace = true, features = [
 ] }
 
 [features]
-fs-surb-storage = ["sqlx", "nym-crypto", "nym-crypto/hashing"]
-# SQLCipher-encrypted fs storage. Builds the bundled SQLCipher in place of SQLite for the whole
-# dependency graph.
-sqlcipher = ["fs-surb-storage", "dep:nym-sqlcipher", "nym-sqlcipher/bundled"]
+fs-surb-storage = ["sqlx", "nym-crypto", "nym-crypto/hashing", "dep:nym-sqlcipher"]
 
 [lints]
 workspace = true

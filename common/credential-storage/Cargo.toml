@@ -61,12 +61,6 @@ sqlx = { workspace = true, features = [
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [features]
-persistent-storage = ["bincode", "serde", "dep:sqlx"]
-# SQLCipher-encrypted persistent storage. Builds the bundled SQLCipher in place of SQLite for the
-# whole dependency graph, since every crate shares the single `libsqlite3-sys` linking `sqlite3`.
-sqlcipher = ["persistent-storage", "dep:nym-sqlcipher", "nym-sqlcipher/bundled"]
-# Same as `sqlcipher`, but also builds OpenSSL from source for SQLCipher's crypto, instead of
-# linking the system OpenSSL. Needs a C toolchain and Perl, no OpenSSL dev libraries.
-sqlcipher-vendored-openssl = ["sqlcipher", "nym-sqlcipher/vendored-openssl"]
+persistent-storage = ["bincode", "serde", "dep:sqlx", "dep:nym-sqlcipher"]
 
 [lints]

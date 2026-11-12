@@ -55,44 +55,16 @@ where
 {
     /// Creates a fetcher whose pending-request recovery store lives at `db_path`.
     /// The ecash keypair is derived from `client_id`.
+    ///
+    /// With `db_key`, the store is encrypted with SQLCipher using the raw 256-bit key, and an
+    /// existing plaintext store is encrypted in place first.
     pub async fn new(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
+        db_key: Option<&nym_sqlcipher::Key>,
         client_id: Zeroizing<Vec<u8>>,
     ) -> Result<Self, NyxdFetcherError> {
         Self::new_with_keypair(
-            client,
-            db_path,
-            KeyPairUser::new_seeded(client_id.as_slice()),
-        )
-        .await
-    }
-
-    /// Creates a fetcher whose pending-request recovery store lives at `db_path`,
-    /// using `ecash_keypair` for issued ticketbooks.
-    pub async fn new_with_keypair(
-        client: Arc<C>,
-        db_path: impl AsRef<Path>,
-        ecash_keypair: KeyPairUser,
-    ) -> Result<Self, NyxdFetcherError> {
-        let pending_storage = PendingCredentialRequestsStorage::new(db_path).await?;
-        Ok(Self::with_pending_storage(
-            client,
-            pending_storage,
-            ecash_keypair,
-        ))
-    }
-
-    /// Like [`Self::new`], but the pending-request recovery store is encrypted with SQLCipher
-    /// using the raw 256-bit `db_key`. An existing plaintext store is encrypted in place first.
-    #[cfg(feature = "sqlcipher")]
-    pub async fn new_encrypted(
-        client: Arc<C>,
-        db_path: impl AsRef<Path>,
-        db_key: &nym_sqlcipher::Key,
-        client_id: Zeroizing<Vec<u8>>,
-    ) -> Result<Self, NyxdFetcherError> {
-        Self::new_with_keypair_encrypted(
             client,
             db_path,
             db_key,
@@ -101,44 +73,32 @@ where
         .await
     }
 
-    /// Like [`Self::new_with_keypair`], but the pending-request recovery store is encrypted with
-    /// SQLCipher using the raw 256-bit `db_key`. An existing plaintext store is encrypted in place
-    /// first.
-    #[cfg(feature = "sqlcipher")]
-    pub async fn new_with_keypair_encrypted(
+    /// Creates a fetcher whose pending-request recovery store lives at `db_path`,
+    /// using `ecash_keypair` for issued ticketbooks.
+    ///
+    /// With `db_key`, the store is encrypted with SQLCipher using the raw 256-bit key, and an
+    /// existing plaintext store is encrypted in place first.
+    pub async fn new_with_keypair(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
-        db_key: &nym_sqlcipher::Key,
+        db_key: Option<&nym_sqlcipher::Key>,
         ecash_keypair: KeyPairUser,
     ) -> Result<Self, NyxdFetcherError> {
-        let pending_storage =
-            PendingCredentialRequestsStorage::new_encrypted(db_path, db_key).await?;
-        Ok(Self::with_pending_storage(
-            client,
-            pending_storage,
-            ecash_keypair,
-        ))
-    }
-
-    fn with_pending_storage(
-        client: Arc<C>,
-        pending_storage: PendingCredentialRequestsStorage,
-        ecash_keypair: KeyPairUser,
-    ) -> Self {
+        let pending_storage = PendingCredentialRequestsStorage::new(db_path, db_key).await?;
         let ecash_api_clients = Arc::new(EcashApiClientsCache::new());
         let public_data_fetcher = NyxdGlobalDataFetcher::new_with_ecash_clients(
             client.clone(),
             ecash_api_clients.clone(),
         );
 
-        NyxdCredentialFetcher {
+        Ok(NyxdCredentialFetcher {
             client,
             ecash_keypair,
             ecash_api_clients,
             pending_storage,
             public_data_fetcher,
             deposit_lock: tokio::sync::Mutex::new(()),
-        }
+        })
     }
 
     async fn block_until_ecash_is_available(&self) -> Result<(), NyxdFetcherError> {
@@ -524,13 +484,17 @@ pub(crate) mod recovery {
     where
         C: DkgQueryClient,
     {
+        /// Creates a recovery fetcher over the pending-request store at `db_path`, encrypted with
+        /// `db_key` if given, as for [`NyxdCredentialFetcher::new`].
         pub async fn new(
             client: Arc<C>,
             db_path: impl AsRef<Path>,
+            db_key: Option<&nym_sqlcipher::Key>,
         ) -> Result<Self, NyxdFetcherError> {
             // recovery never deposits, so the client id is unused
             Ok(Self(
-                NyxdCredentialFetcher::new(client, db_path, Zeroizing::new(Vec::new())).await?,
+                NyxdCredentialFetcher::new(client, db_path, db_key, Zeroizing::new(Vec::new()))
+                    .await?,
             ))
         }
     }
@@ -668,6 +632,7 @@ mod tests {
         let fetcher = NyxdCredentialFetcher::new(
             Arc::new(MockPruneClient {}),
             &db_path,
+            None,
             Zeroizing::new(Vec::new()),
         )
         .await

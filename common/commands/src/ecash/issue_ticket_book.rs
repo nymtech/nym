@@ -91,6 +91,7 @@ async fn issue_client_ticketbook(
     let fetcher = NyxdCredentialFetcher::new(
         Arc::new(client),
         requests_store,
+        None,
         Zeroizing::new(private_id_key.to_bytes().to_vec()),
     )
     .await?;
@@ -117,6 +118,7 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
     let fetcher = NyxdCredentialFetcher::new(
         Arc::new(client),
         &pending_requests_path,
+        None,
         Zeroizing::new(secret),
     )
     .await?;

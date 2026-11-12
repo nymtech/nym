@@ -27,7 +27,6 @@ mod models;
 #[derive(Clone, Debug)]
 pub struct DatabaseConfig {
     path: PathBuf,
-    #[cfg(feature = "sqlcipher")]
     key: Option<nym_sqlcipher::DatabaseKey>,
 }
 
@@ -36,7 +35,6 @@ impl DatabaseConfig {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         DatabaseConfig {
             path: path.into(),
-            #[cfg(feature = "sqlcipher")]
             key: None,
         }
     }
@@ -44,7 +42,6 @@ impl DatabaseConfig {
     /// Encrypts the database with SQLCipher using the raw 256-bit `key`, as is, without
     /// passphrase key derivation. An existing plaintext database is encrypted in place the first
     /// time it's opened.
-    #[cfg(feature = "sqlcipher")]
     #[must_use]
     pub fn with_key(mut self, key: impl Into<nym_sqlcipher::DatabaseKey>) -> Self {
         self.key = Some(key.into());
@@ -54,20 +51,22 @@ impl DatabaseConfig {
     pub fn path(&self) -> &Path {
         &self.path
     }
+}
 
-    async fn open(&self, fresh: bool) -> Result<StorageManager, StorageError> {
-        if self.path.file_name().is_none() {
-            return Err(StorageError::DatabasePathWithoutFilename {
-                provided_path: self.path.clone(),
-            });
-        }
+/// Opens the database described by `database`, creating it if `fresh`.
+async fn open_database(
+    database: &DatabaseConfig,
+    fresh: bool,
+) -> Result<StorageManager, StorageError> {
+    if database.path.file_name().is_none() {
+        return Err(StorageError::DatabasePathWithoutFilename {
+            provided_path: database.path.clone(),
+        });
+    }
 
-        #[cfg(feature = "sqlcipher")]
-        if let Some(key) = &self.key {
-            return StorageManager::new_encrypted(&self.path, fresh, key.as_bytes()).await;
-        }
-
-        StorageManager::new(&self.path, fresh).await
+    match &database.key {
+        Some(key) => StorageManager::new_encrypted(&database.path, fresh, key.as_bytes()).await,
+        None => StorageManager::new(&database.path, fresh).await,
     }
 }
 
@@ -102,7 +101,7 @@ impl Backend {
     /// Creates a fresh database.
     pub async fn init(database: impl Into<DatabaseConfig>) -> Result<Self, StorageError> {
         let database = database.into();
-        let manager = database.open(true).await?;
+        let manager = open_database(&database, true).await?;
         match manager.create_status_table().await {
             Ok(()) => Ok(Self::new(database, manager)),
             Err(err) => {
@@ -115,7 +114,7 @@ impl Backend {
     /// Loads an existing database.
     pub async fn try_load(database: impl Into<DatabaseConfig>) -> Result<Self, StorageError> {
         let database = database.into();
-        let manager = database.open(false).await?;
+        let manager = open_database(&database, false).await?;
         match Self::try_load_inner(&manager).await {
             Ok(()) => Ok(Self::new(database, manager)),
             Err(e) => {
@@ -205,7 +204,7 @@ impl Backend {
             .await
             .map_err(|err| StorageError::DatabaseRenameError { source: err })?;
         // reopened from the same config, so it's encrypted with the same key, if any
-        self.manager = self.database.open(true).await?;
+        self.manager = open_database(&self.database, true).await?;
         self.manager.create_status_table().await?;
 
         self.temporary_old_path = Some(temp_old);

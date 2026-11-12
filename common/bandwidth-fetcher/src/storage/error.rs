@@ -15,7 +15,6 @@ pub enum StorageError {
     #[error("failed to remove pending credential request storage")]
     RemoveStorage(#[from] std::io::Error),
 
-    #[cfg(feature = "sqlcipher")]
     #[error("failed to set up database encryption: {0}")]
     Encryption(#[from] nym_sqlcipher::SqlCipherError),
 }

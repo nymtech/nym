@@ -237,7 +237,7 @@ impl Session {
         // ticketbook anyway — rather than hanging the controller loop and losing the book.
         // Issuance itself (the deposit) is deliberately not timed; see `TimeoutFetcher` docs.
         let fetcher_db = data_path.join("fetcher-requests.db");
-        let fetcher = NyxdCredentialFetcher::new(nyxd, &fetcher_db, client_id)
+        let fetcher = NyxdCredentialFetcher::new(nyxd, &fetcher_db, None, client_id)
             .await
             .map_err(|e| SessionError::Issuance(e.to_string()))?;
         let fetcher = TimeoutFetcher::new(fetcher);

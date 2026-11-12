@@ -39,7 +39,7 @@ pub async fn execute(args: Args, client: QueryClient) -> anyhow::Result<()> {
     let requests_store = loaded.try_get_credential_requests_store()?;
     let persistent_storage = initialise_persistent_storage(credentials_store).await;
 
-    let fetcher = NyxdRecoveryFetcher::new(Arc::new(client), requests_store).await?;
+    let fetcher = NyxdRecoveryFetcher::new(Arc::new(client), requests_store, None).await?;
     let controller = BandwidthController::new(persistent_storage).with_credential_fetcher(fetcher);
 
     // the recovery fetcher recovers pending deposits per ticket type, so sweep them all

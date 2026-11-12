@@ -252,21 +252,15 @@ fs-storage = [
     "nym-client-core/fs-surb-storage",
     "nym-client-core/fs-gateways-storage",
     "nym-credential-storage/persistent-storage",
-]
-
-# SQLCipher-encrypted credential and reply SURB storage, see `StoragePaths::with_database_key`.
-# Replaces SQLite with the bundled SQLCipher for the whole dependency graph.
-sqlcipher = [
-    "fs-storage",
-    "nym-credential-storage/sqlcipher",
-    "nym-client-core/sqlcipher",
     "dep:nym-sqlcipher",
 ]
+
+# Builds the bundled SQLCipher in place of SQLite for the whole dependency graph, which
+# `StoragePaths::with_database_key` needs to encrypt the databases. Apps can instead enable
+# SQLCipher themselves, e.g. through `libsqlite3-sys`.
+sqlcipher = ["fs-storage", "nym-sqlcipher/bundled"]
 # Same as `sqlcipher`, but builds OpenSSL from source instead of linking the system OpenSSL.
-sqlcipher-vendored-openssl = [
-    "sqlcipher",
-    "nym-credential-storage/sqlcipher-vendored-openssl",
-]
+sqlcipher-vendored-openssl = ["sqlcipher", "nym-sqlcipher/vendored-openssl"]
 
 # SOCKS5 client mode and network-requester country discovery.
 socks5 = [

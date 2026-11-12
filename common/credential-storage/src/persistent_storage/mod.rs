@@ -63,13 +63,13 @@ impl PersistentStorage {
     ///
     /// An existing plaintext database is encrypted in place first. Fails with
     /// [`StorageError::EncryptionError`] if SQLite is not built with SQLCipher, or if an existing
-    /// encrypted database can't be opened with `key`.
+    /// encrypted database can't be opened with `key`. SQLCipher has to be linked in place of
+    /// SQLite, e.g. with the `bundled` feature of `nym-sqlcipher`.
     ///
     /// # Arguments
     ///
     /// * `database_path`: path to the database.
     /// * `key`: raw 256-bit SQLCipher key. It is used as is, without passphrase key derivation.
-    #[cfg(feature = "sqlcipher")]
     pub async fn new_encrypted<P: AsRef<Path>>(
         database_path: P,
         key: &nym_sqlcipher::Key,

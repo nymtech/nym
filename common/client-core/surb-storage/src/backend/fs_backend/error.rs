@@ -59,7 +59,6 @@ pub enum StorageError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 
-    #[cfg(feature = "sqlcipher")]
     #[error("failed to set up database encryption: {source}")]
     EncryptionError {
         #[from]
@@ -72,9 +71,6 @@ impl StorageError {
     /// SQLCipher, a wrong key, or a failed migration of a plaintext database. Unlike corrupted
     /// data, these aren't fixed by starting a fresh database.
     pub fn is_encryption_error(&self) -> bool {
-        #[cfg(feature = "sqlcipher")]
-        return matches!(self, StorageError::EncryptionError { .. });
-        #[cfg(not(feature = "sqlcipher"))]
-        false
+        matches!(self, StorageError::EncryptionError { .. })
     }
 }

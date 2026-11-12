@@ -7315,6 +7315,7 @@ version = "2.0.1"
 dependencies = [
  "bincode",
  "cosmrs",
+ "futures",
  "log",
  "nym-api-requests",
  "nym-bls12_381-fork",
@@ -7326,6 +7327,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-serde-helpers",
  "nym-validator-client",
+ "rand 0.10.2",
  "serde",
  "thiserror 2.0.21",
  "time",

@@ -4,21 +4,20 @@
 use crate::error::CredentialProxyError;
 use crate::storage::models::BlindedShares;
 use crate::ticketbook_manager::TicketbookManager;
-use futures::{StreamExt, stream};
+use futures::stream::{FuturesUnordered, StreamExt};
 use nym_compact_ecash::Base58;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     TicketbookAsyncRequest, TicketbookObtainParams, TicketbookRequest,
     TicketbookWalletSharesResponse, WalletShare, WebhookTicketbookWalletShares,
     WebhookTicketbookWalletSharesRequest,
 };
-use nym_validator_client::client::NymApiClientExt;
+use nym_credentials::ecash::utils::{SIGNER_REQUEST_TIMEOUT, SPARE_SIGNER_REQUESTS};
+use nym_validator_client::client::{EcashApiClient, NymApiClientExt};
 use nym_validator_client::ecash::BlindSignRequestBody;
 use nym_validator_client::nym_api::EpochId;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-use time::OffsetDateTime;
-use tokio::sync::Mutex;
+use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
+use rand::seq::SliceRandom;
+use time::{Date, OffsetDateTime};
 use tokio::time::timeout;
 use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
@@ -72,63 +71,52 @@ impl TicketbookManager {
             request_data.ticketbook_type,
         );
 
-        let wallet_shares = Arc::new(Mutex::new(HashMap::new()));
+        // random order so that no fixed subset of signers ends up doing all the work
+        let mut signers = ecash_api_clients;
+        signers.shuffle(&mut rand::rng());
+        let mut signers = signers.into_iter();
 
-        info!("attempting to contract all nym-apis for the partial wallets...");
-        stream::iter(ecash_api_clients)
-            .for_each_concurrent(None, |client| async {
-                // move the client into the block
-                let client = client;
+        info!("attempting to contact nym-apis for the partial wallets...");
+        let mut in_flight = FuturesUnordered::new();
+        for signer in signers
+            .by_ref()
+            .take(threshold as usize + SPARE_SIGNER_REQUESTS)
+        {
+            in_flight.push(self.obtain_wallet_share(
+                signer,
+                &credential_request,
+                deposit_id,
+                epoch,
+                expiration_date,
+            ));
+        }
 
-                debug!("contacting {client} for blinded partial wallet");
-                let res = timeout(
-                    Duration::from_secs(15),
-                    client
-                        .api_client
-                        .blind_sign(&credential_request, Some(epoch)),
-                )
-                .await
-                .map_err(|_| CredentialProxyError::EcashApiRequestTimeout {
-                    client_repr: client.to_string(),
-                })
-                .and_then(|res| res.map_err(Into::into));
-
-                // 1. try to store it
-                if let Err(err) = self
-                    .state
-                    .storage()
-                    .insert_partial_wallet_share(
-                        deposit_id,
-                        epoch,
-                        expiration_date,
-                        client.node_id,
-                        &res,
-                    )
-                    .await
-                {
-                    error!("failed to persist issued partial share: {err}")
-                }
-
-                // 2. add it to the map
-                match res {
-                    Ok(share) => {
-                        wallet_shares
-                            .lock()
-                            .await
-                            .insert(client.node_id, share.blinded_signature);
-                    }
-                    Err(err) => {
-                        error!("failed to obtain partial blinded wallet share from {client}: {err}")
+        let mut wallet_shares = Vec::with_capacity(threshold as usize);
+        while let Some(res) = in_flight.next().await {
+            match res {
+                Ok(share) => {
+                    wallet_shares.push(share);
+                    if wallet_shares.len() >= threshold as usize {
+                        break;
                     }
                 }
-            })
-            .await;
+                Err(_) => {
+                    if let Some(signer) = signers.next() {
+                        in_flight.push(self.obtain_wallet_share(
+                            signer,
+                            &credential_request,
+                            deposit_id,
+                            epoch,
+                            expiration_date,
+                        ));
+                    }
+                }
+            }
+        }
+        // abandon the requests still in flight, we have all the shares we need
+        drop(in_flight);
 
-        // SAFETY: the futures have completed, so we MUST have the only arc reference
-        #[allow(clippy::unwrap_used)]
-        let wallet_shares = Arc::into_inner(wallet_shares).unwrap().into_inner();
         let shares = wallet_shares.len();
-
         if shares < threshold as usize {
             let err = CredentialProxyError::InsufficientNumberOfCredentials {
                 available: shares,
@@ -140,13 +128,50 @@ impl TicketbookManager {
             return Err(err);
         }
 
-        Ok(wallet_shares
-            .into_iter()
-            .map(|(node_index, share)| WalletShare {
-                node_index,
-                bs58_encoded_share: share.to_bs58(),
-            })
-            .collect())
+        Ok(wallet_shares)
+    }
+
+    /// Requests a blinded wallet share from a single signer and persists the outcome, whatever it is.
+    async fn obtain_wallet_share(
+        &self,
+        signer: EcashApiClient,
+        credential_request: &BlindSignRequestBody,
+        deposit_id: DepositId,
+        epoch: EpochId,
+        expiration_date: Date,
+    ) -> Result<WalletShare, CredentialProxyError> {
+        debug!("contacting {signer} for blinded partial wallet");
+        let res = timeout(
+            SIGNER_REQUEST_TIMEOUT,
+            signer
+                .api_client
+                .blind_sign(credential_request, Some(epoch)),
+        )
+        .await
+        .map_err(|_| CredentialProxyError::EcashApiRequestTimeout {
+            client_repr: signer.to_string(),
+        })
+        .and_then(|res| res.map_err(Into::into));
+
+        if let Err(err) = self
+            .state
+            .storage()
+            .insert_partial_wallet_share(deposit_id, epoch, expiration_date, signer.node_id, &res)
+            .await
+        {
+            error!("failed to persist issued partial share: {err}")
+        }
+
+        match res {
+            Ok(share) => Ok(WalletShare {
+                node_index: signer.node_id,
+                bs58_encoded_share: share.blinded_signature.to_bs58(),
+            }),
+            Err(err) => {
+                error!("failed to obtain partial blinded wallet share from {signer}: {err}");
+                Err(err)
+            }
+        }
     }
 
     pub async fn try_obtain_wallet_shares_async(

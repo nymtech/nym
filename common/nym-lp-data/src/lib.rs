@@ -9,6 +9,7 @@
 //! | Module | Purpose |
 //! |--------|---------|
 //! | [`common`]        | Framing and transport traits shared by clients and nym-nodes, composed into wire-wrapping and wire-unwrapping supertraits |
+//! | [`clients`]       | Client-side pipeline traits and types: chunking, reliability, obfuscation, routing security, plus a composition struct and a tick-driven driver |
 //! | [`nymnodes`]      | Nym-node pipeline trait: reassemble an inbound frame, mix it, re-frame the results for their next hops |
 //! | [`packet`]        | LP wire types: packets, headers, frames, MTU-derived size budgets and version negotiation |
 //! | [`fragmentation`] | Splitting an [`LpFrame`](packet::LpFrame) into fragments and reassembling them |
@@ -25,6 +26,7 @@
 use std::net::SocketAddr;
 use std::time::Instant;
 
+pub mod clients;
 pub mod common;
 pub mod fragmentation;
 pub mod nymnodes;

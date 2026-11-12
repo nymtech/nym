@@ -34,6 +34,10 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::{debug, trace};
 
+/// The oldest build a node can run and still be part of an LP topology.
+const MINIMUM_LP_NODE_VERSION: semver::Version =
+    nym_lp_data::packet::version::node_compatibility::LENGTH_PREFIXED_OPENER;
+
 #[derive(Error, Debug)]
 pub enum LpRoutingNodeError {
     #[error("node {node_id} ('{identity}') has not provided any valid ip addresses")]
@@ -41,6 +45,15 @@ pub enum LpRoutingNodeError {
 
     #[error("node {node_id} published '{version}' as its build version, which is not a semver")]
     MalformedBuildVersion { node_id: NodeId, version: String },
+
+    #[error(
+        "node {node_id} runs {version}, older than {minimum}, the first build LP clients support"
+    )]
+    OutdatedBuildVersion {
+        node_id: NodeId,
+        version: semver::Version,
+        minimum: semver::Version,
+    },
 
     #[error("node {node_id} LP information signature failed to verify")]
     LpSignatureVerificationFailed { node_id: NodeId },
@@ -117,7 +130,7 @@ impl<'a> TryFrom<&'a SkimmedNodeV2> for LpRoutingNode {
 
         // both the ciphersuite and the LP protocol version are inferred from this, so a node that
         // published something unparseable cannot be talked to at all
-        let build_version =
+        let build_version: semver::Version =
             value
                 .build_version
                 .parse()
@@ -125,6 +138,14 @@ impl<'a> TryFrom<&'a SkimmedNodeV2> for LpRoutingNode {
                     node_id: value.node_id,
                     version: value.build_version.clone(),
                 })?;
+
+        if build_version < MINIMUM_LP_NODE_VERSION {
+            return Err(LpRoutingNodeError::OutdatedBuildVersion {
+                node_id: value.node_id,
+                version: build_version,
+                minimum: MINIMUM_LP_NODE_VERSION,
+            });
+        }
 
         if !value.lp.verify(&value.ed25519_identity_pubkey) {
             return Err(LpRoutingNodeError::LpSignatureVerificationFailed {
@@ -300,6 +321,18 @@ impl LpTopology {
             .find(|n| n.identity_key == node_identity)
     }
 
+    /// The nodes a client can use as its gateway right now: declared as an entry, and not acting
+    /// as a mixnode this epoch, which would also make them an invalid egress.
+    pub fn gateways(&self) -> impl Iterator<Item = &LpRoutingNode> {
+        self.node_details.values().filter(|node| {
+            node.supported_roles.mixnet_entry
+                && !self
+                    .rewarded_set
+                    .role(node.node_id)
+                    .is_some_and(|role| role.is_mixnode())
+        })
+    }
+
     pub fn egress_by_identity(
         &self,
         node_identity: NodeIdentity,
@@ -449,7 +482,7 @@ fn restrict_to_known(
     all(feature = "provider-trait", target_arch = "wasm32"),
     async_trait::async_trait(?Send)
 )]
-pub trait LpTopologyProvider: Send {
+pub trait LpTopologyProvider: Send + Sync {
     async fn get_new_lp_topology(&mut self) -> Option<LpTopology>;
 }
 
@@ -538,7 +571,7 @@ mod tests {
                 mixnet_exit: true,
             },
 
-            build_version: semver::Version::new(1, 39, 0),
+            build_version: MINIMUM_LP_NODE_VERSION,
             remote_peer: LpRemotePeer::new(KEY.parse::<x25519::PublicKey>().unwrap().into())
                 .with_key_digests(BTreeMap::from([(
                     KEM::MlKem768,

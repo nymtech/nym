@@ -14,6 +14,7 @@ It contains no concrete cryptography, session handling or network I/O. `Encrypte
 | Module | Purpose |
 |--------|---------|
 | [`common`](src/common)               | Wire-layer traits ([`Framing`], [`FramingUnwrap`], [`Transport`], [`TransportUnwrap`]) and their composed supertraits ([`WireWrappingPipeline`], [`WireUnwrappingPipeline`]) shared by clients and nodes, plus the [`NoOpWireWrapper`] / [`NoOpWireUnwrapper`] marker traits for a pass-through wire layer |
+| [`clients`](src/clients)             | Client-side stage traits ([`Chunking`], [`Reliability`], [`Obfuscation`], [`RoutingSecurity`]), the supertraits [`ClientWrappingPipeline`] / [`ClientUnwrappingPipeline`], the dyn-compatible [`DynClientWrappingPipeline`], a `Pipeline` composition struct, no-op marker traits, and the tick-driven [`ClientWrappingPipelineDriver`] |
 | [`nymnodes`](src/nymnodes)           | Node processing trait [`NymNodeProcessingPipeline`]: reassemble a frame, mix it, re-frame the results |
 | [`packet`](src/packet)               | LP wire types: [`LpPacket`] / [`EncryptedLpPacket`], [`LpHeader`] (`OuterHeader` + `InnerHeader`), [`LpFrame`] and its kinds and attributes, MTU-derived size constants, and [`version`] negotiation |
 | [`fragmentation`](src/fragmentation) | Splitting an `LpFrame` into `FragmentedData` frames ([`fragment_lp_message`]) and reassembling them ([`MessageReconstructor`]) |
@@ -26,6 +27,14 @@ It contains no concrete cryptography, session handling or network I/O. `Encrypte
 [`WireUnwrappingPipeline`]: src/common/traits.rs
 [`NoOpWireWrapper`]: src/common/helpers.rs
 [`NoOpWireUnwrapper`]: src/common/helpers.rs
+[`Chunking`]: src/clients/traits.rs
+[`Reliability`]: src/clients/traits.rs
+[`Obfuscation`]: src/clients/traits.rs
+[`RoutingSecurity`]: src/clients/traits.rs
+[`ClientWrappingPipeline`]: src/clients/traits.rs
+[`ClientUnwrappingPipeline`]: src/clients/traits.rs
+[`DynClientWrappingPipeline`]: src/clients/traits.rs
+[`ClientWrappingPipelineDriver`]: src/clients/driver.rs
 [`NymNodeProcessingPipeline`]: src/nymnodes/traits.rs
 [`LpPacket`]: src/packet/mod.rs
 [`EncryptedLpPacket`]: src/packet/mod.rs
@@ -54,7 +63,37 @@ PipelineInput<Opts>           ──  Vec<u8>, Opts and a SocketAddr, untimed: w
 
 The timestamp is when the packet is scheduled to go out, not when it was created: stages such as obfuscation may push it into the future, and the caller holds the packet until then.
 
+## Client wrapping pipeline
 
+The outbound client pipeline has six stages, each its own trait:
+
+```text
+     PipelineInput<Opts>       ──▶  Chunking  ──▶  Reliability  ──▶  Obfuscation
+                                                                          │
+                                                                          ▼
+       Vec<AddressedTimedData<Pkt>>  ◀──  Transport  ◀──  Framing  ◀──  RoutingSecurity
+```
+
+[`ClientWrappingPipeline`] ties them together. Its provided `process()` runs every stage on every call; a pipeline that does not want a stage plugs in a no-op implementation (see [Helpers](#helpers)) whose overhead is zero. `process()` returns an error only when `Transport` fails, for example because there is no session for the destination.
+
+The chunk size is derived rather than configured: `frame_size() * nb_frames()` minus the routing-security and reliability overheads, where `frame_size()` is `packet_size()` minus the transport and framing overheads.
+
+[`DynClientWrappingPipeline`] is a dyn-compatible mirror of `ClientWrappingPipeline` with the transport error boxed. Every `ClientWrappingPipeline` gets it through a blanket impl.
+
+### Tick semantics
+
+`process()` is meant to be called on every tick, with or without input:
+
+- [`Chunking`] runs only when there is input.
+- [`Reliability::reliable_encode`] is called once per chunk. With no chunks it is called once with `None`, so timer-driven retransmissions can still fire.
+- [`Obfuscation::obfuscate`] follows the same pattern, so cover traffic can be emitted on idle ticks.
+- [`RoutingSecurity`] and the wire layer run on whatever obfuscation emitted, cover traffic included.
+
+This is what lets a pipeline do Poisson cover traffic and SURB-ACK retransmission without the caller knowing whether anything is in flight.
+
+## Client unwrapping pipeline
+
+[`ClientUnwrappingPipeline`] strips the wire layer through [`WireUnwrappingPipeline::wire_unwrap`] (transport unwrap, then framing unwrap and reassembly), then hands the complete message and its kind to `process_unwrapped`, which the implementor fills in (decryption, reliability decoding, reassembly of chunks). Both steps return `None` while a message is still incomplete.
 
 ## Nym-node processing pipeline
 
@@ -95,13 +134,26 @@ Size a frame against `EncryptedLpPacket::OVERHEAD`, not `LpHeader::SIZE`: encryp
 
 ## Helpers
 
+- **Client-stage no-op marker traits** ([`NoOpReliability`], [`NoOpRoutingSecurity`], [`NoOpObfuscation`] in [`clients/helpers.rs`](src/clients/helpers.rs)): implement one to get a pass-through stage with zero overhead.
 - **Wire-layer no-op marker traits** ([`NoOpWireWrapper`], [`NoOpWireUnwrapper`] in [`common/helpers.rs`](src/common/helpers.rs)): collapse framing and transport (or their inverses) to a pass-through with `Infallible` errors, for packet types that are already self-contained on the wire. `NoOpWireWrapper` requires `Pkt: From<Vec<u8>>` and has a `PACKET_SIZE` of 1500 that implementors can override; `NoOpWireUnwrapper` requires `Pkt: Into<Vec<u8>>` and `Mk: Default`.
+- **`Pipeline` composition struct** ([`clients/types.rs`](src/clients/types.rs)): holds one component per stage plus a `packet_size`, and implements every stage trait and `ClientWrappingPipeline` by delegating to them, so a pipeline can be assembled from independent stage implementations.
+- **[`ClientWrappingPipelineDriver`]**: wraps a `DynClientWrappingPipeline` behind `tick(now) -> Vec<(Pkt, SocketAddr)>`, returning the packets whose timestamp is due. Application payloads go in through `input_sender()`, a zero-capacity (rendezvous) channel. A new payload is read only when no packets are buffered, so input does not queue up behind packets that are already waiting. Transport errors are logged, not returned.
 
+[`NoOpReliability`]: src/clients/helpers.rs
+[`NoOpRoutingSecurity`]: src/clients/helpers.rs
+[`NoOpObfuscation`]: src/clients/helpers.rs
+[`Reliability::reliable_encode`]: src/clients/traits.rs
+[`Obfuscation::obfuscate`]: src/clients/traits.rs
+[`WireUnwrappingPipeline::wire_unwrap`]: src/common/traits.rs
 
 ## Implementations
 
 Production pipelines:
 
+- **Clients**: `LpOutboundPipeline` / `LpInboundPipeline` in [`client-core`](../client-core/src/client/lp/data/handler/pipeline)
+- **Service providers**: `SpOutboundPipeline` / `SpInboundPipeline` in [`service-providers/common`](../../service-providers/common/src/lp/handler/pipeline)
 - **Nym-nodes**: `NymNodeDataPipeline` in [`nym-node`](../../nym-node/src/node/lp/data/handler/pipeline/nymnode.rs)
 
+[`nym-mix-sim`](../../nym-mix-sim) is a self-contained simulator with two pipeline families on these traits: a pass-through `Simple*` family and a Sphinx family with Poisson cover traffic and SURB ACKs. It is the easiest place to read a complete implementation of each stage.
 
+The integration test under [`tests/integration`](tests/integration) assembles a small pipeline from mock stages (`MockChunking`, `MockReliability`, `KekwObfuscation`, `MockSphinxSecurity`, `MockLpFraming`, `MockLpTransport`) through the `Pipeline` struct, producing this crate's `LpPacket`s.

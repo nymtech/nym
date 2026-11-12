@@ -411,6 +411,7 @@ impl<St: Storage> BandwidthController<St> {
         let spend_request = retrieved_ticketbook.ticketbook.prepare_for_spending(
             &verification_key,
             pay_info.into(),
+            spend_time,
             &coin_indices_signatures,
             &expiration_signatures,
             tickets_to_spend as u64,

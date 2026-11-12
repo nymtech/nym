@@ -11,7 +11,7 @@ sequenceDiagram
 
     Note over C: pick soonest-expiring usable book,<br/>reserve ticket index in DB (used_tickets += 1)
     Note over C: PayInfo = randomness || timestamp || gateway ed25519 pk
-    Note over C: prepare_for_spending: spend_date = today (UTC midnight),<br/>derive serial number + zk spend proof for index
+    Note over C: prepare_for_spending: spend_date = UTC date of the<br/>skew-corrected spend time (midnight),<br/>derive serial number + zk spend proof for index
     C->>GW: EcashCredential (AEAD-encrypted over shared key)
 
     rect rgb(235, 235, 235)

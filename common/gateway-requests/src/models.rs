@@ -67,9 +67,43 @@ mod tests {
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::ed25519;
 
+    use nym_credentials::ecash::bandwidth::CredentialSpendingData;
+    use time::{Duration, OffsetDateTime, UtcOffset};
+
     #[test]
     fn credential_roundtrip() {
-        // make valid request
+        let with_epoch = CredentialSpendingRequest {
+            data: spend_one_ticket(OffsetDateTime::now_utc()),
+        };
+
+        let bytes = with_epoch.to_bytes();
+        let recovered = CredentialSpendingRequest::try_from_bytes(&bytes).unwrap();
+
+        assert_eq!(with_epoch, recovered);
+    }
+
+    // The spend date must follow the (skew-corrected) spend time the caller
+    // passes, not the local clock: gateways compare it with their own date.
+    #[test]
+    fn spend_date_follows_spend_time() {
+        let tomorrow = OffsetDateTime::now_utc() + Duration::days(1);
+
+        assert_eq!(spend_one_ticket(tomorrow).spend_date, tomorrow.date());
+    }
+
+    // A spend time given with a local offset still yields its UTC date.
+    #[test]
+    fn spend_date_is_the_utc_date_of_spend_time() {
+        let now = OffsetDateTime::now_utc();
+        // Pick an offset whose local date always differs from the UTC date.
+        let offset_hours = if now.hour() >= 12 { 14 } else { -12 };
+        let local = now.to_offset(UtcOffset::from_hms(offset_hours, 0, 0).unwrap());
+        assert_ne!(local.date(), now.date());
+
+        assert_eq!(spend_one_ticket(local).spend_date, now.date());
+    }
+
+    fn spend_one_ticket(spend_time: OffsetDateTime) -> CredentialSpendingData {
         let keypair = ttp_keygen(1, 1).unwrap().remove(0);
 
         let mut rng = rand::rng();
@@ -124,17 +158,14 @@ mod tests {
             .prepare_for_spending(
                 &keypair.verification_key(),
                 pay_info,
+                spend_time,
                 &coin_indices_signatures,
                 &exp_date_sigs,
                 1,
             )
             .unwrap();
-
-        let with_epoch = CredentialSpendingRequest { data: spending };
-
-        let bytes = with_epoch.to_bytes();
-        let recovered = CredentialSpendingRequest::try_from_bytes(&bytes).unwrap();
-
-        assert_eq!(with_epoch, recovered);
+        // The proof must verify against the spend date the ticket carries.
+        spending.verify(&keypair.verification_key()).unwrap();
+        spending
     }
 }

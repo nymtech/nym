@@ -19,9 +19,9 @@
 
 ## 4. Per-height node view
 
-- [ ] 4.1 Write the conversion from one node's verified directory entries, node details, key rotation id and block time to the described type: directory values, #7399 fields through the existing reader conversions, exit flags from the exit mode, the `build_information`, `uses_exit_policy` and `last_polled` placeholders, no Lewes Protocol details without the node's signature; unit tests for each scenario of the "Served values" requirement
-- [ ] 4.2 Write the listing rule: the shared rule of task 2.1, a sphinx key for the rotation in force at `H`, and public addresses through `is_global_ip` unless `unsafe_allow_illegal_ips`; unit tests for each scenario of the two listing requirements
-- [ ] 4.3 Build the view (listed nodes in ascending node id order, plus the address index) when a height is produced and when retained heights are loaded from the file, without writing it to the file
+- [x] 4.1 Write the conversion from one node's verified directory entries, node details, key rotation id and block time to the described type: directory values, #7399 fields through the existing reader conversions, exit flags from the exit mode, the `build_information`, `uses_exit_policy` and `last_polled` placeholders, no Lewes Protocol details without the node's signature; unit tests for each scenario of the "Served values" requirement
+- [x] 4.2 Write the listing rule: the shared rule of task 2.1, a sphinx key for the rotation in force at `H`, and public addresses through `is_global_ip` unless `unsafe_allow_illegal_ips`; unit tests for each scenario of the two listing requirements
+- [x] 4.3 Build the view (listed nodes in ascending node id order, plus the address index) when a height is produced and when retained heights are loaded from the file, without writing it to the file
 
 ## 5. Routes read the latest settled snapshot
 
@@ -40,7 +40,7 @@
 - [ ] 6.1 Delete `node_describe_cache/` and nym-api's `key_rotation/` controller, with their wiring and that of the mixnet contract cache and node families refreshers (deleted in tasks 3.2 and 3.3) in `support/cli/run.rs`
 - [ ] 6.2 Reduce `StartupCaches` to the settled snapshot and update its tests
 - [ ] 6.3 Remove the `[describe_cache]`, `[mixnet_contract_cache]` and `[node_families_cache]` config structs, defaults and template entries, keeping old config files loadable
-- [ ] 6.4 Add `[directory.debug] unsafe_allow_illegal_ips` to the config and its template, and rename the hidden flag to `--unsafe-allow-illegal-ips`
+- [ ] 6.4 Add `[directory.debug] unsafe_allow_illegal_ips` (the config field came with task 4.3) to the template, and rename the hidden flag to `--unsafe-allow-illegal-ips`, setting that field
 - [ ] 6.5 Remove dependencies and code left unused by the removals
 
 ## 7. nym-node

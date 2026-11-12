@@ -66,18 +66,9 @@ impl<T> SharedCache<T> {
         })))
     }
 
-    /// The value persisted at `store_path`, which never expires (for caches whose own warm-up
-    /// decides what is stale), or the default value when it cannot be loaded.
-    #[track_caller]
-    pub(crate) fn new_with_persistent_or_default<P: AsRef<Path>>(store_path: P) -> Self
-    where
-        T: DeserializeOwned + Default,
-    {
-        // the file might not have existed, for example on initial run
-        let cached = Cache::<T>::try_deserialise_from_file(store_path)
-            .unwrap_or_else(|_| Cache::new(T::default()));
+    pub(crate) fn new_with_value(value: T) -> Self {
         SharedCache(Arc::new(RwLock::new(CachedItem {
-            inner: Some(cached),
+            inner: Some(Cache::new(value)),
         })))
     }
 
@@ -196,6 +187,10 @@ impl<T> Cache<T> {
             value,
             as_at: OffsetDateTime::now_utc(),
         }
+    }
+
+    pub(crate) fn into_inner(self) -> T {
+        self.value
     }
 
     // I know, it's dead code for now, but I feel it could be useful code in the future
@@ -377,15 +372,6 @@ fn make_bincode_serializer() -> impl ::bincode::Options {
 }
 
 #[cfg(test)]
-impl<T> SharedCache<T> {
-    pub(crate) fn new_with_value(value: T) -> Self {
-        SharedCache(Arc::new(RwLock::new(CachedItem {
-            inner: Some(Cache::new(value)),
-        })))
-    }
-}
-
-#[cfg(test)]
 pub(crate) mod test_helpers {
     use super::*;
 
@@ -400,9 +386,17 @@ pub(crate) mod test_helpers {
     where
         T: Serialize + DeserializeOwned,
     {
-        let tmp = tempfile::NamedTempFile::new()?;
-        Cache::new(value).try_serialise_to_file(tmp.path())?;
-        Cache::<T>::try_deserialise_from_file(tmp.path()).map(|cache| cache.value)
+        let file = saved_to_disk_cache(value)?;
+        Cache::<T>::try_deserialise_from_file(file.path()).map(Cache::into_inner)
+    }
+
+    /// A file holding `value`, saved the way every cache is saved.
+    pub(crate) fn saved_to_disk_cache<T: Serialize>(
+        value: T,
+    ) -> std::io::Result<tempfile::NamedTempFile> {
+        let file = tempfile::NamedTempFile::new()?;
+        Cache::new(value).try_serialise_to_file(file.path())?;
+        Ok(file)
     }
 }
 
@@ -451,14 +445,5 @@ mod tests {
 
         let cache = SharedCache::<String>::new_with_persistent(file.path(), MAX_AGE);
         assert!(cache.get().await.is_err());
-    }
-
-    #[tokio::test]
-    async fn an_unreadable_file_starts_the_never_expiring_cache_from_its_default() {
-        let file = tempfile::NamedTempFile::new().unwrap();
-        std::fs::write(file.path(), b"not a cache").unwrap();
-
-        let cache = SharedCache::<Vec<u32>>::new_with_persistent_or_default(file.path());
-        assert!(cache.get().await.unwrap().value.is_empty());
     }
 }

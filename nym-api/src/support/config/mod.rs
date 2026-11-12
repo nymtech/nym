@@ -636,6 +636,10 @@ pub struct DirectoryConfigDebug {
     /// and consequently for whether new snapshot should be taken.
     #[serde(with = "humantime_serde")]
     pub polling_interval: Duration,
+
+    /// Lists nodes announcing addresses that are not publicly routable; for local test networks
+    /// only.
+    pub unsafe_allow_illegal_ips: bool,
 }
 
 impl DirectoryConfigDebug {
@@ -658,6 +662,7 @@ impl Default for DirectoryConfigDebug {
             settle_lag: Self::DEFAULT_SETTLE_LAG,
             trusted_rpc_node: true,
             polling_interval: Self::DEFAULT_POLLING_INTERVAL,
+            unsafe_allow_illegal_ips: false,
         }
     }
 }

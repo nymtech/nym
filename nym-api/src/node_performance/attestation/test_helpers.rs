@@ -4,8 +4,8 @@
 //! Fixtures for performance snapshots as nym-api retains them.
 
 use crate::node_performance::attestation::auxiliary::PerformanceAuxiliary;
-use crate::support::attested_snapshots::data::test_helpers::{empty_retained_height, snapshot};
-use crate::support::attested_snapshots::data::RetainedHeight;
+use crate::support::attested_snapshots::data::test_helpers::{empty_height_reads, snapshot};
+use crate::support::attested_snapshots::data::{HeightReads, RetainedHeight};
 use nym_contracts_common::Percent;
 use nym_performance_contract_common::{
     EpochId, EpochWeights, KindMedians, LatestPerformance, NodeId, Weights,
@@ -71,13 +71,10 @@ pub(crate) fn retained_entry(
         .iter()
         .map(|&node_id| (node_id, *dummy_ed25519_keypair(node_id.into()).public_key()))
         .collect();
-    RetainedHeight {
+    let reads = HeightReads {
         performance: snapshot(height, records, node_identities).into(),
-        performance_auxiliary: PerformanceAuxiliary::new_for_tests(
-            weights(),
-            block_time(height),
-            medians,
-        ),
-        ..empty_retained_height(height)
-    }
+        performance_auxiliary: PerformanceAuxiliary::new_for_tests(weights(), medians),
+        ..empty_height_reads(height)
+    };
+    RetainedHeight::new(reads, false)
 }

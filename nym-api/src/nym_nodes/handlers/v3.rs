@@ -56,6 +56,7 @@ async fn get_performance_weights(
     let weights = state
         .latest_snapshot()
         .await?
+        .reads
         .performance_auxiliary
         .weights();
     Ok(output.to_response(weights))

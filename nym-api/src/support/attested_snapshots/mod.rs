@@ -9,6 +9,7 @@
 //! persisted cache the routes serve from.
 
 use crate::support::attested_snapshots::chain_anchor::NyxChainAnchor;
+use crate::support::attested_snapshots::data::AttestedSnapshotsCacheData;
 use crate::support::attested_snapshots::producer::AttestedSnapshotsProducer;
 use crate::support::attested_snapshots::state::ContractSnapshots;
 use crate::support::caching::cache::SharedCache;
@@ -55,7 +56,10 @@ pub(crate) async fn start(
     let chain_anchor = NyxChainAnchor::new(config, query_client, on_disk_checkpoint_file).await?;
 
     // the warm-up drops the stale heights
-    let cache = SharedCache::new_with_persistent_or_default(&on_disk_cache_file);
+    let cache = SharedCache::new_with_value(AttestedSnapshotsCacheData::load(
+        &on_disk_cache_file,
+        config.unsafe_allow_illegal_ips,
+    ));
 
     let producer = AttestedSnapshotsProducer::new(
         chain_anchor,

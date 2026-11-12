@@ -4,16 +4,22 @@
 use crate::mixnet_contract_cache::data::MixnetContractData;
 use crate::node_families::data::NodeFamiliesData;
 use crate::node_performance::attestation::auxiliary::PerformanceAuxiliary;
+use crate::nym_nodes::node_view::NodeView;
+use crate::support::caching::cache::Cache;
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contract_anchor::anchor::TrustedDigest;
+use nym_contract_anchor::whole_set::VerifiedRecords;
 use nym_contract_attestation::{DirectoryEntryRecord, SignedDigestSnapshot};
 use nym_crypto::asymmetric::ed25519;
+use nym_directory_client::verify::{DirectoryNode, VerifiedDirectory};
 use nym_geolocation_contract_common::GeolocationRecord;
 use nym_mixnet_contract_common::NodeId;
 use nym_performance_contract_common::LatestPerformance;
 use serde::{Deserialize, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap};
+use std::path::Path;
 use tendermint::block::Height;
+use time::OffsetDateTime;
 
 const DEFAULT_RECORDS_PAGE_SIZE: u32 = 200;
 const MAX_RECORDS_PAGE_SIZE: u32 = 500;
@@ -95,6 +101,19 @@ impl<R: Clone> AttestedSnapshot<R> {
     }
 }
 
+impl AttestedSnapshot<DirectoryEntryRecord> {
+    /// Each node's entries, verified against its identity.
+    pub(crate) fn node_entries(&self) -> BTreeMap<NodeId, DirectoryNode> {
+        VerifiedDirectory::from(VerifiedRecords {
+            height: self.height(),
+            accumulator: self.digest_snapshot.snapshot.accumulator.clone(),
+            records: self.records.clone(),
+            node_identities: self.node_identities.clone(),
+        })
+        .node_entries
+    }
+}
+
 /// The performance contract's snapshot, with each bonded node's committed entry indexed by node,
 /// since the topology routes every client fetches look one up per node.
 #[derive(Deserialize)]
@@ -140,9 +159,12 @@ impl PerformanceSnapshot {
 }
 
 /// Every attested contract's snapshot at one cadence height and the unproven reads taken beside
-/// them, retained together: a height is held for all of them or for none.
+/// them, retained together: a height is held for all of them or for none. This is what is saved.
 #[derive(Serialize, Deserialize)]
-pub(crate) struct RetainedHeight {
+pub(crate) struct HeightReads {
+    /// The time of the block every read was taken at.
+    pub(crate) block_time: OffsetDateTime,
+
     pub(crate) directory: AttestedSnapshot<DirectoryEntryRecord>,
 
     pub(crate) performance: PerformanceSnapshot,
@@ -161,20 +183,65 @@ pub(crate) struct RetainedHeight {
     pub(crate) node_families: NodeFamiliesData,
 }
 
+/// A retained height: its reads and the view of the nodes they list.
+pub(crate) struct RetainedHeight {
+    pub(crate) reads: HeightReads,
+
+    pub(crate) node_view: NodeView,
+}
+
 impl RetainedHeight {
+    pub(crate) fn new(reads: HeightReads, unsafe_allow_illegal_ips: bool) -> Self {
+        let node_view = NodeView::new(&reads, unsafe_allow_illegal_ips);
+        RetainedHeight { reads, node_view }
+    }
+
     /// The height every snapshot in it was taken at.
     pub(crate) fn height(&self) -> Height {
-        self.directory.height()
+        self.reads.directory.height()
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+// saved as its reads alone: the view is built again when they are loaded
+impl Serialize for RetainedHeight {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.reads.serialize(serializer)
+    }
+}
+
+#[derive(Default, Serialize)]
 pub(crate) struct AttestedSnapshotsCacheData {
     last_polled_height: Height,
     entries: BTreeMap<Height, RetainedHeight>,
 }
 
+/// The saved form of [`AttestedSnapshotsCacheData`]: its heights without their node views.
+#[derive(Default, Deserialize)]
+struct SavedSnapshots {
+    last_polled_height: Height,
+    entries: BTreeMap<Height, HeightReads>,
+}
+
 impl AttestedSnapshotsCacheData {
+    /// The heights saved at `path`, each with its node view built; none when the file cannot be
+    /// loaded.
+    pub(crate) fn load(path: &Path, unsafe_allow_illegal_ips: bool) -> Self {
+        // the file might not have existed, for example on initial run
+        let saved = Cache::<SavedSnapshots>::try_deserialise_from_file(path)
+            .map(Cache::into_inner)
+            .unwrap_or_default();
+        let entries = saved
+            .entries
+            .into_iter()
+            .map(|(height, reads)| (height, RetainedHeight::new(reads, unsafe_allow_illegal_ips)))
+            .collect();
+
+        AttestedSnapshotsCacheData {
+            last_polled_height: saved.last_polled_height,
+            entries,
+        }
+    }
+
     pub(crate) fn insert_entry(&mut self, entry: RetainedHeight) {
         self.entries.insert(entry.height(), entry);
     }
@@ -247,14 +314,16 @@ pub(crate) mod test_helpers {
 
     /// A retained height whose snapshots hold no records.
     pub(crate) fn empty_retained_height(height: u32) -> RetainedHeight {
-        RetainedHeight {
+        RetainedHeight::new(empty_height_reads(height), false)
+    }
+
+    /// Reads at `height` whose snapshots hold no records.
+    pub(crate) fn empty_height_reads(height: u32) -> HeightReads {
+        HeightReads {
+            block_time: block_time(height),
             directory: snapshot(height, Vec::new(), BTreeMap::new()),
             performance: snapshot(height, Vec::new(), BTreeMap::new()).into(),
-            performance_auxiliary: PerformanceAuxiliary::new_for_tests(
-                weights(),
-                block_time(height),
-                BTreeMap::new(),
-            ),
+            performance_auxiliary: PerformanceAuxiliary::new_for_tests(weights(), BTreeMap::new()),
             geolocation: snapshot(height, Vec::new(), BTreeMap::new()),
             mixnet: populated_mixnet_data(),
             node_families: NodeFamiliesData::default(),
@@ -264,16 +333,20 @@ pub(crate) mod test_helpers {
 
 #[cfg(test)]
 mod tests {
-    use super::test_helpers::{empty_retained_height, snapshot};
+    use super::test_helpers::{empty_height_reads, empty_retained_height, snapshot};
     use super::*;
     use crate::mixnet_contract_cache::data::test_helpers::populated_mixnet_data;
     use crate::node_families::data::test_helpers::populated_families_data;
     use crate::node_performance::attestation::test_helpers::{block_time, committed};
-    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
+    use crate::nym_nodes::node_view::test_helpers::{
+        bond, identity, node_information, sphinx_keys,
+    };
+    use crate::support::caching::cache::test_helpers::saved_to_disk_cache;
     use cosmwasm_std::{Addr, Binary};
     use nym_contract_anchor::whole_set::recompute_accumulator;
     use nym_contract_attestation::source::mock::mock_digest_snapshot;
-    use nym_directory_contract_common::{CuratedEntry, NodeEntry};
+    use nym_directory_contract_common::{node_signing_payload, CuratedEntry, NodeEntry};
+    use nym_directory_types::DirectoryEntryPayload;
     use nym_geolocation_contract_common::{
         AgentPermissions, LocationAttestation, LocationEntry, LocationPayload, Method, Source,
         Subject,
@@ -347,7 +420,8 @@ mod tests {
             ),
         ];
 
-        RetainedHeight {
+        let reads = HeightReads {
+            block_time: block_time(height),
             directory: snapshot(height, directory, identities.clone()),
             performance: snapshot(
                 height,
@@ -355,11 +429,12 @@ mod tests {
                 identities.clone(),
             )
             .into(),
-            performance_auxiliary: PerformanceAuxiliary::populated_for_tests(block_time(height)),
+            performance_auxiliary: PerformanceAuxiliary::populated_for_tests(),
             geolocation: snapshot(height, geolocation, identities),
             mixnet: populated_mixnet_data(),
             node_families: populated_families_data(),
-        }
+        };
+        RetainedHeight::new(reads, false)
     }
 
     fn empty_cache(last_polled: u32) -> AttestedSnapshotsCacheData {
@@ -541,19 +616,20 @@ mod tests {
             .is_none());
     }
 
-    // The cache is persisted to disk with bincode; a populated value must survive that
-    // round trip or the on-disk cache silently never writes.
+    // The cache is saved with bincode and loaded as its saved form; a populated value must come
+    // back from that round trip or the on-disk cache silently never loads.
     #[test]
     fn a_populated_retained_height_round_trips_through_the_on_disk_format() -> anyhow::Result<()> {
         let mut cache = empty_cache(0);
         cache.insert_entry(populated_entry(1000));
         cache.set_last_polled_height(Height::from(1050u32));
+        let file = saved_to_disk_cache(cache)?;
 
-        let restored = round_trip_through_disk_cache(cache)?;
+        let restored = AttestedSnapshotsCacheData::load(file.path(), false);
 
         assert_eq!(restored.last_polled_height, Height::from(1050u32));
-        let expected = populated_entry(1000);
-        let entry = restored.get_entry(Height::from(1000u32)).unwrap();
+        let expected = populated_entry(1000).reads;
+        let entry = &restored.get_entry(Height::from(1000u32)).unwrap().reads;
         assert_eq!(entry.directory.records(), expected.directory.records());
         assert_eq!(
             entry.performance.snapshot().records(),
@@ -565,6 +641,7 @@ mod tests {
             expected.performance.bonded_entry(1)
         );
         assert!(entry.performance.bonded_entry(1).is_some());
+        assert_eq!(entry.block_time, expected.block_time);
         assert_eq!(entry.performance_auxiliary, expected.performance_auxiliary);
         assert_eq!(entry.geolocation.records(), expected.geolocation.records());
         assert_eq!(
@@ -601,5 +678,63 @@ mod tests {
             expected_family.pending_invitations[0].node_id
         );
         Ok(())
+    }
+
+    #[test]
+    fn an_unreadable_file_loads_no_heights() -> anyhow::Result<()> {
+        let file = tempfile::NamedTempFile::new()?;
+        std::fs::write(file.path(), b"not a cache")?;
+
+        let loaded = AttestedSnapshotsCacheData::load(file.path(), false);
+
+        assert!(loaded.entries.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn a_height_lists_the_nodes_its_signed_directory_records_describe() {
+        let node_id = bond().node_id();
+        let mut mixnet = populated_mixnet_data();
+        mixnet.nym_nodes = vec![bond()];
+        let records = vec![
+            signed_record(node_id, &node_information()),
+            signed_record(node_id, &sphinx_keys(&[mixnet.current_key_rotation_id()])),
+        ];
+        let identities = mixnet.node_identities();
+        let reads = HeightReads {
+            directory: snapshot(1000, records, identities),
+            mixnet,
+            ..empty_height_reads(1000)
+        };
+
+        let entry = RetainedHeight::new(reads, false);
+
+        let announced = "1.2.3.4".parse().unwrap();
+        let mapped = "::ffff:1.2.3.4".parse().unwrap();
+        assert_eq!(entry.node_view.node_with_address(announced), Some(node_id));
+        assert_eq!(entry.node_view.node_with_address(mapped), Some(node_id));
+    }
+
+    /// `payload` published by `node_id` under its label, signed with its identity key.
+    fn signed_record<T: DirectoryEntryPayload>(
+        node_id: NodeId,
+        payload: &T,
+    ) -> DirectoryEntryRecord {
+        let label = T::LABEL.as_str();
+        let data = payload.to_canonical_bytes();
+        let signature = identity()
+            .private_key()
+            .sign(node_signing_payload(node_id, label, 1, &data));
+
+        DirectoryEntryRecord::new_node(
+            node_id,
+            label.to_string(),
+            NodeEntry {
+                data: Binary::new(data),
+                updated_at_height: 900,
+                sequence: 1,
+                signature: Binary::new(signature.to_bytes().to_vec()),
+            },
+        )
     }
 }

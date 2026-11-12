@@ -76,6 +76,12 @@ impl MixnetContractData {
     pub(crate) fn node_identities(&self) -> BTreeMap<NodeId, ed25519::PublicKey> {
         whole_set::node_identities(self.nym_nodes.iter().map(|node| &node.bond_information))
     }
+
+    /// The key rotation in force in the current epoch.
+    pub(crate) fn current_key_rotation_id(&self) -> u32 {
+        self.key_rotation_state
+            .key_rotation_id(self.current_interval.current_epoch_absolute_id())
+    }
 }
 
 #[cfg(test)]
@@ -113,7 +119,7 @@ pub(crate) mod test_helpers {
         format!("identity-key-of-node-{seed}")
     }
 
-    fn nym_node(node_id: NodeId) -> NymNodeDetails {
+    pub(crate) fn nym_node(node_id: NodeId, identity_key: IdentityKey) -> NymNodeDetails {
         NymNodeDetails::new(
             NymNodeBond {
                 node_id,
@@ -124,7 +130,7 @@ pub(crate) mod test_helpers {
                 node: NymNode {
                     host: "3.3.3.3".to_string(),
                     custom_http_port: Some(8080),
-                    identity_key: identity(node_id),
+                    identity_key,
                 },
             },
             rewarding_details(),
@@ -194,7 +200,7 @@ pub(crate) mod test_helpers {
     pub(crate) fn populated_mixnet_data() -> MixnetContractData {
         MixnetContractData {
             rewarding_denom: "unym".to_string(),
-            nym_nodes: vec![nym_node(3)],
+            nym_nodes: vec![nym_node(3, identity(3))],
             rewarded_set: rewarded_set(),
             config_score_data: config_score_data(),
             current_reward_params: reward_params(),

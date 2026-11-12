@@ -8,17 +8,19 @@ use nym_performance_contract_common::NodeId;
 impl RetainedHeight {
     /// `node_id`'s committed entry, with the medians held for its epoch.
     pub(crate) fn node_performance(&self, node_id: NodeId) -> NodePerformanceResponseV3 {
-        let auxiliary = &self.performance_auxiliary;
+        let auxiliary = &self.reads.performance_auxiliary;
         NodePerformanceResponseV3 {
             node_id,
-            performance: self.performance.bonded_entry(node_id).map(|committed| {
-                DetailedNodePerformanceV3 {
+            performance: self
+                .reads
+                .performance
+                .bonded_entry(node_id)
+                .map(|committed| DetailedNodePerformanceV3 {
                     performance_score: committed.score,
                     source_epoch: committed.epoch_id,
-                    computed_at: auxiliary.block_time(),
+                    computed_at: self.reads.block_time,
                     medians: auxiliary.node_medians(committed.epoch_id, node_id),
-                }
-            }),
+                }),
         }
     }
 }
@@ -99,14 +101,14 @@ mod tests {
             committed(9, 100, Some(60)),
         ]);
 
+        let performance = &entry.reads.performance;
         assert_eq!(
-            entry
-                .performance
+            performance
                 .bonded_entry(7)
                 .map(|committed| committed.node_id),
             Some(7)
         );
-        assert!(entry.performance.bonded_entry(8).is_none());
-        assert!(entry.performance.bonded_entry(9).is_none());
+        assert!(performance.bonded_entry(8).is_none());
+        assert!(performance.bonded_entry(9).is_none());
     }
 }

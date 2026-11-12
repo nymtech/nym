@@ -43,7 +43,7 @@ impl ContractSnapshots {
 
     pub(crate) async fn latest_directory(&self) -> Option<SnapshotGuard<'_, DirectoryEntryRecord>> {
         let entry = self.latest_entry().await?;
-        Some(RwLockReadGuard::map(entry, |entry| &entry.directory))
+        Some(RwLockReadGuard::map(entry, |entry| &entry.reads.directory))
     }
 
     pub(crate) async fn directory_at(
@@ -51,13 +51,13 @@ impl ContractSnapshots {
         height: Height,
     ) -> Option<SnapshotGuard<'_, DirectoryEntryRecord>> {
         let entry = self.entry_at(height).await?;
-        Some(RwLockReadGuard::map(entry, |entry| &entry.directory))
+        Some(RwLockReadGuard::map(entry, |entry| &entry.reads.directory))
     }
 
     pub(crate) async fn latest_performance(&self) -> Option<SnapshotGuard<'_, LatestPerformance>> {
         let entry = self.latest_entry().await?;
         Some(RwLockReadGuard::map(entry, |entry| {
-            entry.performance.snapshot()
+            entry.reads.performance.snapshot()
         }))
     }
 
@@ -67,13 +67,15 @@ impl ContractSnapshots {
     ) -> Option<SnapshotGuard<'_, LatestPerformance>> {
         let entry = self.entry_at(height).await?;
         Some(RwLockReadGuard::map(entry, |entry| {
-            entry.performance.snapshot()
+            entry.reads.performance.snapshot()
         }))
     }
 
     pub(crate) async fn latest_geolocation(&self) -> Option<SnapshotGuard<'_, GeolocationRecord>> {
         let entry = self.latest_entry().await?;
-        Some(RwLockReadGuard::map(entry, |entry| &entry.geolocation))
+        Some(RwLockReadGuard::map(entry, |entry| {
+            &entry.reads.geolocation
+        }))
     }
 
     pub(crate) async fn geolocation_at(
@@ -81,7 +83,9 @@ impl ContractSnapshots {
         height: Height,
     ) -> Option<SnapshotGuard<'_, GeolocationRecord>> {
         let entry = self.entry_at(height).await?;
-        Some(RwLockReadGuard::map(entry, |entry| &entry.geolocation))
+        Some(RwLockReadGuard::map(entry, |entry| {
+            &entry.reads.geolocation
+        }))
     }
 }
 

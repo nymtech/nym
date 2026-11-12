@@ -6,7 +6,7 @@ use crate::node_families::data::NodeFamiliesData;
 use crate::node_performance::attestation::auxiliary::PerformanceAuxiliary;
 use crate::support::attested_snapshots::chain_anchor::{NyxChainAnchor, NyxContractAnchor};
 use crate::support::attested_snapshots::data::{
-    AttestedSnapshot, AttestedSnapshotsCacheData, RetainedHeight,
+    AttestedSnapshot, AttestedSnapshotsCacheData, HeightReads, RetainedHeight,
 };
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
@@ -65,6 +65,9 @@ pub(crate) struct AttestedSnapshotsProducer {
 
     polling_interval: Duration,
 
+    /// Whether nodes announcing non-public addresses are listed, for local test networks.
+    unsafe_allow_illegal_ips: bool,
+
     cache: SharedCache<AttestedSnapshotsCacheData>,
 
     on_disk_cache_file: PathBuf,
@@ -108,6 +111,7 @@ impl AttestedSnapshotsProducer {
             signing_keys,
             retention_count: config.retention_count,
             polling_interval: config.polling_interval,
+            unsafe_allow_illegal_ips: config.unsafe_allow_illegal_ips,
             cache,
             on_disk_cache_file,
             shutdown_token,
@@ -197,6 +201,10 @@ impl AttestedSnapshotsProducer {
             .trusted_app_hash(height)
             .await
             .context("failed to establish the app hash")?;
+        let block_time = self
+            .block_time(height)
+            .await
+            .context("failed to read the block time")?;
         let mixnet = MixnetContractData::read(self.chain_anchor.query_client(), height)
             .await
             .context("failed to read the mixnet contract")?;
@@ -218,7 +226,8 @@ impl AttestedSnapshotsProducer {
             .await
             .context("failed to read the performance auxiliary")?;
 
-        Ok(RetainedHeight {
+        let reads = HeightReads {
+            block_time,
             directory: self.attest(&self.directory, &app_hash, directory),
             performance: self
                 .attest(&self.performance, &app_hash, performance)
@@ -227,7 +236,8 @@ impl AttestedSnapshotsProducer {
             geolocation: self.attest(&self.geolocation, &app_hash, geolocation),
             mixnet,
             node_families,
-        })
+        };
+        Ok(RetainedHeight::new(reads, self.unsafe_allow_illegal_ips))
     }
 
     /// `verified`, read from `contract`'s committed set, signed by this api.
@@ -271,18 +281,21 @@ impl AttestedSnapshotsProducer {
             .is_ok_and(|cache| cache.contains_entry(height))
     }
 
-    /// The newest retained entry below `height`, under the cache's guard: take what is needed and
-    /// drop it before any chain read.
-    async fn previous_entry(&self, height: Height) -> Option<RwLockReadGuard<'_, RetainedHeight>> {
+    /// The reads of the newest retained height below `height`, under the cache's guard: take what
+    /// is needed and drop it before any chain read.
+    async fn previous_reads(&self, height: Height) -> Option<RwLockReadGuard<'_, HeightReads>> {
         let guard = self.cache.get().await.ok()?;
-        RwLockReadGuard::try_map(guard, |cache| cache.previous_entry(height)).ok()
+        RwLockReadGuard::try_map(guard, |cache| {
+            cache.previous_entry(height).map(|entry| &entry.reads)
+        })
+        .ok()
     }
 
     /// The auxiliary value of the newest retained height below `height`.
     async fn previous_auxiliary(&self, height: Height) -> Option<PerformanceAuxiliary> {
-        self.previous_entry(height)
+        self.previous_reads(height)
             .await
-            .map(|entry| entry.performance_auxiliary.clone())
+            .map(|reads| reads.performance_auxiliary.clone())
     }
 
     fn persist(&self, cache: &Cache<AttestedSnapshotsCacheData>) {
@@ -299,9 +312,9 @@ impl AttestedSnapshotsProducer {
     ) -> Result<VerifiedRecords<DirectoryEntryRecord>, VerificationError> {
         let trusted = self.directory.trusted_digest(height).await?;
         let unchanged = self
-            .previous_entry(height)
+            .previous_reads(height)
             .await
-            .and_then(|entry| entry.directory.records_if_unchanged(&trusted));
+            .and_then(|reads| reads.directory.records_if_unchanged(&trusted));
 
         let records = match unchanged {
             Some(records) => records,
@@ -333,9 +346,9 @@ impl AttestedSnapshotsProducer {
     ) -> Result<VerifiedRecords<GeolocationRecord>, VerificationError> {
         let trusted = self.geolocation.trusted_digest(height).await?;
         let unchanged = self
-            .previous_entry(height)
+            .previous_reads(height)
             .await
-            .and_then(|entry| entry.geolocation.records_if_unchanged(&trusted));
+            .and_then(|reads| reads.geolocation.records_if_unchanged(&trusted));
 
         let records = match unchanged {
             Some(records) => records,
@@ -367,9 +380,9 @@ impl AttestedSnapshotsProducer {
     ) -> Result<VerifiedRecords<LatestPerformance>, VerificationError> {
         let trusted = self.performance.trusted_digest(height).await?;
         let unchanged = self
-            .previous_entry(height)
+            .previous_reads(height)
             .await
-            .and_then(|entry| entry.performance.snapshot().records_if_unchanged(&trusted));
+            .and_then(|reads| reads.performance.snapshot().records_if_unchanged(&trusted));
 
         let records = match unchanged {
             // retained in node order already
@@ -403,24 +416,27 @@ impl AttestedSnapshotsProducer {
         height: Height,
         records: &[LatestPerformance],
     ) -> Result<PerformanceAuxiliary, NyxdError> {
-        let query_client = self.chain_anchor.query_client();
-        let block_time = query_client
-            .header(height)
-            .await
-            .map_err(NyxdError::from)?
-            .header
-            .time;
         let newest_epoch = records.iter().map(|entry| entry.epoch_id).max();
         let previous = self.previous_auxiliary(height).await;
 
         PerformanceAuxiliary::read(
-            query_client,
+            self.chain_anchor.query_client(),
             height,
-            OffsetDateTime::from(block_time),
             newest_epoch,
             previous,
         )
         .await
+    }
+
+    /// The time of the block at `height`.
+    async fn block_time(&self, height: Height) -> Result<OffsetDateTime, NyxdError> {
+        let header = self
+            .chain_anchor
+            .query_client()
+            .header(height)
+            .await
+            .map_err(NyxdError::from)?;
+        Ok(OffsetDateTime::from(header.header.time))
     }
 
     /// Polls every `polling_interval` until shutdown.

@@ -20,7 +20,10 @@ impl RetainedHeight {
     /// `node_id`'s committed score, 0 when the contract cannot score it; `None` for a node without
     /// a committed entry, which is served 0.
     pub(crate) fn published_score(&self, node_id: NodeId) -> Option<f64> {
-        self.performance.bonded_entry(node_id).map(committed_score)
+        self.reads
+            .performance
+            .bonded_entry(node_id)
+            .map(committed_score)
     }
 
     /// `node_id`'s performance as the topology routes publish it.
@@ -35,10 +38,11 @@ impl RetainedHeight {
         node_id: NodeId,
         rewarded_set: &CachedEpochRewardedSet,
     ) -> Option<NodeAnnotationV2> {
-        let committed = self.performance.bonded_entry(node_id)?;
+        let committed = self.reads.performance.bonded_entry(node_id)?;
 
         // an entry older than the epochs whose medians are held keeps default sub-scores
         let medians = self
+            .reads
             .performance_auxiliary
             .node_medians(committed.epoch_id, node_id)
             .unwrap_or_default();

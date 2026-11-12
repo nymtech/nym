@@ -7,6 +7,7 @@
     - if ufw was active, NTM takes over: your own ufw rules are kept in their original order, then ufw is disabled
 4. **Exit policy** - creates the `NYM-EXIT` iptables chain, applies the full port allowlist, rate-limits SMTPS (TCP/465), applies the Spamhaus blocklist, adds a default REJECT at the end of the chain
 5. **Verification** - checks the firewall rule order and runs automated tests against all exit policy rules, reporting any issues
+
 All rules are saved to `/etc/iptables/rules.v4` and `/etc/iptables/rules.v6` via `iptables-persistent`, so they survive reboots. The script is idempotent - safe to re-run multiple times.
  
-To keep managing the host firewall yourself, run NTM with `HOST_INPUT_POLICY=KEEP`: it then only adds its allow rules and never drops other traffic.
+To keep managing the host firewall yourself, run NTM with `HOST_INPUT_POLICY=KEEP`: it then only adds its allow rules, never drops other traffic, and doesn't take over ufw. If ufw is active, its rules are checked before NTM's, so open the ports listed above in ufw as well. The Ansible `tunnel` role doesn't pass `HOST_INPUT_POLICY`, so a playbook run always applies the default `DROP`.

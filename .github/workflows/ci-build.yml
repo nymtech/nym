@@ -84,10 +84,20 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          choco install openssl --no-progress -y
-          $dir = @("$env:ProgramFiles\OpenSSL-Win64", "$env:ProgramFiles\OpenSSL") |
-            Where-Object { Test-Path "$_\include\openssl" } |
-            Select-Object -First 1
+          function Find-OpenSsl {
+            @("$env:ProgramFiles\OpenSSL-Win64", "$env:ProgramFiles\OpenSSL") |
+              Where-Object { Test-Path "$_\include\openssl" } |
+              Select-Object -First 1
+          }
+          # the runner is persistent, so OpenSSL may be installed by an earlier run
+          $dir = Find-OpenSsl
+          if (-not $dir) {
+            if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "winget is not available" }
+            winget install --id ShiningLight.OpenSSL.Dev --exact --silent --scope machine `
+              --accept-package-agreements --accept-source-agreements --disable-interactivity
+            if ($LASTEXITCODE -ne 0) { throw "winget failed with exit code $LASTEXITCODE" }
+            $dir = Find-OpenSsl
+          }
           if (-not $dir) { throw "OpenSSL headers not found after installing" }
           "OPENSSL_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 

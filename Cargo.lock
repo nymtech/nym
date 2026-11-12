@@ -7276,6 +7276,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bincode",
+ "hex",
  "log",
  "nym-compact-ecash",
  "nym-credentials",

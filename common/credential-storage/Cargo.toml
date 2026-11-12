@@ -16,6 +16,7 @@ publish = true
 [dependencies]
 async-trait = { workspace = true }
 bincode = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
 
 log = { workspace = true }
 thiserror = { workspace = true }
@@ -57,6 +58,6 @@ sqlx = { workspace = true, features = [
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [features]
-persistent-storage = ["bincode", "serde", "dep:sqlx"]
+persistent-storage = ["bincode", "dep:hex", "serde", "dep:sqlx"]
 
 [lints]

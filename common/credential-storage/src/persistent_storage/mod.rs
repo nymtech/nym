@@ -56,18 +56,44 @@ impl PersistentStorage {
     ///
     /// * `database_path`: path to the database.
     pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+        Self::init_with_options(Self::connect_options(database_path), false).await
+    }
+
+    /// Initialises `PersistentStorage` encrypted with SQLCipher using the provided path.
+    ///
+    /// Fails with [`StorageError::EncryptionNotSupported`] if SQLite is not built with SQLCipher.
+    ///
+    /// # Arguments
+    ///
+    /// * `database_path`: path to the database.
+    /// * `key`: raw 256-bit SQLCipher key. It is used as is, without passphrase key derivation.
+    pub async fn init_encrypted<P: AsRef<Path>>(
+        database_path: P,
+        key: &[u8; 32],
+    ) -> Result<Self, StorageError> {
+        let opts = Self::connect_options(database_path)
+            .pragma("key", format!("\"x'{}'\"", hex::encode_upper(key)));
+        Self::init_with_options(opts, true).await
+    }
+
+    fn connect_options<P: AsRef<Path>>(database_path: P) -> sqlx::sqlite::SqliteConnectOptions {
         debug!(
             "Attempting to connect to database {}",
             database_path.as_ref().display()
         );
-        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+        sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
-            .disable_statement_logging();
+            .disable_statement_logging()
+    }
 
+    async fn init_with_options(
+        opts: sqlx::sqlite::SqliteConnectOptions,
+        require_encryption: bool,
+    ) -> Result<Self, StorageError> {
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,
             Err(err) => {
@@ -75,6 +101,19 @@ impl PersistentStorage {
                 return Err(err.into());
             }
         };
+
+        // Plain SQLite silently ignores `PRAGMA key` and would create an unencrypted database.
+        // `PRAGMA cipher_version` only returns a row when SQLite is built with SQLCipher, so check
+        // for it before migrations write anything.
+        if require_encryption {
+            let cipher_version: Option<String> = sqlx::query_scalar("PRAGMA cipher_version")
+                .fetch_optional(&connection_pool)
+                .await?;
+            if cipher_version.is_none() {
+                connection_pool.close().await;
+                return Err(StorageError::EncryptionNotSupported);
+            }
+        }
 
         if let Err(err) = sqlx::migrate!("./migrations").run(&connection_pool).await {
             error!("Failed to perform migration on the SQLx database: {err}");

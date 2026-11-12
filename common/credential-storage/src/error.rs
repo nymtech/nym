@@ -27,6 +27,9 @@ pub enum StorageError {
 
     #[error("Database unique constraint violation. Is the credential already imported?")]
     ConstraintUnique,
+
+    #[error("SQLite is not built with SQLCipher, cannot open encrypted database")]
+    EncryptionNotSupported,
 }
 
 impl StorageError {

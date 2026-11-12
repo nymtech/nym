@@ -127,6 +127,20 @@ impl StoragePaths {
             })
     }
 
+    /// Instantiates ecash credential storage encrypted with SQLCipher.
+    ///
+    /// `key` is a raw 256-bit SQLCipher key.
+    pub async fn persistent_credential_storage_encrypted(
+        &self,
+        key: &[u8; 32],
+    ) -> Result<PersistentCredentialStorage, Error> {
+        PersistentCredentialStorage::init_encrypted(&self.credential_database_path, key)
+            .await
+            .map_err(|source| Error::CredentialStorageError {
+                source: Box::new(source),
+            })
+    }
+
     /// Instantiates default reply surb storage backend with default configuration.
     pub async fn default_persistent_fs_reply_backend(&self) -> Result<fs_backend::Backend, Error> {
         self.persistent_fs_reply_backend(&Default::default()).await

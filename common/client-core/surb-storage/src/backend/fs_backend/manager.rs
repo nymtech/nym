@@ -89,14 +89,14 @@ impl StorageManager {
     }
 
     #[allow(dead_code)]
-    pub async fn status_table_exists(&self) -> Result<bool, sqlx::Error> {
+    pub async fn status_table_exists(&self) -> sqlx::Result<bool> {
         sqlx::query!("SELECT name FROM sqlite_master WHERE type='table' AND name='status'")
             .fetch_optional(&self.connection_pool)
             .await
             .map(|r| r.is_some())
     }
 
-    pub async fn create_status_table(&self) -> Result<(), sqlx::Error> {
+    pub async fn create_status_table(&self) -> sqlx::Result<()> {
         sqlx::query!(
             "INSERT INTO status(flush_in_progress, previous_flush, client_in_use) VALUES (0, 0, 1)"
         )
@@ -105,28 +105,28 @@ impl StorageManager {
         Ok(())
     }
 
-    pub async fn get_flush_status(&self) -> Result<bool, sqlx::Error> {
+    pub async fn get_flush_status(&self) -> sqlx::Result<bool> {
         sqlx::query!("SELECT flush_in_progress FROM status;")
             .fetch_one(&self.connection_pool)
             .await
             .map(|r| r.flush_in_progress > 0)
     }
 
-    pub async fn set_previous_flush(&self, timestamp: OffsetDateTime) -> Result<(), sqlx::Error> {
+    pub async fn set_previous_flush(&self, timestamp: OffsetDateTime) -> sqlx::Result<()> {
         sqlx::query!("UPDATE status SET previous_flush = ?", timestamp)
             .execute(&self.connection_pool)
             .await?;
         Ok(())
     }
 
-    pub async fn get_previous_flush_time(&self) -> Result<OffsetDateTime, sqlx::Error> {
+    pub async fn get_previous_flush_time(&self) -> sqlx::Result<OffsetDateTime> {
         sqlx::query!(r#"SELECT previous_flush AS "previous_flush: OffsetDateTime" FROM status"#)
             .fetch_one(&self.connection_pool)
             .await
             .map(|r| r.previous_flush)
     }
 
-    pub async fn set_flush_status(&self, in_progress: bool) -> Result<(), sqlx::Error> {
+    pub async fn set_flush_status(&self, in_progress: bool) -> sqlx::Result<()> {
         let in_progress_int = i64::from(in_progress);
         sqlx::query!("UPDATE status SET flush_in_progress = ?", in_progress_int)
             .execute(&self.connection_pool)
@@ -134,14 +134,14 @@ impl StorageManager {
         Ok(())
     }
 
-    pub async fn get_client_in_use_status(&self) -> Result<bool, sqlx::Error> {
+    pub async fn get_client_in_use_status(&self) -> sqlx::Result<bool> {
         sqlx::query!("SELECT client_in_use FROM status;")
             .fetch_one(&self.connection_pool)
             .await
             .map(|r| r.client_in_use > 0)
     }
 
-    pub async fn set_client_in_use_status(&self, in_use: bool) -> Result<(), sqlx::Error> {
+    pub async fn set_client_in_use_status(&self, in_use: bool) -> sqlx::Result<()> {
         let in_use_int = i64::from(in_use);
         sqlx::query!("UPDATE status SET client_in_use = ?", in_use_int)
             .execute(&self.connection_pool)
@@ -149,23 +149,20 @@ impl StorageManager {
         Ok(())
     }
 
-    pub async fn delete_all_reply_keys(&self) -> Result<(), sqlx::Error> {
+    pub async fn delete_all_reply_keys(&self) -> sqlx::Result<()> {
         sqlx::query!("DELETE FROM reply_key;")
             .execute(&self.connection_pool)
             .await?;
         Ok(())
     }
 
-    pub async fn get_reply_keys(&self) -> Result<Vec<StoredReplyKey>, sqlx::Error> {
+    pub async fn get_reply_keys(&self) -> sqlx::Result<Vec<StoredReplyKey>> {
         sqlx::query_as("SELECT * FROM reply_key;")
             .fetch_all(&self.connection_pool)
             .await
     }
 
-    pub async fn insert_reply_key(
-        &self,
-        stored_reply_key: StoredReplyKey,
-    ) -> Result<(), sqlx::Error> {
+    pub async fn insert_reply_key(&self, stored_reply_key: StoredReplyKey) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 INSERT INTO reply_key(key_digest, reply_key, sent_at) VALUES (?, ?, ?);
@@ -179,7 +176,7 @@ impl StorageManager {
         Ok(())
     }
 
-    pub async fn get_surb_senders(&self) -> Result<Vec<StoredSurbSender>, sqlx::Error> {
+    pub async fn get_surb_senders(&self) -> sqlx::Result<Vec<StoredSurbSender>> {
         sqlx::query_as("SELECT * FROM reply_surb_sender;")
             .fetch_all(&self.connection_pool)
             .await
@@ -188,7 +185,7 @@ impl StorageManager {
     pub async fn insert_surb_sender(
         &self,
         stored_surb_sender: StoredSurbSender,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
                 INSERT INTO reply_surb_sender(tag, last_sent) VALUES (?, ?);
@@ -202,10 +199,7 @@ impl StorageManager {
         Ok(id)
     }
 
-    pub async fn get_reply_surbs(
-        &self,
-        sender_id: i64,
-    ) -> Result<Vec<StoredReplySurb>, sqlx::Error> {
+    pub async fn get_reply_surbs(&self, sender_id: i64) -> sqlx::Result<Vec<StoredReplySurb>> {
         sqlx::query_as!(
             StoredReplySurb,
             r#"
@@ -218,7 +212,7 @@ impl StorageManager {
         .await
     }
 
-    pub async fn delete_all_reply_surb_data(&self) -> Result<(), sqlx::Error> {
+    pub async fn delete_all_reply_surb_data(&self) -> sqlx::Result<()> {
         sqlx::query!("DELETE FROM reply_surb;")
             .execute(&self.connection_pool)
             .await?;
@@ -230,10 +224,7 @@ impl StorageManager {
         Ok(())
     }
 
-    pub async fn insert_reply_surb(
-        &self,
-        stored_reply_surb: StoredReplySurb,
-    ) -> Result<(), sqlx::Error> {
+    pub async fn insert_reply_surb(&self, stored_reply_surb: StoredReplySurb) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 INSERT INTO reply_surb(reply_surb_sender_id, reply_surb, encoded_key_rotation) VALUES (?, ?, ?);
@@ -247,9 +238,7 @@ impl StorageManager {
         Ok(())
     }
 
-    pub async fn get_reply_surb_storage_metadata(
-        &self,
-    ) -> Result<ReplySurbStorageMetadata, sqlx::Error> {
+    pub async fn get_reply_surb_storage_metadata(&self) -> sqlx::Result<ReplySurbStorageMetadata> {
         sqlx::query_as!(
             ReplySurbStorageMetadata,
              r#"
@@ -263,7 +252,7 @@ impl StorageManager {
     pub async fn insert_reply_surb_storage_metadata(
         &self,
         metadata: ReplySurbStorageMetadata,
-    ) -> Result<(), sqlx::Error> {
+    ) -> sqlx::Result<()> {
         sqlx::query!(r#"
             INSERT INTO reply_surb_storage_metadata(min_reply_surb_threshold, max_reply_surb_threshold)
             VALUES (?, ?);

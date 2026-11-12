@@ -3,7 +3,7 @@
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("sqlx error")]
+    #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
 
     #[error("migrate error")]

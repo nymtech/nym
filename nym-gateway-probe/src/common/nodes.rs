@@ -123,12 +123,12 @@ impl DirectoryNode {
             .transpose()?;
         let authenticator_version =
             AuthenticatorVersion::from(description.build_information.build_version.as_str());
-        let ip_address = description
-            .host_information
-            .ip_address
+        let host_ips = description.host_information.ip_address.clone();
+        let ip_address = host_ips
             .first()
             .copied()
             .ok_or_else(|| anyhow!("no ip address known"))?;
+        let hostname = description.host_information.hostname.clone();
 
         let identity = self.identity();
 
@@ -169,6 +169,8 @@ impl DirectoryNode {
             authenticator_address,
             authenticator_version,
             ip_address: Some(ip_address),
+            host_ips,
+            hostname,
             lp_data,
         })
     }
@@ -498,6 +500,9 @@ pub struct TestedNodeDetails {
     pub authenticator_address: Option<Recipient>,
     pub authenticator_version: AuthenticatorVersion,
     pub ip_address: Option<IpAddr>,
+    /// Advertised host IPs, used to contact the node HTTP API.
+    pub host_ips: Vec<IpAddr>,
+    pub hostname: Option<String>,
     pub lp_data: Option<TestedNodeLpDetails>,
 }
 

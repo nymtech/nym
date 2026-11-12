@@ -9,7 +9,8 @@
 //! - WgLp: Entry LP + Exit LP (nested forwarding) + WireGuard
 //! - LpOnly: LP registration only, no WireGuard
 //! - Socks5Only: Socks5 test
-//! - All: Mixnet, wireguard over authenticator and LP registration
+//! - BridgesOnly: Bridge transports via WG forward path (needs mixnet + credentials)
+//! - All: Mixnet, wireguard over authenticator, LP registration and bridge transports
 //!
 //! Note: Exit policy port checking is handled by the `run-ports` subcommand,
 //! not via a test mode.
@@ -30,7 +31,10 @@ pub enum TestMode {
     LpOnly,
     /// Socks5 test only
     Socks5Only,
-    /// Mixnet tests, Wireguard tests, LP tests, Socks5 test
+    /// Bridge transports via WG forward path. Needs mixnet + credentials; not
+    /// scored.
+    BridgesOnly,
+    /// Mixnet tests, Wireguard tests, LP tests, Socks5 test, bridge transports
     All,
 }
 
@@ -58,9 +62,21 @@ impl TestMode {
         matches!(self, TestMode::Socks5Only | TestMode::All)
     }
 
+    /// Bridge transports: WG through each published forwarder. Absent from the
+    /// directory score.
+    pub fn bridge_tests(&self) -> bool {
+        matches!(self, TestMode::BridgesOnly | TestMode::All)
+    }
+
     /// Whether this mode requires a mixnet client
     pub fn needs_mixnet(&self) -> bool {
-        matches!(self, TestMode::Core | TestMode::All | TestMode::WgMix)
+        // Bridges need a WG registration (authenticator over mixnet) so the
+        // forward path can be proven, not just the transport dial. That also
+        // means credentials are required for `bridges-only`.
+        matches!(
+            self,
+            TestMode::Core | TestMode::All | TestMode::WgMix | TestMode::BridgesOnly
+        )
     }
 }
 
@@ -72,6 +88,7 @@ impl std::fmt::Display for TestMode {
             TestMode::WgLp => write!(f, "wg-lp"),
             TestMode::LpOnly => write!(f, "lp-only"),
             TestMode::Socks5Only => write!(f, "socks5-only"),
+            TestMode::BridgesOnly => write!(f, "bridges-only"),
             TestMode::All => write!(f, "all"),
         }
     }
@@ -87,10 +104,12 @@ impl std::str::FromStr for TestMode {
             "wg-lp" | "wglp" | "wg_lp" => Ok(TestMode::WgLp),
             "lp-only" | "lponly" | "lp_only" => Ok(TestMode::LpOnly),
             "socks5-only" | "socks5only" | "socks5_only" => Ok(TestMode::Socks5Only),
+            "bridges-only" | "bridgesonly" | "bridges_only" | "bridges" => {
+                Ok(TestMode::BridgesOnly)
+            }
             "all" => Ok(TestMode::All),
             _ => Err(format!(
-                "Unknown test mode: '{}'. Valid modes: core, wg-mix, wg-lp, lp-only, socks5-only, all",
-                s
+                "Unknown test mode: '{s}'. Valid modes: core, wg-mix, wg-lp, lp-only, socks5-only, bridges-only, all"
             )),
         }
     }
@@ -109,6 +128,7 @@ mod tests {
         assert!(!TestMode::WgLp.needs_mixnet());
         assert!(!TestMode::LpOnly.needs_mixnet());
         assert!(!TestMode::Socks5Only.needs_mixnet());
+        assert!(TestMode::BridgesOnly.needs_mixnet());
         assert!(TestMode::All.needs_mixnet());
     }
 
@@ -121,6 +141,7 @@ mod tests {
         assert_eq!(TestMode::WgLp.to_string(), "wg-lp");
         assert_eq!(TestMode::LpOnly.to_string(), "lp-only");
         assert_eq!(TestMode::Socks5Only.to_string(), "socks5-only");
+        assert_eq!(TestMode::BridgesOnly.to_string(), "bridges-only");
         assert_eq!(TestMode::All.to_string(), "all");
     }
 
@@ -135,6 +156,10 @@ mod tests {
         assert_eq!(
             "socks5-only".parse::<TestMode>().unwrap(),
             TestMode::Socks5Only
+        );
+        assert_eq!(
+            "bridges-only".parse::<TestMode>().unwrap(),
+            TestMode::BridgesOnly
         );
         assert_eq!("all".parse::<TestMode>().unwrap(), TestMode::All);
     }
@@ -152,6 +177,14 @@ mod tests {
             "socks5_only".parse::<TestMode>().unwrap(),
             TestMode::Socks5Only
         );
+        assert_eq!(
+            "bridges_only".parse::<TestMode>().unwrap(),
+            TestMode::BridgesOnly
+        );
+        assert_eq!(
+            "bridges".parse::<TestMode>().unwrap(),
+            TestMode::BridgesOnly
+        );
 
         // no separator
         assert_eq!("wgmix".parse::<TestMode>().unwrap(), TestMode::WgMix);
@@ -160,6 +193,10 @@ mod tests {
         assert_eq!(
             "socks5only".parse::<TestMode>().unwrap(),
             TestMode::Socks5Only
+        );
+        assert_eq!(
+            "bridgesonly".parse::<TestMode>().unwrap(),
+            TestMode::BridgesOnly
         );
     }
 
@@ -172,6 +209,10 @@ mod tests {
         assert_eq!(
             "soCkS5-oNlY".parse::<TestMode>().unwrap(),
             TestMode::Socks5Only
+        );
+        assert_eq!(
+            "Bridges-Only".parse::<TestMode>().unwrap(),
+            TestMode::BridgesOnly
         );
         assert_eq!("ALL".parse::<TestMode>().unwrap(), TestMode::All);
     }
@@ -193,6 +234,7 @@ mod tests {
             TestMode::WgLp,
             TestMode::LpOnly,
             TestMode::Socks5Only,
+            TestMode::BridgesOnly,
             TestMode::All,
         ] {
             let s = mode.to_string();

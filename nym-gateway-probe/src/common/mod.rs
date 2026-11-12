@@ -7,6 +7,7 @@
 //! - WireGuard tunnel testing via netstack
 
 pub(crate) mod bandwidth_helpers;
+pub(crate) mod bridge;
 pub(crate) mod helpers;
 pub(crate) mod icmp;
 pub(crate) mod netstack;

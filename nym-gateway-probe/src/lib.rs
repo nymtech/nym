@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::common::bandwidth_helpers::build_bandwidth_controller;
+use crate::common::bridge::{BridgePeer, bridge_probe};
 use crate::common::helpers;
 use crate::common::nodes::TestedNodeDetails;
 use crate::common::probe_tests::{
-    do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe,
+    do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe, wg_register,
+    wg_tunnel_probe,
 };
 use crate::common::types::{Entry, LpProbeResults};
+use crate::common::wireguard::WgTunnelConfig;
 use crate::config::{CredentialArgs, CredentialMode, NetstackArgs, ProbeConfig};
 use nym_authenticator_client::{
     AuthClientMixnetListener, AuthClientMixnetListenerHandle, AuthenticatorClient,
@@ -18,7 +21,8 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::x25519;
 use nym_sdk::mixnet::{
-    Ephemeral, KeyStore, MixnetClient, MixnetClientBuilder, MixnetClientStorage, StoragePaths,
+    Ephemeral, KeyStore, MixnetClient, MixnetClientBuilder, MixnetClientStorage, NodeIdentity,
+    Recipient, StoragePaths,
 };
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::collections::BTreeMap;
@@ -758,6 +762,7 @@ impl Probe {
                 wg: None,
                 lp: None,
                 socks5: None,
+                bridges: None,
             },
         };
 
@@ -825,75 +830,111 @@ impl Probe {
             mixnet_client
         };
 
-        // Wireguard with Authenticator test
+        // Direct WG may target the exit; bridges always front the entry.
+        // Register each peer we need. When entry == exit, one registration
+        // covers both.
+        let needs_wg = self.config.test_mode.wireguard_tests();
+        let needs_bridge = self.config.test_mode.bridge_tests();
+        let mut bridge_tunnel = None;
+        let mut bridge_reg_error = None;
+
         if let Some(mixnet_client) = mixnet_client {
-            // We have a mixnet_client to disconnect at the end here
-            if self.config.test_mode.wireguard_tests() {
-                if let (Some(authenticator), Some(ip_address)) =
-                    (exit_node.authenticator_address, exit_node.ip_address)
-                {
-                    info!("Testing WireGuard via Mixnet registration");
-                    // Run wireguard with authenticator
-                    let nym_address = *mixnet_client.nym_address();
-                    // Start the mixnet listener that the auth clients use to receive messages.
-                    let mixnet_listener_task =
-                        AuthClientMixnetListener::new(mixnet_client, CancellationToken::new())
-                            .start();
+            if needs_wg || needs_bridge {
+                let nym_address = *mixnet_client.nym_address();
+                let mixnet_listener_task =
+                    AuthClientMixnetListener::new(mixnet_client, CancellationToken::new()).start();
 
-                    let auth_client = AuthenticatorClient::new(
-                        mixnet_listener_task.subscribe(),
-                        mixnet_listener_task.mixnet_sender(),
-                        nym_address,
-                        authenticator,
-                        exit_node.authenticator_version,
-                        Arc::new(x25519::KeyPair::new(&mut rand::rng())),
-                        ip_address,
-                    );
-
-                    let (wg_ticket_type, credential_provider) = if entry_under_test {
-                        (TicketType::V1WireguardEntry, self.entry_node.identity)
+                if needs_wg {
+                    // Preserve pre-bridge behaviour: missing authenticator/IP
+                    // leaves `wg` unset (`None`), rather than all-false defaults.
+                    if exit_node.authenticator_address.is_none() || exit_node.ip_address.is_none() {
+                        warn!(
+                            "Not enough information to run WireGuard via mixnet registration tests"
+                        );
                     } else {
-                        (TicketType::V1WireguardExit, exit_node.identity)
-                    };
-
-                    let credential = bandwith_provider
-                        .get_ecash_ticket(
-                            wg_ticket_type,
-                            credential_provider,
-                            1,
-                            OffsetDateTime::now_utc(),
+                        match register_wg_peer(
+                            &mixnet_listener_task,
+                            nym_address,
+                            &exit_node,
+                            if entry_under_test {
+                                TicketType::V1WireguardEntry
+                            } else {
+                                TicketType::V1WireguardExit
+                            },
+                            if entry_under_test {
+                                self.entry_node.identity
+                            } else {
+                                exit_node.identity
+                            },
+                            bandwith_provider.as_ref(),
                         )
-                        .await?
-                        .ok_or(anyhow::anyhow!("No tickets available"))?
-                        .data;
+                        .await
+                        {
+                            Ok(tunnel) => {
+                                let outcome = wg_tunnel_probe(
+                                    tunnel.clone(),
+                                    self.config.amnezia_args.clone(),
+                                    self.config.netstack_args.clone(),
+                                    false,
+                                )
+                                .await
+                                .unwrap_or_default();
+                                probe_result.outcome.wg = Some(outcome);
+                                if entry_under_test {
+                                    bridge_tunnel = Some(tunnel);
+                                }
+                            }
+                            Err(err) => {
+                                error!("WireGuard registration failed: {err}");
+                                probe_result.outcome.wg = Some(Default::default());
+                            }
+                        }
+                    }
+                }
 
-                    let outcome = wg_probe(
-                        auth_client,
-                        ip_address,
-                        exit_node.authenticator_version,
-                        self.config.amnezia_args.clone(),
-                        self.config.netstack_args.clone(),
-                        false,
-                        credential,
+                if needs_bridge && bridge_tunnel.is_none() {
+                    match register_wg_peer(
+                        &mixnet_listener_task,
+                        nym_address,
+                        &self.entry_node,
+                        TicketType::V1WireguardEntry,
+                        self.entry_node.identity,
+                        bandwith_provider.as_ref(),
                     )
                     .await
-                    .unwrap_or_default();
-
-                    // Add wg results to probe result
-                    probe_result.outcome.wg = Some(outcome);
-
-                    mixnet_listener_task.stop().await;
-                } else {
-                    warn!("Not enough information to run WireGuard via mixnet registration tests");
-                    mixnet_client.disconnect().await;
+                    {
+                        Ok(tunnel) => bridge_tunnel = Some(tunnel),
+                        Err(err) => {
+                            error!("WireGuard registration for bridge probe failed: {err}");
+                            bridge_reg_error = Some(err.to_string());
+                        }
+                    }
                 }
+
+                mixnet_listener_task.stop().await;
             } else {
-                // We are not running WG tests, we don't need the mixnet client anmore
+                // We are not running WG/bridge tests, we don't need the mixnet client anymore
                 mixnet_client.disconnect().await;
             }
         }
 
-        // At this point, any mixnet client MUST be disconnected
+        // At this point, any mixnet client MUST be disconnected.
+        // Mixnet ping replaces `probe_result.outcome`; LP below moves `lp_data`.
+        // Dials still run without a peer; the forward path needs a registered WG peer.
+        if needs_bridge {
+            let peer = match (bridge_tunnel.as_ref(), bridge_reg_error) {
+                (Some(tunnel), _) => BridgePeer::Registered(tunnel),
+                (None, Some(reason)) => BridgePeer::Unavailable { reason },
+                (None, None) => BridgePeer::Unavailable {
+                    reason: "no wg registration for bridge forward path".into(),
+                },
+            };
+            if let Some(outcome) =
+                bridge_probe(&self.entry_node, peer, &self.config.netstack_args).await
+            {
+                probe_result.outcome.bridges = Some(outcome);
+            }
+        }
 
         // Test LP registration if node has LP address
         if self.config.test_mode.lp_tests() {
@@ -946,4 +987,53 @@ impl Probe {
     pub fn config(&self) -> &ProbeConfig {
         &self.config
     }
+}
+
+/// Authenticator registration against `node`. Bridges always want the entry;
+/// direct WG may want the exit — callers pick the peer and ticket type.
+async fn register_wg_peer(
+    mixnet_listener_task: &AuthClientMixnetListenerHandle,
+    nym_address: Recipient,
+    node: &TestedNodeDetails,
+    ticket_type: TicketType,
+    credential_provider: NodeIdentity,
+    bandwidth_provider: &dyn BandwidthTicketProvider,
+) -> anyhow::Result<WgTunnelConfig> {
+    let (Some(authenticator), Some(ip_address)) = (node.authenticator_address, node.ip_address)
+    else {
+        anyhow::bail!("node is missing authenticator address or ip");
+    };
+
+    let auth_client = AuthenticatorClient::new(
+        mixnet_listener_task.subscribe(),
+        mixnet_listener_task.mixnet_sender(),
+        nym_address,
+        authenticator,
+        node.authenticator_version,
+        Arc::new(x25519::KeyPair::new(&mut rand::rng())),
+        ip_address,
+    );
+
+    let credential = bandwidth_provider
+        .get_ecash_ticket(
+            ticket_type,
+            credential_provider,
+            1,
+            OffsetDateTime::now_utc(),
+        )
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("No tickets available"))?
+        .data;
+
+    info!(
+        "Registering WireGuard peer via mixnet authenticator on {}",
+        node.identity
+    );
+    wg_register(
+        auth_client,
+        ip_address,
+        node.authenticator_version,
+        credential,
+    )
+    .await
 }

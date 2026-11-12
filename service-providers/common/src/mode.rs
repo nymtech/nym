@@ -3,8 +3,8 @@
 
 //! Where a service provider runs, asked once.
 //!
-//! A provider is either **standalone** - on its own, reaching a gateway somewhere else over a
-//! websocket - or **embedded** in a nym-node, which hosts it. That one fact decides everything that
+//! A provider is either **standalone** - on its own, reaching a gateway somewhere else through its
+//! mixnet client, legacy or LP - or **embedded** in a nym-node, which hosts it. That one fact decides everything that
 //! differs between the two: which transceiver its mixnet client is built with, and whether it has
 //! an LP data plane running beside that client. Both answers come out of
 //! [`ServiceProviderMode`], so nothing downstream has to keep two flags in agreement.
@@ -41,10 +41,10 @@ pub type StartedMode = (
 /// How a provider reaches the mixnet.
 #[derive(Default)]
 pub enum ServiceProviderMode {
-    /// On its own, through a gateway it connects to over a websocket.
+    /// On its own, through a gateway its mixnet client connects to, legacy or LP.
     ///
-    /// No LP data plane: the channels one runs over have a nym-node at the far end, and a
-    /// standalone provider has no such thing.
+    /// No LP data plane beside that client: the channels one runs over lead into a hosting
+    /// nym-node, and a standalone provider has no host.
     #[default]
     Standalone,
 

@@ -12,13 +12,13 @@
 //!
 //! There is a pool, though, which the counterpart also has no use for. Peeling is the expensive
 //! half - an x25519 operation and an AEAD open per packet - and packets are independent of one
-//! another, so a dispatcher hands them round-robin to workers that each hold a clone of the
-//! pipeline. What the clones share is the reassembler, behind its own lock, so whichever worker
-//! happens to receive a message's last fragment is the one that completes it.
+//! another, so a dispatcher puts them on one queue that every worker pulls from, each holding a
+//! clone of the pipeline. What the clones share is the reassembler, behind its own lock, so
+//! whichever worker happens to receive a message's last fragment is the one that completes it.
 
-use std::sync::mpsc::{SyncSender, TrySendError};
 use std::time::Instant;
 
+use crossbeam_channel::TrySendError;
 use nym_lp_data::clients::traits::ClientUnwrappingPipeline;
 use nym_task::ShutdownTracker;
 use tracing::{debug, warn};
@@ -26,9 +26,9 @@ use tracing::{debug, warn};
 use crate::lp::handler::pipeline::SpInboundPipeline;
 use crate::lp::ServiceProviderInputReceiver;
 
-/// How many packets may be queued in front of each worker.
+/// How many packets may be queued per worker.
 ///
-/// Bounded like every other queue on this path, and for the same reason: a worker this far behind
+/// Bounded like every other queue on this path, and for the same reason: a pool this far behind
 /// will not catch up by being handed more to hold.
 const WORKER_QUEUE_DEPTH: usize = 32;
 
@@ -36,8 +36,8 @@ pub(crate) struct SpInbound {
     /// Sphinx packets the gateway has decided are for this provider.
     from_gateway: ServiceProviderInputReceiver,
 
-    /// The way in to each worker, dispatched round-robin.
-    worker_txs: Vec<SyncSender<Vec<u8>>>,
+    /// The queue every worker pulls its next packet from, so a packet goes to whichever is free.
+    jobs_tx: crossbeam_channel::Sender<Vec<u8>>,
 
     /// The peeling threads, built but not yet spawned.
     workers: Vec<SpInboundWorker>,
@@ -51,23 +51,20 @@ impl SpInbound {
         worker_count: usize,
     ) -> Self {
         // a pool of none would leave the gateway writing into a channel nobody reads
-        let (worker_txs, workers) = (0..worker_count.max(1))
-            .map(|_| {
-                let (jobs_tx, jobs) = std::sync::mpsc::sync_channel(WORKER_QUEUE_DEPTH);
+        let worker_count = worker_count.max(1);
+        let (jobs_tx, jobs) = crossbeam_channel::bounded(WORKER_QUEUE_DEPTH * worker_count);
 
-                let worker = SpInboundWorker {
-                    pipeline: pipeline.clone(),
-                    jobs,
-                    to_provider: to_provider.clone(),
-                };
-
-                (jobs_tx, worker)
+        let workers = (0..worker_count)
+            .map(|_| SpInboundWorker {
+                pipeline: pipeline.clone(),
+                jobs: jobs.clone(),
+                to_provider: to_provider.clone(),
             })
-            .unzip();
+            .collect();
 
         SpInbound {
             from_gateway,
-            worker_txs,
+            jobs_tx,
             workers,
         }
     }
@@ -79,7 +76,7 @@ impl SpInbound {
     pub(crate) fn start(self, shutdown_tracker: &ShutdownTracker) {
         let SpInbound {
             from_gateway,
-            worker_txs,
+            jobs_tx,
             workers,
         } = self;
 
@@ -87,58 +84,35 @@ impl SpInbound {
             shutdown_tracker.spawn_blocking(move || worker.run());
         }
 
-        shutdown_tracker.spawn_blocking(move || Self::dispatch(from_gateway, worker_txs));
+        shutdown_tracker.spawn_blocking(move || Self::dispatch(from_gateway, jobs_tx));
     }
 
-    /// Hand packets to workers until the gateway or the pool goes away.
+    /// Queue packets for the pool until the gateway or the pool goes away.
     ///
     /// Ends when the gateway drops its sender, which is how it says it is shutting down - there is
-    /// no token to watch, because a blocking receive is what this thread does.
-    fn dispatch(from_gateway: ServiceProviderInputReceiver, worker_txs: Vec<SyncSender<Vec<u8>>>) {
-        let mut next = 0;
-
-        while let Ok(packet) = from_gateway.recv() {
-            let Some(following) = Self::dispatch_one(&worker_txs, packet, next) else {
-                debug!("LP provider inbound: every worker has stopped");
-                return;
-            };
-            next = following;
-        }
-
-        debug!("LP provider inbound: the gateway closed the channel");
-    }
-
-    /// Round-robin from `start`, trying every worker before giving up on a packet.
+    /// no token to watch, because a blocking receive is what this thread does. Dropping the queue's
+    /// sender on the way out is what stops the workers.
     ///
-    /// A packet that fits nowhere is dropped, exactly as one arriving at a full channel from the
-    /// gateway is. `None` once every worker has gone, which happens at shutdown and means there is
-    /// nothing left to dispatch to.
-    fn dispatch_one(
-        worker_txs: &[SyncSender<Vec<u8>>],
-        mut packet: Vec<u8>,
-        start: usize,
-    ) -> Option<usize> {
-        let count = worker_txs.len();
-        let mut any_alive = false;
-
-        for offset in 0..count {
-            let idx = (start + offset) % count;
-            match worker_txs[idx].try_send(packet) {
-                Ok(()) => return Some((idx + 1) % count),
-                Err(TrySendError::Full(returned)) => {
-                    any_alive = true;
-                    packet = returned;
+    /// A packet that does not fit is dropped, exactly as one arriving at a full channel from the
+    /// gateway is.
+    fn dispatch(
+        from_gateway: ServiceProviderInputReceiver,
+        jobs_tx: crossbeam_channel::Sender<Vec<u8>>,
+    ) {
+        while let Ok(packet) = from_gateway.recv() {
+            match jobs_tx.try_send(packet) {
+                Ok(()) => {}
+                Err(TrySendError::Full(_)) => {
+                    warn!("LP provider inbound: every worker is saturated, dropping a packet");
                 }
-                Err(TrySendError::Disconnected(returned)) => packet = returned,
+                Err(TrySendError::Disconnected(_)) => {
+                    debug!("LP provider inbound: every worker has stopped");
+                    return;
+                }
             }
         }
 
-        if !any_alive {
-            return None;
-        }
-
-        warn!("LP provider inbound: every worker is saturated, dropping a packet");
-        Some(start)
+        debug!("LP provider inbound: the gateway closed the channel");
     }
 }
 
@@ -149,8 +123,8 @@ struct SpInboundWorker {
     /// A clone per worker; the reassembler inside is the shared part.
     pipeline: SpInboundPipeline,
 
-    /// Packets the dispatcher has given this worker.
-    jobs: std::sync::mpsc::Receiver<Vec<u8>>,
+    /// The pool's shared queue.
+    jobs: crossbeam_channel::Receiver<Vec<u8>>,
 
     /// Where completed messages go, as plaintext.
     to_provider: tokio::sync::mpsc::Sender<Vec<u8>>,

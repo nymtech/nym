@@ -9148,6 +9148,7 @@ name = "nym-service-providers-common"
 version = "2.0.1"
 dependencies = [
  "async-trait",
+ "crossbeam-channel",
  "log",
  "nym-bin-common",
  "nym-client-core",

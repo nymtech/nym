@@ -17,6 +17,7 @@ import AbuseResponse from 'components/operators/templates/dmca_response.md';
 import OperatorIntroduction from 'components/operators/templates/provider_introduction.md';
 import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
 import NTMExplanation from 'components/operators/snippets/ntm-explanation.mdx';
+import AnsibleRolesByMode from 'components/operators/snippets/ansible-roles-by-node-mode.mdx';
 
 
 
@@ -82,6 +83,11 @@ chmod +x quic_bridge_deployment.sh
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration 
 ```
+<br />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
+<br />
 
 - Run NTM on non-standard SSH port:
 ```sh
@@ -95,10 +101,6 @@ HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configurati
 ```sh
 ./quic_bridge_deployment.sh
 ```
-
-<AccordionTemplate name="What does NTM do?">
-<NTMExplanation />
-</AccordionTemplate>
       </Steps>
     </MyTab>
     <MyTab>

@@ -116,9 +116,9 @@ struct StreamEntry {
     /// it is skipped. `None` (the default) keeps strict ordering; message
     /// streams that tolerate loss, like the IPR tunnel, set it.
     gap_timeout: Option<Duration>,
-    /// The missing seq later frames are waiting behind, and when that wait
-    /// began. Only tracked while `gap_timeout` is set.
-    gap_since: Option<(u32, Instant)>,
+    /// When each frame in `pending` arrived. Only tracked while
+    /// `gap_timeout` is set.
+    arrived: BTreeMap<u32, Instant>,
 
     /// Flips to true when the peer acknowledges the stream (or, for
     /// inbound streams, when we accept it ourselves).
@@ -157,6 +157,7 @@ impl StreamEntry {
     fn drain_ready(&mut self) -> bool {
         while let Some(msg) = self.pending.remove(&self.next_seq) {
             self.pending_bytes -= msg.len();
+            self.arrived.remove(&self.next_seq);
             if self.sender.send(Ok(msg)).is_err() {
                 return true;
             }
@@ -281,7 +282,7 @@ impl StreamMap {
             pending,
             pending_bytes,
             gap_timeout: None,
-            gap_since: None,
+            arrived: BTreeMap::new(),
             established_tx,
             peer,
             armed: false,
@@ -349,7 +350,12 @@ impl StreamMap {
     async fn set_gap_timeout(&self, stream_id: &StreamId, timeout: Option<Duration>) {
         if let Some(entry) = self.inner.lock().await.streams.get_mut(stream_id) {
             entry.gap_timeout = timeout;
-            entry.gap_since = None;
+            // Frames already buffered (e.g. orphans) are timed from now.
+            let now = Instant::now();
+            entry.arrived = match timeout {
+                Some(_) => entry.pending.keys().map(|&seq| (seq, now)).collect(),
+                None => BTreeMap::new(),
+            };
         }
     }
 
@@ -394,36 +400,46 @@ impl StreamMap {
                 // Duplicate seq: the replaced payload leaves the buffer.
                 entry.pending_bytes -= replaced.len();
             }
+            if entry.gap_timeout.is_some() {
+                entry.arrived.entry(seq).or_insert_with(Instant::now);
+            }
         }
 
-        // Gap timeout: a lost frame never arrives, so once later frames have
-        // waited behind it for the timeout, skip to the lowest buffered seq
-        // and report the loss in-band. Checked as frames arrive.
+        // Gap timeout: a lost frame never arrives. Every buffered frame waits
+        // behind the missing `next_seq`, so it has been missing at least
+        // since the oldest of them arrived. Once that is the timeout, skip to
+        // the lowest buffered seq and report the loss in-band, then check the
+        // next gap, so a burst of losses is skipped in one pass. Checked as
+        // frames arrive.
+        let mut receiver_dropped = false;
         if let Some(timeout) = entry.gap_timeout {
-            match entry.pending.keys().next().copied() {
-                Some(lowest) if lowest > entry.next_seq => {
-                    let since = match entry.gap_since {
-                        Some((seq, since)) if seq == entry.next_seq => since,
-                        _ => {
-                            let now = Instant::now();
-                            entry.gap_since = Some((entry.next_seq, now));
-                            now
-                        }
-                    };
-                    if since.elapsed() >= timeout {
-                        warn!(
-                            "Stream {stream_id}: seq {} missing for {:?}, skipping to {lowest} \
-                             ({} messages pending)",
-                            entry.next_seq,
-                            since.elapsed(),
-                            entry.pending.len()
-                        );
-                        let _ = entry.sender.send(Err(StreamFailure::DataLoss));
-                        entry.next_seq = lowest;
-                        entry.gap_since = None;
-                    }
+            while let Some(lowest) = entry
+                .pending
+                .keys()
+                .next()
+                .copied()
+                .filter(|&lowest| lowest > entry.next_seq)
+            {
+                let waited = entry
+                    .arrived
+                    .values()
+                    .min()
+                    .map_or(Duration::ZERO, |arrived| arrived.elapsed());
+                if waited < timeout {
+                    break;
                 }
-                _ => entry.gap_since = None,
+                warn!(
+                    "Stream {stream_id}: seq {} missing while later frames waited {waited:?}, \
+                     skipping to {lowest} ({} messages pending)",
+                    entry.next_seq,
+                    entry.pending.len()
+                );
+                let _ = entry.sender.send(Err(StreamFailure::DataLoss));
+                entry.next_seq = lowest;
+                if entry.drain_ready() {
+                    receiver_dropped = true;
+                    break;
+                }
             }
         }
 
@@ -451,18 +467,10 @@ impl StreamMap {
             }
         }
 
-        let receiver_dropped = entry.drain_ready();
+        let receiver_dropped = receiver_dropped || entry.drain_ready();
         if receiver_dropped {
             inner.streams.remove(stream_id);
         } else {
-            // Frames still buffered after draining means `next_seq` is
-            // missing: time that gap from now, unless it is already timed.
-            if entry.gap_timeout.is_some()
-                && !entry.pending.is_empty()
-                && !matches!(entry.gap_since, Some((seq, _)) if seq == entry.next_seq)
-            {
-                entry.gap_since = Some((entry.next_seq, Instant::now()));
-            }
             // Data proves the peer accepted the stream and is alive, so it
             // resolves wait_established and resumes keepalive on an armed
             // stream that had given up. It does not arm: data proves
@@ -1328,20 +1336,21 @@ mod tests {
         assert!(rx.try_recv().is_err());
     }
 
-    // A gap exposed by draining is timed from when it was exposed, not from
-    // the next arrival.
+    // A gap exposed by draining is timed from when the frames behind it
+    // arrived, not from the next arrival.
     #[tokio::test(start_paused = true)]
-    async fn gap_exposed_by_draining_is_timed_from_exposure() {
+    async fn gap_exposed_by_draining_is_timed_from_waiting_frames() {
         let map = StreamMap::new();
         let id = StreamId::random();
         let mut rx = register(&map, id).await;
         map.set_gap_timeout(&id, Some(GAP_TIMEOUT)).await;
 
         map.send_to_stream(&id, 2, vec![2]).await;
-        tokio::time::advance(Duration::from_millis(500)).await;
-        // seq 0 fills the first gap; draining exposes missing seq 1.
+        tokio::time::advance(Duration::from_millis(1100)).await;
+        // seq 0 fills the first gap; draining exposes missing seq 1. Timed
+        // from exposure, the next frame would come 0.4 s too early to skip.
         map.send_to_stream(&id, 0, vec![0]).await;
-        tokio::time::advance(Duration::from_millis(1600)).await;
+        tokio::time::advance(Duration::from_millis(400)).await;
         map.send_to_stream(&id, 3, vec![3]).await;
 
         assert_eq!(rx.try_recv().unwrap().unwrap(), vec![0]);
@@ -1351,6 +1360,66 @@ mod tests {
         ));
         assert_eq!(rx.try_recv().unwrap().unwrap(), vec![2]);
         assert_eq!(rx.try_recv().unwrap().unwrap(), vec![3]);
+        assert!(rx.try_recv().is_err());
+    }
+
+    // A burst of losses is skipped in one pass: each missing seq is timed from
+    // when the frames waiting behind it arrived, not from when it reached the
+    // head of the queue.
+    #[tokio::test(start_paused = true)]
+    async fn gap_timeout_skips_a_burst_of_gaps_at_once() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+        let mut rx = register(&map, id).await;
+        map.set_gap_timeout(&id, Some(GAP_TIMEOUT)).await;
+
+        // seqs 1, 3 and 4 are lost.
+        map.send_to_stream(&id, 0, vec![0]).await;
+        map.send_to_stream(&id, 2, vec![2]).await;
+        map.send_to_stream(&id, 5, vec![5]).await;
+        tokio::time::advance(GAP_TIMEOUT).await;
+        map.send_to_stream(&id, 6, vec![6]).await;
+
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![0]);
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            Err(StreamFailure::DataLoss)
+        ));
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![2]);
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            Err(StreamFailure::DataLoss)
+        ));
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![5]);
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![6]);
+        assert!(rx.try_recv().is_err());
+    }
+
+    // Frames can arrive out of order: a gap is as old as the oldest frame
+    // waiting behind it, not the lowest-numbered one.
+    #[tokio::test(start_paused = true)]
+    async fn gap_is_timed_from_the_oldest_waiting_frame() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+        let mut rx = register(&map, id).await;
+        map.set_gap_timeout(&id, Some(GAP_TIMEOUT)).await;
+
+        map.send_to_stream(&id, 0, vec![0]).await;
+        map.send_to_stream(&id, 3, vec![3]).await;
+        tokio::time::advance(GAP_TIMEOUT - Duration::from_millis(100)).await;
+        // seq 2 overtakes the older seq 3 in the buffer; seq 1 stays lost.
+        map.send_to_stream(&id, 2, vec![2]).await;
+        tokio::time::advance(Duration::from_millis(100)).await;
+        map.send_to_stream(&id, 4, vec![4]).await;
+
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![0]);
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            Err(StreamFailure::DataLoss)
+        ));
+        for seq in 2..=4 {
+            assert_eq!(rx.try_recv().unwrap().unwrap(), vec![seq]);
+        }
         assert!(rx.try_recv().is_err());
     }
 

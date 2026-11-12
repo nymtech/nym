@@ -16,6 +16,8 @@ use nym_test_utils::mocks::async_read_write::MockIOStream;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+#[cfg(unix)]
+use std::os::fd::RawFd;
 
 // per thread, so tests sharing addresses do not see each other's; a test and the handlers it
 // spawns share a thread only on a current-thread runtime
@@ -75,6 +77,14 @@ impl LpTransportChannel for MockTransport {
         _local: Option<SocketAddr>,
     ) -> Result<Self, LpTransportError> {
         Ok(Self::take_expected_connection(endpoint).unwrap_or_default())
+    }
+
+    #[cfg(unix)]
+    async fn connect_with_fd_callback(
+        endpoint: SocketAddr,
+        _connection_fd_callback: &(dyn Fn(RawFd) + Send + Sync),
+    ) -> Result<Self, LpTransportError> {
+        Self::connect_from(endpoint, None).await
     }
 
     fn set_no_delay(&mut self, _nodelay: bool) -> Result<(), LpTransportError> {

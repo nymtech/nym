@@ -14,6 +14,8 @@ use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp_data::packet::{EncryptedLpPacket, header::LpReceiverIndex, version};
 use std::net::SocketAddr;
+#[cfg(unix)]
+use std::os::fd::RawFd;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -56,6 +58,10 @@ pub struct LpGatewayControlClient<S = TcpStream> {
     /// Persistent TCP stream for the connection.
     /// Opened on first use, closed after registration.
     stream: Option<S>,
+
+    /// Called with the socket fd before connecting to the gateway.
+    #[cfg(unix)]
+    connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 }
 
 impl<S> LpGatewayControlClient<S>
@@ -101,7 +107,18 @@ where
             transport_session: None,
             config,
             stream: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
         }
+    }
+
+    /// Sets a callback that receives the socket fd before connecting to the gateway.
+    #[cfg(unix)]
+    pub fn set_connection_fd_callback(
+        &mut self,
+        connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+    ) {
+        self.connection_fd_callback = Some(connection_fd_callback);
     }
 
     /// Attempt to use this `LpGatewayControlClient` as transport for `NestedSession`
@@ -201,22 +218,31 @@ where
             self.gateway_lp_address
         );
 
-        let mut stream = tokio::time::timeout(
-            self.config.connect_timeout,
-            S::connect(self.gateway_lp_address),
-        )
-        .await
-        .map_err(|_| LpClientError::TcpConnection {
-            address: self.gateway_lp_address.to_string(),
-            source: LpTransportError::ConnectionFailure(format!(
-                "Connection timeout after {:?}",
-                self.config.connect_timeout
-            )),
-        })?
-        .map_err(|source| LpClientError::TcpConnection {
-            address: self.gateway_lp_address.to_string(),
-            source,
-        })?;
+        #[cfg(unix)]
+        let connect = async {
+            match self.connection_fd_callback.as_deref() {
+                Some(callback) => {
+                    S::connect_with_fd_callback(self.gateway_lp_address, callback).await
+                }
+                None => S::connect(self.gateway_lp_address).await,
+            }
+        };
+        #[cfg(not(unix))]
+        let connect = S::connect(self.gateway_lp_address);
+
+        let mut stream = tokio::time::timeout(self.config.connect_timeout, connect)
+            .await
+            .map_err(|_| LpClientError::TcpConnection {
+                address: self.gateway_lp_address.to_string(),
+                source: LpTransportError::ConnectionFailure(format!(
+                    "Connection timeout after {:?}",
+                    self.config.connect_timeout
+                )),
+            })?
+            .map_err(|source| LpClientError::TcpConnection {
+                address: self.gateway_lp_address.to_string(),
+                source,
+            })?;
 
         // Set TCP_NODELAY for low latency
         stream

@@ -12,6 +12,8 @@ use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp_data::packet::{EncryptedLpPacket, ForwardPacketData, frame::ExpectedResponseSize};
 use std::io;
 use std::net::SocketAddr;
+#[cfg(unix)]
+use std::os::fd::RawFd;
 
 /// Attempt to treat the inner client as a LP connection
 pub struct NestedConnection<'a, S> {
@@ -168,6 +170,15 @@ where
     async fn connect_from(_: SocketAddr, _: Option<SocketAddr>) -> Result<Self, LpTransportError> {
         // this really breaks the pattern and should be refactored
         // since this function should never be called
+        unimplemented!("cannot establish nested connection without an outer client")
+    }
+
+    #[cfg(unix)]
+    #[allow(clippy::unimplemented)]
+    async fn connect_with_fd_callback(
+        _: SocketAddr,
+        _: &(dyn Fn(RawFd) + Send + Sync),
+    ) -> Result<Self, LpTransportError> {
         unimplemented!("cannot establish nested connection without an outer client")
     }
 

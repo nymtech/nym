@@ -98,6 +98,8 @@ impl RegistrationClientBuilder {
             config,
             bandwidth_provider: Box::new(bc_request_sender),
             cancel_token: self.config.cancel_token.clone(),
+            #[cfg(unix)]
+            connection_fd_callback: self.config.connection_fd_callback,
         })
     }
 }

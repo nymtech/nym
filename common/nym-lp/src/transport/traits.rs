@@ -16,6 +16,8 @@ use tracing::debug;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::IpAddr;
+#[cfg(unix)]
+use std::os::fd::{AsRawFd, RawFd};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::{TcpSocket, TcpStream, UdpSocket};
 
@@ -121,6 +123,14 @@ pub trait LpTransportChannel: Sized + Send {
     async fn connect(endpoint: SocketAddr) -> Result<Self, LpTransportError> {
         Self::connect_from(endpoint, None).await
     }
+
+    /// Same as [`connect`](Self::connect), but passes the socket fd to `connection_fd_callback`
+    /// before connecting, e.g. to exclude the socket from a VPN tunnel.
+    #[cfg(unix)]
+    async fn connect_with_fd_callback(
+        endpoint: SocketAddr,
+        connection_fd_callback: &(dyn Fn(RawFd) + Send + Sync),
+    ) -> Result<Self, LpTransportError>;
 
     fn set_no_delay(&mut self, nodelay: bool) -> Result<(), LpTransportError>;
 
@@ -299,6 +309,25 @@ impl LpTransportChannel for TcpStream {
         socket
             .bind(SocketAddr::new(local_address.ip(), 0))
             .map_err(|e| LpTransportError::connection_failure(e.to_string()))?;
+
+        socket
+            .connect(endpoint)
+            .await
+            .map_err(|e| LpTransportError::connection_failure(e.to_string()))
+    }
+
+    #[cfg(unix)]
+    async fn connect_with_fd_callback(
+        endpoint: SocketAddr,
+        connection_fd_callback: &(dyn Fn(RawFd) + Send + Sync),
+    ) -> Result<Self, LpTransportError> {
+        let socket = match endpoint {
+            SocketAddr::V4(_) => TcpSocket::new_v4(),
+            SocketAddr::V6(_) => TcpSocket::new_v6(),
+        }
+        .map_err(|e| LpTransportError::connection_failure(e.to_string()))?;
+
+        connection_fd_callback(socket.as_raw_fd());
 
         socket
             .connect(endpoint)

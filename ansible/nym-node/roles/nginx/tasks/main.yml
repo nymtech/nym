@@ -39,6 +39,20 @@
     state: directory
     mode: "0755"
 
+# render every template once before anything is changed: a missing or broken
+# (custom) template stops the role here, not after HTTPS/WSS have been disabled
+- name: Check nginx templates render
+  template:
+    src: "{{ item }}"
+    dest: /tmp/nym-nginx-template-check
+  loop:
+    - "{{ nginx_landing_template }}"
+    - "{{ nginx_site_template }}"
+    - "{{ nginx_site_ssl_template }}"
+    - "{{ nginx_wss_template }}"
+  check_mode: true
+  changed_when: false
+
 - name: Deploy landing page
   template:
     src: "{{ nginx_landing_template }}"

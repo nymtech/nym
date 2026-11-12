@@ -93,6 +93,9 @@ jobs:
           $dir = Find-OpenSsl
           if (-not $dir) {
             if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "winget is not available" }
+            # a stale catalog can point at installers that have since been removed upstream
+            winget source update --disable-interactivity
+            if ($LASTEXITCODE -ne 0) { throw "winget source update failed with exit code $LASTEXITCODE" }
             winget install --id ShiningLight.OpenSSL.Dev --exact --silent --scope machine `
               --accept-package-agreements --accept-source-agreements --disable-interactivity
             if ($LASTEXITCODE -ne 0) { throw "winget failed with exit code $LASTEXITCODE" }

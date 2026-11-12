@@ -65,6 +65,7 @@ nym-lp-data = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 nym-mixnet-client = { workspace = true }
+nym-sqlcipher = { workspace = true, optional = true }
 nym-lp = { workspace = true }
 nym-lp-gateway-client = { workspace = true }
 dashmap = { workspace = true }
@@ -147,7 +148,7 @@ semver = { workspace = true }
 default = []
 cli = ["clap", "comfy-table"]
 fs-credentials-storage = ["nym-credential-storage/persistent-storage"]
-fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage"]
+fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage", "dep:nym-sqlcipher"]
 fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]
 wasm = ["nym-gateway-client/wasm"]
 metrics-server = []

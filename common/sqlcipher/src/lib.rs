@@ -5,8 +5,8 @@
 //!
 //! The `bundled` feature builds the bundled SQLCipher in place of SQLite for the whole dependency
 //! graph. Without it, [`ensure_available`] fails unless SQLCipher is linked some other way.
-//! Storages open their databases encrypted by first calling
-//! [`encrypt_database_if_needed`], and then connecting with options passed through [`with_key`].
+//! Storages open their databases encrypted by first calling [`encrypt_database_if_needed`], and
+//! then connecting with options passed through [`connect_options_with_key`].
 
 use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
 use sqlx::{AssertSqlSafe, ConnectOptions, Connection};
@@ -95,7 +95,7 @@ impl SqlCipherError {
 /// SQLx always issues `PRAGMA key` before any other PRAGMA, so the key is in place before
 /// the database is read. The key is passed as `x'<HEX>'`, so SQLCipher uses it directly without
 /// passphrase key derivation.
-pub fn with_key(opts: SqliteConnectOptions, key: &Key) -> SqliteConnectOptions {
+pub fn connect_options_with_key(opts: SqliteConnectOptions, key: &Key) -> SqliteConnectOptions {
     opts.pragma("key", format!("\"{}\"", raw_key_literal(key).as_str()))
 }
 
@@ -127,8 +127,8 @@ pub async fn ensure_available() -> Result<(), SqlCipherError> {
 }
 
 /// Encrypts the database at `database_path` with `key` if it's still plaintext, so it can then be
-/// opened with options passed through [`with_key`]. Fails with [`SqlCipherError::NotSupported`]
-/// if SQLite is not built with SQLCipher.
+/// opened with options passed through [`connect_options_with_key`]. Fails with
+/// [`SqlCipherError::NotSupported`] if SQLite is not built with SQLCipher.
 ///
 /// The database is first opened with `key`. If that succeeds, it's already encrypted with `key`,
 /// or it's a new database. If it can't be read, it's opened without a key: if that succeeds, it's
@@ -178,7 +178,7 @@ async fn try_open(database_path: &Path, key: Option<&Key>) -> sqlx::Result<()> {
         .create_if_missing(false)
         .disable_statement_logging();
     if let Some(key) = key {
-        opts = with_key(opts, key);
+        opts = connect_options_with_key(opts, key);
     }
 
     let mut conn = opts.connect().await?;
@@ -399,7 +399,7 @@ mod tests {
     }
 
     async fn connect_encrypted(path: &Path, key: &Key) -> SqliteConnection {
-        with_key(storage_options(path).create_if_missing(false), key)
+        connect_options_with_key(storage_options(path).create_if_missing(false), key)
             .connect()
             .await
             .unwrap()
@@ -496,10 +496,11 @@ mod tests {
             encrypt_database_if_needed(&path, &KEY).await.unwrap();
 
             // opened without setting `auto_vacuum`, to read what the file has
-            let mut conn = with_key(SqliteConnectOptions::new().filename(&path), &KEY)
-                .connect()
-                .await
-                .unwrap();
+            let mut conn =
+                connect_options_with_key(SqliteConnectOptions::new().filename(&path), &KEY)
+                    .connect()
+                    .await
+                    .unwrap();
             assert_eq!(read_auto_vacuum(&mut conn).await, expected);
             assert_eq!(read_rows(&mut conn).await, expected_rows());
             conn.close().await.unwrap();
@@ -531,10 +532,11 @@ mod tests {
 
             assert_eq!(directory_entries(&dir), vec!["test.db".to_string()]);
             // opened without setting `journal_mode`, to read what the file has
-            let mut conn = with_key(SqliteConnectOptions::new().filename(&path), &KEY)
-                .connect()
-                .await
-                .unwrap();
+            let mut conn =
+                connect_options_with_key(SqliteConnectOptions::new().filename(&path), &KEY)
+                    .connect()
+                    .await
+                    .unwrap();
             let actual: String = sqlx::query_scalar("PRAGMA journal_mode")
                 .fetch_one(&mut conn)
                 .await

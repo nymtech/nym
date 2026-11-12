@@ -44,6 +44,7 @@ impl EmbeddedProviderStorage {
 
         let reply_store = non_wasm_helpers::setup_fs_reply_surb_backend(
             paths.reply_surb_database,
+            None,
             &debug_config.reply_surbs,
         )
         .await?;

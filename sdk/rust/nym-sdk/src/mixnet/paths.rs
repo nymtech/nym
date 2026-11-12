@@ -102,7 +102,7 @@ impl StoragePaths {
     /// SQLCipher has to be linked in place of SQLite, e.g. with the `sqlcipher` feature.
     /// Otherwise opening the databases fails, without creating or changing them.
     #[must_use]
-    pub fn with_database_key(mut self, key: Option<[u8; 32]>) -> Self {
+    pub fn with_database_key(mut self, key: Option<nym_sqlcipher::Key>) -> Self {
         self.database_key = key.map(nym_sqlcipher::DatabaseKey::new);
         self
     }
@@ -137,18 +137,7 @@ impl StoragePaths {
     pub async fn persistent_credential_storage(
         &self,
     ) -> Result<PersistentCredentialStorage, Error> {
-        if let Some(key) = &self.database_key {
-            return PersistentCredentialStorage::new_encrypted(
-                &self.credential_database_path,
-                key.as_bytes(),
-            )
-            .await
-            .map_err(|source| Error::CredentialStorageError {
-                source: Box::new(source),
-            });
-        }
-
-        PersistentCredentialStorage::new(&self.credential_database_path)
+        PersistentCredentialStorage::new(&self.credential_database_path, self.database_key())
             .await
             .map_err(|source| Error::CredentialStorageError {
                 source: Box::new(source),
@@ -166,13 +155,18 @@ impl StoragePaths {
         &self,
         surb_config: &config::ReplySurbs,
     ) -> Result<fs_backend::Backend, Error> {
-        let database = fs_backend::DatabaseConfig::new(&self.reply_surb_database_path);
-        let database = match &self.database_key {
-            Some(key) => database.with_key(key.clone()),
-            None => database,
-        };
+        Ok(non_wasm_helpers::setup_fs_reply_surb_backend(
+            &self.reply_surb_database_path,
+            self.database_key(),
+            surb_config,
+        )
+        .await?)
+    }
 
-        Ok(non_wasm_helpers::setup_fs_reply_surb_backend(database, surb_config).await?)
+    fn database_key(&self) -> Option<&nym_sqlcipher::Key> {
+        self.database_key
+            .as_ref()
+            .map(nym_sqlcipher::DatabaseKey::as_bytes)
     }
 
     /// Instantiates default persistent key storage.

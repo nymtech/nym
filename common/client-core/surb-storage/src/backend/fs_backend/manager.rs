@@ -20,21 +20,20 @@ pub struct StorageManager {
 
 // all SQL goes here
 impl StorageManager {
-    pub async fn new<P: AsRef<Path>>(database_path: P, fresh: bool) -> Result<Self, StorageError> {
-        let opts = Self::connect_options(database_path.as_ref(), fresh)?;
-        Self::new_with_options(opts).await
-    }
-
-    /// Like [`Self::new`], but encrypted with SQLCipher using the raw 256-bit `key`.
-    /// An existing plaintext database is encrypted in place first.
-    pub async fn new_encrypted<P: AsRef<Path>>(
+    /// Opens the database at `database_path`, creating it if `fresh`. With `key`, it's encrypted
+    /// with SQLCipher using the raw 256-bit key, and an existing plaintext database is encrypted in
+    /// place first.
+    pub async fn new<P: AsRef<Path>>(
         database_path: P,
         fresh: bool,
-        key: &nym_sqlcipher::Key,
+        key: Option<&nym_sqlcipher::Key>,
     ) -> Result<Self, StorageError> {
-        let opts = Self::connect_options(database_path.as_ref(), fresh)?;
-        nym_sqlcipher::encrypt_database_if_needed(database_path.as_ref(), key).await?;
-        Self::new_with_options(nym_sqlcipher::with_key(opts, key)).await
+        let mut opts = Self::connect_options(database_path.as_ref(), fresh)?;
+        if let Some(key) = key {
+            nym_sqlcipher::encrypt_database_if_needed(database_path.as_ref(), key).await?;
+            opts = nym_sqlcipher::connect_options_with_key(opts, key);
+        }
+        Self::new_with_options(opts).await
     }
 
     fn connect_options(

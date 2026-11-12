@@ -6855,6 +6855,7 @@ dependencies = [
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-sqlcipher",
  "nym-statistics-common",
  "nym-task",
  "nym-test-utils",

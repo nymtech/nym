@@ -21,11 +21,12 @@ const ARCHIVE_MAX_RETRY_ATTEMPTS: u8 = 15;
 const ARCHIVE_RETRY_DELAY: Duration = Duration::from_millis(200);
 
 async fn setup_fresh_backend(
-    database: fs_backend::DatabaseConfig,
+    db_path: &Path,
+    db_key: Option<&nym_sqlcipher::Key>,
     surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
     info!("Creating fresh surb database");
-    let mut storage_backend = match fs_backend::Backend::init(database).await {
+    let mut storage_backend = match fs_backend::Backend::init(db_path, db_key).await {
         Ok(backend) => backend,
         Err(err) => {
             error!(
@@ -134,25 +135,25 @@ fn is_file_locked_error(e: &io::Error) -> bool {
 
 /// Sets up the reply SURB database: loads the existing one, or creates a fresh one.
 ///
-/// `database` is a path, or a [`fs_backend::DatabaseConfig`] to encrypt the database with
-/// SQLCipher.
-pub async fn setup_fs_reply_surb_backend(
-    database: impl Into<fs_backend::DatabaseConfig>,
+/// With `db_key`, the database is encrypted with SQLCipher using the raw 256-bit key, and an
+/// existing plaintext database is encrypted in place first.
+pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
+    db_path: P,
+    db_key: Option<&nym_sqlcipher::Key>,
     surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
-    let database = database.into();
-
     // if the database file doesnt exist, initialise fresh storage, otherwise attempt to load
     // the existing one
-    if database.path().exists() {
+    let db_path = db_path.as_ref();
+    if db_path.exists() {
         info!("Loading existing surb database");
-        match fs_backend::Backend::try_load(database.clone()).await {
+        match fs_backend::Backend::try_load(db_path, db_key).await {
             Ok(backend) => return Ok(backend),
-            Err(err) => handle_load_failure(database.path(), err).await?,
+            Err(err) => handle_load_failure(db_path, err).await?,
         }
     }
 
-    setup_fresh_backend(database, surb_config).await
+    setup_fresh_backend(db_path, db_key, surb_config).await
 }
 
 /// Handles failing to load the existing surb database at `db_path`: archives it so a fresh one

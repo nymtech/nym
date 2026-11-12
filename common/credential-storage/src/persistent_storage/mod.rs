@@ -52,31 +52,25 @@ pub struct PersistentStorage {
 impl PersistentStorage {
     /// Initialises `PersistentStorage` using the provided path.
     ///
-    /// # Arguments
-    ///
-    /// * `database_path`: path to the database.
-    pub async fn new<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
-        Self::new_with_options(Self::connect_options(database_path)).await
-    }
-
-    /// Initialises `PersistentStorage` encrypted with SQLCipher using the provided path.
-    ///
-    /// An existing plaintext database is encrypted in place first. Fails with
-    /// [`StorageError::EncryptionError`] if SQLite is not built with SQLCipher, or if an existing
-    /// encrypted database can't be opened with `key`. SQLCipher has to be linked in place of
-    /// SQLite, e.g. with the `bundled` feature of `nym-sqlcipher`.
+    /// With `key`, the database is encrypted with SQLCipher, and an existing plaintext database is
+    /// encrypted in place first. This fails with [`StorageError::EncryptionError`] if SQLite is not
+    /// built with SQLCipher, or if an existing encrypted database can't be opened with `key`.
+    /// SQLCipher has to be linked in place of SQLite, e.g. with the `bundled` feature of
+    /// `nym-sqlcipher`.
     ///
     /// # Arguments
     ///
     /// * `database_path`: path to the database.
     /// * `key`: raw 256-bit SQLCipher key. It is used as is, without passphrase key derivation.
-    pub async fn new_encrypted<P: AsRef<Path>>(
+    pub async fn new<P: AsRef<Path>>(
         database_path: P,
-        key: &nym_sqlcipher::Key,
+        key: Option<&nym_sqlcipher::Key>,
     ) -> Result<Self, StorageError> {
-        nym_sqlcipher::encrypt_database_if_needed(database_path.as_ref(), key).await?;
-
-        let opts = nym_sqlcipher::with_key(Self::connect_options(database_path), key);
+        let mut opts = Self::connect_options(database_path.as_ref());
+        if let Some(key) = key {
+            nym_sqlcipher::encrypt_database_if_needed(database_path.as_ref(), key).await?;
+            opts = nym_sqlcipher::connect_options_with_key(opts, key);
+        }
         Self::new_with_options(opts).await
     }
 

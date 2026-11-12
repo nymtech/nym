@@ -210,7 +210,7 @@ cd playbooks
 ansible-playbook deploy.yml
 ```
 
-The playbook is omniponent, so it can be re-run to change some node parameters or host settings while not deleting essential node's configuration files and keys.
+The playbook is omniponent, so it can be re-run to change some node parameters or host settings while not deleting essential node's configuration files and keys. Re-running with a different `mode` does not remove components installed for the previous mode, such as the bridge (QUIC) and Network Tunnel Manager (NTM) configuration and their firewall rules. Check and remove them manually before switching a gateway to `mixnode`.
 
 This sheet explains how ansible roles manages the server routing configuration in relation to the chosen `--mode` of your `nym-node`.
 

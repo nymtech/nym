@@ -78,6 +78,19 @@ jobs:
           (Get-Content Cargo.toml) -replace '\[profile.dev\]', "`$&`ndebug = false" | Set-Content Cargo.toml
           git diff
 
+      # nym-sqlcipher's tests build the bundled SQLCipher, which needs OpenSSL on Windows
+      - name: Install OpenSSL (win)
+        if: contains(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install openssl --no-progress -y
+          $dir = @("$env:ProgramFiles\OpenSSL-Win64", "$env:ProgramFiles\OpenSSL") |
+            Where-Object { Test-Path "$_\include\openssl" } |
+            Select-Object -First 1
+          if (-not $dir) { throw "OpenSSL headers not found after installing" }
+          "OPENSSL_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:

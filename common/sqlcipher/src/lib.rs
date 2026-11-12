@@ -215,8 +215,11 @@ async fn migrate_plaintext(
         });
     }
 
-    // make sure the encrypted copy is on disk before it replaces the original
-    tokio::fs::File::open(migration_path)
+    // make sure the encrypted copy is on disk before it replaces the original. Windows only
+    // flushes a file through a handle with write access.
+    tokio::fs::OpenOptions::new()
+        .write(true)
+        .open(migration_path)
         .await
         .map_err(|err| SqlCipherError::io(migration_path, err))?
         .sync_all()

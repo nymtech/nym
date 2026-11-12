@@ -29,22 +29,44 @@ pub(crate) struct PendingCredentialRequestsStorage {
 }
 
 impl PendingCredentialRequestsStorage {
-    pub(crate) async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+    pub(crate) async fn new<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
         let database_path = database_path.as_ref();
+        Self::new_with_options(database_path, Self::connect_options(database_path)).await
+    }
 
+    /// Like [`Self::new`], but encrypted with SQLCipher using the raw 256-bit `key`.
+    /// An existing plaintext database is encrypted in place first.
+    #[cfg(feature = "sqlcipher")]
+    pub(crate) async fn new_encrypted<P: AsRef<Path>>(
+        database_path: P,
+        key: &nym_sqlcipher::Key,
+    ) -> Result<Self, StorageError> {
+        let database_path = database_path.as_ref();
+        nym_sqlcipher::encrypt_database_if_needed(database_path, key).await?;
+
+        let opts = nym_sqlcipher::with_key(Self::connect_options(database_path), key);
+        Self::new_with_options(database_path, opts).await
+    }
+
+    fn connect_options(database_path: &Path) -> sqlx::sqlite::SqliteConnectOptions {
         tracing::debug!(
             "Setting up pending credential requests storage: {}",
             database_path.display()
         );
 
-        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+        sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
-            .disable_statement_logging();
+            .disable_statement_logging()
+    }
 
+    async fn new_with_options(
+        database_path: &Path,
+        opts: sqlx::sqlite::SqliteConnectOptions,
+    ) -> Result<Self, StorageError> {
         tracing::debug!("Connecting to the database");
         let connection_pool = sqlx::sqlite::SqlitePoolOptions::new()
             .connect_with(opts)
@@ -65,7 +87,7 @@ impl PendingCredentialRequestsStorage {
     /// In-memory storage for tests, migrated the same way as the real thing. Has no file backing,
     /// so [`Self::reset`] does not apply to it.
     #[cfg(test)]
-    pub(crate) async fn init_in_memory() -> Result<Self, StorageError> {
+    pub(crate) async fn new_in_memory() -> Result<Self, StorageError> {
         let connection_pool = sqlx::sqlite::SqlitePoolOptions::new()
             // every connection to `:memory:` is its own database, so the pool has to be held
             // to a single one or the migrations land somewhere the queries cannot see
@@ -188,7 +210,7 @@ mod tests {
     /// spent a second time to start over.
     #[tokio::test]
     async fn a_pending_issuance_remembers_the_epoch_it_is_being_collected_under() {
-        let storage = PendingCredentialRequestsStorage::init_in_memory()
+        let storage = PendingCredentialRequestsStorage::new_in_memory()
             .await
             .unwrap();
 
@@ -207,7 +229,7 @@ mod tests {
     /// along.
     #[tokio::test]
     async fn an_issuance_stored_before_the_epoch_was_recorded_reports_none() {
-        let storage = PendingCredentialRequestsStorage::init_in_memory()
+        let storage = PendingCredentialRequestsStorage::new_in_memory()
             .await
             .unwrap();
 

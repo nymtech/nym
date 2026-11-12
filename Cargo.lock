@@ -5649,6 +5649,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e99fb7a497b1e3339bc746195567ed8d3e24945ecd636e3619d20b9de9e9149"
 dependencies = [
  "cc",
+ "openssl-sys",
  "pkg-config",
  "vcpkg",
 ]
@@ -6581,6 +6582,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-time",
+ "nym-sqlcipher",
  "nym-validator-client",
  "rand 0.10.2",
  "serde",
@@ -6925,6 +6927,7 @@ dependencies = [
  "dashmap",
  "nym-crypto",
  "nym-sphinx",
+ "nym-sqlcipher",
  "nym-task",
  "sqlx",
  "thiserror 2.0.21",
@@ -7276,13 +7279,13 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bincode",
- "hex",
  "log",
  "nym-compact-ecash",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-time",
+ "nym-sqlcipher",
  "nym-test-utils",
  "serde",
  "sqlx",
@@ -9052,6 +9055,7 @@ dependencies = [
  "nym-socks5-requests",
  "nym-sphinx",
  "nym-sphinx-addressing",
+ "nym-sqlcipher",
  "nym-statistics-common",
  "nym-task",
  "nym-test-utils",
@@ -9566,6 +9570,20 @@ version = "2.0.1"
 dependencies = [
  "sphinx-packet",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "nym-sqlcipher"
+version = "2.0.1"
+dependencies = [
+ "hex",
+ "libsqlite3-sys",
+ "sqlx",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "zeroize",
 ]
 
 [[package]]
@@ -10347,6 +10365,28 @@ name = "openssl-probe"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
+
+[[package]]
+name = "openssl-src"
+version = "300.6.1+3.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46eb8fb9fb3b61ce1c0f8a026c4c1a0714d3a9e138e7fbde78753ce2babc3846"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "openssl-sys"
+version = "0.9.118"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19c413d6ec9ebaf5e1c829d355cb3e9f783778d700f135be0921d52fce3c60ae"
+dependencies = [
+ "cc",
+ "libc",
+ "openssl-src",
+ "pkg-config",
+ "vcpkg",
+]
 
 [[package]]
 name = "opentelemetry"

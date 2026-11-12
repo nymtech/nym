@@ -51,6 +51,11 @@ pub struct StoragePaths {
 
     /// Passphrase protecting the private keys; plaintext keys get encrypted on first load with it.
     key_passphrase: Option<Passphrase>,
+
+    /// Raw SQLCipher key encrypting the credential and reply SURB databases; plaintext databases
+    /// get encrypted on first open with it.
+    #[cfg(feature = "sqlcipher")]
+    database_key: Option<nym_sqlcipher::DatabaseKey>,
 }
 
 impl StoragePaths {
@@ -78,6 +83,8 @@ impl StoragePaths {
             reply_surb_database_path: dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
             gateway_registrations: dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
             key_passphrase: None,
+            #[cfg(feature = "sqlcipher")]
+            database_key: None,
         })
     }
 
@@ -87,6 +94,16 @@ impl StoragePaths {
     #[must_use]
     pub fn with_key_passphrase(mut self, key_passphrase: Option<Passphrase>) -> Self {
         self.key_passphrase = key_passphrase;
+        self
+    }
+
+    /// Encrypts the credential and reply SURB databases with SQLCipher, using the raw 256-bit
+    /// `key` as is, without passphrase key derivation. Databases still in plaintext are encrypted
+    /// the first time they are opened. The same key must be provided on every run.
+    #[cfg(feature = "sqlcipher")]
+    #[must_use]
+    pub fn with_database_key(mut self, key: Option<[u8; 32]>) -> Self {
+        self.database_key = key.map(nym_sqlcipher::DatabaseKey::new);
         self
     }
 
@@ -116,25 +133,23 @@ impl StoragePaths {
         ))
     }
 
-    /// Instantiates default ecash credential storage.
+    /// Instantiates default ecash credential storage, encrypted if a database key is set.
     pub async fn persistent_credential_storage(
         &self,
     ) -> Result<PersistentCredentialStorage, Error> {
-        PersistentCredentialStorage::init(&self.credential_database_path)
+        #[cfg(feature = "sqlcipher")]
+        if let Some(key) = &self.database_key {
+            return PersistentCredentialStorage::new_encrypted(
+                &self.credential_database_path,
+                key.as_bytes(),
+            )
             .await
             .map_err(|source| Error::CredentialStorageError {
                 source: Box::new(source),
-            })
-    }
+            });
+        }
 
-    /// Instantiates ecash credential storage encrypted with SQLCipher.
-    ///
-    /// `key` is a raw 256-bit SQLCipher key.
-    pub async fn persistent_credential_storage_encrypted(
-        &self,
-        key: &[u8; 32],
-    ) -> Result<PersistentCredentialStorage, Error> {
-        PersistentCredentialStorage::init_encrypted(&self.credential_database_path, key)
+        PersistentCredentialStorage::new(&self.credential_database_path)
             .await
             .map_err(|source| Error::CredentialStorageError {
                 source: Box::new(source),
@@ -146,16 +161,20 @@ impl StoragePaths {
         self.persistent_fs_reply_backend(&Default::default()).await
     }
 
-    /// Instantiates default reply surb storage backend with the provided metadata config.
+    /// Instantiates default reply surb storage backend with the provided metadata config,
+    /// encrypted if a database key is set.
     pub async fn persistent_fs_reply_backend(
         &self,
         surb_config: &config::ReplySurbs,
     ) -> Result<fs_backend::Backend, Error> {
-        Ok(non_wasm_helpers::setup_fs_reply_surb_backend(
-            &self.reply_surb_database_path,
-            surb_config,
-        )
-        .await?)
+        let database = fs_backend::DatabaseConfig::new(&self.reply_surb_database_path);
+        #[cfg(feature = "sqlcipher")]
+        let database = match &self.database_key {
+            Some(key) => database.with_key(key.clone()),
+            None => database,
+        };
+
+        Ok(non_wasm_helpers::setup_fs_reply_surb_backend(database, surb_config).await?)
     }
 
     /// Instantiates default persistent key storage.
@@ -234,6 +253,8 @@ impl From<CommonClientPaths> for StoragePaths {
             reply_surb_database_path: value.reply_surb_database,
             gateway_registrations: value.gateway_registrations,
             key_passphrase: None,
+            #[cfg(feature = "sqlcipher")]
+            database_key: None,
         }
     }
 }

@@ -111,6 +111,7 @@ members = [
     "common/socks5-client-core",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",
+    "common/sqlcipher",
     "common/statistics",
     "common/store-cipher",
     "common/task",
@@ -334,6 +335,8 @@ jwt-simple = { version = "0.12.12", default-features = false, features = [
 ] }
 k256 = "0.13"
 lazy_static = "1.5.0"
+# must stay on the same version sqlx uses, it only exists here to switch on SQLCipher
+libsqlite3-sys = "0.30"
 ledger-transport = "0.10.0"
 ledger-transport-hid = "0.10.0"
 log = "0.4"
@@ -550,6 +553,7 @@ nym-sphinx-framing = { version = "2.0.1", path = "common/nymsphinx/framing" }
 nym-sphinx-params = { version = "2.0.1", path = "common/nymsphinx/params" }
 nym-sphinx-routing = { version = "2.0.1", path = "common/nymsphinx/routing" }
 nym-sphinx-types = { version = "2.0.1", path = "common/nymsphinx/types" }
+nym-sqlcipher = { version = "2.0.1", path = "common/sqlcipher" }
 nym-statistics-common = { version = "2.0.1", path = "common/statistics" }
 nym-store-cipher = { version = "2.0.1", path = "common/store-cipher" }
 nym-task = { version = "2.0.1", path = "common/task" }

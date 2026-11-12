@@ -1,0 +1,42 @@
+[package]
+name = "nym-sqlcipher"
+description = "SQLCipher support for Nym's SQLite storages: key handling and migration of plaintext databases"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hex = { workspace = true }
+# Only here to switch on SQLCipher through the `bundled` feature.
+libsqlite3-sys = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio", "sqlite"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs", "sync"] }
+tracing = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+# the tests need SQLCipher. Dev-dependency features only apply to test builds.
+libsqlite3-sys = { workspace = true, features = ["bundled-sqlcipher"] }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[features]
+# Builds the bundled SQLCipher in place of SQLite. Every crate in the graph shares the single
+# `libsqlite3-sys` linking `sqlite3`, so this switches sqlx over to SQLCipher everywhere. Off by
+# default, so that building the whole workspace doesn't switch every binary over to SQLCipher.
+bundled = ["libsqlite3-sys/bundled-sqlcipher"]
+# Same as `bundled`, but also builds OpenSSL from source for SQLCipher's crypto, instead of linking
+# the system OpenSSL.
+vendored-openssl = ["bundled", "libsqlite3-sys/bundled-sqlcipher-vendored-openssl"]
+
+[lints]
+workspace = true

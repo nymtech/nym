@@ -20,25 +20,50 @@ pub struct StorageManager {
 
 // all SQL goes here
 impl StorageManager {
-    pub async fn init<P: AsRef<Path>>(database_path: P, fresh: bool) -> Result<Self, StorageError> {
+    pub async fn new<P: AsRef<Path>>(database_path: P, fresh: bool) -> Result<Self, StorageError> {
+        let opts = Self::connect_options(database_path.as_ref(), fresh)?;
+        Self::new_with_options(opts).await
+    }
+
+    /// Like [`Self::new`], but encrypted with SQLCipher using the raw 256-bit `key`.
+    /// An existing plaintext database is encrypted in place first.
+    #[cfg(feature = "sqlcipher")]
+    pub async fn new_encrypted<P: AsRef<Path>>(
+        database_path: P,
+        fresh: bool,
+        key: &nym_sqlcipher::Key,
+    ) -> Result<Self, StorageError> {
+        let opts = Self::connect_options(database_path.as_ref(), fresh)?;
+        nym_sqlcipher::encrypt_database_if_needed(database_path.as_ref(), key).await?;
+        Self::new_with_options(nym_sqlcipher::with_key(opts, key)).await
+    }
+
+    fn connect_options(
+        database_path: &Path,
+        fresh: bool,
+    ) -> Result<sqlx::sqlite::SqliteConnectOptions, StorageError> {
         // ensure the whole directory structure exists
-        if let Some(parent_dir) = database_path.as_ref().parent() {
+        if let Some(parent_dir) = database_path.parent() {
             std::fs::create_dir_all(parent_dir).map_err(|source| {
                 StorageError::DatabasePathUnableToCreateParentDirectory {
-                    provided_path: database_path.as_ref().to_path_buf(),
+                    provided_path: database_path.to_path_buf(),
                     source,
                 }
             })?;
         }
 
-        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+        Ok(sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(fresh)
-            .disable_statement_logging();
+            .disable_statement_logging())
+    }
 
+    async fn new_with_options(
+        opts: sqlx::sqlite::SqliteConnectOptions,
+    ) -> Result<Self, StorageError> {
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(pool) => pool,
             Err(err) => {

@@ -28,8 +28,9 @@ pub enum StorageError {
     #[error("Database unique constraint violation. Is the credential already imported?")]
     ConstraintUnique,
 
-    #[error("SQLite is not built with SQLCipher, cannot open encrypted database")]
-    EncryptionNotSupported,
+    #[cfg(all(not(target_arch = "wasm32"), feature = "sqlcipher"))]
+    #[error("Failed to set up database encryption - {0}")]
+    EncryptionError(#[from] nym_sqlcipher::SqlCipherError),
 }
 
 impl StorageError {

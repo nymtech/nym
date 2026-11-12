@@ -75,21 +75,70 @@ where
         db_path: impl AsRef<Path>,
         ecash_keypair: KeyPairUser,
     ) -> Result<Self, NyxdFetcherError> {
-        let pending_storage = PendingCredentialRequestsStorage::init(db_path).await?;
+        let pending_storage = PendingCredentialRequestsStorage::new(db_path).await?;
+        Ok(Self::with_pending_storage(
+            client,
+            pending_storage,
+            ecash_keypair,
+        ))
+    }
+
+    /// Like [`Self::new`], but the pending-request recovery store is encrypted with SQLCipher
+    /// using the raw 256-bit `db_key`. An existing plaintext store is encrypted in place first.
+    #[cfg(feature = "sqlcipher")]
+    pub async fn new_encrypted(
+        client: Arc<C>,
+        db_path: impl AsRef<Path>,
+        db_key: &nym_sqlcipher::Key,
+        client_id: Zeroizing<Vec<u8>>,
+    ) -> Result<Self, NyxdFetcherError> {
+        Self::new_with_keypair_encrypted(
+            client,
+            db_path,
+            db_key,
+            KeyPairUser::new_seeded(client_id.as_slice()),
+        )
+        .await
+    }
+
+    /// Like [`Self::new_with_keypair`], but the pending-request recovery store is encrypted with
+    /// SQLCipher using the raw 256-bit `db_key`. An existing plaintext store is encrypted in place
+    /// first.
+    #[cfg(feature = "sqlcipher")]
+    pub async fn new_with_keypair_encrypted(
+        client: Arc<C>,
+        db_path: impl AsRef<Path>,
+        db_key: &nym_sqlcipher::Key,
+        ecash_keypair: KeyPairUser,
+    ) -> Result<Self, NyxdFetcherError> {
+        let pending_storage =
+            PendingCredentialRequestsStorage::new_encrypted(db_path, db_key).await?;
+        Ok(Self::with_pending_storage(
+            client,
+            pending_storage,
+            ecash_keypair,
+        ))
+    }
+
+    fn with_pending_storage(
+        client: Arc<C>,
+        pending_storage: PendingCredentialRequestsStorage,
+        ecash_keypair: KeyPairUser,
+    ) -> Self {
         let ecash_api_clients = Arc::new(EcashApiClientsCache::new());
         let public_data_fetcher = NyxdGlobalDataFetcher::new_with_ecash_clients(
             client.clone(),
             ecash_api_clients.clone(),
         );
 
-        Ok(NyxdCredentialFetcher {
+        NyxdCredentialFetcher {
             client,
             ecash_keypair,
             ecash_api_clients,
             pending_storage,
             public_data_fetcher,
             deposit_lock: tokio::sync::Mutex::new(()),
-        })
+        }
     }
 
     async fn block_until_ecash_is_available(&self) -> Result<(), NyxdFetcherError> {

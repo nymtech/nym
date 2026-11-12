@@ -58,4 +58,23 @@ pub enum StorageError {
     FailedToCreateStorage {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+
+    #[cfg(feature = "sqlcipher")]
+    #[error("failed to set up database encryption: {source}")]
+    EncryptionError {
+        #[from]
+        source: nym_sqlcipher::SqlCipherError,
+    },
+}
+
+impl StorageError {
+    /// Whether the database couldn't be opened because of its encryption: SQLite not built with
+    /// SQLCipher, a wrong key, or a failed migration of a plaintext database. Unlike corrupted
+    /// data, these aren't fixed by starting a fresh database.
+    pub fn is_encryption_error(&self) -> bool {
+        #[cfg(feature = "sqlcipher")]
+        return matches!(self, StorageError::EncryptionError { .. });
+        #[cfg(not(feature = "sqlcipher"))]
+        false
+    }
 }

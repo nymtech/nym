@@ -19,7 +19,7 @@ pub mod storage;
 pub async fn initialise_persistent_storage<P: AsRef<std::path::Path>>(
     path: P,
 ) -> crate::persistent_storage::PersistentStorage {
-    match persistent_storage::PersistentStorage::init(path).await {
+    match persistent_storage::PersistentStorage::new(path).await {
         Err(err) => panic!("failed to initialise credential storage - {err}"),
         Ok(storage) => storage,
     }

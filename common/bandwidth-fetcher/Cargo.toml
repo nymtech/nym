@@ -42,6 +42,7 @@ sqlx = { workspace = true, optional = true, features = [
     "migrate",
     "time",
 ] }
+nym-sqlcipher = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde = { workspace = true }
@@ -65,6 +66,10 @@ credentials = ["dep:sqlx"]
 # exposes `NyxdRecoveryFetcher`, a recover-only fetcher; implies `credentials`
 # since it uses the same pending-requests store.
 recovery = ["credentials"]
+
+# SQLCipher-encrypted pending-requests store. Builds the bundled SQLCipher in place of SQLite for
+# the whole dependency graph.
+sqlcipher = ["credentials", "dep:nym-sqlcipher", "nym-sqlcipher/bundled"]
 
 [lints]
 workspace = true

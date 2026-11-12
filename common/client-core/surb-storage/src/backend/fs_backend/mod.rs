@@ -21,31 +21,90 @@ mod error;
 mod manager;
 mod models;
 
+/// The reply SURB database: where it lives and, with the `sqlcipher` feature, the key it's
+/// encrypted with. Every way of opening the database goes through this, so it is always opened the
+/// same way.
+#[derive(Clone, Debug)]
+pub struct DatabaseConfig {
+    path: PathBuf,
+    #[cfg(feature = "sqlcipher")]
+    key: Option<nym_sqlcipher::DatabaseKey>,
+}
+
+impl DatabaseConfig {
+    /// Plaintext database at `path`.
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        DatabaseConfig {
+            path: path.into(),
+            #[cfg(feature = "sqlcipher")]
+            key: None,
+        }
+    }
+
+    /// Encrypts the database with SQLCipher using the raw 256-bit `key`, as is, without
+    /// passphrase key derivation. An existing plaintext database is encrypted in place the first
+    /// time it's opened.
+    #[cfg(feature = "sqlcipher")]
+    #[must_use]
+    pub fn with_key(mut self, key: impl Into<nym_sqlcipher::DatabaseKey>) -> Self {
+        self.key = Some(key.into());
+        self
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    async fn open(&self, fresh: bool) -> Result<StorageManager, StorageError> {
+        if self.path.file_name().is_none() {
+            return Err(StorageError::DatabasePathWithoutFilename {
+                provided_path: self.path.clone(),
+            });
+        }
+
+        #[cfg(feature = "sqlcipher")]
+        if let Some(key) = &self.key {
+            return StorageManager::new_encrypted(&self.path, fresh, key.as_bytes()).await;
+        }
+
+        StorageManager::new(&self.path, fresh).await
+    }
+}
+
+impl From<PathBuf> for DatabaseConfig {
+    fn from(path: PathBuf) -> Self {
+        DatabaseConfig::new(path)
+    }
+}
+
+impl From<&PathBuf> for DatabaseConfig {
+    fn from(path: &PathBuf) -> Self {
+        DatabaseConfig::new(path)
+    }
+}
+
+impl From<&Path> for DatabaseConfig {
+    fn from(path: &Path) -> Self {
+        DatabaseConfig::new(path)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Backend {
     temporary_old_path: Option<PathBuf>,
-    database_path: PathBuf,
+    database: DatabaseConfig,
     manager: StorageManager,
 }
 
 impl Backend {
     const OLD_EXTENSION: &'static str = "old";
 
-    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
-        let owned_path: PathBuf = database_path.as_ref().into();
-        if owned_path.file_name().is_none() {
-            return Err(StorageError::DatabasePathWithoutFilename {
-                provided_path: owned_path,
-            });
-        }
-
-        let manager = StorageManager::init(database_path, true).await?;
+    /// Creates a fresh database.
+    pub async fn init(database: impl Into<DatabaseConfig>) -> Result<Self, StorageError> {
+        let database = database.into();
+        let manager = database.open(true).await?;
         match manager.create_status_table().await {
-            Ok(()) => Ok(Backend {
-                temporary_old_path: None,
-                database_path: owned_path,
-                manager,
-            }),
+            Ok(()) => Ok(Self::new(database, manager)),
             Err(err) => {
                 manager.close_pool().await;
                 Err(err.into())
@@ -53,25 +112,24 @@ impl Backend {
         }
     }
 
-    pub async fn try_load<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
-        let owned_path: PathBuf = database_path.as_ref().into();
-        if owned_path.file_name().is_none() {
-            return Err(StorageError::DatabasePathWithoutFilename {
-                provided_path: owned_path,
-            });
-        }
-
-        let manager = StorageManager::init(database_path, false).await?;
+    /// Loads an existing database.
+    pub async fn try_load(database: impl Into<DatabaseConfig>) -> Result<Self, StorageError> {
+        let database = database.into();
+        let manager = database.open(false).await?;
         match Self::try_load_inner(&manager).await {
-            Ok(()) => Ok(Backend {
-                temporary_old_path: None,
-                database_path: owned_path,
-                manager,
-            }),
+            Ok(()) => Ok(Self::new(database, manager)),
             Err(e) => {
                 manager.close_pool().await;
                 Err(e)
             }
+        }
+    }
+
+    fn new(database: DatabaseConfig, manager: StorageManager) -> Self {
+        Backend {
+            temporary_old_path: None,
+            database,
+            manager,
         }
     }
 
@@ -131,21 +189,23 @@ impl Backend {
     async fn rotate(&mut self) -> Result<(), StorageError> {
         self.manager.close_pool().await;
 
+        let database_path = self.database.path();
         let new_extension = if let Some(existing_extension) =
-            self.database_path.extension().and_then(|ext| ext.to_str())
+            database_path.extension().and_then(|ext| ext.to_str())
         {
             format!("{existing_extension}.{}", Self::OLD_EXTENSION)
         } else {
             Self::OLD_EXTENSION.to_string()
         };
 
-        let mut temp_old = self.database_path.clone();
+        let mut temp_old = database_path.to_path_buf();
         temp_old.set_extension(new_extension);
 
-        tokio::fs::rename(&self.database_path, &temp_old)
+        tokio::fs::rename(database_path, &temp_old)
             .await
             .map_err(|err| StorageError::DatabaseRenameError { source: err })?;
-        self.manager = StorageManager::init(&self.database_path, true).await?;
+        // reopened from the same config, so it's encrypted with the same key, if any
+        self.manager = self.database.open(true).await?;
         self.manager.create_status_table().await?;
 
         self.temporary_old_path = Some(temp_old);

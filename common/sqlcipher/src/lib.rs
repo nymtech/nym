@@ -136,7 +136,9 @@ pub async fn ensure_available() -> Result<(), SqlCipherError> {
 /// key, or corrupted, failing with [`SqlCipherError::InvalidKeyOrCorrupted`].
 ///
 /// The database must not be in use while this runs. Encrypting a plaintext database writes an
-/// encrypted copy next to it, and then replaces the original with it.
+/// encrypted copy next to it, and then replaces the original with it. The copy keeps the
+/// original's `auto_vacuum` and WAL journal mode, but not its `page_size`: it uses SQLCipher's
+/// `cipher_page_size`, 4096 bytes by default. The data and schema are unaffected.
 pub async fn encrypt_database_if_needed(
     database_path: &Path,
     key: &Key,

@@ -11,6 +11,7 @@
 - name: Configure firewall (ufw) for mixnodes and non-WireGuard entry gateways
   import_tasks: firewall.yml
   when: mode == 'mixnode' or (mode == 'entry-gateway' and not (wireguard_enabled | default(false) | bool))
+  tags: [firewall]
 
 - name: Configure and start Nym service
   import_tasks: service.yml

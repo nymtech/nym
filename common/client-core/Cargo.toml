@@ -146,7 +146,7 @@ semver = { workspace = true }
 
 [features]
 default = []
-cli = ["clap", "comfy-table"]
+cli = ["clap", "comfy-table", "dep:nym-sqlcipher"]
 fs-credentials-storage = ["nym-credential-storage/persistent-storage"]
 fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage", "dep:nym-sqlcipher"]
 fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]

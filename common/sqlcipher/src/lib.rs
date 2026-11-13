@@ -35,8 +35,31 @@ impl DatabaseKey {
         DatabaseKey(Arc::new(Zeroizing::new(key)))
     }
 
+    /// Parses a key from its hex encoding: exactly [`KEY_LEN`] bytes, i.e. 64 hex characters.
+    ///
+    /// The error doesn't include the input, so that it can't leak the key.
+    pub fn from_hex(hex_key: &str) -> Result<Self, InvalidHexKey> {
+        let mut key = Zeroizing::new([0u8; KEY_LEN]);
+        hex::decode_to_slice(hex_key.trim(), key.as_mut_slice()).map_err(|_| InvalidHexKey)?;
+        Ok(DatabaseKey::new(*key))
+    }
+
     pub fn as_bytes(&self) -> &Key {
         &self.0
+    }
+}
+
+/// Returned by [`DatabaseKey::from_hex`] when the input isn't a hex-encoded 256-bit key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("the database key must be exactly {KEY_LEN} bytes encoded as {} hex characters", KEY_LEN * 2)]
+pub struct InvalidHexKey;
+
+/// Parses the hex encoding, see [`DatabaseKey::from_hex`].
+impl std::str::FromStr for DatabaseKey {
+    type Err = InvalidHexKey;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        DatabaseKey::from_hex(s)
     }
 }
 
@@ -383,6 +406,18 @@ mod tests {
 
     fn other_key() -> DatabaseKey {
         DatabaseKey::new([0x24; KEY_LEN])
+    }
+
+    #[test]
+    fn key_from_hex() {
+        let parsed = DatabaseKey::from_hex(&"42".repeat(KEY_LEN)).unwrap();
+        assert_eq!(parsed.as_bytes(), key().as_bytes());
+        assert!(DatabaseKey::from_hex(&format!(" {} ", "aB".repeat(KEY_LEN))).is_ok());
+
+        assert!(matches!(DatabaseKey::from_hex(""), Err(InvalidHexKey)));
+        assert!(DatabaseKey::from_hex(&"42".repeat(KEY_LEN - 1)).is_err());
+        assert!(DatabaseKey::from_hex(&"42".repeat(KEY_LEN + 1)).is_err());
+        assert!(DatabaseKey::from_hex(&"zz".repeat(KEY_LEN)).is_err());
     }
     const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
     const ROWS: i64 = 100;

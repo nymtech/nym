@@ -4,6 +4,7 @@
 use crate::SubjectClass;
 use cosmwasm_std::Addr;
 use cw_controllers::AdminError;
+use nym_contracts_common::digest::CorruptDigestState;
 use nym_mixnet_contract_common::NodeId;
 use thiserror::Error;
 
@@ -112,8 +113,8 @@ pub enum GeolocationContractError {
     /// The persisted LtHash digest accumulator was not the expected length, so it
     /// could not be loaded (state corruption - the contract always writes exactly
     /// `nym_lthash::DIGEST_LEN` bytes).
-    #[error("the stored digest accumulator is corrupt (unexpected length)")]
-    CorruptDigestState,
+    #[error(transparent)]
+    CorruptDigestState(#[from] CorruptDigestState),
 
     #[error(transparent)]
     Admin(#[from] AdminError),

@@ -203,6 +203,30 @@
       "additionalProperties": false
     },
     {
+      "description": "Update the snapshot interval. Admin only.",
+      "type": "object",
+      "required": [
+        "update_snapshot_interval"
+      ],
+      "properties": {
+        "update_snapshot_interval": {
+          "type": "object",
+          "required": [
+            "interval"
+          ],
+          "properties": {
+            "interval": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "description": "Cross-contract callback from the mixnet contract when `node_id` unbonds; deletes all of that node's entries. Sender must be the configured mixnet contract.",
       "type": "object",
       "required": [

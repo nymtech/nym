@@ -417,14 +417,16 @@ mod tests {
             )
             .unwrap();
             let before = NYM_DIRECTORY_CONTRACT_STORAGE
-                .load_digest(tester.deps().storage)
+                .digest
+                .load(tester.deps().storage)
                 .unwrap();
             assert_ne!(before, LtHash16::new());
 
             // ... updating the interval must not touch it (the interval is not a digest leaf)
             try_update_snapshot_interval(tester.deps_mut(), admin, 250).unwrap();
             let after = NYM_DIRECTORY_CONTRACT_STORAGE
-                .load_digest(tester.deps().storage)
+                .digest
+                .load(tester.deps().storage)
                 .unwrap();
             assert_eq!(before, after);
         }
@@ -570,7 +572,8 @@ mod tests {
             // fresh contract has the empty digest
             assert_eq!(
                 NYM_DIRECTORY_CONTRACT_STORAGE
-                    .load_digest(tester.deps().storage)
+                    .digest
+                    .load(tester.deps().storage)
                     .unwrap(),
                 LtHash16::new()
             );
@@ -594,7 +597,8 @@ mod tests {
             // the digest now commits the entry
             assert_ne!(
                 NYM_DIRECTORY_CONTRACT_STORAGE
-                    .load_digest(tester.deps().storage)
+                    .digest
+                    .load(tester.deps().storage)
                     .unwrap(),
                 LtHash16::new()
             );
@@ -608,7 +612,8 @@ mod tests {
             // ... and the digest is back to empty
             assert_eq!(
                 NYM_DIRECTORY_CONTRACT_STORAGE
-                    .load_digest(tester.deps().storage)
+                    .digest
+                    .load(tester.deps().storage)
                     .unwrap(),
                 LtHash16::new()
             );
@@ -708,7 +713,8 @@ mod tests {
                     .unwrap();
             }
             let before = NYM_DIRECTORY_CONTRACT_STORAGE
-                .load_digest(tester.deps().storage)
+                .digest
+                .load(tester.deps().storage)
                 .unwrap();
 
             try_handle_node_unbonding(tester.deps_mut(), message_info(&mixnet, &[]), 7).unwrap();
@@ -735,7 +741,8 @@ mod tests {
             // covered by the storage-level `remove_all_node_entries` test
             assert_ne!(
                 NYM_DIRECTORY_CONTRACT_STORAGE
-                    .load_digest(tester.deps().storage)
+                    .digest
+                    .load(tester.deps().storage)
                     .unwrap(),
                 before
             );
@@ -768,7 +775,8 @@ mod tests {
                     .unwrap();
             }
             let before = NYM_DIRECTORY_CONTRACT_STORAGE
-                .load_digest(tester.deps().storage)
+                .digest
+                .load(tester.deps().storage)
                 .unwrap();
 
             // clearing a node that has no entries leaves everything untouched
@@ -776,7 +784,8 @@ mod tests {
 
             assert_eq!(
                 NYM_DIRECTORY_CONTRACT_STORAGE
-                    .load_digest(tester.deps().storage)
+                    .digest
+                    .load(tester.deps().storage)
                     .unwrap(),
                 before
             );

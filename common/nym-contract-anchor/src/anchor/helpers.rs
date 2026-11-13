@@ -51,7 +51,7 @@ where
 ///
 /// A contract only writes the item on the first entry mutation, so one with no entries yet
 /// has no digest item: the read is proven ABSENT (still against the trusted app hash), which
-/// means the empty accumulator - exactly the contract's own `load_digest`.
+/// means the empty accumulator - exactly the contract's own `DigestItem::load`.
 ///
 /// Public so a client holding a proof it did not fetch itself - a frozen test fixture, or a
 /// response relayed by a producer - can run the same verification without an RPC connection.
@@ -95,7 +95,7 @@ mod tests {
     // The contract only writes the digest item on the first entry mutation, so a directory
     // with no entries yet has NO digest item on chain: the raw read is proven ABSENT. The
     // reader must treat that as the empty accumulator (mirroring the contract's own
-    // `load_digest`), not as a verification failure.
+    // `DigestItem::load`), not as a verification failure.
     #[test]
     fn a_proven_absent_digest_item_is_the_empty_accumulator() -> anyhow::Result<()> {
         let LiveNonMembershipFixture {

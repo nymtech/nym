@@ -30,7 +30,7 @@ cw-utils = { workspace = true }
 bs58 = { workspace = true }
 
 nym-lthash = { workspace = true }
-nym-contracts-common = { workspace = true }
+nym-contracts-common = { workspace = true, features = ["lthash"] }
 nym-directory-contract-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 

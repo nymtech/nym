@@ -39,9 +39,23 @@
     state: directory
     mode: "0755"
 
+# render every template once before anything is changed: a missing or broken
+# (custom) template stops the role here, not after HTTPS/WSS have been disabled
+- name: Check nginx templates render
+  template:
+    src: "{{ item }}"
+    dest: /tmp/nym-nginx-template-check
+  loop:
+    - "{{ nginx_landing_template }}"
+    - "{{ nginx_site_template }}"
+    - "{{ nginx_site_ssl_template }}"
+    - "{{ nginx_wss_template }}"
+  check_mode: true
+  changed_when: false
+
 - name: Deploy landing page
   template:
-    src: landing.html.j2
+    src: "{{ nginx_landing_template }}"
     dest: "/var/www/{{ hostname }}/index.html"
     mode: "0644"
   notify: Restart nginx
@@ -62,7 +76,7 @@
 # always deploy/enable HTTP vhost
 - name: Deploy HTTP vhost
   template:
-    src: nginx-site.conf.j2
+    src: "{{ nginx_site_template }}"
     dest: "/etc/nginx/sites-available/{{ hostname }}"
     mode: "0644"
   notify: Restart nginx
@@ -127,7 +141,7 @@
 # only deploy/enable SSL & WSS if cert exists
 - name: Deploy HTTPS vhost for {{ hostname }}
   template:
-    src: nginx-site-ssl.conf.j2
+    src: "{{ nginx_site_ssl_template }}"
     dest: "/etc/nginx/sites-available/{{ hostname }}-ssl"
     mode: "0644"
   when: le_cert_after.stat.exists
@@ -144,7 +158,7 @@
 
 - name: Deploy WSS vhost
   template:
-    src: wss-config.conf.j2
+    src: "{{ nginx_wss_template }}"
     dest: "/etc/nginx/sites-available/nym-wss-config"
     mode: "0644"
   when: le_cert_after.stat.exists

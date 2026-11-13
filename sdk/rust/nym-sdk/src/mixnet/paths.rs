@@ -103,8 +103,8 @@ impl StoragePaths {
     /// SQLCipher has to be linked in place of SQLite, e.g. with the `sqlcipher` feature.
     /// Otherwise opening the databases fails, without creating or changing them.
     #[must_use]
-    pub fn with_database_key(mut self, key: Option<nym_sqlcipher::Key>) -> Self {
-        self.database_key = key.map(nym_sqlcipher::DatabaseKey::new);
+    pub fn with_database_key(mut self, key: Option<nym_sqlcipher::DatabaseKey>) -> Self {
+        self.database_key = key;
         self
     }
 

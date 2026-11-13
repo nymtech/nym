@@ -122,7 +122,7 @@ impl BuilderConfig {
 
         let storage_paths = StoragePaths::new_from_dir(&self.data_path)
             .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?
-            .with_database_key(self.database_key.as_ref().map(|key| *key.as_bytes()));
+            .with_database_key(self.database_key.clone());
 
         let mixnet_client_storage = storage_paths
             .initialise_persistent_storage(&self.mixnet_client_debug_config())

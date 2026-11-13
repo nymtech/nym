@@ -33,73 +33,66 @@ pub trait InitialisableClient: CliClient {
     fn construct_config(init_args: &Self::InitArgs) -> Self::Config;
 }
 
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[derive(Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct CommonClientInitArgs {
     /// Id of client we want to create config for.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub id: String,
 
     /// Id of the gateway we are going to connect to.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub gateway: Option<ed25519::PublicKey>,
 
     /// Specifies whether the client will attempt to enforce tls connection to the desired gateway.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub force_tls_gateway: bool,
 
     /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
     /// uniformly.
-    #[cfg_attr(feature = "cli", clap(long, conflicts_with = "gateway"))]
+    #[clap(long, conflicts_with = "gateway")]
     pub latency_based_selection: bool,
 
     /// Comma separated list of rest endpoints of the nyxd validators
-    #[cfg_attr(
-        feature = "cli",
-        clap(long, alias = "nyxd_validators", value_delimiter = ',', hide = true)
-    )]
+    #[clap(long, alias = "nyxd_validators", value_delimiter = ',', hide = true)]
     pub nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[cfg_attr(
-        feature = "cli",
-        clap(
-            long,
-            alias = "api_validators",
-            value_delimiter = ',',
-            group = "network"
-        )
+    #[clap(
+        long,
+        alias = "api_validators",
+        value_delimiter = ',',
+        group = "network"
     )]
     pub nym_apis: Option<Vec<url::Url>>,
 
     /// Path to .json file containing custom network specification.
-    #[cfg_attr(feature = "cli", clap(long, group = "network", hide = true))]
+    #[clap(long, group = "network", hide = true)]
     pub custom_mixnet: Option<PathBuf>,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    #[clap(long, hide = true)]
     pub enabled_credentials_mode: Option<bool>,
 
     /// Change the default minimum node performance used during initial node selection filtering.
-    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    #[clap(long, hide = true)]
     pub minimum_gateway_performance: Option<u8>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    #[clap(long, hide = true)]
     pub fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    #[clap(long, hide = true)]
     pub no_cover: bool,
 
     /// Sets the address to report statistics
-    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    #[clap(long, hide = true)]
     pub stats_reporting_address: Option<Recipient>,
 
     /// Sets the forget me flag
-    #[cfg_attr(feature = "cli", clap(long, hide = true, default_value_t = false))]
+    #[clap(long, hide = true, default_value_t = false)]
     pub forget_me: bool,
 }
 

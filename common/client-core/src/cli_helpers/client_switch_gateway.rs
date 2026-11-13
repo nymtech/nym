@@ -6,15 +6,14 @@ use crate::client::base_client::non_wasm_helpers::setup_fs_gateways_storage;
 use crate::client::base_client::storage::helpers::set_active_gateway;
 use nym_crypto::asymmetric::ed25519;
 
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[derive(Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct CommonClientSwitchGatewaysArgs {
     /// Id of client we want to list gateways for.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub id: String,
 
     /// Id of the gateway we want to switch to.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub gateway_id: ed25519::PublicKey,
 }
 

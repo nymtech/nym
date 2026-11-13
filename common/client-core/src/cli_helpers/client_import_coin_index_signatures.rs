@@ -5,36 +5,31 @@ use crate::cli_helpers::{CliClient, CliClientConfig};
 use std::fs;
 use std::path::PathBuf;
 
-#[cfg(feature = "cli")]
 fn parse_encoded_signatures_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
     bs58::decode(raw).into_vec()
 }
 
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[cfg_attr(feature = "cli",
-    clap(
-        group(clap::ArgGroup::new("sig_data").required(true)),
-    ))
-]
+#[derive(clap::Args)]
+#[clap(group(clap::ArgGroup::new("sig_data").required(true)))]
 pub struct CommonClientImportCoinIndexSignaturesArgs {
     /// Id of client that is going to import the signatures
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub id: String,
 
     /// Config file of the client that is supposed to use the signatures.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub(crate) client_config: PathBuf,
 
     /// Explicitly provide the encoded signatures data (as base58)
-    #[cfg_attr(feature = "cli", clap(long, group = "sig_data", value_parser = parse_encoded_signatures_data))]
+    #[clap(long, group = "sig_data", value_parser = parse_encoded_signatures_data)]
     pub(crate) signatures_data: Option<Vec<u8>>,
 
     /// Specifies the path to file containing binary signatures data
-    #[cfg_attr(feature = "cli", clap(long, group = "sig_data"))]
+    #[clap(long, group = "sig_data")]
     pub(crate) signatures_path: Option<PathBuf>,
 
     // currently hidden as there exists only a single serialization standard
-    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    #[clap(long, hide = true)]
     pub(crate) version: Option<u8>,
 }
 

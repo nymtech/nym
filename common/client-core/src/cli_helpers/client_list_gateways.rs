@@ -11,11 +11,10 @@ use nym_client_core_gateways_storage::{GatewayDetails, GatewayType};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[derive(Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct CommonClientListGatewaysArgs {
     /// Id of client we want to list gateways for.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub id: String,
 }
 

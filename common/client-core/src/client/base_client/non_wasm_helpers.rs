@@ -22,7 +22,7 @@ const ARCHIVE_RETRY_DELAY: Duration = Duration::from_millis(200);
 
 async fn setup_fresh_backend(
     db_path: &Path,
-    db_key: Option<&nym_sqlcipher::Key>,
+    db_key: Option<&nym_sqlcipher::DatabaseKey>,
     surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
     info!("Creating fresh surb database");
@@ -139,7 +139,7 @@ fn is_file_locked_error(e: &io::Error) -> bool {
 /// existing plaintext database is encrypted in place first.
 pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     db_path: P,
-    db_key: Option<&nym_sqlcipher::Key>,
+    db_key: Option<&nym_sqlcipher::DatabaseKey>,
     surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
     // if the database file doesnt exist, initialise fresh storage, otherwise attempt to load
@@ -183,7 +183,7 @@ async fn handle_load_failure(
 /// existing plaintext database is encrypted in place first.
 pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
     db_path: P,
-    db_key: Option<&nym_sqlcipher::Key>,
+    db_key: Option<&nym_sqlcipher::DatabaseKey>,
 ) -> Result<OnDiskGatewaysDetails, ClientCoreError> {
     trace!("setting up gateways details storage");
     OnDiskGatewaysDetails::init(db_path, db_key)

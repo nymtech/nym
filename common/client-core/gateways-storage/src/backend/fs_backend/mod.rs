@@ -24,7 +24,7 @@ impl OnDiskGatewaysDetails {
     /// place first.
     pub async fn init<P: AsRef<Path>>(
         database_path: P,
-        key: Option<&nym_sqlcipher::Key>,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
     ) -> Result<Self, StorageError> {
         Ok(OnDiskGatewaysDetails {
             manager: StorageManager::init(database_path, key).await?,

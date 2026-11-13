@@ -33,7 +33,7 @@ impl PendingCredentialRequestsStorage {
     /// 256-bit key, and an existing plaintext database is encrypted in place first.
     pub(crate) async fn new<P: AsRef<Path>>(
         database_path: P,
-        key: Option<&nym_sqlcipher::Key>,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
     ) -> Result<Self, StorageError> {
         let database_path = database_path.as_ref();
         let opts = nym_sqlcipher::apply_key(Self::connect_options(database_path), key).await?;

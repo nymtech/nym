@@ -12,6 +12,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
 use sqlx::{AssertSqlSafe, ConnectOptions, Connection};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tokio::sync::OnceCell;
 use tracing::{debug, info, warn};
 use zeroize::Zeroizing;
@@ -23,12 +24,15 @@ pub const KEY_LEN: usize = 32;
 pub type Key = [u8; KEY_LEN];
 
 /// Owned raw SQLCipher [`Key`], zeroized on drop and redacted from `Debug` output.
+///
+/// The key is kept in a single shared heap allocation, so moving a `DatabaseKey` doesn't leave
+/// copies of it behind, and clones share it. It's zeroized when the last clone is dropped.
 #[derive(Clone)]
-pub struct DatabaseKey(Zeroizing<Key>);
+pub struct DatabaseKey(Arc<Zeroizing<Key>>);
 
 impl DatabaseKey {
     pub fn new(key: Key) -> Self {
-        DatabaseKey(Zeroizing::new(key))
+        DatabaseKey(Arc::new(Zeroizing::new(key)))
     }
 
     pub fn as_bytes(&self) -> &Key {
@@ -100,11 +104,15 @@ impl SqlCipherError {
 /// with [`connect_options_with_key`].
 pub async fn apply_key(
     opts: SqliteConnectOptions,
-    key: Option<&Key>,
+    key: Option<&DatabaseKey>,
 ) -> Result<SqliteConnectOptions, SqlCipherError> {
-    let Some(key) = key else { return Ok(opts) };
-    encrypt_database_if_needed(opts.get_filename(), key).await?;
-    Ok(connect_options_with_key(opts, key))
+    match key {
+        Some(key) => {
+            encrypt_database_if_needed(opts.get_filename(), key).await?;
+            Ok(connect_options_with_key(opts, key))
+        }
+        None => Ok(opts),
+    }
 }
 
 /// Sets the SQLCipher key on the connect options.
@@ -112,7 +120,14 @@ pub async fn apply_key(
 /// SQLx always issues `PRAGMA key` before any other PRAGMA, so the key is in place before
 /// the database is read. The key is passed as `x'<HEX>'`, so SQLCipher uses it directly without
 /// passphrase key derivation.
-pub fn connect_options_with_key(opts: SqliteConnectOptions, key: &Key) -> SqliteConnectOptions {
+pub fn connect_options_with_key(
+    opts: SqliteConnectOptions,
+    key: &DatabaseKey,
+) -> SqliteConnectOptions {
+    with_raw_key(opts, key.as_bytes())
+}
+
+fn with_raw_key(opts: SqliteConnectOptions, key: &Key) -> SqliteConnectOptions {
     opts.pragma("key", format!("\"{}\"", raw_key_literal(key).as_str()))
 }
 
@@ -158,8 +173,9 @@ pub async fn ensure_available() -> Result<(), SqlCipherError> {
 /// `cipher_page_size`, 4096 bytes by default. The data and schema are unaffected.
 pub async fn encrypt_database_if_needed(
     database_path: &Path,
-    key: &Key,
+    key: &DatabaseKey,
 ) -> Result<(), SqlCipherError> {
+    let key = key.as_bytes();
     ensure_available().await?;
 
     // left over from a migration interrupted before the copy replaced the original,
@@ -197,7 +213,7 @@ async fn try_open(database_path: &Path, key: Option<&Key>) -> sqlx::Result<()> {
         .create_if_missing(false)
         .disable_statement_logging();
     if let Some(key) = key {
-        opts = connect_options_with_key(opts, key);
+        opts = with_raw_key(opts, key);
     }
 
     let mut conn = opts.connect().await?;
@@ -290,16 +306,6 @@ async fn export_encrypted(
         let auto_vacuum: i64 = sqlx::query_scalar("PRAGMA main.auto_vacuum")
             .fetch_one(&mut conn)
             .await?;
-        let auto_vacuum = match auto_vacuum {
-            0 => "NONE",
-            1 => "FULL",
-            2 => "INCREMENTAL",
-            other => {
-                return Err(sqlx::Error::Protocol(format!(
-                    "unexpected auto_vacuum mode {other}"
-                )));
-            }
-        };
         sqlx::query(AssertSqlSafe(format!(
             "PRAGMA encrypted.auto_vacuum = {auto_vacuum}"
         )))
@@ -371,8 +377,13 @@ mod tests {
     use sqlx::sqlite::{SqliteAutoVacuum, SqliteJournalMode};
     use tempfile::TempDir;
 
-    const KEY: Key = [0x42; KEY_LEN];
-    const OTHER_KEY: Key = [0x24; KEY_LEN];
+    fn key() -> DatabaseKey {
+        DatabaseKey::new([0x42; KEY_LEN])
+    }
+
+    fn other_key() -> DatabaseKey {
+        DatabaseKey::new([0x24; KEY_LEN])
+    }
     const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
     const ROWS: i64 = 100;
 
@@ -414,7 +425,7 @@ mod tests {
         conn.close().await.unwrap();
     }
 
-    async fn connect_encrypted(path: &Path, key: &Key) -> SqliteConnection {
+    async fn connect_encrypted(path: &Path, key: &DatabaseKey) -> SqliteConnection {
         connect_options_with_key(storage_options(path).create_if_missing(false), key)
             .connect()
             .await
@@ -461,7 +472,7 @@ mod tests {
         create_plaintext_database(&path, SqliteAutoVacuum::Incremental).await;
         assert!(std::fs::read(&path).unwrap().starts_with(SQLITE_HEADER));
 
-        encrypt_database_if_needed(&path, &KEY).await.unwrap();
+        encrypt_database_if_needed(&path, &key()).await.unwrap();
 
         // nothing in the file is readable anymore
         let raw = std::fs::read(&path).unwrap();
@@ -472,7 +483,7 @@ mod tests {
         // no copy, journal or WAL files left behind
         assert_eq!(directory_entries(&dir), vec!["test.db".to_string()]);
 
-        let mut conn = connect_encrypted(&path, &KEY).await;
+        let mut conn = connect_encrypted(&path, &key()).await;
         assert_eq!(read_rows(&mut conn).await, expected_rows());
         let journal_mode: String = sqlx::query_scalar("PRAGMA journal_mode")
             .fetch_one(&mut conn)
@@ -488,11 +499,13 @@ mod tests {
         let path = database_path(&dir);
         create_plaintext_database(&path, SqliteAutoVacuum::Incremental).await;
 
-        encrypt_database_if_needed(&path, &KEY).await.unwrap();
+        encrypt_database_if_needed(&path, &key()).await.unwrap();
 
         let err = try_open(&path, None).await.unwrap_err();
         assert!(is_not_a_database(&err));
-        let err = try_open(&path, Some(&OTHER_KEY)).await.unwrap_err();
+        let err = try_open(&path, Some(other_key().as_bytes()))
+            .await
+            .unwrap_err();
         assert!(is_not_a_database(&err));
     }
 
@@ -509,11 +522,11 @@ mod tests {
             let path = database_path(&dir);
             create_plaintext_database(&path, auto_vacuum).await;
 
-            encrypt_database_if_needed(&path, &KEY).await.unwrap();
+            encrypt_database_if_needed(&path, &key()).await.unwrap();
 
             // opened without setting `auto_vacuum`, to read what the file has
             let mut conn =
-                connect_options_with_key(SqliteConnectOptions::new().filename(&path), &KEY)
+                connect_options_with_key(SqliteConnectOptions::new().filename(&path), &key())
                     .connect()
                     .await
                     .unwrap();
@@ -544,12 +557,12 @@ mod tests {
                 .unwrap();
             conn.close().await.unwrap();
 
-            encrypt_database_if_needed(&path, &KEY).await.unwrap();
+            encrypt_database_if_needed(&path, &key()).await.unwrap();
 
             assert_eq!(directory_entries(&dir), vec!["test.db".to_string()]);
             // opened without setting `journal_mode`, to read what the file has
             let mut conn =
-                connect_options_with_key(SqliteConnectOptions::new().filename(&path), &KEY)
+                connect_options_with_key(SqliteConnectOptions::new().filename(&path), &key())
                     .connect()
                     .await
                     .unwrap();
@@ -567,13 +580,13 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = database_path(&dir);
         create_plaintext_database(&path, SqliteAutoVacuum::Incremental).await;
-        encrypt_database_if_needed(&path, &KEY).await.unwrap();
+        encrypt_database_if_needed(&path, &key()).await.unwrap();
         let encrypted = std::fs::read(&path).unwrap();
 
-        encrypt_database_if_needed(&path, &KEY).await.unwrap();
+        encrypt_database_if_needed(&path, &key()).await.unwrap();
 
         assert_eq!(std::fs::read(&path).unwrap(), encrypted);
-        let mut conn = connect_encrypted(&path, &KEY).await;
+        let mut conn = connect_encrypted(&path, &key()).await;
         assert_eq!(read_rows(&mut conn).await, expected_rows());
         conn.close().await.unwrap();
     }
@@ -583,16 +596,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = database_path(&dir);
         create_plaintext_database(&path, SqliteAutoVacuum::Incremental).await;
-        encrypt_database_if_needed(&path, &KEY).await.unwrap();
+        encrypt_database_if_needed(&path, &key()).await.unwrap();
         let encrypted = std::fs::read(&path).unwrap();
 
-        let err = encrypt_database_if_needed(&path, &OTHER_KEY)
+        let err = encrypt_database_if_needed(&path, &other_key())
             .await
             .unwrap_err();
 
         assert!(matches!(err, SqlCipherError::InvalidKeyOrCorrupted { .. }));
         assert_eq!(std::fs::read(&path).unwrap(), encrypted);
-        let mut conn = connect_encrypted(&path, &KEY).await;
+        let mut conn = connect_encrypted(&path, &key()).await;
         assert_eq!(read_rows(&mut conn).await, expected_rows());
         conn.close().await.unwrap();
     }
@@ -602,7 +615,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = database_path(&dir);
 
-        encrypt_database_if_needed(&path, &KEY).await.unwrap();
+        encrypt_database_if_needed(&path, &key()).await.unwrap();
 
         assert!(!path.exists());
     }
@@ -626,10 +639,10 @@ mod tests {
         std::fs::write(journal_path(&migration, "-journal"), b"journal").unwrap();
         create_plaintext_database(&path, SqliteAutoVacuum::Incremental).await;
 
-        encrypt_database_if_needed(&path, &KEY).await.unwrap();
+        encrypt_database_if_needed(&path, &key()).await.unwrap();
 
         assert_eq!(directory_entries(&dir), vec!["test.db".to_string()]);
-        let mut conn = connect_encrypted(&path, &KEY).await;
+        let mut conn = connect_encrypted(&path, &key()).await;
         assert_eq!(read_rows(&mut conn).await, expected_rows());
         conn.close().await.unwrap();
     }

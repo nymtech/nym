@@ -27,7 +27,7 @@ impl StorageManager {
     /// place first.
     pub async fn init<P: AsRef<Path>>(
         database_path: P,
-        key: Option<&nym_sqlcipher::Key>,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
     ) -> Result<Self, StorageError> {
         // ensure the whole directory structure exists
         if let Some(parent_dir) = database_path.as_ref().parent() {

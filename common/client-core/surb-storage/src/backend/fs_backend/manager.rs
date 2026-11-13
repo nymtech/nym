@@ -26,7 +26,7 @@ impl StorageManager {
     pub async fn new<P: AsRef<Path>>(
         database_path: P,
         fresh: bool,
-        key: Option<&nym_sqlcipher::Key>,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
     ) -> Result<Self, StorageError> {
         let opts = Self::connect_options(database_path.as_ref(), fresh)?;
         let opts = nym_sqlcipher::apply_key(opts, key).await?;

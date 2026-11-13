@@ -164,10 +164,8 @@ impl StoragePaths {
         .await?)
     }
 
-    fn database_key(&self) -> Option<&nym_sqlcipher::Key> {
-        self.database_key
-            .as_ref()
-            .map(nym_sqlcipher::DatabaseKey::as_bytes)
+    fn database_key(&self) -> Option<&nym_sqlcipher::DatabaseKey> {
+        self.database_key.as_ref()
     }
 
     /// Instantiates default persistent key storage.

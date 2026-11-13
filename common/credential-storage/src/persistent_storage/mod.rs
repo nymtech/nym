@@ -64,7 +64,7 @@ impl PersistentStorage {
     /// * `key`: raw 256-bit SQLCipher key. It is used as is, without passphrase key derivation.
     pub async fn new<P: AsRef<Path>>(
         database_path: P,
-        key: Option<&nym_sqlcipher::Key>,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
     ) -> Result<Self, StorageError> {
         let opts =
             nym_sqlcipher::apply_key(Self::connect_options(database_path.as_ref()), key).await?;

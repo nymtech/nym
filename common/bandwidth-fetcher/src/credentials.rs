@@ -61,7 +61,7 @@ where
     pub async fn new(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
-        db_key: Option<&nym_sqlcipher::Key>,
+        db_key: Option<&nym_sqlcipher::DatabaseKey>,
         client_id: Zeroizing<Vec<u8>>,
     ) -> Result<Self, NyxdFetcherError> {
         Self::new_with_keypair(
@@ -81,7 +81,7 @@ where
     pub async fn new_with_keypair(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
-        db_key: Option<&nym_sqlcipher::Key>,
+        db_key: Option<&nym_sqlcipher::DatabaseKey>,
         ecash_keypair: KeyPairUser,
     ) -> Result<Self, NyxdFetcherError> {
         let pending_storage = PendingCredentialRequestsStorage::new(db_path, db_key).await?;
@@ -489,7 +489,7 @@ pub(crate) mod recovery {
         pub async fn new(
             client: Arc<C>,
             db_path: impl AsRef<Path>,
-            db_key: Option<&nym_sqlcipher::Key>,
+            db_key: Option<&nym_sqlcipher::DatabaseKey>,
         ) -> Result<Self, NyxdFetcherError> {
             // recovery never deposits, so the client id is unused
             Ok(Self(

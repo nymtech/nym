@@ -37,7 +37,7 @@ impl Backend {
     /// using the raw 256-bit key, as is, without passphrase key derivation.
     pub async fn init<P: AsRef<Path>>(
         database_path: P,
-        key: Option<&nym_sqlcipher::Key>,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
     ) -> Result<Self, StorageError> {
         let database_path = database_path.as_ref();
         let manager = Self::open(database_path, key, true).await?;
@@ -54,7 +54,7 @@ impl Backend {
     /// using the raw 256-bit key, and an existing plaintext database is encrypted in place first.
     pub async fn try_load<P: AsRef<Path>>(
         database_path: P,
-        key: Option<&nym_sqlcipher::Key>,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
     ) -> Result<Self, StorageError> {
         let database_path = database_path.as_ref();
         let manager = Self::open(database_path, key, false).await?;
@@ -69,20 +69,20 @@ impl Backend {
 
     fn new(
         database_path: &Path,
-        key: Option<&nym_sqlcipher::Key>,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
         manager: StorageManager,
     ) -> Self {
         Backend {
             temporary_old_path: None,
             database_path: database_path.to_path_buf(),
-            database_key: key.copied().map(nym_sqlcipher::DatabaseKey::new),
+            database_key: key.cloned(),
             manager,
         }
     }
 
     async fn open(
         database_path: &Path,
-        key: Option<&nym_sqlcipher::Key>,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
         fresh: bool,
     ) -> Result<StorageManager, StorageError> {
         if database_path.file_name().is_none() {
@@ -164,11 +164,7 @@ impl Backend {
             .await
             .map_err(|err| StorageError::DatabaseRenameError { source: err })?;
         // encrypted with the same key, if any
-        let key = self
-            .database_key
-            .as_ref()
-            .map(nym_sqlcipher::DatabaseKey::as_bytes);
-        self.manager = Self::open(&self.database_path, key, true).await?;
+        self.manager = Self::open(&self.database_path, self.database_key.as_ref(), true).await?;
         self.manager.create_status_table().await?;
 
         self.temporary_old_path = Some(temp_old);

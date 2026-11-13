@@ -11,7 +11,11 @@
     public_ip: "{{ ipv4.stdout | default(ansible_default_ipv4.address) }}"
 
 - name: Initialize nym node
-  # delete the part from --hostname onward if you run  mode=mixnode only
+  # --hostname is passed whenever one is set. --landing-page-assets-path follows
+  # the nginx role (every gateway with a hostname, or a mixnode with nginx_enabled=true)
+  # --wireguard-enabled is always passed and forced false on mixnodes, so -w also
+  # corrects existing configs. --announce-wss-port is gateway-only. WSS is announced
+  # when nginx runs, or set announce_wss=true for an external WSS proxy
   command:
     cmd: >
       {{ nym_install_dir }}/nym-node run
@@ -24,12 +28,12 @@
 
       {{ nym_extra_flags }}
 
-      --hostname {{ hostname }}
-      --wireguard-enabled {{ (wireguard_enabled | default('false') | bool) | ternary('true','false') }}
-      --landing-page-assets-path {{ landing_page_assets_base_dir }}/{{ hostname }}/
+      {% if hostname | default('') | length > 0 %}--hostname {{ hostname }}{% endif %}
+      --wireguard-enabled {{ (mode != 'mixnode' and (wireguard_enabled | default(false) | bool)) | ternary('true','false') }}
+      {% if (nginx_enabled | default(mode != 'mixnode') | bool) and (hostname | default('') | length > 0) %}--landing-page-assets-path {{ landing_page_assets_base_dir }}/{{ hostname }}/{% endif %}
       {% if nym_write_flag %}-w{% endif %}
       {% if nym_init_only_flag %}--init-only{% endif %}
-      --announce-wss-port {{ wss_port }}
+      {% if mode != 'mixnode' and (announce_wss | default((nginx_enabled | default(mode != 'mixnode') | bool) and (hostname | default('') | length > 0)) | bool) %}--announce-wss-port {{ wss_port }}{% endif %}
 
 
 - name: Update nym description

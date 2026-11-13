@@ -16,7 +16,8 @@ import { Steps } from 'nextra/components';
 import AbuseResponse from 'components/operators/templates/dmca_response.md';
 import OperatorIntroduction from 'components/operators/templates/provider_introduction.md';
 import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
-import NTMExplanation from 'components/operators/snippets/ntm-accordion-explanation.mdx';
+import NTMExplanation from 'components/operators/snippets/ntm-explanation.mdx';
+import AnsibleRolesByMode from 'components/operators/snippets/ansible-roles-by-node-mode.mdx';
 
 
 
@@ -29,6 +30,138 @@ This page displays a full list of all the changes during our release cycle from 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
 <VarInfo />
+
+## `v2026.22-istanbul`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.22-istanbul)
+- [`nym-node`](/operators/nodes/nym-node) version `1.44.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-11-11T09:57:47.006367313Z
+Build Version:      1.44.0
+Commit SHA:         1abb0cf1b92f135e71c84b738bcd19b97916a3eb
+Commit Date:        2026-11-11T10:54:26.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="info" emoji="ℹ️">
+**[NIP-15](https://governator.nym.com/proposal/prop-589d3e49-1a9c-4a67-85af-499a521cc1a1) passed & [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM): More services for NymVPN users are opened!**
+
+**Additionally [we upgraded Nym bridges](https://github.com/nymtech/nym/pull/7389).**
+
+**PLEASE RE-RUN NTM & BRIDGE CONFIGURATION ON YOUR SERVERS FOLLOWING [STEPS BELOW](#ntm-and-bridges-server-upgrade)!**
+</Callout>
+
+- [Ansible, `nym-node-cli.py` & NTM upgrades](https://github.com/nymtech/nym/pull/7406): Operators tools synchronized and hardened. 
+
+#### NTM and Bridges Server Upgrade
+
+<Callout>
+Full documentation for [NTM](/operators/nodes/nym-node/configuration#wireguard-exit-policy-configuration) and [QUIC bridge setup](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) provides more detailed explanation.
+</Callout>
+
+<div>
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
+    <MyTab>
+      <Steps>
+- Get the latest version of NTM & QUIC setup helper
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh -o quic_bridge_deployment.sh && \
+chmod +x quic_bridge_deployment.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration 
+```
+<br />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
+<br />
+
+- Run NTM on non-standard SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run QUIC bridge helper:
+```sh
+./quic_bridge_deployment.sh
+```
+      </Steps>
+    </MyTab>
+    <MyTab>
+      <Steps>
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- Update the Ansible version to the release revision before you run any playbook:
+```sh
+git pull origin develop
+```
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm,quic,firewall -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm,quic,firewall
+```
+
+This sheet explains how ansible roles manages the server routing configuration in relation to the chosen `--mode` of your `nym-node`.
+
+<AnsibleRolesByMode/ >
+<br />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
+      </Steps>
+    </MyTab>
+  </Tabs>
+</div>
+
+### Features
+
+- [[LP-DATA] Nym nodes: Alpha control and data experimental](https://github.com/nymtech/nym/pull/7386)
+
+- [Wire up console_error_panic_hook feature in nym-wasm-client-core](https://github.com/nymtech/nym/pull/7374)
+
+- [Accept key pair in NyxdCredentialFetcher](https://github.com/nymtech/nym/pull/7368)
+
+- [Add conformance to Eq for KeyPairUser and SecretKeyUser](https://github.com/nymtech/nym/pull/7380)
+
+### Bugfix
+
+- [Initiator-derived KKT mode](https://github.com/nymtech/nym/pull/7403)
+
+- [Improve nym-node shutdown speed](https://github.com/nymtech/nym/pull/7391)
+
+### Refactors & Maintenance
+
+- [Remove unused dependencies](https://github.com/nymtech/nym/pull/7373)
+
+- [Declare a [lints] table in every workspace crate](https://github.com/nymtech/nym/pull/7372)
+
+- [Remove redundant package.homepage](https://github.com/nymtech/nym/pull/7371)
+
+- [Fix clippy lints reported by newer toolchain](https://github.com/nymtech/nym/pull/7370)
+
 
 ## `v2026.21-hanoi`
 
@@ -512,7 +645,9 @@ HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configurati
 # HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
     <MyTab>
@@ -531,7 +666,9 @@ ansible-playbook deploy.yml -t ntm -l node1
 ansible-playbook deploy.yml -t ntm
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
   </Tabs>
@@ -625,7 +762,9 @@ HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configurati
 # HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
     <MyTab>
@@ -644,7 +783,9 @@ ansible-playbook deploy.yml -t ntm -l node1
 ansible-playbook deploy.yml -t ntm
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
   </Tabs>
@@ -757,7 +898,9 @@ HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configurati
 # HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
     <MyTab>
@@ -776,7 +919,9 @@ ansible-playbook deploy.yml -t ntm -l node1
 ansible-playbook deploy.yml -t ntm
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
   </Tabs>
@@ -906,7 +1051,9 @@ HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configurati
 # HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
     <MyTab>
@@ -925,7 +1072,9 @@ ansible-playbook deploy.yml -t ntm -l node1
 ansible-playbook deploy.yml -t ntm
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
   </Tabs>

@@ -8,11 +8,13 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use futures::{ready, Stream, StreamExt};
 use log::{debug, error};
+use nym_client_core::client::base_client::lp_client::{LpBaseClient, LpClientInput};
 use nym_client_core::client::base_client::GatewayConnection;
+use nym_client_core::client::lp::data::input::LpOutboundMessage;
 use nym_client_core::client::mix_traffic::ClientRequestSender;
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
-    inbound_messages::InputMessage,
+    inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::ReconstructedMessagesReceiver,
 };
 use nym_client_core::config::{ForgetMe, RememberMe};
@@ -109,25 +111,8 @@ pub struct MixnetClient {
 
     pub(crate) identity_keys: Arc<ed25519::KeyPair>,
 
-    /// Input to the client from the users perspective. This can be either data to send or control
-    /// messages.
-    pub(crate) client_input: ClientInput,
-
-    /// Output from the client from the users perspective. This is typically messages arriving from
-    /// the mixnet.
-    #[allow(dead_code)]
-    pub(crate) client_output: ClientOutput,
-
-    /// The current state of the client that is exposed to the user. This includes things like
-    /// current message send queue length.
-    pub(crate) client_state: ClientState,
-
-    /// A channel for messages arriving from the mixnet after they have been reconstructed.
-    /// Taken by the stream router on stream mode activation, `None` thereafter.
-    pub(crate) reconstructed_receiver: Option<ReconstructedMessagesReceiver>,
-
-    /// A channel for sending stats event to be reported.
-    pub(crate) stats_events_reporter: ClientStatsSender,
+    /// The base client this one wraps, which decides what it can do.
+    pub(crate) inner: MixnetClientInner,
 
     /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
     pub(crate) shutdown_handle: ShutdownTracker,
@@ -151,16 +136,45 @@ pub struct MixnetClient {
     pub(crate) stream_idle_timeout: Duration,
 }
 
+/// The base client a [`MixnetClient`] wraps.
+///
+/// A client is built with one or the other and keeps it for its lifetime.
+pub(crate) enum MixnetClientInner {
+    /// Through the gateway's websocket, with everything the classic client runs around it.
+    Legacy(LegacyClient),
+
+    /// Over the Lewes Protocol.
+    Lp(Box<LpBaseClient>),
+}
+
+/// A started legacy base client, once its input and output have been claimed.
+pub(crate) struct LegacyClient {
+    /// Input to the client from the users perspective. This can be either data to send or control
+    /// messages.
+    pub(crate) client_input: ClientInput,
+
+    /// Output from the client from the users perspective. This is typically messages arriving from
+    /// the mixnet.
+    #[expect(dead_code)]
+    pub(crate) client_output: ClientOutput,
+
+    /// The current state of the client that is exposed to the user. This includes things like
+    /// current message send queue length.
+    pub(crate) client_state: ClientState,
+
+    /// A channel for messages arriving from the mixnet after they have been reconstructed.
+    /// Taken by the stream router on stream mode activation, `None` thereafter.
+    pub(crate) reconstructed_receiver: Option<ReconstructedMessagesReceiver>,
+
+    /// A channel for sending stats event to be reported.
+    pub(crate) stats_events_reporter: ClientStatsSender,
+}
+
 impl MixnetClient {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         nym_address: Recipient,
         identity_keys: Arc<ed25519::KeyPair>,
-        client_input: ClientInput,
-        client_output: ClientOutput,
-        client_state: ClientState,
-        reconstructed_receiver: ReconstructedMessagesReceiver,
-        stats_events_reporter: ClientStatsSender,
+        inner: MixnetClientInner,
         task_handle: ShutdownTracker,
         packet_type: Option<PacketType>,
         forget_me: ForgetMe,
@@ -169,11 +183,7 @@ impl MixnetClient {
         Self {
             nym_address,
             identity_keys,
-            client_input,
-            client_output,
-            client_state,
-            reconstructed_receiver: Some(reconstructed_receiver),
-            stats_events_reporter,
+            inner,
             shutdown_handle: task_handle,
             packet_type,
             _buffered: Vec::new(),
@@ -183,6 +193,46 @@ impl MixnetClient {
             #[cfg(feature = "stream")]
             streams: None,
             stream_idle_timeout: DEFAULT_STREAM_IDLE_TIMEOUT,
+        }
+    }
+
+    /// The parts only a legacy client has.
+    ///
+    /// # Panics
+    ///
+    /// On a client over LP: asking it for something it cannot have is a programming error.
+    #[expect(
+        clippy::expect_used,
+        reason = "using a legacy-only feature on an LP client is a coding error"
+    )]
+    pub(crate) fn legacy(&self) -> &LegacyClient {
+        match &self.inner {
+            MixnetClientInner::Legacy(legacy) => Some(legacy),
+            MixnetClientInner::Lp(_) => None,
+        }
+        .expect("only a legacy client supports this, not one over LP")
+    }
+
+    /// [`Self::legacy`], mutably.
+    #[expect(
+        clippy::expect_used,
+        reason = "using a legacy-only feature on an LP client is a coding error"
+    )]
+    #[cfg(feature = "stream")]
+    pub(crate) fn legacy_mut(&mut self) -> &mut LegacyClient {
+        match &mut self.inner {
+            MixnetClientInner::Legacy(legacy) => Some(legacy),
+            MixnetClientInner::Lp(_) => None,
+        }
+        .expect("only a legacy client supports this, not one over LP")
+    }
+
+    fn message_input(&self) -> MessageInput {
+        match &self.inner {
+            MixnetClientInner::Legacy(legacy) => {
+                MessageInput::Legacy(legacy.client_input.input_sender.clone())
+            }
+            MixnetClientInner::Lp(lp) => MessageInput::Lp(lp.client_input().clone()),
         }
     }
 
@@ -218,8 +268,11 @@ impl MixnetClient {
         self.shutdown_handle.child_shutdown_token().inner().clone()
     }
 
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub fn client_request_sender(&self) -> ClientRequestSender {
-        self.client_input.client_request_sender.clone()
+        self.legacy().client_input.client_request_sender.clone()
     }
 
     /// Get the client's identity keys.
@@ -239,15 +292,19 @@ impl MixnetClient {
     }
 
     /// Get gateway connection information, like the file descriptor of the WebSocket
+    ///
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub fn gateway_connection(&self) -> GatewayConnection {
-        self.client_state.gateway_connection
+        self.legacy().client_state.gateway_connection
     }
 
     /// Get a shallow clone of [`MixnetClientSender`]. Useful if you want split the send and
     /// receive logic in different locations.
     pub fn split_sender(&self) -> MixnetClientSender {
         MixnetClientSender {
-            client_input: self.client_input.clone(),
+            input: self.message_input(),
             packet_type: self.packet_type,
             stream_mode: self.stream_mode.clone(),
         }
@@ -256,32 +313,59 @@ impl MixnetClient {
     /// Get a shallow clone of [`ConnectionCommandSender`]. This is useful if you want to e.g
     /// explicitly close a transmission lane that is still sending data even though it should
     /// cancel.
+    ///
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub fn connection_command_sender(&self) -> ConnectionCommandSender {
-        self.client_input.connection_command_sender.clone()
+        self.legacy().client_input.connection_command_sender.clone()
     }
 
     /// Get a shallow clone of [`LaneQueueLengths`]. This is useful to manually implement some form
     /// of backpressure logic.
+    ///
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub fn shared_lane_queue_lengths(&self) -> LaneQueueLengths {
-        self.client_state.shared_lane_queue_lengths.clone()
+        self.legacy().client_state.shared_lane_queue_lengths.clone()
     }
 
     /// Change the network topology used by this client for constructing sphinx packets into the
     /// provided one.
+    ///
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub fn manually_overwrite_topology(&self, new_topology: NymTopology) {
-        self.client_state
+        self.legacy()
+            .client_state
             .topology_accessor
             .manually_change_topology(new_topology)
     }
 
     /// Gets the value of the currently used network topology.
+    ///
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub fn read_current_route_provider(&self) -> Option<NymRouteProvider> {
-        self.client_state.topology_accessor.current_route_provider()
+        self.legacy()
+            .client_state
+            .topology_accessor
+            .current_route_provider()
     }
 
     /// Restore default topology refreshing behaviour of this client.
+    ///
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub fn restore_automatic_topology_refreshing(&self) {
-        self.client_state.topology_accessor.release_manual_control()
+        self.legacy()
+            .client_state
+            .topology_accessor
+            .release_manual_control()
     }
 
     /// Wait for messages from the mixnet.
@@ -295,7 +379,12 @@ impl MixnetClient {
             tracing::warn!("wait_for_messages() called after stream mode activated");
             return None;
         }
-        self.reconstructed_receiver.as_mut()?.next().await
+        match &mut self.inner {
+            MixnetClientInner::Legacy(legacy) => {
+                legacy.reconstructed_receiver.as_mut()?.next().await
+            }
+            MixnetClientInner::Lp(lp) => lp.next().await.map(|message| vec![message.into()]),
+        }
     }
 
     /// Provide a callback to execute on incoming messages from the mixnet.
@@ -310,13 +399,20 @@ impl MixnetClient {
         }
     }
 
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub fn send_stats_event(&self, event: ClientStatsEvents) {
-        self.stats_events_reporter.report(event);
+        self.legacy().stats_events_reporter.report(event);
     }
 
     /// Get a clone of stats_events_reporter for easier use
+    ///
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub fn stats_events_reporter(&self) -> ClientStatsSender {
-        self.stats_events_reporter.clone()
+        self.legacy().stats_events_reporter.clone()
     }
 
     /// Disconnect from the mixnet. Currently, it is not supported to reconnect a disconnected
@@ -328,14 +424,16 @@ impl MixnetClient {
     /// background tasks may be left running and state files may not be
     /// flushed. Always let this future run to completion.
     pub async fn disconnect(self) {
-        if self.forget_me.any() {
+        // forget-me and remember-me are requests to the gateway over its websocket
+        let legacy = matches!(self.inner, MixnetClientInner::Legacy(_));
+        if legacy && self.forget_me.any() {
             log::debug!("Sending forget me request: {:?}", self.forget_me);
             match self.send_forget_me().await {
                 Ok(_) => (),
                 Err(e) => error!("Failed to send forget me request: {e}"),
             };
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        } else if self.remember_me.stats() {
+        } else if legacy && self.remember_me.stats() {
             log::debug!("Sending remember me request: {:?}", self.remember_me);
             match self.send_remember_me().await {
                 Ok(_) => (),
@@ -347,12 +445,16 @@ impl MixnetClient {
         self.shutdown_handle.shutdown().await;
     }
 
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub async fn send_forget_me(&self) -> Result<()> {
         let client_request = ClientRequest::ForgetMe {
             client: self.forget_me.client(),
             stats: self.forget_me.stats(),
         };
         match self
+            .legacy()
             .client_input
             .client_request_sender
             .send(client_request)
@@ -366,11 +468,15 @@ impl MixnetClient {
         }
     }
 
+    /// # Panics
+    ///
+    /// On a client over LP.
     pub async fn send_remember_me(&self) -> Result<()> {
         let client_request = ClientRequest::RememberMe {
             session_type: self.remember_me.session_type(),
         };
         match self
+            .legacy()
             .client_input
             .client_request_sender
             .send(client_request)
@@ -474,7 +580,7 @@ impl MixnetClient {
 /// Obtained via [`MixnetClient::split_sender`]. Implements [`MixnetMessageSender`]
 /// so it can send messages independently while another task handles receiving.
 pub struct MixnetClientSender {
-    client_input: ClientInput,
+    input: MessageInput,
     packet_type: Option<PacketType>,
     stream_mode: Arc<AtomicBool>,
 }
@@ -482,9 +588,47 @@ pub struct MixnetClientSender {
 impl Clone for MixnetClientSender {
     fn clone(&self) -> Self {
         Self {
-            client_input: self.client_input.clone(),
+            input: self.input.clone(),
             packet_type: self.packet_type,
             stream_mode: self.stream_mode.clone(),
+        }
+    }
+}
+
+/// Where a client's messages go, for whichever kind of client it is.
+#[derive(Clone)]
+enum MessageInput {
+    Legacy(InputMessageSender),
+    Lp(LpClientInput),
+}
+
+impl MessageInput {
+    async fn send(&self, message: InputMessage) -> Result<()> {
+        match self {
+            MessageInput::Legacy(sender) => sender
+                .send(message)
+                .await
+                .map_err(|_| Error::MessageSendingFailure),
+            MessageInput::Lp(input) => Ok(input.send(lp_message(message)?).await?),
+        }
+    }
+}
+
+/// The LP message an [`InputMessage`] stands for, if LP can carry it.
+///
+/// Lanes, retransmissions and packet types have no meaning on LP and are ignored.
+fn lp_message(message: InputMessage) -> Result<LpOutboundMessage> {
+    match message {
+        InputMessage::Regular {
+            recipient, data, ..
+        } => Ok(LpOutboundMessage::to_recipient(recipient, data)),
+        InputMessage::MessageWrapper { message, .. } => lp_message(*message),
+        InputMessage::Anonymous { .. } => {
+            Err(Error::UnsupportedOverLp("a message carrying reply SURBs"))
+        }
+        InputMessage::Reply { .. } => Err(Error::UnsupportedOverLp("a reply over a SURB")),
+        InputMessage::Premade { .. } => {
+            Err(Error::UnsupportedOverLp("an already-built sphinx packet"))
         }
     }
 }
@@ -501,11 +645,18 @@ impl Stream for MixnetClient {
             cx.waker().wake_by_ref();
             return Poll::Ready(Some(next));
         }
-        let receiver = match self.reconstructed_receiver.as_mut() {
-            Some(rx) => rx,
-            None => return Poll::Ready(None),
+        let received = match &mut self.inner {
+            MixnetClientInner::Legacy(legacy) => {
+                let Some(receiver) = legacy.reconstructed_receiver.as_mut() else {
+                    return Poll::Ready(None);
+                };
+                ready!(Pin::new(receiver).poll_next(cx))
+            }
+            MixnetClientInner::Lp(lp) => {
+                ready!(Pin::new(lp.as_mut()).poll_next(cx)).map(|message| vec![message.into()])
+            }
         };
-        match ready!(Pin::new(receiver).poll_next(cx)) {
+        match received {
             None => Poll::Ready(None),
             Some(mut msgs) => {
                 // the vector itself should never be empty
@@ -540,10 +691,7 @@ impl MixnetMessageSender for MixnetClient {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);
         }
-        self.client_input
-            .send(message)
-            .await
-            .map_err(|_| Error::MessageSendingFailure)
+        self.message_input().send(message).await
     }
 }
 
@@ -558,9 +706,6 @@ impl MixnetMessageSender for MixnetClientSender {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);
         }
-        self.client_input
-            .send(message)
-            .await
-            .map_err(|_| Error::MessageSendingFailure)
+        self.input.send(message).await
     }
 }

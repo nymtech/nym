@@ -20,6 +20,8 @@
 ## --OPTIONAL VARS--
 ## can be set in the group_vars/all.yml or per node here:
 ## email, ansible_user, moniker, description,  mode, wireguard_enabled
+## nginx_enabled: landing page + reverse proxy + WSS, default true for gateways, false for mixnodes
+## announce_wss: announce the WSS port to clients, default follows nginx; set true if you run your own WSS proxy
 
 ## --PRIORITY ORDER--
 ## anything setup globaly can be overwritten in this file per node  
@@ -32,8 +34,11 @@
 ## entry gateway, no wireguard:
 # node3 ansible_host=12.13.14.15 hostname=nym-entry.ch-2.mydomain.net mode=entry-gateway location=CH wireguard_enabled=false
 
-## mixnode (comment out tunnel+quic roles in deploy.yml for these)
-# mix-de-1   ansible_host=13.14.15.16  hostname=nym-mix.de-1.example.net  location=DE  mode=mixnode  wireguard_enabled=false
+## mixnode (gateway roles are skipped automatically based on mode)
+# mix-de-1   ansible_host=13.14.15.16  hostname=""  location=DE  mode=mixnode  wireguard_enabled=false
+
+## mixnode with a hostname and reverse proxy
+# mix-de-2   ansible_host=14.15.16.17  hostname=nym-mix.de-2.example.net  location=DE  mode=mixnode  wireguard_enabled=false  nginx_enabled=true
 
 ## NOTE:
 ## all examples above don't have defined user, email nor description as we use global vars from playbooks/group_vars/all.yml

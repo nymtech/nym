@@ -289,6 +289,7 @@ case "${MODE}" in
       ${LOCATION:+--location "$LOCATION"} \
       --wireguard-enabled "${WIREGUARD}" \
       ${HOSTNAME:+--landing-page-assets-path "/var/www/${HOSTNAME}"} \
+      ${HOSTNAME:+${EMAIL:+--announce-wss-port 9001}} \
       -w \
       --init-only
     ;;

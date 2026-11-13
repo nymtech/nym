@@ -14,6 +14,9 @@ use rand::distr::weighted::Error as WeightedError;
 use std::error::Error;
 use std::path::PathBuf;
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::lp::{LpControlError, LpDataHandlerError};
+
 #[derive(thiserror::Error, Debug)]
 pub enum ClientCoreError {
     #[error("could not perform the state migration: {0}")]
@@ -263,6 +266,18 @@ pub enum ClientCoreError {
 
     #[error("Could not access task registry, {0}")]
     RegistryAccess(#[from] RegistryAccessError),
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error(transparent)]
+    LpFailure(#[from] LpDataHandlerError),
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error(transparent)]
+    LpControlFailure(#[from] LpControlError),
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error(transparent)]
+    LpClientFailure(#[from] nym_lp_gateway_client::LpClientError),
 }
 
 impl From<tungstenite::Error> for ClientCoreError {

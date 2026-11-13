@@ -35,6 +35,7 @@ wasm-bindgen = { workspace = true, optional = true }
 nym-crypto = { workspace = true }
 
 nym-lp = { workspace = true, features = ["serde"] }
+nym-lp-data = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
 nym-sphinx-types = { workspace = true, features = ["sphinx"] }

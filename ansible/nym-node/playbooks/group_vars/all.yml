@@ -13,7 +13,7 @@
 # ansible_ssh_private_key_file: ~/.ssh/<SSH_KEY>
 
 ## --Operator info--
-# email: "<EMAIL>"                                  # used in certbot, description.toml and landing page
+# email: "<EMAIL>"                                  # used in certbot and description.toml
 # website: "<WEBSITE>"                              # it is used in the description.toml
 # description: "<NODE_PUBLIC_DESCRIPTION>"          # or define per node in inventory/all
 # moniker: "<MONIKER>"
@@ -26,8 +26,12 @@ hostname: ""                                        # keep this fallback, keep i
 
 ## OPTIONAL - uncomment & define
 
-# operator_name: "<OPERATOR_NAME>"          # used in landing page if provided
 # nym_version: "nym-binaries-v2026.7-tola"  # to use particular version instead of Latest, provide in such form:
+
+## custom nginx templates: put a file with the same name in playbooks/templates/
+## (landing.html.j2, nginx-site.conf.j2, nginx-site-ssl.conf.j2, wss-config.conf.j2)
+## and it is used instead of the one in roles/nginx. Or point a variable at any path:
+# nginx_landing_template: "/path/to/landing.html.j2"
 
 ## alternative SSH key var setting, instead of a hardcoded path
 ## useful if the playbook is shared in a repo by more admins with each having own local key

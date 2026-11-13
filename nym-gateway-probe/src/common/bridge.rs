@@ -55,6 +55,8 @@ const BRIDGE_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 /// (typically the WG handshake initiation) before giving up.
 const BRIDGE_FWD_TIMEOUT: Duration = Duration::from_secs(15);
 const CLIENT_PARAMS_TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_CLIENT_PARAMS_BYTES: usize = 1024 * 1024;
+const MAX_BRIDGE_TRANSPORTS: usize = 8;
 const CLIENT_PARAMS_PATH: &str = "/api/v1/bridges/client-params";
 
 /// WG peer for the forward path, or why it is missing.
@@ -63,20 +65,28 @@ pub(crate) enum BridgePeer<'a> {
     Unavailable { reason: String },
 }
 
+struct BridgeForward<'a> {
+    tunnel: Option<&'a WgTunnelConfig>,
+    netstack: &'a NetstackArgs,
+    awg: &'a str,
+}
+
 /// `Some` when client-params were fetched. `None` when no contact URL answered.
 pub(crate) async fn bridge_probe(
     node: &TestedNodeDetails,
     peer: BridgePeer<'_>,
     netstack_args: &NetstackArgs,
+    awg_args: &str,
 ) -> Option<BridgeProbeResults> {
     let body = fetch_client_params(node).await?;
-    Some(probe_descriptor(&body, peer, netstack_args).await)
+    Some(probe_descriptor(&body, peer, netstack_args, awg_args).await)
 }
 
 async fn probe_descriptor(
     body: &str,
     peer: BridgePeer<'_>,
     netstack_args: &NetstackArgs,
+    awg_args: &str,
 ) -> BridgeProbeResults {
     let cfg = match serde_json::from_str::<PersistedClientConfig>(body) {
         Ok(cfg) => cfg,
@@ -104,11 +114,22 @@ async fn probe_descriptor(
 
     install_crypto_provider();
 
-    // Sequential on purpose: each forward pass owns a netstack/CGo call, and
-    // agents already run this under `TestMode::All`.
-    let mut transports = Vec::with_capacity(cfg.advertised().len());
-    for transport in cfg.advertised().iter().cloned() {
-        transports.push(probe_transport(transport, tunnel, netstack_args).await);
+    // Sequential: each forward pass owns a netstack/CGo call.
+    let advertised = cfg.advertised();
+    if advertised.len() > MAX_BRIDGE_TRANSPORTS {
+        warn!(
+            "bridge descriptor advertises {} transports; probing first {MAX_BRIDGE_TRANSPORTS}",
+            advertised.len()
+        );
+    }
+    let forward = BridgeForward {
+        tunnel,
+        netstack: netstack_args,
+        awg: awg_args,
+    };
+    let mut transports = Vec::with_capacity(advertised.len().min(MAX_BRIDGE_TRANSPORTS));
+    for transport in advertised.iter().cloned().take(MAX_BRIDGE_TRANSPORTS) {
+        transports.push(probe_transport(transport, &forward).await);
     }
 
     BridgeProbeResults {
@@ -119,8 +140,7 @@ async fn probe_descriptor(
 
 async fn probe_transport(
     transport: ClientConfig,
-    tunnel: Option<&WgTunnelConfig>,
-    netstack_args: &NetstackArgs,
+    forward: &BridgeForward<'_>,
 ) -> BridgeTransportProbe {
     let mut reported = advertised_only(&transport);
 
@@ -138,14 +158,13 @@ async fn probe_transport(
     let v4 = fold_family(
         &mut errors,
         "ipv4",
-        dial_family(&reported.transport, "ipv4", Some(v4), tunnel, netstack_args).await,
+        dial_family(&reported.transport, "ipv4", Some(v4), forward).await,
     );
 
     reported.can_connect_v4 = v4.can_connect;
     reported.can_handshake_v4 = v4.can_handshake;
     reported.ping_ips_performance_v4 = v4.ping;
-    // Dial failures and post-dial forward failures both surface here;
-    // `can_connect_v4` / `can_handshake_v4` keep the distinction.
+    // Dial vs forward failures both land here; the bool fields keep the distinction.
     reported.error = (!errors.is_empty()).then(|| errors.join("; "));
     reported
 }
@@ -180,13 +199,17 @@ fn fold_family(
             can_handshake: None,
             ping: None,
         },
-        Some(FamilyProbe::Forwarded(outcome)) => FamilyFields {
-            can_connect: Some(true),
-            can_handshake: Some(outcome.can_handshake),
-            ping: Some(outcome.ping_ips_performance),
-        },
-        // Dial worked; forwarder / netstack did not. Keep connect true so a
-        // connect-only reader cannot treat this as "unreachable".
+        Some(FamilyProbe::Forwarded(outcome)) => {
+            if !outcome.can_handshake {
+                errors.push(format!("{family}: wg handshake through bridge failed"));
+            }
+            FamilyFields {
+                can_connect: Some(true),
+                can_handshake: Some(outcome.can_handshake),
+                ping: Some(outcome.ping_ips_performance),
+            }
+        }
+        // Dial succeeded; keep connect true so this is not read as unreachable.
         Some(FamilyProbe::ForwardFailed(err)) => {
             errors.push(format!("{family}: {err}"));
             FamilyFields {
@@ -222,11 +245,10 @@ async fn dial_family(
     name: &str,
     family: &str,
     params: Option<ClientConfig>,
-    tunnel: Option<&WgTunnelConfig>,
-    netstack_args: &NetstackArgs,
+    forward: &BridgeForward<'_>,
 ) -> Option<FamilyProbe> {
     let params = params?;
-    let outcome = probe_path(params, tunnel, netstack_args).await;
+    let outcome = probe_path(params, forward).await;
     match &outcome {
         FamilyProbe::Connected => {
             info!("{name} bridge connected over {family} (forward not tested)");
@@ -247,17 +269,13 @@ async fn dial_family(
     Some(outcome)
 }
 
-async fn probe_path(
-    params: ClientConfig,
-    tunnel: Option<&WgTunnelConfig>,
-    netstack_args: &NetstackArgs,
-) -> FamilyProbe {
+async fn probe_path(params: ClientConfig, forward: &BridgeForward<'_>) -> FamilyProbe {
     let conn = match dial(params).await {
         Ok(conn) => conn,
         Err(err) => return FamilyProbe::DialFailed(format_transport_error(&err)),
     };
 
-    let Some(tunnel) = tunnel else {
+    let Some(tunnel) = forward.tunnel else {
         let (_reader, _writer, closer) = conn.into_parts();
         closer.close().await;
         return FamilyProbe::Connected;
@@ -274,32 +292,26 @@ async fn probe_path(
     .await
     {
         Ok(launched) => launched,
-        Err(err) => {
-            return FamilyProbe::ForwardFailed(format_transport_error(&err));
-        }
+        Err(err) => return FamilyProbe::ForwardFailed(format_transport_error(&err)),
     };
 
     let mut through_bridge = tunnel.clone();
     through_bridge.endpoint = listen_addr.to_string();
-    let netstack_args = netstack_args.clone();
+    let netstack_args = forward.netstack.clone();
+    let awg_args = forward.awg.to_string();
 
-    let outcome = match tokio::task::spawn_blocking(move || {
-        run_bridge_tunnel_tests(&through_bridge, &netstack_args)
+    let result = tokio::task::spawn_blocking(move || {
+        run_bridge_tunnel_tests(&through_bridge, &netstack_args, &awg_args)
     })
-    .await
-    {
-        Ok(outcome) => outcome,
-        Err(err) => {
-            cancel.cancel();
-            let _ = fwd_handle.await;
-            return FamilyProbe::ForwardFailed(format!("bridge netstack task panicked: {err}"));
-        }
-    };
-
+    .await;
     cancel.cancel();
     let _ = fwd_handle.await;
 
-    FamilyProbe::Forwarded(outcome)
+    match result {
+        Ok(Ok(outcome)) => FamilyProbe::Forwarded(outcome),
+        Ok(Err(err)) => FamilyProbe::ForwardFailed(err),
+        Err(err) => FamilyProbe::ForwardFailed(format!("bridge netstack task panicked: {err}")),
+    }
 }
 
 /// `BridgeConn::try_connect` takes an `on_socket_open` callback on Linux and
@@ -361,11 +373,9 @@ async fn fetch_client_params(node: &TestedNodeDetails) -> Option<String> {
         info!("fetching bridge client params from {url}");
         match client.get(&url).send().await {
             Ok(response) if response.status().is_success() => {
-                return response
-                    .text()
-                    .await
-                    .inspect_err(|err| warn!("bridge client params body: {err}"))
-                    .ok();
+                if let Some(body) = read_client_params_body(response, &url).await {
+                    return Some(body);
+                }
             }
             Ok(response) => {
                 info!(
@@ -379,6 +389,30 @@ async fn fetch_client_params(node: &TestedNodeDetails) -> Option<String> {
         }
     }
     None
+}
+
+async fn read_client_params_body(response: reqwest::Response, url: &str) -> Option<String> {
+    if response
+        .content_length()
+        .is_some_and(|n| n as usize > MAX_CLIENT_PARAMS_BYTES)
+    {
+        warn!("bridge client params at {url}: body too large");
+        return None;
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .inspect_err(|err| warn!("bridge client params body at {url}: {err}"))
+        .ok()?;
+    if bytes.len() > MAX_CLIENT_PARAMS_BYTES {
+        warn!("bridge client params at {url}: body too large");
+        return None;
+    }
+
+    String::from_utf8(bytes.to_vec())
+        .inspect_err(|err| warn!("bridge client params body at {url}: {err}"))
+        .ok()
 }
 
 /// HTTP bases for the node API: host IPs / hostname with the scraper default
@@ -559,8 +593,12 @@ mod tests {
         );
         assert_eq!(fields.can_connect, Some(true));
         assert_eq!(fields.can_handshake, Some(false));
-        assert!(errors.is_empty());
+        assert_eq!(
+            errors,
+            vec!["ipv4: wg handshake through bridge failed".to_string()]
+        );
 
+        errors.clear();
         let fields = fold_family(
             &mut errors,
             "ipv4",
@@ -590,7 +628,12 @@ mod tests {
         let args = NetstackArgs::default();
         let tunnel = dummy_tunnel();
 
-        let reported = probe_transport(cfg.advertised()[0].clone(), Some(&tunnel), &args).await;
+        let forward = BridgeForward {
+            tunnel: Some(&tunnel),
+            netstack: &args,
+            awg: "",
+        };
+        let reported = probe_transport(cfg.advertised()[0].clone(), &forward).await;
         assert_eq!(reported.transport, "quic_plain");
         assert_eq!(reported.error.as_deref(), Some("not usable"));
         assert!(reported.can_connect_v4.is_none());
@@ -603,7 +646,12 @@ mod tests {
             r#"{"version":"0","transports":[{"transport_type":"quic_plain","args":{"addresses":["[2001:db8::1]:4443"],"host":"h","id_pubkey":"pin"}}]}"#,
         );
         let args = NetstackArgs::default();
-        let reported = probe_transport(cfg.advertised()[0].clone(), None, &args).await;
+        let forward = BridgeForward {
+            tunnel: None,
+            netstack: &args,
+            awg: "",
+        };
+        let reported = probe_transport(cfg.advertised()[0].clone(), &forward).await;
 
         assert_eq!(
             reported.error.as_deref(),
@@ -624,6 +672,7 @@ mod tests {
                 reason: "timeout waiting for authenticator".into(),
             },
             &args,
+            "",
         )
         .await;
 

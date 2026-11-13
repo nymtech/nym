@@ -196,32 +196,30 @@ pub struct BridgeTunnelOutcome {
     pub ping_ips_performance: f32,
 }
 
-/// Handshake + IP ping through a bridge forwarder endpoint.
+/// Handshake + IP ping through a bridge forwarder (IPv4 netstack only).
 ///
-/// No metadata query, no file download, no DNS host pings — enough to prove
-/// the bridge carries WG (the Amnezia-shaped signal) without repeating a full
-/// tunnel probe per transport. Only the IPv4 netstack path runs: the WG
-/// handshake is over the UDP endpoint, which is already the bridge listen
-/// address.
+/// Slim pass: no metadata, download, DNS host pings, or port checks. `Err` is
+/// a netstack failure after the transport dial already succeeded.
 pub fn run_bridge_tunnel_tests(
     config: &WgTunnelConfig,
     netstack_args: &NetstackArgs,
-) -> BridgeTunnelOutcome {
+    awg_args: &str,
+) -> Result<BridgeTunnelOutcome, String> {
     let mut args = netstack_args.clone();
     args.netstack_ping_hosts_v4.clear();
     args.netstack_ping_hosts_v6.clear();
     args.netstack_ping_ips_v6.clear();
-    // One IP ping is enough for the performance signal; keep whatever the
-    // caller configured for v4, or fall back to a single well-known address.
+    args.port_check_ports.clear();
     if args.netstack_ping_ips_v4.is_empty() {
         args.netstack_ping_ips_v4.push("1.1.1.1".to_string());
     } else {
         args.netstack_ping_ips_v4.truncate(1);
     }
-    args.netstack_num_ping = args.netstack_num_ping.min(2);
+    // `0` sends no traffic; Go then reports no handshake.
+    args.netstack_num_ping = args.netstack_num_ping.clamp(1, 2);
 
-    // Empty metadata + `for_bridge_forward` (sets skip_download). Do not use
-    // download_timeout_sec = 0: Go's http.Client treats that as "no timeout".
+    // `for_bridge_forward` sets skip_download. Do not use download_timeout_sec
+    // = 0: Go's http.Client treats that as "no timeout".
     let mut netstack_request = NetstackRequest::new(
         &config.private_ipv4,
         &config.private_ipv6,
@@ -230,7 +228,7 @@ pub fn run_bridge_tunnel_tests(
         &config.endpoint,
         "",
         args.netstack_download_timeout_sec,
-        "",
+        awg_args,
         args,
         false,
     );
@@ -247,18 +245,18 @@ pub fn run_bridge_tunnel_tests(
                 "bridge tunnel handshake={} ping_ips={}/{}",
                 response.can_handshake, response.received_ips, response.sent_ips
             );
-            BridgeTunnelOutcome {
+            Ok(BridgeTunnelOutcome {
                 can_handshake: response.can_handshake,
                 ping_ips_performance: safe_ratio(response.received_ips, response.sent_ips),
-            }
+            })
         }
         Ok(NetstackResult::Error { error }) => {
             error!("Netstack runtime error (bridge tunnel): {error}");
-            BridgeTunnelOutcome::default()
+            Err(format!("netstack runtime error: {error}"))
         }
         Err(error) => {
             error!("Internal error (bridge tunnel): {error}");
-            BridgeTunnelOutcome::default()
+            Err(format!("netstack internal error: {error}"))
         }
     }
 }

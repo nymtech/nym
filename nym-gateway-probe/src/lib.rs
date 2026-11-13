@@ -929,8 +929,9 @@ impl Probe {
                     reason: "no wg registration for bridge forward path".into(),
                 },
             };
+            let awg_args = self.config.amnezia_args.as_deref().unwrap_or("");
             if let Some(outcome) =
-                bridge_probe(&self.entry_node, peer, &self.config.netstack_args).await
+                bridge_probe(&self.entry_node, peer, &self.config.netstack_args, awg_args).await
             {
                 probe_result.outcome.bridges = Some(outcome);
             }

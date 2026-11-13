@@ -90,8 +90,8 @@ importers:
         specifier: ^0.2.1
         version: 0.2.1
       '@nymproject/retrieval-indexer':
-        specifier: github:nymtech/shared-index-spike#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer
-        version: git+https://git@github.com:nymtech/shared-index-spike.git#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer
+        specifier: github:nymtech/retrieval-indexer#v0.1.1
+        version: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/d47c67dae8d0c80ebc3c1a26bb47ff5fa163ee90
       '@nymproject/sdk-full-fat':
         specifier: '>=1.5.1-rc.0 || ^1.4.1'
         version: 1.4.1
@@ -1449,9 +1449,10 @@ packages:
   '@nymproject/mix-websocket@0.2.1':
     resolution: {integrity: sha512-KzK6hW05d86EfBybRhlX4eL9LBD+QkyrHTmJ49cC2uquAJXksf1+dT0HEUmSczwVyoYUxDcw9+8E4B+PFDH+hg==}
 
-  '@nymproject/retrieval-indexer@git+https://git@github.com:nymtech/shared-index-spike.git#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer':
-    resolution: {commit: 8b81d1c43942cac44c6847c5011f4c9fd3b931f7, path: /packages/retrieval-indexer, repo: git@github.com:nymtech/shared-index-spike.git, type: git}
-    version: 0.1.0
+  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/d47c67dae8d0c80ebc3c1a26bb47ff5fa163ee90':
+    resolution: {gitHosted: true, integrity: sha512-2L22CHzaPutdmKhY6Md8tSP4bT2lw+1WP5CRDOXRATjIYH5YX+liceXgGCwLsGxfFWBgJm9jh939wFDdFaXHIA==, tarball: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/d47c67dae8d0c80ebc3c1a26bb47ff5fa163ee90}
+    version: 0.1.1
+    engines: {node: '>=20'}
 
   '@nymproject/sdk-full-fat@1.4.1':
     resolution: {integrity: sha512-dh5bvMUj3m8nEssvO8Nl66WpcJAjwRZrGNwqfczJWLG4nX3Vt95tPLv4v0/Z1W3DQWQFW6WmEPPYHNjl18V/fA==}
@@ -8259,7 +8260,7 @@ snapshots:
     dependencies:
       '@nymproject/mix-tunnel': 0.2.1
 
-  '@nymproject/retrieval-indexer@git+https://git@github.com:nymtech/shared-index-spike.git#8b81d1c43942cac44c6847c5011f4c9fd3b931f7&path:/packages/retrieval-indexer':
+  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/d47c67dae8d0c80ebc3c1a26bb47ff5fa163ee90':
     dependencies:
       github-slugger: 2.0.0
       gray-matter: 4.0.3

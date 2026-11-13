@@ -23,8 +23,9 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { chunkPages } from '@nymproject/retrieval-indexer/chunker';
-import { voyageProvider, embedChunks, resolveEmbedKey, loadCache, saveCache } from '@nymproject/retrieval-indexer/embed';
+import { chunkPages } from '../../docs/lib/retrieval/indexer.mts';
+import { voyageProvider, embedChunks, loadCache, saveCache } from '../../docs/lib/retrieval/indexer.mts';
+import { resolveEmbedKey } from '../../docs/lib/retrieval/embed-key.mts';
 import { PAGES_DIR, PUBLIC_DIR, SITE_URL, collectPages, loadSnippets } from '../../docs/lib/retrieval/pages-source.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 

@@ -16,21 +16,19 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { chunkCodeFile } from "@nymproject/retrieval-indexer/code-chunker";
 import {
+  chunkCodeFile,
   voyageProvider,
   embedChunks,
-  resolveEmbedKey,
   loadCache,
   saveCache,
-} from "@nymproject/retrieval-indexer/embed";
-import {
   assertNoSilentDrops,
   assertRootsYieldChunks,
   collectSourceFiles,
   MAX_FILE_BYTES,
-} from "@nymproject/retrieval-indexer/walk";
+} from "../../docs/lib/retrieval/indexer.mts";
 import { ROOTS } from "../../indexed-sources.mjs";
+import { resolveEmbedKey } from "../../docs/lib/retrieval/embed-key.mts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(__dirname, "../../.."); // repo root

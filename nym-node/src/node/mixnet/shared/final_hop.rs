@@ -151,7 +151,7 @@ impl SharedFinalHopData {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use nym_gateway::node::SharedKeyGatewayStorage;
     use nym_gateway_requests::SharedSymmetricKey;
@@ -177,7 +177,7 @@ mod tests {
 
     /// Final hop data over an in-memory store whose active-clients store is empty, so every push
     /// fails and the fallback decision is the thing under test.
-    async fn no_live_sessions() -> SharedFinalHopData {
+    pub(crate) async fn no_live_sessions() -> SharedFinalHopData {
         let pool = sqlx::SqlitePool::connect("sqlite::memory:")
             .await
             .expect("failed to create in-memory SQLite pool");

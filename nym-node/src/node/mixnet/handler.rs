@@ -181,6 +181,7 @@ impl ConnectionHandler {
             .is_known(&self.remote_address.ip())
     }
 
+    // r[impl delay.node-holds]
     /// Determine instant at which packet should get forwarded to the next hop.
     /// By using [`Instant`] rather than explicit [`Duration`], we minimise the effects of
     /// the skew caused by being stuck in the channel queue.
@@ -202,6 +203,7 @@ impl ConnectionHandler {
         Some(now + delay)
     }
 
+    // r[impl delay.node-holds]
     #[instrument(
         name = "mixnode.forward_packet",
         skip(self, mix_packet, delay, trace),
@@ -546,6 +548,7 @@ impl ConnectionHandler {
         }
     }
 
+    // r[impl sphinx.replay-drop]
     async fn handle_post_replay_detection_packets(
         &self,
         now: Instant,
@@ -709,6 +712,7 @@ impl ConnectionHandler {
             .await;
     }
 
+    // r[impl sphinx.replay-drop]
     #[instrument(skip(self, packet), level = "debug")]
     async fn handle_received_nym_packet(&mut self, packet: FramedNymPacket) {
         let now = Instant::now();
@@ -883,13 +887,30 @@ impl ConnectionHandler {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+    use crate::config::MixnetDebug;
+    use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
+    use crate::node::key_rotation::key::SphinxPrivateKey;
+    use crate::node::mixnet::shared::ProcessingConfig;
+    use crate::node::mixnet::shared::final_hop::tests::no_live_sessions;
+    use crate::node::replay_protection::bloomfilter::{
+        ReplayProtectionBloomfilters, RotationFilter,
+    };
+    use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
+    use nym_crypto::asymmetric::x25519;
+    use nym_mixnet_client::forwarder::{MixForwardingReceiver, mix_forwarding_channels};
+    use nym_node_metrics::NymNodeMetrics;
+    use nym_noise::config::{NoiseConfig, NoiseNetworkView};
+    use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_params::{PacketSize, PacketType};
     use nym_sphinx_types::{
         DESTINATION_ADDRESS_LENGTH, Destination, DestinationAddressBytes, IDENTIFIER_LENGTH,
         NODE_ADDRESS_LENGTH, Node, NodeAddressBytes, NymPacket, PrivateKey, PublicKey,
     };
+    use nym_task::ShutdownToken;
+    use std::net::SocketAddr;
+    use std::sync::Arc;
 
     fn random_pubkey() -> PublicKey {
         (&PrivateKey::random()).into()
@@ -930,6 +951,301 @@ mod tests {
             .map_err(|(_, err)| err)
             .expect("failed to partially unwrap test packet")
             .with_key_rotation(0)
+    }
+
+    pub(crate) fn mix_packet() -> MixPacket {
+        let route = [Node::new(
+            NodeAddressBytes::from_bytes([1u8; NODE_ADDRESS_LENGTH]),
+            random_pubkey(),
+        )];
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([3u8; DESTINATION_ADDRESS_LENGTH]),
+            [4u8; IDENTIFIER_LENGTH],
+        );
+        let packet = NymPacket::sphinx_build_legacy(
+            PacketSize::RegularPacket.payload_size(),
+            b"x",
+            &route,
+            &destination,
+            &[Delay::new_from_nanos(0)],
+        )
+        .expect("failed to build test sphinx packet");
+
+        MixPacket::new(
+            NymNodeRoutingAddress::Node("127.0.0.1:1789".parse().unwrap()),
+            packet,
+            PacketType::Mix,
+            SphinxKeyRotation::Unknown,
+        )
+    }
+
+    // A sphinx packet for the node with `first_hop`, with the same delay at each hop. Its second
+    // hop is a socket address, so the node can forward the packet after it unwraps it.
+    fn packet_for(first_hop: PublicKey, delay: Duration) -> FramedNymPacket {
+        let next_hop: NodeAddressBytes =
+            NymNodeRoutingAddress::from("127.0.0.1:1789".parse::<SocketAddr>().unwrap())
+                .try_into()
+                .expect("a socket address is a valid node address");
+        let route = [
+            Node::new(
+                NodeAddressBytes::from_bytes([1u8; NODE_ADDRESS_LENGTH]),
+                first_hop,
+            ),
+            Node::new(next_hop, random_pubkey()),
+        ];
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([3u8; DESTINATION_ADDRESS_LENGTH]),
+            [4u8; IDENTIFIER_LENGTH],
+        );
+        let delays: Vec<Delay> =
+            std::iter::repeat_with(|| Delay::new_from_nanos(delay.as_nanos() as u64))
+                .take(route.len())
+                .collect();
+        let packet = NymPacket::sphinx_build_legacy(
+            PacketSize::RegularPacket.payload_size(),
+            b"x",
+            &route,
+            &destination,
+            &delays,
+        )
+        .expect("failed to build test sphinx packet");
+        FramedNymPacket::new(packet, PacketType::Mix, SphinxKeyRotation::Unknown, true)
+    }
+
+    // Sends two copies of one packet to the handler, as a peer that replays a packet does.
+    async fn send_twice(handler: &mut ConnectionHandler, first_hop: PublicKey) {
+        let packet = packet_for(first_hop, Duration::ZERO).into_inner();
+        let bytes = packet.to_bytes().unwrap();
+        for _ in 0..2 {
+            let copy = NymPacket::sphinx_from_bytes(&bytes).unwrap();
+            handler
+                .handle_received_nym_packet(FramedNymPacket::new(
+                    copy,
+                    PacketType::Mix,
+                    SphinxKeyRotation::Unknown,
+                    true,
+                ))
+                .await;
+        }
+    }
+
+    async fn mixnode_handler() -> (ConnectionHandler, MixForwardingReceiver) {
+        let (handler, receiver, _) =
+            mixnode_handler_with(ReplayProtectionBloomfilters::new_disabled()).await;
+        (handler, receiver)
+    }
+
+    // A handler with the default delay cap and no socket. The receiver gets what the handler
+    // passes to the packet forwarder. The public key is the handler's sphinx key, rotation 0.
+    async fn mixnode_handler_with(
+        replay_filter: ReplayProtectionBloomfilters,
+    ) -> (ConnectionHandler, MixForwardingReceiver, PublicKey) {
+        let mut rng = rand::rng();
+        let sphinx_key = SphinxPrivateKey::new(&mut rng, 0);
+        let sphinx_private: &PrivateKey = sphinx_key.inner().as_ref();
+        let sphinx_public = PublicKey::from(sphinx_private);
+        let (forwarder, receiver) = mix_forwarding_channels();
+        let processing_config = ProcessingConfig {
+            maximum_packet_delay: MixnetDebug::default().maximum_forward_packet_delay,
+            maximum_replay_detection_deferral: Duration::from_millis(50),
+            maximum_replay_detection_pending_packets: 100,
+            forward_hop_processing_enabled: true,
+            final_hop_processing_enabled: false,
+            egress_trace_sample_rate: 0,
+            connection_idle_timeout: Duration::ZERO,
+        };
+        let shared = SharedData::new(
+            processing_config,
+            ActiveSphinxKeys::new_fresh(sphinx_key),
+            replay_filter,
+            forwarder,
+            no_live_sessions().await,
+            NoiseConfig::new(
+                Arc::new(x25519::KeyPair::new(&mut rng)),
+                NoiseNetworkView::new_empty(),
+                Duration::from_secs(1),
+            ),
+            NymNodeMetrics::default(),
+            RoutableNetworkMonitors::default(),
+            ShutdownToken::new(),
+        );
+        let handler = ConnectionHandler::new(&shared, "127.0.0.1:1790".parse().unwrap());
+        (handler, receiver, sphinx_public)
+    }
+
+    async fn replay_checking_handler() -> (ConnectionHandler, MixForwardingReceiver, PublicKey) {
+        let primary = RotationFilter::new(1_000, 1e-5, 0, 0).unwrap();
+        mixnode_handler_with(ReplayProtectionBloomfilters::new(primary, None)).await
+    }
+
+    // r[verify sphinx.replay-drop]
+    #[tokio::test]
+    async fn a_node_drops_and_counts_a_replayed_packet() {
+        let (mut handler, mut receiver, key) = replay_checking_handler().await;
+
+        send_twice(&mut handler, key).await;
+
+        assert!(
+            receiver.try_recv().is_ok(),
+            "the node must forward the first copy"
+        );
+        assert!(
+            receiver.try_recv().is_err(),
+            "the node must drop the replayed copy"
+        );
+        let ingress = &handler.shared.metrics.mixnet.ingress;
+        assert_eq!(ingress.replayed_packets_received(), 1);
+    }
+
+    // r[verify sphinx.replay-drop]
+    #[tokio::test]
+    async fn a_node_forwards_a_replayed_packet_from_an_authorised_network_monitor() {
+        let (mut handler, mut receiver, key) = replay_checking_handler().await;
+        handler
+            .shared
+            .authorised_network_monitor_agents
+            .add_known(handler.remote_address.ip());
+
+        send_twice(&mut handler, key).await;
+
+        assert!(receiver.try_recv().is_ok());
+        assert!(
+            receiver.try_recv().is_ok(),
+            "the node must forward the replayed copy"
+        );
+        let ingress = &handler.shared.metrics.mixnet.ingress;
+        assert_eq!(ingress.replayed_packets_received(), 0);
+    }
+
+    // r[verify sphinx.replay-drop]
+    #[tokio::test]
+    async fn a_node_with_replay_protection_disabled_forwards_a_replayed_packet() {
+        let (mut handler, mut receiver, key) =
+            mixnode_handler_with(ReplayProtectionBloomfilters::new_disabled()).await;
+
+        send_twice(&mut handler, key).await;
+
+        assert!(receiver.try_recv().is_ok());
+        assert!(
+            receiver.try_recv().is_ok(),
+            "the node must forward the replayed copy"
+        );
+        let ingress = &handler.shared.metrics.mixnet.ingress;
+        assert_eq!(ingress.replayed_packets_received(), 0);
+    }
+
+    // r[verify delay.node-holds]
+    #[tokio::test]
+    async fn a_node_counts_and_cuts_a_received_packet_with_an_excessive_delay() {
+        let (mut handler, mut receiver, key) =
+            mixnode_handler_with(ReplayProtectionBloomfilters::new_disabled()).await;
+
+        handler
+            .handle_received_nym_packet(packet_for(key, Duration::from_secs(60)))
+            .await;
+
+        let forwarded = receiver.try_recv().expect("nothing reached the forwarder");
+        let target = forwarded
+            .forward_delay_target
+            .expect("a forward hop has a delay");
+        let after = Instant::now();
+        assert!(
+            target > after + Duration::from_secs(9) && target <= after + Duration::from_secs(10)
+        );
+        let ingress = &handler.shared.metrics.mixnet.ingress;
+        assert_eq!(ingress.excessive_delay_packets(), 1);
+    }
+
+    // r[verify delay.node-holds]
+    #[tokio::test]
+    async fn a_header_delay_above_the_cap_is_cut_to_ten_seconds() {
+        let (handler, mut receiver) = mixnode_handler().await;
+        let now = Instant::now();
+        let header_delay = Delay::new_from_nanos(Duration::from_secs(60).as_nanos() as u64);
+
+        handler.handle_forward_packet(
+            now,
+            mix_packet(),
+            Some(header_delay),
+            false,
+            PacketTrace::Off,
+        );
+
+        let forwarded = receiver
+            .try_recv()
+            .expect("the handler dropped a packet over the cap");
+        assert_eq!(
+            forwarded.forward_delay_target,
+            Some(now + Duration::from_secs(10))
+        );
+    }
+
+    // r[verify delay.node-holds]
+    #[tokio::test]
+    async fn a_header_delay_below_the_cap_sets_the_release_time() {
+        let (handler, mut receiver) = mixnode_handler().await;
+        let now = Instant::now();
+        let header_delay = Duration::from_millis(15);
+
+        handler.handle_forward_packet(
+            now,
+            mix_packet(),
+            Some(Delay::new_from_nanos(header_delay.as_nanos() as u64)),
+            false,
+            PacketTrace::Off,
+        );
+
+        let forwarded = receiver.try_recv().expect("nothing reached the forwarder");
+        assert_eq!(forwarded.forward_delay_target, Some(now + header_delay));
+    }
+
+    // r[verify delay.node-holds]
+    #[tokio::test]
+    async fn a_node_not_in_mixnode_mode_drops_forward_packets() {
+        let (mut handler, mut receiver) = mixnode_handler().await;
+        let delay = || {
+            Some(Delay::new_from_nanos(
+                Duration::from_millis(15).as_nanos() as u64
+            ))
+        };
+
+        handler.handle_forward_packet(
+            Instant::now(),
+            mix_packet(),
+            delay(),
+            false,
+            PacketTrace::Off,
+        );
+        assert!(
+            receiver.try_recv().is_ok(),
+            "in mixnode mode, the node must forward the packet"
+        );
+
+        handler
+            .shared
+            .processing_config
+            .forward_hop_processing_enabled = false;
+        handler.handle_forward_packet(
+            Instant::now(),
+            mix_packet(),
+            delay(),
+            false,
+            PacketTrace::Off,
+        );
+        assert!(receiver.try_recv().is_err());
+    }
+
+    // r[verify delay.gateways-no-delay]
+    #[tokio::test]
+    async fn the_egress_forwards_a_split_ack_with_no_delay() {
+        let (handler, mut receiver) = mixnode_handler().await;
+
+        handler
+            .shared
+            .forward_ack_packet(Some(mix_packet()), PacketTrace::Off);
+
+        let forwarded = receiver.try_recv().expect("no ack reached the forwarder");
+        assert!(forwarded.forward_delay_target.is_none());
     }
 
     #[test]

@@ -1,0 +1,99 @@
+## ADDED Requirements
+
+### Requirement: Code links to a requirement come from markers only
+
+The links from code to a requirement in the scope SHALL come from Tracey markers in the code: `// r[impl <id>]` on the line above the item that keeps the requirement, and `// r[verify <id>]` on the line above the test that checks it. The coverage report SHALL take the code and the tests of each such requirement from Tracey. The records check SHALL fail on a hand-written `realises` edge from code to a requirement in the scope. The edges from a requirement to the threat model SHALL stay hand-written.
+
+#### Scenario: A renamed function keeps its link
+
+- **WHEN** a commit renames a function that carries `// r[impl sphinx.ack-packet]` on the line above it
+- **THEN** `tracey query rule sphinx.ack-packet` and the coverage report give the marker at its new line
+
+#### Scenario: The records check rejects a hand-written code edge
+
+- **WHEN** `.nym-codex/edges.json` has a `realises` edge from a code item to a requirement in the scope
+- **THEN** the records check fails and names the edge
+
+### Requirement: The gate fails a pull request with a broken reference
+
+A CI job SHALL run Tracey on each pull request. It SHALL read only the spec files and the code paths that the Tracey config names. It SHALL fail when a marker names an id that no spec in the config defines, when two requirements have the same id, or when a marker names an old version of a requirement. The job SHALL be a required check on `develop`.
+
+#### Scenario: A marker names an unknown id
+
+- **WHEN** a pull request adds `// r[impl sphinx.size-clases]` and no spec defines `sphinx.size-clases`
+- **THEN** the job fails and names the file and line of the marker
+
+#### Scenario: Two specs define one id
+
+- **WHEN** a pull request adds `r[delay.node-holds]` to a second spec in the scope
+- **THEN** the job fails on the `CONFIG ERROR` that Tracey prints, although Tracey exits 0
+
+#### Scenario: A marker names an old version
+
+- **WHEN** a spec changes `r[sphinx.route]` to `r[sphinx.route+2]` and a marker still names `sphinx.route`
+- **THEN** the job fails and names the marker
+
+### Requirement: The gate fails on a gap
+
+The job SHALL fail on each requirement in the scope that has no `impl` marker or no `verify` marker, and on each requirement block with no `r[id]` line in a spec that has `r[id]` lines. It SHALL list each one. No requirement SHALL be exempt.
+
+#### Scenario: A spec gains ids before its markers
+
+- **WHEN** a pull request adds Tracey ids to `sdk-mixnet-stream` and no code names them yet
+- **THEN** the job fails and lists each new requirement as having no code and no test
+
+#### Scenario: A witness test loses its marker
+
+- **WHEN** a pull request removes the only `verify` marker of `sphinx.size-classes`
+- **THEN** the job fails and names `sphinx.size-classes`
+
+#### Scenario: A requirement has no id
+
+- **WHEN** a pull request adds a requirement to `mix-node-delay` with no `r[id]` line
+- **THEN** the job fails and names the spec file and the requirement
+
+### Requirement: The gate covers the specs in the scope and every path of their markers
+
+The Tracey config SHALL list the specs `sphinx-packet-format`, `client-cover-traffic`, `mix-node-delay`, `sdk-mixnet-stream`, `nym-network-monitor`, `network-monitor-config-score` and `network-monitor-epoch-performance`. It SHALL list every code path that holds a marker for one of these specs. When `add-mixnet-core-specs` is archived, the config SHALL name the archived spec files in the same commit.
+
+#### Scenario: A marker in the gateway counts
+
+- **WHEN** the job runs and `gateway/` holds `// r[impl delay.gateways-no-delay]`
+- **THEN** the report counts `delay.gateways-no-delay` as having code
+
+#### Scenario: The core specs are archived
+
+- **WHEN** a commit archives `add-mixnet-core-specs`
+- **THEN** the same commit changes the config to the three files in `openspec/specs/`, and the job finds all 21 core ids
+
+### Requirement: The gate fails on its own canary
+
+Before the gate runs on the repository, the CI job SHALL add a marker with an unknown id to a code path in its own checkout, and a spec file with a requirement that no marker names and a requirement with no `r[id]` line. It SHALL then run the gate and the gaps check. The job SHALL fail unless both fail and name the planted id and the two planted requirements. The job SHALL then remove the files and stop the Tracey daemon, so that the gate reads the checkout again.
+
+#### Scenario: The gate passes an unknown id
+
+- **WHEN** a change to the gate command or its config makes it pass a marker with an unknown id
+- **THEN** the canary step fails
+
+#### Scenario: The gaps check reads an empty list from Tracey
+
+- **WHEN** a change to Tracey's JSON output makes the gaps check read an empty list
+- **THEN** the canary step fails, because the check does not name `canary.gap`
+
+### Requirement: A commit runs the reference check first
+
+A lefthook pre-commit job on staged Rust and Markdown files SHALL run the Tracey reference check and the gaps check, and print their results. The job SHALL exit 0 in each case, including when `tracey` is missing.
+
+#### Scenario: A commit adds a broken marker
+
+- **WHEN** a commit adds `// r[impl sphinx.size-clases]`
+- **THEN** the job prints the unknown reference, and the commit goes ahead
+
+### Requirement: Ids in an archived spec do not change its requirements
+
+A Tracey id SHALL be added to a requirement in an archived spec as one `r[<id>]` line between the `### Requirement:` heading and the requirement text. The text of the requirement SHALL stay the same, and `openspec validate --specs --strict` SHALL accept the spec.
+
+#### Scenario: Ids for the SDK spec
+
+- **WHEN** each of the 12 requirements of `sdk-mixnet-stream` gains an `r[sdk.<name>]` line
+- **THEN** the diff of the spec has only added id lines, and strict validation passes for the spec

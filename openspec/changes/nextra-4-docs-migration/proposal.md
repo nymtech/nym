@@ -1,6 +1,6 @@
 ## Why
 
-The docs ran `next@15.5` on `nextra@2` + `nextra-theme-docs@2` using the Next.js **pages router**, a pairing Nextra no longer supports. Hand-written prebuild scripts held logic the framework should own, and the build needed Python, pandas, jq, curl and a full Rust workspace build before `next dev` would start. `documentation/NEXTRA4-DEFERRAL-PLAN.md` sorted the tree into keep/replace/delete/defer and set the move to Nextra 4 (App Router only, React 19) as the goal, with the scripts as the small part and the client components as the large part.
+The docs ran `next@15.5` on `nextra@2` + `nextra-theme-docs@2` using the Next.js **pages router**, a pairing Nextra no longer supports. Hand-written prebuild scripts held logic the framework should own, and the build needed Python, pandas, jq, curl and a full Rust workspace build before `next dev` would start. A deferral plan sorted the tree into keep/replace/delete/defer and set the move to Nextra 4 (App Router only, React 19) as the goal, with the scripts as the small part and the client components as the large part.
 
 This change records the migration as executed on branch `docs/nextra4-phase1`: Phase 1 (framework-independent cleanup), Phase 2 (decoupling the retrieval generators from `pages/`), and Phase 3 (the Nextra 4 App Router move itself), plus the build-tooling switch to Turbopack and Pagefind search. It is a spec-and-record artifact for work already on the branch; the normative source is the commits (`417f152562..HEAD`, 36 commits).
 

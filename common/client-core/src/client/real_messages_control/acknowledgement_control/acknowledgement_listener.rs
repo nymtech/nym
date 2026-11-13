@@ -38,6 +38,7 @@ impl AcknowledgementListener {
         }
     }
 
+    // r[impl cover.drop-own-loop]
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
         trace!("Received an ack");
         self.stats_tx
@@ -98,5 +99,49 @@ impl AcknowledgementListener {
             }
         }
         tracing::debug!("AcknowledgementListener: Exiting");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::cover_traffic_stream::tests::TestNetwork;
+    use futures::channel::mpsc;
+    use nym_statistics_common::clients::ClientStatsEvents;
+
+    // r[verify cover.drop-own-loop]
+    #[tokio::test]
+    async fn ack_of_a_loop_cover_packet_is_ignored() {
+        let network = TestNetwork::new();
+        let (_, hop_data) = network.unwrap_all_hops(network.loop_cover_packet().into_packet());
+        let (ack_data, _) = TestNetwork::split_surb_ack(hop_data);
+        let (_, ack_content) = network.unwrap_surb_ack(&ack_data);
+
+        let (_, ack_receiver) = mpsc::unbounded();
+        let (action_sender, mut action_receiver) = mpsc::unbounded();
+        let (stats_tx, mut stats_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut listener = AcknowledgementListener::new(
+            network.ack_key.clone(),
+            ack_receiver,
+            action_sender,
+            ClientStatsSender::new(Some(stats_tx), ShutdownToken::new()),
+        );
+
+        listener.on_ack(ack_content).await;
+        assert!(action_receiver.try_recv().is_err());
+
+        // an ack that fails to decrypt also sends no action, so check the stats for a cover ack
+        assert!(matches!(
+            stats_rx.try_recv(),
+            Ok(ClientStatsEvents::PacketStatistics(
+                PacketStatisticsEvent::AckReceived(_)
+            ))
+        ));
+        assert!(matches!(
+            stats_rx.try_recv(),
+            Ok(ClientStatsEvents::PacketStatistics(
+                PacketStatisticsEvent::CoverAckReceived(_)
+            ))
+        ));
     }
 }

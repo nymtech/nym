@@ -1,0 +1,24 @@
+# Tasks
+
+This change is task 6e.5 of `add-codex-snippets`. Owner: TBD(stage 5 owner).
+
+## 1. Review the specs
+
+- [ ] 1.1 A maintainer of `common/nymsphinx` reviews `sphinx-packet-format`
+- [ ] 1.2 A maintainer of `common/client-core` reviews `client-cover-traffic`
+- [ ] 1.3 A maintainer of `nym-node` reviews `mix-node-delay`
+- [ ] 1.4 Run `openspec validate add-mixnet-core-specs --strict`
+
+## 2. Threat-model links
+
+- [ ] 2.1 The threat-model owner reviews each edge in `edges.proposed.json`, and each requirement in its `none` list
+- [ ] 2.2 Move the accepted edges into `documentation/docs/.nym-codex/edges.json` after the archive of the change. The requirement ids exist only after the archive. The `none` list has no place in that file's format (D4c). Task 6e.3 of `add-codex-snippets` decides where a stated none lives
+- [ ] 2.3 Run the coverage report. Record the count of requirements with a threat-model link, and of complete chains
+
+## 3. Findings
+
+- [ ] 3.1 Give each finding in `design.md` to the owner of its code. Record the answer next to the finding
+
+## 4. Witnesses
+
+- [x] 4.1 Each requirement has a witness test. Done 2026-11-10. The gate of `add-spec-trace-gate` fails on a requirement with no `verify` marker.

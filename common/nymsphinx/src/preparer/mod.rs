@@ -193,6 +193,8 @@ pub trait FragmentPreparer {
         })
     }
 
+    // r[impl cover.same-format]
+    // r[impl sphinx.route]
     /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
     /// such that it contains required SURB-ACK and public component of the ephemeral key used to
     /// derive the shared key.
@@ -497,6 +499,7 @@ where
         self.sender_address = sender_address;
     }
 
+    // r[impl delay.acks-replies-cover]
     pub fn generate_reply_surbs(
         &mut self,
         amount: usize,
@@ -640,3 +643,288 @@ impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
    4. deal with fragment as before
    5. on full message reconstruction output (message, Option<reply_surb>)
 */
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+    use crate::receiver::{MessageReceiver, SphinxMessageReceiver};
+    use nym_crypto::asymmetric::ed25519;
+    use nym_sphinx_acknowledgements::identifier::recover_identifier;
+    use nym_sphinx_anonymous_replies::requests::ReplyMessage;
+    use nym_sphinx_framing::packet::FramedNymPacket;
+    use nym_sphinx_framing::processing::{
+        MixProcessingResultData, ProcessedFinalHop, process_framed_packet,
+    };
+    use nym_topology::{
+        CachedEpochRewardedSet, NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles,
+    };
+    use std::net::SocketAddr;
+
+    const EGRESS: u8 = 4;
+    const CLIENT: u8 = 10;
+    const ONE_HOUR: Duration = Duration::from_secs(3600);
+
+    fn identity(seed: u8) -> ed25519::PublicKey {
+        ed25519::PrivateKey::from_bytes(&[seed; 32])
+            .unwrap()
+            .public_key()
+    }
+
+    fn sphinx_key(node: u8) -> x25519::PrivateKey {
+        x25519::PrivateKey::from_secret([node; 32])
+    }
+
+    fn mix_address(node: u8) -> NymNodeRoutingAddress {
+        SocketAddr::from(([10, 0, 0, node], 1789)).into()
+    }
+
+    /// Nodes 1, 2 and 3 are the mixes of layers 1, 2 and 3, and node 4 is the egress gateway.
+    fn topology() -> NymRouteProvider {
+        let mut rewarded_set = CachedEpochRewardedSet::default();
+        rewarded_set.layer1.insert(1);
+        rewarded_set.layer2.insert(2);
+        rewarded_set.layer3.insert(3);
+        rewarded_set.exit_gateways.insert(EGRESS as u32);
+        let nodes = (1..=EGRESS)
+            .map(|node| RoutingNode {
+                node_id: node as u32,
+                mix_host: SocketAddr::from(([10, 0, 0, node], 1789)),
+                entry: None,
+                identity_key: identity(node),
+                sphinx_key: sphinx_key(node).public_key(),
+                supported_roles: SupportedRoles {
+                    mixnode: true,
+                    mixnet_entry: true,
+                    mixnet_exit: true,
+                },
+            })
+            .collect();
+        NymTopology::new(NymTopologyMetadata::default(), rewarded_set, nodes).into()
+    }
+
+    /// The client sends to itself through the egress.
+    fn client() -> Recipient {
+        let encryption_key = sphinx_key(CLIENT).public_key();
+        Recipient::new(identity(CLIENT), encryption_key, identity(EGRESS))
+    }
+
+    fn ack_key() -> AckKey {
+        AckKey::new(&mut ChaCha8Rng::seed_from_u64(1))
+    }
+
+    fn preparer(
+        average_packet_delay: Duration,
+        average_ack_delay: Duration,
+        disable_mix_hops: bool,
+    ) -> MessagePreparer<ChaCha8Rng> {
+        MessagePreparer::new(
+            ChaCha8Rng::seed_from_u64(42),
+            false,
+            client(),
+            average_packet_delay,
+            average_ack_delay,
+            disable_mix_hops,
+        )
+    }
+
+    fn prepare_short_message(
+        preparer: &mut MessagePreparer<ChaCha8Rng>,
+        ack_key: &AckKey,
+    ) -> (Fragment, PreparedFragment) {
+        let mut fragments = preparer.pad_and_split_message(
+            NymMessage::new_plain(vec![42; 10]),
+            PacketSize::RegularPacket,
+        );
+        assert_eq!(fragments.len(), 1);
+        let fragment = fragments.pop().unwrap();
+        let prepared = preparer
+            .prepare_chunk_for_sending(
+                fragment.clone(),
+                &topology(),
+                ack_key,
+                &client(),
+                PacketType::Mix,
+            )
+            .unwrap();
+        (fragment, prepared)
+    }
+
+    struct Delivery {
+        hops: Vec<NymNodeRoutingAddress>,
+        delays: Vec<Delay>,
+        final_hop: ProcessedFinalHop,
+    }
+
+    /// Processes the packet at each hop with the Sphinx key of that hop, as the nodes do.
+    fn deliver(mut packet: MixPacket) -> Delivery {
+        let mut hops = vec![packet.next_hop()];
+        let mut delays = Vec::new();
+        loop {
+            let node = (1..=EGRESS)
+                .find(|node| mix_address(*node) == packet.next_hop())
+                .expect("the packet left the topology");
+            let framed = FramedNymPacket::from_mix_packet(packet, false);
+            match process_framed_packet(framed, sphinx_key(node).inner())
+                .unwrap()
+                .processing_data
+            {
+                MixProcessingResultData::ForwardHop {
+                    packet: next,
+                    delay,
+                } => {
+                    hops.push(next.next_hop());
+                    delays.push(delay.unwrap());
+                    packet = next;
+                }
+                MixProcessingResultData::FinalHop { final_hop_data } => {
+                    return Delivery {
+                        hops,
+                        delays,
+                        final_hop: final_hop_data,
+                    };
+                }
+            }
+        }
+    }
+
+    // r[verify sphinx.route]
+    #[test]
+    fn a_data_packet_visits_one_mix_per_layer_then_the_egress() {
+        for (disable_mix_hops, expected_nodes) in
+            [(false, vec![1, 2, 3, EGRESS]), (true, vec![EGRESS])]
+        {
+            let mut preparer = preparer(Duration::ZERO, Duration::ZERO, disable_mix_hops);
+            let (_, prepared) = prepare_short_message(&mut preparer, &ack_key());
+
+            let expected_hops: Vec<_> = expected_nodes.into_iter().map(mix_address).collect();
+            assert_eq!(deliver(prepared.mix_packet).hops, expected_hops);
+        }
+    }
+
+    // r[verify sphinx.route]
+    #[test]
+    fn with_mix_hops_disabled_the_surb_ack_goes_to_the_egress_only() {
+        let mut preparer = preparer(Duration::ZERO, Duration::ZERO, true);
+        let (_, prepared) = prepare_short_message(&mut preparer, &ack_key());
+
+        let forward_ack = deliver(prepared.mix_packet)
+            .final_hop
+            .forward_ack
+            .expect("the egress did not forward a SURB-ACK");
+        assert_eq!(deliver(forward_ack).hops, vec![mix_address(EGRESS)]);
+    }
+
+    // r[verify sphinx.payload-fills]
+    #[test]
+    fn a_short_message_travels_in_one_full_regular_packet() {
+        let mut preparer = preparer(Duration::ZERO, Duration::ZERO, false);
+        let (fragment, prepared) = prepare_short_message(&mut preparer, &ack_key());
+        assert_eq!(
+            prepared.mix_packet.packet().len(),
+            PacketSize::RegularPacket.size()
+        );
+
+        // the egress removed the SURB-ACK, so the message holds the ephemeral key and the fragment
+        let mut message = deliver(prepared.mix_packet).final_hop.message;
+        assert_eq!(
+            message.len(),
+            x25519::PUBLIC_KEY_SIZE + fragment.serialized_size()
+        );
+        let receiver = SphinxMessageReceiver::new();
+        let fragment_data = receiver
+            .recover_plaintext_from_regular_packet(&sphinx_key(CLIENT), &mut message)
+            .unwrap();
+        assert!(receiver.recover_fragment(fragment_data).unwrap() == fragment);
+    }
+
+    // r[verify sphinx.ack-packet]
+    #[test]
+    fn the_egress_forwards_a_surb_ack_that_brings_back_the_fragment_id() {
+        let ack_key = ack_key();
+        let mut preparer = preparer(Duration::ZERO, Duration::ZERO, false);
+        let (fragment, prepared) = prepare_short_message(&mut preparer, &ack_key);
+
+        let forward_ack = deliver(prepared.mix_packet)
+            .final_hop
+            .forward_ack
+            .expect("the egress did not forward a SURB-ACK");
+        assert_eq!(forward_ack.packet().len(), PacketSize::AckPacket.size());
+
+        let ack = deliver(forward_ack);
+        let expected_hops: Vec<_> = [1, 2, 3, EGRESS].into_iter().map(mix_address).collect();
+        assert_eq!(ack.hops, expected_hops);
+        assert!(ack.final_hop.forward_ack.is_none());
+        // a 16-byte IV, then the encrypted 5-byte fragment id
+        assert_eq!(ack.final_hop.message.len(), 16 + 5);
+        assert_eq!(
+            recover_identifier(&ack_key, &ack.final_hop.message),
+            Some(fragment.fragment_identifier().to_bytes())
+        );
+    }
+
+    // r[verify delay.acks-replies-cover]
+    #[test]
+    fn a_surb_ack_takes_its_delays_from_the_ack_delay() {
+        for (packet_delay, ack_delay) in [(ONE_HOUR, Duration::ZERO), (Duration::ZERO, ONE_HOUR)] {
+            let mut preparer = preparer(packet_delay, ack_delay, false);
+            let (_, prepared) = prepare_short_message(&mut preparer, &ack_key());
+
+            let data = deliver(prepared.mix_packet);
+            let ack = deliver(data.final_hop.forward_ack.unwrap());
+            assert_eq!(data.delays.len(), 3);
+            assert_eq!(ack.delays.len(), 3);
+            assert!(
+                data.delays
+                    .iter()
+                    .all(|delay| (delay.to_nanos() == 0) == packet_delay.is_zero())
+            );
+            assert!(
+                ack.delays
+                    .iter()
+                    .all(|delay| (delay.to_nanos() == 0) == ack_delay.is_zero())
+            );
+        }
+    }
+
+    // r[verify delay.acks-replies-cover]
+    #[test]
+    fn a_reply_keeps_the_delays_that_the_creator_of_the_surb_drew() {
+        let topology = topology();
+        for (creator_delay, destination_delay) in
+            [(Duration::ZERO, ONE_HOUR), (ONE_HOUR, Duration::ZERO)]
+        {
+            let reply_surb = preparer(creator_delay, Duration::ZERO, false)
+                .generate_reply_surbs(1, &topology)
+                .unwrap()
+                .pop()
+                .unwrap();
+
+            let mut destination = preparer(destination_delay, Duration::ZERO, false);
+            let fragment = destination
+                .pad_and_split_message(
+                    NymMessage::new_reply(ReplyMessage::new_data_message(vec![42; 10])),
+                    PacketSize::RegularPacket,
+                )
+                .pop()
+                .unwrap();
+            let prepared = destination
+                .prepare_reply_chunk_for_sending(
+                    fragment,
+                    &topology,
+                    &ack_key(),
+                    reply_surb,
+                    PacketType::Mix,
+                )
+                .unwrap();
+
+            let reply = deliver(prepared.mix_packet);
+            assert_eq!(reply.delays.len(), 3);
+            assert!(
+                reply
+                    .delays
+                    .iter()
+                    .all(|delay| (delay.to_nanos() == 0) == creator_delay.is_zero())
+            );
+        }
+    }
+}

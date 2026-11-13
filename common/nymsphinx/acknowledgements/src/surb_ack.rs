@@ -42,6 +42,8 @@ pub enum SurbAckRecoveryError {
 }
 
 impl SurbAck {
+    // r[impl delay.acks-replies-cover]
+    // r[impl sphinx.ack-packet]
     #[allow(clippy::too_many_arguments)]
     pub fn construct_legacy<R>(
         rng: &mut R,

@@ -224,6 +224,8 @@ where
         }
     }
 
+    // r[impl cover.main-stream-slots]
+    // r[impl cover.rate-can-drop]
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
@@ -342,11 +344,13 @@ where
             .remove(&TransmissionLane::ConnectionId(connection_id));
     }
 
+    // r[impl cover.rate-can-drop]
     fn current_average_message_sending_delay(&self) -> Duration {
         self.config.traffic.message_sending_average_delay
             * self.sending_delay_controller.current_multiplier()
     }
 
+    // r[impl cover.rate-can-drop]
     fn adjust_current_average_message_sending_delay(&mut self) {
         let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
         tracing::trace!(
@@ -419,6 +423,7 @@ where
         Some(real_next)
     }
 
+    // r[impl cover.main-stream-slots]
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
@@ -530,6 +535,7 @@ where
         }
     }
 
+    // r[impl cover.defaults-and-settings]
     fn poll_next_message(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -580,6 +586,7 @@ where
         // }
     }
 
+    // r[impl cover.stops-with-client]
     pub(crate) async fn run(&mut self) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
@@ -639,5 +646,241 @@ where
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.poll_next_message(cx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::cover_traffic_stream::tests::TestNetwork;
+    use crate::client::mix_traffic::BatchMixMessageReceiver;
+    use futures::FutureExt;
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha8Rng;
+    use tokio::time::{Instant, sleep_until};
+
+    struct TestQueue {
+        control: OutQueueControl<ChaCha8Rng>,
+        real_tx: BatchRealMessageSender,
+        mix_rx: BatchMixMessageReceiver,
+    }
+
+    fn out_queue_control(
+        network: &TestNetwork,
+        topology_access: TopologyAccessor,
+        shutdown_token: ShutdownToken,
+    ) -> TestQueue {
+        out_queue_control_with(
+            network,
+            topology_access,
+            shutdown_token,
+            config::Traffic::default(),
+        )
+    }
+
+    fn out_queue_control_with(
+        network: &TestNetwork,
+        topology_access: TopologyAccessor,
+        shutdown_token: ShutdownToken,
+        traffic: config::Traffic,
+    ) -> TestQueue {
+        let (real_tx, real_rx) = tokio::sync::mpsc::channel(8);
+        let (mix_tx, mix_rx) = tokio::sync::mpsc::channel(8);
+        let (sent_tx, _) = futures::channel::mpsc::unbounded();
+        let (_, connection_rx) = futures::channel::mpsc::unbounded();
+        let control = OutQueueControl::new(
+            Config::new(
+                network.ack_key.clone(),
+                network.address,
+                Duration::ZERO,
+                traffic,
+                0.7,
+            ),
+            ChaCha8Rng::seed_from_u64(42),
+            sent_tx,
+            mix_tx,
+            real_rx,
+            topology_access,
+            LaneQueueLengths::new(),
+            connection_rx,
+            ClientStatsSender::new(None, shutdown_token.clone()),
+            shutdown_token,
+        );
+        TestQueue {
+            control,
+            real_tx,
+            mix_rx,
+        }
+    }
+
+    // a deadline in the past makes the next slots due at once, so the tests do not wait on the clock
+    fn make_slots_due(control: &mut OutQueueControl<ChaCha8Rng>) {
+        control.next_delay = Some(Box::pin(sleep_until(
+            Instant::now() - Duration::from_secs(1),
+        )));
+    }
+
+    // r[verify cover.main-stream-slots]
+    #[tokio::test]
+    async fn idle_slot_carries_a_cover_packet() {
+        let network = TestNetwork::new();
+        let mut queue =
+            out_queue_control(&network, network.topology_accessor(), ShutdownToken::new());
+        make_slots_due(&mut queue.control);
+
+        assert!(matches!(
+            queue.control.next().now_or_never(),
+            Some(Some(StreamMessage::Cover))
+        ));
+    }
+
+    // r[verify cover.main-stream-slots]
+    #[tokio::test]
+    async fn queued_real_message_takes_the_slot_instead_of_cover() {
+        let network = TestNetwork::new();
+        let mut queue =
+            out_queue_control(&network, network.topology_accessor(), ShutdownToken::new());
+        make_slots_due(&mut queue.control);
+        let packet = network.loop_cover_packet();
+        let packet_bytes = packet.packet().to_bytes().unwrap();
+        queue
+            .real_tx
+            .try_send((
+                vec![RealMessage::new(packet, None)],
+                TransmissionLane::General,
+            ))
+            .unwrap();
+
+        let Some(Some(StreamMessage::Real(real))) = queue.control.next().now_or_never() else {
+            panic!("the slot did not carry the queued real message")
+        };
+        assert_eq!(real.mix_packet.packet().to_bytes().unwrap(), packet_bytes);
+    }
+
+    // r[verify cover.main-stream-slots]
+    // r[verify cover.same-format]
+    #[tokio::test]
+    async fn cover_slot_sends_a_regular_loop_cover_packet_to_ourselves() {
+        let network = TestNetwork::new();
+        let mut queue =
+            out_queue_control(&network, network.topology_accessor(), ShutdownToken::new());
+
+        queue.control.on_message(StreamMessage::Cover).await;
+        let packet = queue.mix_rx.try_recv().unwrap().pop().unwrap();
+        assert_eq!(packet.packet().len(), PacketSize::RegularPacket.size());
+
+        let (destination, _) = network.unwrap_all_hops(packet.into_packet());
+        assert_eq!(destination, network.address.as_sphinx_destination().address);
+    }
+
+    // r[verify cover.rate-can-drop]
+    #[tokio::test]
+    async fn invalid_topology_skips_cover_slots_but_not_real_messages() {
+        let network = TestNetwork::new();
+        let mut queue =
+            out_queue_control(&network, TopologyAccessor::new(false), ShutdownToken::new());
+
+        queue.control.on_message(StreamMessage::Cover).await;
+        assert!(queue.mix_rx.try_recv().is_err());
+
+        let real = RealMessage::new(network.loop_cover_packet(), None);
+        queue
+            .control
+            .on_message(StreamMessage::Real(Box::new(real)))
+            .await;
+        assert!(queue.mix_rx.try_recv().is_ok());
+    }
+
+    // r[verify cover.rate-can-drop]
+    #[tokio::test]
+    async fn backpressure_multiplies_the_mean_interval_by_one_to_six() {
+        let network = TestNetwork::new();
+        let mut queue =
+            out_queue_control(&network, network.topology_accessor(), ShutdownToken::new());
+        let configured = config::Traffic::default().message_sending_average_delay;
+        let controller = &mut queue.control.sending_delay_controller;
+
+        for _ in 0..10 {
+            controller.increase_delay_multiplier();
+        }
+        assert_eq!(
+            queue.control.current_average_message_sending_delay(),
+            configured * 6
+        );
+
+        let controller = &mut queue.control.sending_delay_controller;
+        for _ in 0..10 {
+            controller.decrease_delay_multiplier();
+        }
+        assert_eq!(
+            queue.control.current_average_message_sending_delay(),
+            configured
+        );
+    }
+
+    // r[verify cover.rate-can-drop]
+    #[tokio::test]
+    async fn a_full_gateway_channel_raises_the_mean_interval() {
+        let network = TestNetwork::new();
+        let mut queue =
+            out_queue_control(&network, network.topology_accessor(), ShutdownToken::new());
+        let configured = config::Traffic::default().message_sending_average_delay;
+        while queue.control.mix_tx.try_send(Vec::new()).is_ok() {}
+
+        // the controller changes its multiplier at most once a second, on the real clock
+        tokio::time::sleep(Duration::from_millis(1100)).await;
+        queue.control.adjust_current_average_message_sending_delay();
+
+        assert_eq!(
+            queue.control.current_average_message_sending_delay(),
+            configured * 2
+        );
+    }
+
+    // r[verify cover.defaults-and-settings]
+    #[tokio::test]
+    async fn with_no_poisson_distribution_real_messages_go_at_once_and_no_cover() {
+        let network = TestNetwork::new();
+        let traffic = config::Traffic {
+            disable_main_poisson_packet_distribution: true,
+            ..Default::default()
+        };
+        let mut queue = out_queue_control_with(
+            &network,
+            network.topology_accessor(),
+            ShutdownToken::new(),
+            traffic,
+        );
+
+        assert!(queue.control.next().now_or_never().is_none());
+
+        let real = RealMessage::new(network.loop_cover_packet(), None);
+        queue
+            .real_tx
+            .try_send((vec![real], TransmissionLane::General))
+            .unwrap();
+        assert!(matches!(
+            queue.control.next().now_or_never(),
+            Some(Some(StreamMessage::Real(_)))
+        ));
+        assert!(queue.control.next().now_or_never().is_none());
+    }
+
+    // r[verify cover.stops-with-client]
+    #[tokio::test]
+    async fn main_stream_stops_when_the_shutdown_token_is_cancelled() {
+        let network = TestNetwork::new();
+        let shutdown_token = ShutdownToken::new();
+        let mut queue = out_queue_control(
+            &network,
+            network.topology_accessor(),
+            shutdown_token.clone(),
+        );
+        let run = queue.control.run();
+        tokio::pin!(run);
+
+        assert!(futures::poll!(&mut run).is_pending());
+        shutdown_token.cancel();
+        assert!(futures::poll!(&mut run).is_ready());
     }
 }

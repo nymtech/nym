@@ -255,7 +255,6 @@ impl SharedLpDataState {
     ///
     /// The egress twin of [`Self::internal_sp_routed`]: neither shows up in the packet counters,
     /// because neither came off or went onto the socket.
-    #[expect(dead_code)]
     pub(super) fn internal_sp_submitted(&self) {
         self.metrics.mixnet.lp_internal_sp_submitted()
     }

@@ -88,10 +88,10 @@ node lib/snippets/text-outputs.mts --compare /tmp/before /tmp/after
 1. Find the id of the requirement: `nym/openspec/<spec>/<slug of the requirement title>`.
 2. Find the id of the threat-model entity: `nym/threat-model/property/P1`, `nym/threat-model/vector/V2`, and so on.
 3. Add `{ "from": "<requirement id>", "to": "<entity id>", "rel": "realises" }` to `edges.json`. Use `mitigates` for a vector.
-4. To link code to the requirement, add `{ "from": "nym/<path>#<symbol>", "to": "<requirement id>", "rel": "realises" }`. The extractor fails when the symbol does not exist.
+4. To link code to the requirement, add `{ "from": "nym/<path>#<symbol>", "to": "<requirement id>", "rel": "realises" }`. The extractor fails when the symbol does not exist. If the requirement has a Tracey id, put `// r[impl <id>]` above the code instead: the records check fails on an edge from code to it ([`TRACEY.md`](../../TRACEY.md)).
 5. Run `node lib/snippets/coverage.mts` and check the count of complete chains.
 
-The threat-model owner reviews each link to the threat model. The branch `max/mixnet-core-specs` holds proposed links for the core mixnet specs, which wait for that review.
+The threat-model owner reviews each link to the threat model. Until that review, an open OpenSpec change can hold its proposed links in its own `edges.proposed.json`.
 
 ## Checks
 
@@ -104,4 +104,4 @@ The threat-model owner reviews each link to the threat model. The branch `max/mi
 | `node lib/archetypes/anchors.mts --list` | That each `#anchor` link names an id on its page |
 | `pnpm test` | The unit tests |
 
-The `ci-codex-snippets` workflow runs the first two on each PR. The design is in `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
+The `ci-codex-snippets` workflow runs the first two on each PR. The design is in `openspec/changes/add-codex-snippets/design.md`.

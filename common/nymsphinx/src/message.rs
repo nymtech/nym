@@ -220,6 +220,7 @@ impl NymMessage {
         num_fragments
     }
 
+    // r[impl sphinx.payload-fills]
     /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.
     /// Produces new_message = message || 1 || 0000....
     pub fn pad_to_full_packet_lengths(self, plaintext_per_packet: usize) -> PaddedMessage {
@@ -296,6 +297,7 @@ impl From<Vec<u8>> for PaddedMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::SeedableRng;
 
     #[test]
     fn serialized_size_matches_actual_serialization() {
@@ -314,5 +316,27 @@ mod tests {
 
         let reply = NymMessage::new_reply(ReplyMessage::new_data_message(vec![1, 2, 3, 4, 5]));
         assert_eq!(reply.serialized_size(), reply.into_bytes().len());
+    }
+
+    // r[verify sphinx.payload-fills]
+    #[test]
+    fn a_short_message_is_padded_with_one_then_zeros_to_fill_one_packet() {
+        let serialized = NymMessage::new_plain(vec![42; 10]).into_bytes();
+        let message = NymMessage::new_plain(vec![42; 10]);
+        let plaintext_per_packet =
+            message.available_sphinx_plaintext_per_packet(PacketSize::RegularPacket);
+
+        let padded = message.pad_to_full_packet_lengths(plaintext_per_packet);
+        assert_eq!(padded.0[..serialized.len()], serialized);
+        assert_eq!(padded.0[serialized.len()], 1);
+        assert!(padded.0[serialized.len() + 1..].iter().all(|b| *b == 0));
+
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(42);
+        let fragments = padded.split_into_fragments(&mut rng, plaintext_per_packet);
+        assert_eq!(fragments.len(), 1);
+        assert_eq!(
+            fragments[0].serialized_size() + ACK_OVERHEAD + x25519::PUBLIC_KEY_SIZE,
+            PacketSize::RegularPacket.plaintext_size()
+        );
     }
 }

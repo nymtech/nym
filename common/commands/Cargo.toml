@@ -59,7 +59,12 @@ nym-multisig-contract-common = { workspace = true }
 nym-ecash-contract-common = { workspace = true }
 nym-ecash-time = { workspace = true }
 nym-sphinx = { workspace = true }
-nym-client-core = { workspace = true }
+nym-client-core = { workspace = true, features = [
+    "cli",
+    "fs-credentials-storage",
+    "fs-surb-storage",
+    "fs-gateways-storage",
+] }
 nym-config = { workspace = true }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
@@ -67,7 +72,7 @@ nym-credential-storage = { workspace = true, features = ["persistent-storage"] }
 nym-id = { workspace = true }
 nym-credential-proxy-requests = { workspace = true }
 
-nym-pemstore = { workspace = true }
+nym-pemstore = { workspace = true, features = ["encryption"] }
 nym-types = { workspace = true }
 
 [lints]

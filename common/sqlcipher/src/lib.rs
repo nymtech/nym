@@ -223,12 +223,11 @@ async fn migrate_plaintext(
     // database and would be replayed into the encrypted one, so they can't be kept.
     for suffix in ["-wal", "-shm"] {
         let path = journal_path(database_path, suffix);
-        if tokio::fs::try_exists(&path).await.unwrap_or(false) {
+        if remove_if_exists(&path).await? {
             warn!(
-                "removing {} left over from the plaintext database",
+                "removed {} left over from the plaintext database",
                 path.display()
             );
-            remove_if_exists(&path).await?;
         }
     }
 
@@ -343,10 +342,11 @@ fn journal_path(database_path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-async fn remove_if_exists(path: &Path) -> Result<(), SqlCipherError> {
+/// Removes the file at `path`, returning whether it existed.
+async fn remove_if_exists(path: &Path) -> Result<bool, SqlCipherError> {
     match tokio::fs::remove_file(path).await {
-        Ok(()) => Ok(()),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Ok(()) => Ok(true),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
         Err(err) => Err(SqlCipherError::io(path, err)),
     }
 }

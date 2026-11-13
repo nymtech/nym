@@ -93,6 +93,20 @@ impl SqlCipherError {
     }
 }
 
+/// Prepares connect options for opening the database encrypted with `key`.
+///
+/// Without a key, the options are returned unchanged. With a key, the database at the options'
+/// filename is encrypted with [`encrypt_database_if_needed`], and the key is set on the options
+/// with [`connect_options_with_key`].
+pub async fn apply_key(
+    opts: SqliteConnectOptions,
+    key: Option<&Key>,
+) -> Result<SqliteConnectOptions, SqlCipherError> {
+    let Some(key) = key else { return Ok(opts) };
+    encrypt_database_if_needed(opts.get_filename(), key).await?;
+    Ok(connect_options_with_key(opts, key))
+}
+
 /// Sets the SQLCipher key on the connect options.
 ///
 /// SQLx always issues `PRAGMA key` before any other PRAGMA, so the key is in place before

@@ -28,11 +28,8 @@ impl StorageManager {
         fresh: bool,
         key: Option<&nym_sqlcipher::Key>,
     ) -> Result<Self, StorageError> {
-        let mut opts = Self::connect_options(database_path.as_ref(), fresh)?;
-        if let Some(key) = key {
-            nym_sqlcipher::encrypt_database_if_needed(database_path.as_ref(), key).await?;
-            opts = nym_sqlcipher::connect_options_with_key(opts, key);
-        }
+        let opts = Self::connect_options(database_path.as_ref(), fresh)?;
+        let opts = nym_sqlcipher::apply_key(opts, key).await?;
         Self::new_with_options(opts).await
     }
 

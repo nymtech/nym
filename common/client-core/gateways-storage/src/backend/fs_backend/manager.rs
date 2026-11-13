@@ -38,17 +38,14 @@ impl StorageManager {
                 }
             })?;
         }
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path.as_ref())
             .create_if_missing(true)
             .disable_statement_logging();
-        if let Some(key) = key {
-            nym_sqlcipher::encrypt_database_if_needed(database_path.as_ref(), key).await?;
-            opts = nym_sqlcipher::connect_options_with_key(opts, key);
-        }
+        let opts = nym_sqlcipher::apply_key(opts, key).await?;
 
         let connection_pool = sqlx::SqlitePool::connect_with(opts)
             .await

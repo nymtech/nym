@@ -36,11 +36,7 @@ impl PendingCredentialRequestsStorage {
         key: Option<&nym_sqlcipher::Key>,
     ) -> Result<Self, StorageError> {
         let database_path = database_path.as_ref();
-        let mut opts = Self::connect_options(database_path);
-        if let Some(key) = key {
-            nym_sqlcipher::encrypt_database_if_needed(database_path, key).await?;
-            opts = nym_sqlcipher::connect_options_with_key(opts, key);
-        }
+        let opts = nym_sqlcipher::apply_key(Self::connect_options(database_path), key).await?;
         Self::new_with_options(database_path, opts).await
     }
 

@@ -65,12 +65,3 @@ pub enum StorageError {
         source: nym_sqlcipher::SqlCipherError,
     },
 }
-
-impl StorageError {
-    /// Whether the database couldn't be opened because of its encryption: SQLite not built with
-    /// SQLCipher, a wrong key, or a failed migration of a plaintext database. Unlike corrupted
-    /// data, these aren't fixed by starting a fresh database.
-    pub fn is_encryption_error(&self) -> bool {
-        matches!(self, StorageError::EncryptionError { .. })
-    }
-}

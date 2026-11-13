@@ -163,18 +163,22 @@ async fn handle_load_failure(
     db_path: &Path,
     err: fs_backend::StorageError,
 ) -> Result<(), ClientCoreError> {
-    if err.is_encryption_error() {
-        error!("Failed to open the encrypted surb database: {err}");
-        return Err(ClientCoreError::SurbStorageError {
-            source: Box::new(err),
-        });
+    match err {
+        // a fresh database wouldn't fix a wrong key, and archiving would hide the data
+        fs_backend::StorageError::EncryptionError { .. } => {
+            error!("Failed to open the encrypted surb database: {err}");
+            Err(ClientCoreError::SurbStorageError {
+                source: Box::new(err),
+            })
+        }
+        _ => {
+            error!(
+                "setup_fs_reply_surb_backend: Failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future"
+            );
+            archive_corrupted_database(db_path).await?;
+            Ok(())
+        }
     }
-
-    error!(
-        "setup_fs_reply_surb_backend: Failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future"
-    );
-    archive_corrupted_database(db_path).await?;
-    Ok(())
 }
 
 /// Sets up the gateway registrations database.

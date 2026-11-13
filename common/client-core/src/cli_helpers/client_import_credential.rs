@@ -41,7 +41,10 @@ pub struct CommonClientImportTicketBookArgs {
     pub(crate) version: Option<u8>,
 }
 
-pub async fn import_credential<C, A>(args: A) -> Result<(), C::Error>
+pub async fn import_credential<C, A>(
+    args: A,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
+) -> Result<(), C::Error>
 where
     A: Into<CommonClientImportTicketBookArgs>,
     C: CliClient,
@@ -53,9 +56,11 @@ where
     let config = C::try_load_current_config(id).await?;
     let paths = config.common_paths();
 
-    let credentials_store =
-        nym_credential_storage::initialise_persistent_storage(&paths.credentials_database, None)
-            .await;
+    let credentials_store = nym_credential_storage::initialise_persistent_storage(
+        &paths.credentials_database,
+        database_key,
+    )
+    .await;
 
     let raw_credential = match common_args.credential_data {
         Some(data) => data,

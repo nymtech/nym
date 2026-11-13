@@ -34,6 +34,9 @@ pub struct SocketClient {
     /// Passphrase protecting the private keys on disk, if the operator set one.
     key_passphrase: Option<Passphrase>,
 
+    /// SQLCipher key encrypting the client's databases, if the operator set one.
+    database_key: Option<nym_sqlcipher::DatabaseKey>,
+
     shutdown_manager: ShutdownManager,
 }
 
@@ -46,11 +49,13 @@ impl SocketClient {
         config: Config,
         custom_mixnet: Option<PathBuf>,
         key_passphrase: Option<Passphrase>,
+        database_key: Option<nym_sqlcipher::DatabaseKey>,
     ) -> Self {
         SocketClient {
             config,
             custom_mixnet,
             key_passphrase,
+            database_key,
             shutdown_manager: Default::default(),
         }
     }
@@ -115,7 +120,7 @@ impl SocketClient {
             self.config.storage_paths.common_paths.clone(),
             &self.config.base.debug,
             self.key_passphrase.clone(),
-            None,
+            self.database_key.as_ref(),
         )
         .await?)
     }

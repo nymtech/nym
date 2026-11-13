@@ -7,6 +7,7 @@ use anyhow::bail;
 use clap::Parser;
 use nym_bandwidth_controller::BandwidthController;
 use nym_bandwidth_fetcher::NyxdRecoveryFetcher;
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credentials_interface::TicketType;
 use std::path::PathBuf;
@@ -18,6 +19,9 @@ pub struct Args {
     /// Config file of the client that is supposed to use the credential.
     #[clap(long)]
     pub(crate) client_config: PathBuf,
+
+    #[clap(flatten)]
+    pub(crate) database_key: DatabaseKeyArgs,
 }
 
 pub async fn execute(args: Args, client: QueryClient) -> anyhow::Result<()> {
@@ -37,9 +41,16 @@ pub async fn execute(args: Args, client: QueryClient) -> anyhow::Result<()> {
     );
 
     let requests_store = loaded.try_get_credential_requests_store()?;
-    let persistent_storage = initialise_persistent_storage(credentials_store, None).await;
+    let persistent_storage =
+        initialise_persistent_storage(credentials_store, args.database_key.database_key.as_ref())
+            .await;
 
-    let fetcher = NyxdRecoveryFetcher::new(Arc::new(client), requests_store, None).await?;
+    let fetcher = NyxdRecoveryFetcher::new(
+        Arc::new(client),
+        requests_store,
+        args.database_key.database_key.as_ref(),
+    )
+    .await?;
     let controller = BandwidthController::new(persistent_storage).with_credential_fetcher(fetcher);
 
     // the recovery fetcher recovers pending deposits per ticket type, so sweep them all

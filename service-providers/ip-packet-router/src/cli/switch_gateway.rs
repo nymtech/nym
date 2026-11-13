@@ -20,5 +20,5 @@ impl AsRef<CommonClientSwitchGatewaysArgs> for Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), IpPacketRouterError> {
-    switch_gateway::<CliIpPacketRouterClient, _>(args).await
+    switch_gateway::<CliIpPacketRouterClient, _>(args, None).await
 }

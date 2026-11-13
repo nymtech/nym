@@ -25,7 +25,7 @@ impl AsRef<CommonClientListGatewaysArgs> for Args {
 
 pub(crate) async fn execute(args: Args) -> Result<(), IpPacketRouterError> {
     let output = args.output;
-    let res = list_gateways::<CliIpPacketRouterClient, _>(args).await?;
+    let res = list_gateways::<CliIpPacketRouterClient, _>(args, None).await?;
 
     println!("{}", output.format(&res));
     Ok(())

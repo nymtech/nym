@@ -17,7 +17,10 @@ pub struct CommonClientSwitchGatewaysArgs {
     pub gateway_id: ed25519::PublicKey,
 }
 
-pub async fn switch_gateway<C, A>(args: A) -> Result<(), C::Error>
+pub async fn switch_gateway<C, A>(
+    args: A,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
+) -> Result<(), C::Error>
 where
     A: AsRef<CommonClientSwitchGatewaysArgs>,
     C: CliClient,
@@ -28,7 +31,8 @@ where
     let config = C::try_load_current_config(id).await?;
     let paths = config.common_paths();
 
-    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations, None).await?;
+    let details_store =
+        setup_fs_gateways_storage(&paths.gateway_registrations, database_key).await?;
 
     set_active_gateway(&details_store, &common_args.gateway_id.to_base58_string()).await?;
 

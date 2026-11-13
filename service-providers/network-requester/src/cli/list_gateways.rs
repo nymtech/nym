@@ -25,7 +25,7 @@ impl AsRef<CommonClientListGatewaysArgs> for Args {
 
 pub(crate) async fn execute(args: Args) -> Result<(), NetworkRequesterError> {
     let output = args.output;
-    let res = list_gateways::<CliNetworkRequesterClient, _>(args).await?;
+    let res = list_gateways::<CliNetworkRequesterClient, _>(args, None).await?;
 
     println!("{}", output.format(&res));
     Ok(())

@@ -7,11 +7,15 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_list_gateways::{
     list_gateways, CommonClientListGatewaysArgs,
 };
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 
 #[derive(clap::Args)]
 pub(crate) struct Args {
     #[command(flatten)]
     common_args: CommonClientListGatewaysArgs,
+
+    #[command(flatten)]
+    database_key: DatabaseKeyArgs,
 
     #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
@@ -24,9 +28,9 @@ impl AsRef<CommonClientListGatewaysArgs> for Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), ClientError> {
-    let output = args.output;
-    let res = list_gateways::<CliNativeClient, _>(args).await?;
+    let res =
+        list_gateways::<CliNativeClient, _>(&args, args.database_key.database_key.as_ref()).await?;
 
-    println!("{}", output.format(&res));
+    println!("{}", args.output.format(&res));
     Ok(())
 }

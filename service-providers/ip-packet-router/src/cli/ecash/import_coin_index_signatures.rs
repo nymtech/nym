@@ -10,7 +10,7 @@ use nym_ip_packet_router::error::IpPacketRouterError;
 pub(crate) async fn execute(
     args: CommonClientImportCoinIndexSignaturesArgs,
 ) -> Result<(), IpPacketRouterError> {
-    import_coin_index_signatures::<CliIpPacketRouterClient, _>(args).await?;
+    import_coin_index_signatures::<CliIpPacketRouterClient, _>(args, None).await?;
     println!("successfully imported coin index signatures!");
     Ok(())
 }

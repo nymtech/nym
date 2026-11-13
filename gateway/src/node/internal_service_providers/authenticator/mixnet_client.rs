@@ -25,7 +25,7 @@ pub async fn create_mixnet_client(
 ) -> Result<nym_sdk::mixnet::MixnetClient, AuthenticatorError> {
     let debug_config = config.debug;
 
-    let storage = EmbeddedProviderStorage::from_paths(paths.clone(), &debug_config, None)
+    let storage = EmbeddedProviderStorage::from_paths(paths.clone(), &debug_config)
         .await
         .map_err(|err| AuthenticatorError::FailedToSetupMixnetClient {
             source: Box::new(err.into()),

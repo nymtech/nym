@@ -108,7 +108,10 @@ pub struct CommonShowTicketbooksArgs {
     pub id: String,
 }
 
-pub async fn show_ticketbooks<C, A>(args: A) -> Result<AvailableTicketbooks, C::Error>
+pub async fn show_ticketbooks<C, A>(
+    args: A,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
+) -> Result<AvailableTicketbooks, C::Error>
 where
     A: AsRef<CommonShowTicketbooksArgs>,
     C: CliClient,
@@ -119,9 +122,11 @@ where
     let config = C::try_load_current_config(id).await?;
     let paths = config.common_paths();
 
-    let credentials_store =
-        nym_credential_storage::initialise_persistent_storage(&paths.credentials_database, None)
-            .await;
+    let credentials_store = nym_credential_storage::initialise_persistent_storage(
+        &paths.credentials_database,
+        database_key,
+    )
+    .await;
     let ticketbooks = credentials_store
         .get_ticketbooks_info()
         .await

@@ -1,13 +1,7 @@
 #![allow(deprecated)] // silences clippy warning: use of deprecated associated function `nym_crypto::generic_array::GenericArray::<T, N>::clone_from_slice`: please upgrade to generic-array 1.x - TODO
 use std::future::Future;
 
-#[cfg(all(
-    not(target_arch = "wasm32"),
-    feature = "cli",
-    feature = "fs-surb-storage",
-    feature = "fs-credentials-storage",
-    feature = "fs-gateways-storage"
-))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "cli"))]
 pub mod cli_helpers;
 pub mod client;
 pub mod config;

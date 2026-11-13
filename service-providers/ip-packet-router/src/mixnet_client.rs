@@ -25,7 +25,7 @@ pub(crate) async fn create_mixnet_client(
 
     let user_agent = nym_bin_common::bin_info!().into();
 
-    let storage = EmbeddedProviderStorage::from_paths(paths.clone(), &debug_config, None)
+    let storage = EmbeddedProviderStorage::from_paths(paths.clone(), &debug_config)
         .await
         .map_err(|err| IpPacketRouterError::FailedToSetupMixnetClient {
             source: Box::new(err.into()),

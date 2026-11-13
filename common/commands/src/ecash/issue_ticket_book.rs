@@ -9,6 +9,7 @@ use clap::Parser;
 use log::info;
 use nym_bandwidth_controller::BandwidthController;
 use nym_bandwidth_fetcher::NyxdCredentialFetcher;
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
@@ -59,11 +60,15 @@ pub struct Args {
     /// Secret value that's used for deriving underlying ecash keypair
     #[clap(long)]
     pub(crate) bs58_encoded_client_secret: Option<String>,
+
+    #[clap(flatten)]
+    pub(crate) database_key: DatabaseKeyArgs,
 }
 
 async fn issue_client_ticketbook(
     config_path: PathBuf,
     ticketbook_type: TicketType,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
     client: SigningClient,
 ) -> anyhow::Result<()> {
     let loaded = CommonConfigsWrapper::try_load(config_path)?;
@@ -85,13 +90,13 @@ async fn issue_client_ticketbook(
         credentials_store.display()
     );
     let requests_store = loaded.try_get_credential_requests_store()?;
-    let persistent_storage = initialise_persistent_storage(credentials_store, None).await;
+    let persistent_storage = initialise_persistent_storage(credentials_store, database_key).await;
     let private_id_key: ed25519::PrivateKey = nym_pemstore::load_key(private_id_key)?;
 
     let fetcher = NyxdCredentialFetcher::new(
         Arc::new(client),
         requests_store,
-        None,
+        database_key,
         Zeroizing::new(private_id_key.to_bytes().to_vec()),
     )
     .await?;
@@ -184,7 +189,13 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
 
 pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
     if let Some(client_config) = args.client_config {
-        return issue_client_ticketbook(client_config, args.ticketbook_type, client).await;
+        return issue_client_ticketbook(
+            client_config,
+            args.ticketbook_type,
+            args.database_key.database_key.as_ref(),
+            client,
+        )
+        .await;
     }
 
     issue_to_file(args, client).await

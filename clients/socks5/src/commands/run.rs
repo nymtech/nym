@@ -5,6 +5,7 @@ use crate::commands::try_load_current_config;
 use crate::commands::{override_config, OverrideConfig};
 use clap::Args;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_socks5_client_core::NymClient;
@@ -18,6 +19,9 @@ pub(crate) struct Run {
 
     #[command(flatten)]
     key_passphrase: KeyPassphraseArgs,
+
+    #[command(flatten)]
+    database_key: DatabaseKeyArgs,
 
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
     /// While this is going to hide its actual address information, it will make the actual communication
@@ -74,7 +78,7 @@ pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn std::error::Error +
         config.storage_paths.common_paths,
         &config.core.base.debug,
         args.key_passphrase.key_passphrase,
-        None,
+        args.database_key.database_key.as_ref(),
     )
     .await?;
     let user_agent = nym_bin_common::bin_info!().into();

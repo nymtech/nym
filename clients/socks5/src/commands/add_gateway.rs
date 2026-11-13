@@ -31,17 +31,15 @@ impl AsRef<CommonClientAddGatewayArgs> for Args {
 
 pub(crate) async fn execute(mut args: Args) -> Result<(), Socks5ClientError> {
     let user_agent = nym_bin_common::bin_info!().into();
-    let output = args.output;
     let key_passphrase = args.key_passphrase.key_passphrase.take();
-    let database_key = args.database_key.database_key.take();
     let res = add_gateway::<CliSocks5Client, _>(
-        args,
+        &args,
         Some(user_agent),
         key_passphrase,
-        database_key.as_ref(),
+        args.database_key.database_key.as_ref(),
     )
     .await?;
 
-    println!("{}", output.format(&res));
+    println!("{}", args.output.format(&res));
     Ok(())
 }

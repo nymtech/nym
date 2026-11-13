@@ -49,7 +49,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 - [x] 2.5 Extractor: scan prose snippets for code citations and resolve each one. Add `code.jsonl` to the record builder. Fail with file and line on a missing or ambiguous symbol
 - [ ] 2.6 `remarkSnippet`: replace a code citation with a fenced block and a caption. The caption links to the GitHub permalink (manifest commit, `path`, `lines`). Replace a diagram citation with a `mermaid` block
 - [x] 2.7 Determinism test: two runs give identical bytes
-- [ ] 2.8 Depends on 6.0. Exclude `.nym-codex` from the root walk and the plain Markdown walk of the shared indexer. No file in this repository or on `max/shared-mcp` holds that walk yet: it is in the private spike today, and `add-shared-retrieval-index` task 3.1 has to move it into the package. `generate-code-index.mjs` walks `ROOTS` alone and needs no change
+- [ ] 2.8 Depends on 6.0. Exclude `.nym-codex` from the root walk and the plain Markdown walk of the shared indexer. No file in this repository or on `max/shared-mcp` holds that walk yet: it is in the private spike today, and `add-shared-retrieval-index` task 3.1 has to move it into the package. `generate-code-index.mjs` walks `ROOTS` alone and needs no change. Status 2026-11-13: `add-shared-retrieval-index` task 3.7 is to move the walk into the package with this exclusion
 - [x] 2.9 Replace the Rust fences in the pilot section with citations. Compare each extracted body with the fence it replaces. List each difference in the PR as a stale hand copy or an extractor fault
 
 ## 2b. Mechanical enrichment
@@ -87,7 +87,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 
 ## 6. Index (with `add-shared-retrieval-index`)
 
-- [ ] 6.0 Bring `add-shared-retrieval-index` (branch `max/shared-mcp`) into the same line of work. Write its scripts in TypeScript (`.mts`, run by Node), not as `.mjs` (decided by the user, 2026-10-17; design D19). Add this rule to the design and tasks of that change when its branch is checked out
+- [ ] 6.0 Bring `add-shared-retrieval-index` (branch `max/shared-mcp`) into the same line of work. Write its scripts in TypeScript (`.mts`, run by Node), not as `.mjs` (decided by the user, 2026-10-17; design D19). Add this rule to the design and tasks of that change when its branch is checked out. Status 2026-11-13: the rule is in the `add-shared-retrieval-index` design (decision 4) and tasks (5.4); the docs unit from records is its decision 12 and task 5.5
 - [ ] 6.1 The indexer reads snippet records and pages for the content that `.nym-codex/` covers. It takes the page title and URL from the first page in path order that imports the snippet. It does not embed code records. It replaces each citation tag in `text` with the title of its target
 - [ ] 6.2 The code chunker calls the parser module from 2.3
 - [ ] 6.3 Acceptance: recall at 6 on the developer set of 0.1 is not lower than the baseline of 0.2

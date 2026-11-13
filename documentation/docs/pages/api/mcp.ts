@@ -10,8 +10,9 @@
 // first. Fallback is a standalone Node process, where the transport gets a real
 // http.ServerResponse from createServer.
 //
-// Public, unauthenticated, and every search costs an embedding call. Needs a
-// rate limiter before real traffic.
+// Public, unauthenticated, and every search costs an embedding call. There is
+// no rate limiter: a spend alert on the Voyage account bounds the cost (design Q2
+// of the add-shared-retrieval-index change).
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { readFileSync } from 'node:fs';
@@ -19,9 +20,9 @@ import path from 'node:path';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { buildMcpServer } from '../../lib/mcp/build-server';
 import { createTools, type McpTool } from '../../lib/mcp/tools';
-import type { DocIndex } from '../../lib/retrieval/types';
+import type { DocIndex } from '@nymproject/retrieval-indexer/types';
 // allowJs resolves the plain-ESM embed module; types are inferred from the .mjs.
-import { voyageProvider, embedQuery } from '../../lib/retrieval/embed.mjs';
+import { voyageProvider, embedQuery } from '@nymproject/retrieval-indexer/embed';
 
 // Heavy, immutable state: loaded once per serverless instance (cold start).
 const INDEX_PATH = path.join(process.cwd(), 'public/docs-index.json');
@@ -59,6 +60,18 @@ let codeIndex: DocIndex | undefined;
 try {
   codeIndex = JSON.parse(readFileSync(CODE_INDEX_PATH, 'utf-8'));
 } catch {
+  codeIndex = undefined;
+}
+// The docs index throws when vectorless, because search is the route's core
+// function. The code index is optional, so the fail-closed choice is the
+// opposite: drop it, so search_code is simply not exposed, rather than kill the
+// docs and live tools over an optional file. A deploy that meant to serve code
+// search still fails loudly at check-mcp-server.sh's index-coverage group.
+if (codeIndex && !codeIndex.embedding?.dim) {
+  console.warn(
+    'MCP route: public/code-index.json has no vectors (built without VOYAGE_API_KEY), ' +
+      'so search_code will not be exposed. Rebuild with the key set to enable code search.',
+  );
   codeIndex = undefined;
 }
 const codeProvider = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY, model: 'voyage-code-3' });

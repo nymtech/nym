@@ -5,6 +5,8 @@ is the contributor reference for that machinery: the retrieval pipeline, how the
 MCP route serves from it, where the key goes, what is tunable, and how to test a
 deployment.
 
+A move of the index to a Postgres store is planned: see [`MCP-STORE.md`](MCP-STORE.md). Until then, this file describes what runs.
+
 Read this before changing anything under `docs/lib/retrieval/`, `docs/lib/mcp/`,
 `docs/pages/api/`, or `scripts/next-scripts/generate-*`.
 
@@ -55,7 +57,7 @@ The `build` script runs the generators before `next build`, in this order: `gene
 
 ### Chunking
 
-Pages are split into **heading-scoped chunks** rather than fixed-size windows, so a chunk is a section a reader would recognise and can be cited by its own anchor. Four things the chunker (`lib/retrieval/chunker.mjs`) has to get right:
+Pages are split into **heading-scoped chunks** rather than fixed-size windows, so a chunk is a section a reader would recognise and can be cited by its own anchor. Four things the chunker (`@nymproject/retrieval-indexer`, `chunker`) has to get right:
 
 - **Fence awareness.** A `## comment` inside a bash example is not a heading. Both the MDX strip and the heading split track fence state, so code blocks never create false section boundaries.
 - **Anchor de-duplication.** CLI pages repeat "Options" and "Usage" once per subcommand, so naive slugs collide and every deep link points at the first match. Slugs are de-duplicated per page with `-1` / `-2` suffixes, matching Nextra, so `get_section` and chat citations resolve to the section actually quoted.
@@ -80,7 +82,7 @@ Vectors are cached by **content hash**, so a rebuild only pays for chunks whose 
 The code index covers the crates the documentation makes claims about: the SDKs
 and wasm packages, Sphinx, the core clients, the exit services (IPR and Network
 Requester), the gateway protocol, credentials, and `nym-node`. The list is
-`ROOTS` in `scripts/next-scripts/generate-code-index.mjs`. A path outside it
+`ROOTS` in `indexed-sources.mjs` (imported by `generate-code-index.mjs`). A path outside it
 cannot be cited by `search_code` and cannot be checked against the prose, so
 that list is the boundary of what the docs can be held to. Both index files are
 traced into the `/api/mcp` lambda and parsed at every cold start, so widen it
@@ -89,7 +91,7 @@ because the docs describe something, not because it exists.
 ### Embedding cost and caching
 
 Vectors are cached by chunk content hash
-(`lib/retrieval/embed.mjs`), so a rebuild only embeds chunks whose text actually
+(`@nymproject/retrieval-indexer`, `embed`), so a rebuild only embeds chunks whose text actually
 changed. The cache key includes the model and dimension, so switching embedding
 models invalidates it rather than silently mixing two vector spaces.
 
@@ -109,7 +111,9 @@ Both indexes are small enough to ship with the app and load into memory on cold 
 | Index | Chunks | Dimensions | Model | On disk |
 |---|---|---|---|---|
 | `docs-index.json` | 1,427 | 1024 | `voyage-3-large` | 19.7 MB |
-| `code-index.json` | 7,108 | 1024 | `voyage-code-3` | 94 MB |
+| `code-index.json` | 7,761 | 1024 | `voyage-code-3` | ~103 MB |
+
+The `code-index.json` size is derived, not freshly measured: it scales the earlier 7,108-chunk / 94 MB measurement to the current chunk count. Both index files are gitignored, so neither is checked in to measure directly.
 
 Almost all of that is the vectors, and most of the vector bytes are serialisation overhead rather than information. Per chunk, the 1,024 numbers occupy 12,697 bytes written as JSON text, against 688 bytes for the id, URL, headings and the chunk text together. So the vectors are 95% of the file, and the text they were derived from is 5%.
 
@@ -119,7 +123,7 @@ Two cheap levers follow, both well before anything as heavy as a database. Base6
 
 Re-embedding the whole corpus costs well under a cent, so the real price of a rebuild is build latency rather than money.
 
-A vector database would add a service to operate, a network hop per query, and a consistency problem between the deployed docs and the indexed docs. At this corpus size it buys none of that back. The constraint to watch is the serverless bundle: both files are traced into the MCP function, so roughly 114 MB of the platform's limit is spent before any code, and every cold start pays to parse them.
+A vector database would add a service to operate, a network hop per query, and a consistency problem between the deployed docs and the indexed docs. At this corpus size it buys none of that back. The constraint to watch is the serverless bundle: both files are traced into the MCP function, so roughly 120 MB of the platform's limit is spent before any code, and every cold start pays to parse them.
 
 ## Serving
 
@@ -135,7 +139,7 @@ outputFileTracingIncludes: {
 }
 ```
 
-The code index is optional. If `public/code-index.json` is absent the route still starts and simply does not expose `search_code`, which keeps a docs-only build working.
+The code index is optional. If `public/code-index.json` is absent, or present but built without vectors, the route still starts and simply does not expose `search_code`, which keeps a docs-only build working.
 
 
 ## The key
@@ -160,7 +164,7 @@ A missing key announces itself rather than degrading quietly:
 |---------|--------------|
 | At build | The index generators **exit non-zero and fail the build** for anything that ships: Vercel (which sets `VERCEL`), and `cd-docs.yml` (which sets `REQUIRE_EMBEDDINGS`). Everywhere else they warn and write a vectorless index, which is what local work on chunking and the check-only CI builds want. `CI` alone is deliberately not a trigger: `ci-docs.yml` builds to prove the docs compile and has no reason to spend an embedding run. |
 | At runtime | `/api/mcp` throws at cold start, naming the variable. An agent otherwise connects, gets a full tool list, and hits an opaque 401 inside its first search. |
-| A vectorless index reaching production | The route detects it (`embedding.dim` is null) and refuses, rather than serving `200` while every search returns nothing. |
+| A vectorless index reaching production | The route detects it (`embedding.dim` is null). The docs index refuses at cold start; a vectorless code index is dropped instead, so `search_code` is not exposed rather than the route serving `200` with every code search empty. |
 
 **Health check.** `tools/list` against a deployment is the one-request answer to
 "is this wired up", and `scripts/check-mcp-server.sh` wraps it with 37 more.
@@ -199,12 +203,12 @@ Compile-time constants, changed in source rather than the environment:
 | Constant | Where | Default | Effect |
 |----------|-------|---------|--------|
 | `topK` | `lib/mcp/tools.ts` | `6` | Default results per `search_docs` / `search_code` call; the caller can override it per call. |
-| `MAX_CHARS` | `lib/retrieval/chunker.mjs` | `2400` | Hard cap on a chunk. Changing it changes chunk boundaries, so it needs a full re-index. |
+| `MAX_CHARS` | `@nymproject/retrieval-indexer`, `chunker` | `2400` | Hard cap on a chunk. Changing it changes chunk boundaries, so it needs a full re-index. |
 
 <!-- prettier-ignore -->
 > [!IMPORTANT]
 > The query embedding and the index embedding must come from the same model.
-> Changing the provider or model in `lib/retrieval/embed.mjs` requires a full
+> Changing the provider or model in `@nymproject/retrieval-indexer` (`embed`) requires a full
 > re-index: querying a `voyage-3` index with `voyage-3-large` vectors returns
 > meaningless neighbours rather than an error.
 
@@ -267,7 +271,7 @@ What each layer needs:
 | `validate_sdk_config` | nothing; pure logic |
 | `network_summary`, `circulating_supply`, `chain_status`, `list_gateways`, `get_gateway` | network access to the Nym APIs |
 | `search_docs`, `get_section` | `VOYAGE_API_KEY` **and** a vectored `public/docs-index.json` |
-| `search_code` | the above plus `public/code-index.json`; the tool is simply not exposed when that file is absent |
+| `search_code` | the above plus a vectored `public/code-index.json`; the tool is simply not exposed when that file is absent or vectorless |
 
 Against a deployment, swap the host for the deployment URL. If `tools/list`
 answers but `search_docs` fails, that is the Voyage key or a vectorless index
@@ -276,7 +280,7 @@ missing, so `tools/list` failing outright points at the key while `tools/list`
 succeeding and `search_docs` failing points at the index.
 
 **All of the above at once, against a deployment.**
-`scripts/check-mcp-server.sh` runs 37 checks over HTTP: the tool list, transport
+`scripts/check-mcp-server.sh` runs 46 checks over HTTP: the tool list, transport
 negotiation, retrieval and a `get_section` round-trip, code search, index
 coverage, config validation, every live network tool, argument-schema rejection,
 and error shapes. It covers what unit tests cannot,
@@ -287,7 +291,10 @@ The **index coverage** group asserts that `search_code` can cite each root in
 `ROOTS`, matching on the returned file path rather than on the search term, since
 prose elsewhere in the corpus mentions all of these by name. A failure there
 normally means the deployed index predates a `ROOTS` change, not that the tool
-broke; rebuild with `VOYAGE_API_KEY` set and redeploy.
+broke; rebuild with `VOYAGE_API_KEY` set and redeploy. The probe queries live in
+`scripts/index-coverage-probes.mjs`, and `lib/retrieval/index-coverage.test.ts`
+fails at PR time if a root in `ROOTS` has no probe, so adding a root means adding
+its probe.
 
 ```bash
 # from documentation/

@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseFrontmatter } from '../retrieval/mdx.mjs';
+import { parseFrontmatter } from '@nymproject/retrieval-indexer/mdx';
 import { splitFrontmatter } from './split.mts';
 import type { Repo, SnippetImport } from './repo.mts';
 import { openRepo, pageFiles, pageLinks, sitePages, snippetFile, snippetImports, routeOf } from './repo.mts';

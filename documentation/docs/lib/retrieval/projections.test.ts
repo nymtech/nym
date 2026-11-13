@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 // @ts-expect-error - plain ESM JS modules, no type declarations
-import { loadProjections, loadDocValues } from './projections.mjs';
-// @ts-expect-error - plain ESM JS module
-import { stripMdx } from './mdx.mjs';
+import { loadProjections, loadDocValues, mdxOptions } from './projections.mjs';
+import { stripMdx } from '@nymproject/retrieval-indexer/mdx';
 
 // The threat-model pages are two sentences of prose plus a component that holds
 // every definition, so dropping the tag drops the canonical actors and vectors
@@ -73,7 +72,7 @@ describe('stripMdx with projections', () => {
   ].join('\n');
 
   it('replaces a component with its projected content', () => {
-    const out = stripMdx(page, { expand });
+    const out = stripMdx(page, mdxOptions({ expand }));
     expect(out).toContain('L3G');
     expect(out).toContain('Some preamble.');
   });
@@ -84,7 +83,7 @@ describe('stripMdx with projections', () => {
 
   it('drops page wiring that was reaching the index as prose', () => {
     const src = "export const scenario = requireGenericScenario('mixnet')\n\nReal text.";
-    const out = stripMdx(src, { expand });
+    const out = stripMdx(src, mdxOptions({ expand }));
     expect(out).not.toContain('requireGenericScenario');
     expect(out).toContain('Real text.');
   });
@@ -94,25 +93,25 @@ describe('stripMdx with projections', () => {
     // state a version requirement that cannot be read. It is inline, not on its
     // own line.
     const values = await loadDocValues();
-    const out = stripMdx('**Minimum Rust version:** {RUST_MSRV}+', { expand, values });
+    const out = stripMdx('**Minimum Rust version:** {RUST_MSRV}+', mdxOptions({ expand, values }));
     expect(out).not.toContain('RUST_MSRV');
     expect(out).toMatch(/Minimum Rust version:\*\* \d+\.\d+\+/);
   });
 
   it('leaves an unknown interpolation alone rather than inventing a value', () => {
-    const out = stripMdx('Version {NOT_A_REAL_CONSTANT} here.', { expand, values: { RUST_MSRV: '1.87' } });
+    const out = stripMdx('Version {NOT_A_REAL_CONSTANT} here.', mdxOptions({ expand, values: { RUST_MSRV: '1.87' } }));
     expect(out).toContain('{NOT_A_REAL_CONSTANT}');
   });
 
   it('drops a bare unresolved expression line, which renders as nothing', () => {
-    const out = stripMdx('Before\n\n{someExpression}\n\nAfter', { expand });
+    const out = stripMdx('Before\n\n{someExpression}\n\nAfter', mdxOptions({ expand }));
     expect(out).not.toContain('someExpression');
     expect(out).toContain('Before');
   });
 
   it('leaves braces and tags inside fenced code alone', () => {
     const src = ['```js', 'const x = { a: 1 };', '<Foo />', '```'].join('\n');
-    expect(stripMdx(src, { expand })).toBe(src);
+    expect(stripMdx(src, mdxOptions({ expand }))).toBe(src);
   });
 
   it('picks the scenario up from the page that declares it', () => {
@@ -123,7 +122,7 @@ describe('stripMdx with projections', () => {
       '',
       '<GenericScenarioView scenario={scenario} />',
     ].join('\n');
-    const out = stripMdx(src, { expand });
+    const out = stripMdx(src, mdxOptions({ expand }));
     expect(out).toContain('both ends run Nym');
   });
 });
@@ -147,26 +146,26 @@ describe('MDX comments', () => {
   // bare-expression rule.
   it('drops a multi-line comment entirely', () => {
     const src = ['Before.', '', '{/*', '  A note to editors.', '  Step 1: do a thing.', '*/}', '', 'After.'].join('\n');
-    const out = stripMdx(src, { expand });
+    const out = stripMdx(src, mdxOptions({ expand }));
     expect(out).not.toMatch(/note to editors|Step 1/);
     expect(out).toContain('Before.');
     expect(out).toContain('After.');
   });
 
   it('still drops a single-line comment', () => {
-    expect(stripMdx('A\n\n{/* hidden */}\n\nB', { expand })).not.toContain('hidden');
+    expect(stripMdx('A\n\n{/* hidden */}\n\nB', mdxOptions({ expand }))).not.toContain('hidden');
   });
 
   it('does not swallow the rest of the page after a closing comment', () => {
     const src = ['{/*', 'note', '*/}', '', '## Real heading', '', 'Real text.'].join('\n');
-    const out = stripMdx(src, { expand });
+    const out = stripMdx(src, mdxOptions({ expand }));
     expect(out).toContain('Real heading');
     expect(out).toContain('Real text.');
   });
 });
 
 describe('scenario projection on a page', () => {
-  const page = (body: string) => stripMdx(body, { expand });
+  const page = (body: string) => stripMdx(body, mdxOptions({ expand }));
 
   it('projects each scenario a tag names through its props, once each', () => {
     const out = page([
@@ -209,5 +208,13 @@ describe('scenario projection on a page', () => {
     expect(out).toContain('Verdicts by configuration, property, and actor:');
     // One block for each of the 8 generic scenarios, each starting with its verdicts.
     expect(out.match(/:\n\n- P1 against L2:/g)).toHaveLength(8);
+  });
+});
+
+describe('mdxOptions', () => {
+  it('fills Version and Stat tags with their values and leaves an unknown one', () => {
+    const values = { RUST_MSRV: '1.87', V: '1.2.3', 'stat.gateways': '42' };
+    const out = stripMdx('Rust <Version name="RUST_MSRV" />+, release <Version name="V" code />, <Stat name="gateways" /> gateways, <Version name="GONE" />.', mdxOptions({ values }));
+    expect(out).toBe('Rust 1.87+, release `1.2.3`, 42 gateways, <Version name="GONE" />.');
   });
 });

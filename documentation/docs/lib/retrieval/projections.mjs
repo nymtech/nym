@@ -300,4 +300,48 @@ function projectMatrix(scenarios) {
   return `Verdicts by configuration, property, and actor:\n\n${rows.join('\n\n')}\n`;
 }
 
+/**
+ * The stripMdx options for a nym page: the projections, the doc values, the
+ * scenarios the page declares (`ctx` for the projections), and the nym
+ * component tags that render a value.
+ */
+export function mdxOptions({ expand, values } = {}) {
+  return { expand, values, context: scenariosOf, rewrite: values ? (line) => substituteComponents(line, values) : undefined };
+}
+
+/**
+ * `<Version name="X" />` (components/version.tsx), `<Version name="X" code />` as
+ * inline code, and `<Stat name="X" />` (components/stat.tsx), a network count
+ * held as `stat.X`. A tag whose name is not loaded stays as it is.
+ */
+export function substituteComponents(line, values) {
+  const known = (name) => Object.hasOwn(values, name);
+  return line
+    .replace(/<Version\s+name="([A-Za-z_$][\w$]*)"(\s+code)?\s*\/>/g, (whole, name, code) =>
+      known(name) ? (code ? `\`${values[name]}\`` : values[name]) : whole,
+    )
+    .replace(/<Stat\s+name="(\w+)"\s*\/>/g, (whole, name) => (known(`stat.${name}`) ? values[`stat.${name}`] : whole));
+}
+
+/**
+ * The scenarios a page declares: `export const mixnet = requireWalletScenario('mixnet-ipr')`.
+ * A component names one through its props (`<NetworkDiagram item={mixnet} />`).
+ * Returns `scenarios` (const name -> { source, id }, or null for a const built
+ * by a spread), `firstScenario`, `scenarioId` (the first generic one, for a page
+ * that names it once), and `pageTitle`.
+ */
+export function scenariosOf(content) {
+  const scenarios = new Map();
+  for (const [, name, source, id] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*require(Generic|Browsing|Messaging|Wallet)Scenario\(\s*["']([^"']+)["']\s*\)/g)) {
+    scenarios.set(name, { source: source.toLowerCase(), id });
+  }
+  // A const built by a spread (`{ ...requireGenericScenario('mixnet'), paths: ... }`)
+  // can override any field, so it names no scenario the projection can state.
+  for (const [, name] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*\{\s*\.\.\./g)) scenarios.set(name, null);
+  const firstScenario = [...scenarios.values()].find(Boolean) ?? null;
+  const generic = [...scenarios.values()].find((s) => s?.source === 'generic');
+  const pageTitle = content.match(/^# (.+)$/m)?.[1].trim() ?? null;
+  return { scenarios, firstScenario, scenarioId: generic?.id ?? null, pageTitle };
+}
+
 export const __test = { projectActors, projectVectors, projectProperties, projectScenario, matrixRows };

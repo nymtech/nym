@@ -6,7 +6,8 @@
 // `sources` restricts results to a subset of the index; the MCP omits it and
 // sees everything.
 
-import type { DocIndex, EmbeddedChunk, SearchHit } from './types';
+import type { DocIndex, EmbeddedChunk, SearchHit } from '@nymproject/retrieval-indexer/types';
+import { TEST_SCORE_PENALTY } from '@nymproject/retrieval-indexer/search';
 
 /** Cosine similarity, guarding against zero-length vectors. */
 export function cosineSimilarity(a: number[], b: number[]): number {
@@ -39,7 +40,7 @@ function withoutVector(chunk: EmbeddedChunk): SearchHit['chunk'] {
 /**
  * Rank the index against a query vector. Linear scan: at ~1400 chunks x 1024
  * dims this is ~1.4M multiply-adds per query, well under a millisecond, so no
- * ANN index is warranted.
+ * ANN index is warranted. A chunk flagged `test` scores TEST_SCORE_PENALTY lower.
  */
 export function search(queryVector: number[], index: DocIndex, opts: SearchOptions = {}): SearchHit[] {
   const { topK = 6, sources, minScore = 0 } = opts;
@@ -47,7 +48,10 @@ export function search(queryVector: number[], index: DocIndex, opts: SearchOptio
   const pool = sources ? index.chunks.filter((c) => sources.includes(c.source)) : index.chunks;
 
   return pool
-    .map((chunk) => ({ chunk: withoutVector(chunk), score: cosineSimilarity(queryVector, chunk.vector) }))
+    .map((chunk) => ({
+      chunk: withoutVector(chunk),
+      score: cosineSimilarity(queryVector, chunk.vector) - (chunk.test ? TEST_SCORE_PENALTY : 0),
+    }))
     .filter((hit) => hit.score >= minScore)
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);

@@ -32,7 +32,7 @@
 #
 # It can also be exported as $BYPASS instead of passed as the second argument.
 #
-# Requires curl and jq. Exits non-zero if any check fails, so it can gate a
+# Requires curl, jq and node. Exits non-zero if any check fails, so it can gate a
 # deploy step.
 
 set -uo pipefail
@@ -208,12 +208,16 @@ expect "search_code resolves a bare type name" \
 head_ "Index coverage"
 
 # The docs make claims about these crates, so search_code has to be able to cite
-# them. Each check asserts a hit whose path is inside the expected root, not just
-# a mention of the term, because prose elsewhere in the corpus discusses all of
-# these by name.
+# them. Each check asserts a hit whose path is at or under the probed path, not
+# just a mention of the term, because prose elsewhere in the corpus discusses all
+# of these by name. The match is anchored at the repo root of the deep link, so
+# a smolmix probe does not pass on a wasm/smolmix hit.
+#
+# The probes live in index-coverage-probes.mjs, which a unit test holds in step
+# with ROOTS, so a new root cannot land without one. Write a new probe there.
 #
 # A failure here usually means the index is stale rather than the tool is broken:
-# ROOTS in generate-code-index.mjs was widened after the deployment under test was
+# ROOTS in indexed-sources.mjs was widened after the deployment under test was
 # built. Rebuild with VOYAGE_API_KEY set and redeploy.
 #
 # A root missing from the source tree is skipped rather than failed. The index is
@@ -223,51 +227,30 @@ head_ "Index coverage"
 # proxy for the deployed branch, which is close enough to be useful and worth
 # remembering when the two diverge.
 covers() {
-  local label="$1" query="$2" pathfrag="$3"
+  local label="$1" query="$2" path="$3"
   local out
-  if [[ ! -d "$REPO_ROOT/${pathfrag%/}" ]]; then
-    skip "$label (${pathfrag%/} is not in this checkout)"
+  if [[ ! -d "$REPO_ROOT/$path" ]]; then
+    skip "$label ($path is not in this checkout)"
     return
   fi
   out="$(call search_code "$(jq -nc --arg q "$query" '{query:$q,topK:8}')")"
-  if grep -qE "blob/[^ ]*$pathfrag" <<<"$out"; then
+  if grep -qF "blob/develop/$path/" <<<"$out"; then
     ok "$label"
   else
-    bad "$label (no hit under $pathfrag)"
+    bad "$label (no hit under $path)"
     printf '        paths returned: %s\n' \
       "$(grep -oE 'blob/develop/[^ ]+' <<<"$out" | sed 's|blob/develop/||' | head -4 | tr '\n' ' ')"
   fi
 }
 
-# Prefer symbols over prose for these. A description of what a crate does competes
-# with every other crate that does something similar, and the field keeps growing:
-# an earlier query using "chunk" lost to common/nymsphinx/chunking, and its
-# replacement, "checkpoint snapping and start jitter to obfuscate a resume
-# height", later lost to smoldvpn/examples/zcash-sync.rs once that arrived. Both
-# times the crate was fully indexed and the query had simply stopped
-# discriminating. A symbol only one crate defines does not decay that way.
-covers "sdk/rust: nym-swizzle start obfuscation" \
-  "obfuscated_start snap grid floor jitter" 'sdk/rust/nym-swizzle'
-covers "smolmix: the userspace TCP/UDP tunnel" \
-  "Tunnel new_with_ipr get_best_ipr from_stream" 'smolmix/'
-covers "smoldvpn: the WireGuard datapath" \
-  "wireguard peer configuration and tunnel engine setup" 'smoldvpn/'
-covers "common/nymsphinx: packet construction" \
-  "sphinx packet header construction and layer encryption" 'common/nymsphinx'
-covers "common/client-core: the client internals" \
-  "client topology refresh and gateway selection" 'common/client-core'
-covers "service-providers: the IP packet router" \
-  "ip packet router exit policy and tunnel address allocation" 'service-providers/ip-packet-router'
-covers "service-providers: the network requester" \
-  "network requester socks5 connect request handling" 'service-providers/network-requester'
-covers "clients: the native and socks5 clients" \
-  "socks5 client listener accepting a connection" 'clients/'
-covers "common/gateway-requests: the gateway protocol" \
-  "gateway client authentication and registration handshake" 'common/gateway-requests'
-covers "common/credentials: bandwidth credentials" \
-  "bandwidth credential issuance and verification" 'common/credentials'
-covers "nym-node: the node implementation" \
-  "nym-node configuration and mode selection on startup" 'nym-node/'
+PROBES_TSV="$(node --input-type=module -e '
+  const { PROBES } = await import(process.argv[1]);
+  for (const [path, { label, query }] of Object.entries(PROBES)) console.log([path, label, query].join("\t"));
+' "$REPO_ROOT/documentation/scripts/index-coverage-probes.mjs")" || { bad "could not load index-coverage-probes.mjs"; PROBES_TSV=""; }
+
+while IFS=$'\t' read -r path label query; do
+  [[ -n "$path" ]] && covers "$label" "$query" "$path"
+done <<<"$PROBES_TSV"
 
 # --- config validation ------------------------------------------------------
 head_ "Config validation"

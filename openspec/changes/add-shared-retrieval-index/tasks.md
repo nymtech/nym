@@ -38,6 +38,7 @@
 
 ## 5. Cutover (nym repo)
 
+- [ ] 5.0 Gate before 5.1: prove embedding parity with the live indexer. Re-embed the live corpus with the package (same models, voyage-3-large for docs and voyage-code-3 for code; confirm `embedText` is unchanged), then diff top-k against the current `/api/mcp` for the `check-mcp-server.sh` coverage probes. No probe's root may drop out of the top-k. Record the run in the spike's `EXPERIMENTS.md`.
 - [ ] 5.1 nym CI dual-writes: bundled files plus the public store
 - [ ] 5.2 `/api/mcp` reads the public store behind a flag; run `check-mcp-server.sh` against a preview
 - [ ] 5.3 Flip the flag; remove index generation from the build and the `outputFileTracingIncludes` entries; rewrite `MCP-SERVER.md` for the new architecture

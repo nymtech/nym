@@ -9,16 +9,18 @@ use crate::{
 };
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd};
-use std::{io, path::Path, time::Duration};
+use std::{io, path::Path};
 use time::OffsetDateTime;
 use tracing::{error, info, trace};
 use url::Url;
 
-/// Maximum rename retry attempts when the database file is temporarily locked.
-const ARCHIVE_MAX_RETRY_ATTEMPTS: u8 = 15;
+/// Maximum rename attempts when the database file is temporarily locked.
+#[cfg(windows)]
+const ARCHIVE_MAX_RENAME_ATTEMPTS: u8 = 15;
 
-/// Delay between archive rename retry attempts.
-const ARCHIVE_RETRY_DELAY: Duration = Duration::from_millis(200);
+/// Delay between archive rename attempts.
+#[cfg(windows)]
+const ARCHIVE_RENAME_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(200);
 
 async fn setup_fresh_backend(
     db_path: &Path,
@@ -79,58 +81,42 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
         };
     let renamed = db_path.with_extension(new_extension);
 
-    // On Windows, sqlx may release its OS file handles asynchronously after
-    // pool.close() returns, briefly keeping the file locked
-    // (ERROR_SHARING_VIOLATION, os error 32).  Retry with a short delay to
-    // give the OS time to flush the remaining handles.
-    for attempt in 0..ARCHIVE_MAX_RETRY_ATTEMPTS {
-        match tokio::fs::rename(db_path, &renamed).await {
-            Ok(()) => return Ok(()),
-            Err(e) if is_file_locked_error(&e) && (attempt + 1) < ARCHIVE_MAX_RETRY_ATTEMPTS => {
+    #[cfg(windows)]
+    let result = rename_with_retry(db_path, &renamed).await;
+    #[cfg(not(windows))]
+    let result = tokio::fs::rename(db_path, &renamed).await;
+
+    result.inspect_err(|err| {
+        error!(
+            "Failed to rename corrupt database file {} to {}: {err}",
+            db_path.display(),
+            renamed.display()
+        )
+    })
+}
+
+/// Renames `from` to `to`, retrying while the file is locked.
+///
+/// While sqlx 0.9 should close database file upon `sqlite_pool.close().await`,
+/// it's possible that some of code paths do not wait for pool to close
+/// before continuing execution.
+#[cfg(windows)]
+async fn rename_with_retry(from: &Path, to: &Path) -> io::Result<()> {
+    for attempt in 1..ARCHIVE_MAX_RENAME_ATTEMPTS {
+        match tokio::fs::rename(from, to).await {
+            // ERROR_SHARING_VIOLATION = 32, ERROR_LOCK_VIOLATION = 33
+            Err(err) if matches!(err.raw_os_error(), Some(32 | 33)) => {
                 trace!(
-                    "Database file is temporarily locked, retrying archive \
-                     (attempt {}/{}): {e}",
-                    attempt + 1,
-                    ARCHIVE_MAX_RETRY_ATTEMPTS
+                    "Database file is temporarily locked, retrying rename \
+                     (attempt {attempt}/{ARCHIVE_MAX_RENAME_ATTEMPTS}): {err}"
                 );
-                tokio::time::sleep(ARCHIVE_RETRY_DELAY).await;
+                tokio::time::sleep(ARCHIVE_RENAME_RETRY_DELAY).await;
             }
-            Err(e) => {
-                error!(
-                    "Failed to rename corrupt database file: {} to {}",
-                    db_path.display(),
-                    renamed.display()
-                );
-                return Err(e);
-            }
+            result => return result,
         }
     }
 
-    // Reached only when every attempt was blocked by a file lock.
-    error!(
-        "Failed to rename corrupt database file after {} attempts: {} to {}",
-        ARCHIVE_MAX_RETRY_ATTEMPTS,
-        db_path.display(),
-        renamed.display()
-    );
-    Err(io::Error::other(
-        "corrupt database archive blocked by persistent file lock",
-    ))
-}
-
-/// Returns `true` when the IO error indicates a temporary file lock held by another handle
-/// within the same process.  Only meaningful on Windows; always `false` elsewhere.
-fn is_file_locked_error(e: &io::Error) -> bool {
-    #[cfg(windows)]
-    {
-        // ERROR_SHARING_VIOLATION = 32, ERROR_LOCK_VIOLATION = 33
-        matches!(e.raw_os_error(), Some(32) | Some(33))
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = e;
-        false
-    }
+    tokio::fs::rename(from, to).await
 }
 
 /// Sets up the reply SURB database: loads the existing one, or creates a fresh one.

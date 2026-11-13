@@ -128,7 +128,7 @@ async fn probe_descriptor(
         awg: awg_args,
     };
     let mut transports = Vec::with_capacity(advertised.len().min(MAX_BRIDGE_TRANSPORTS));
-    for transport in advertised.iter().cloned().take(MAX_BRIDGE_TRANSPORTS) {
+    for transport in advertised.iter().take(MAX_BRIDGE_TRANSPORTS).cloned() {
         transports.push(probe_transport(transport, &forward).await);
     }
 
@@ -423,15 +423,16 @@ fn contact_urls(node: &TestedNodeDetails) -> Vec<String> {
     for ip in &node.host_ips {
         hosts.push(host_for_url(*ip));
     }
-    if let Some(hostname) = &node.hostname {
-        if !hostname.is_empty() && !hosts.iter().any(|h| h == hostname) {
-            hosts.push(hostname.clone());
-        }
+    if let Some(hostname) = &node.hostname
+        && !hostname.is_empty()
+        && !hosts.iter().any(|h| h == hostname)
+    {
+        hosts.push(hostname.clone());
     }
-    if hosts.is_empty() {
-        if let Some(ip) = node.ip_address {
-            hosts.push(host_for_url(ip));
-        }
+    if hosts.is_empty()
+        && let Some(ip) = node.ip_address
+    {
+        hosts.push(host_for_url(ip));
     }
 
     let mut urls = Vec::new();

@@ -36,15 +36,20 @@ impl EmbeddedProviderStorage {
     ///
     /// The `credentials_database` and `credential_requests_database` entries in `paths` are
     /// intentionally ignored: the credential store is always ephemeral.
+    ///
+    /// With `database_key`, the reply SURB and gateway registration databases are encrypted with
+    /// SQLCipher using the raw 256-bit key, and existing plaintext databases are encrypted in place
+    /// first.
     pub async fn from_paths(
         paths: CommonClientPaths,
         debug_config: &DebugConfig,
+        database_key: Option<&nym_sqlcipher::DatabaseKey>,
     ) -> Result<Self, ClientCoreError> {
         let key_store = OnDiskKeys::new(paths.keys);
 
         let reply_store = non_wasm_helpers::setup_fs_reply_surb_backend(
             paths.reply_surb_database,
-            None,
+            database_key,
             &debug_config.reply_surbs,
         )
         .await?;
@@ -52,7 +57,8 @@ impl EmbeddedProviderStorage {
         let credential_store = nym_credential_storage::initialise_ephemeral_storage();
 
         let gateway_details_store =
-            non_wasm_helpers::setup_fs_gateways_storage(paths.gateway_registrations, None).await?;
+            non_wasm_helpers::setup_fs_gateways_storage(paths.gateway_registrations, database_key)
+                .await?;
 
         Ok(EmbeddedProviderStorage {
             key_store,

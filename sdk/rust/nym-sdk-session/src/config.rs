@@ -62,6 +62,10 @@ pub struct SessionConfig {
     /// (a fully ephemeral in-memory store is not used so tickets survive a
     /// bring-down/bring-up cycle).
     pub credential_store_path: Option<PathBuf>,
+    /// Raw SQLCipher key encrypting the credential store and the fetcher's pending-request
+    /// database; plaintext databases get encrypted on first open with it. The same key must be
+    /// provided on every run. `None` leaves the databases unencrypted.
+    pub database_key: Option<nym_sqlcipher::DatabaseKey>,
     /// Directory for the fetcher's pending-request recovery database and other
     /// per-session data.
     pub data_path: PathBuf,
@@ -99,6 +103,7 @@ impl SessionConfig {
             mnemonic,
             network,
             credential_store_path: None,
+            database_key: None,
             data_path,
             dvpn_directory_url: None,
             automatic_topups: None,
@@ -132,6 +137,14 @@ impl SessionConfig {
     #[must_use]
     pub fn with_credential_store_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.credential_store_path = Some(path.into());
+        self
+    }
+
+    /// Encrypt the credential store and the fetcher's pending-request database with SQLCipher,
+    /// using the raw 256-bit `key` as is. SQLCipher has to be linked in place of SQLite.
+    #[must_use]
+    pub fn with_database_key(mut self, key: Option<nym_sqlcipher::DatabaseKey>) -> Self {
+        self.database_key = key;
         self
     }
 }

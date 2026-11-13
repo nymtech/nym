@@ -85,7 +85,7 @@ async fn issue_client_ticketbook(
         credentials_store.display()
     );
     let requests_store = loaded.try_get_credential_requests_store()?;
-    let persistent_storage = initialise_persistent_storage(credentials_store).await;
+    let persistent_storage = initialise_persistent_storage(credentials_store, None).await;
     let private_id_key: ed25519::PrivateKey = nym_pemstore::load_key(private_id_key)?;
 
     let fetcher = NyxdCredentialFetcher::new(
@@ -109,7 +109,7 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
     let temp_credential_store_file = NamedTempFile::new()?;
     let credential_store_path = temp_credential_store_file.into_temp_path();
 
-    let credentials_store = initialise_persistent_storage(&credential_store_path).await;
+    let credentials_store = initialise_persistent_storage(&credential_store_path, None).await;
 
     // throwaway file for the fetcher's pending-deposit recovery data
     let pending_requests_file = NamedTempFile::new()?;

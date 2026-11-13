@@ -21,6 +21,7 @@ nym-client-core = { workspace = true, features = [
     "fs-credentials-storage",
 ] }
 nym-credential-storage = { workspace = true }
+nym-sqlcipher = { workspace = true }
 nym-sphinx-anonymous-replies = { workspace = true }
 
 async-trait = { workspace = true }

@@ -51,7 +51,8 @@ where
     let paths = config.common_paths();
 
     let credentials_store =
-        nym_credential_storage::initialise_persistent_storage(&paths.credentials_database).await;
+        nym_credential_storage::initialise_persistent_storage(&paths.credentials_database, None)
+            .await;
 
     let version = common_args.version;
     let raw_key = match common_args.key_data {

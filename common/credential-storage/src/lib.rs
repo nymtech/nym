@@ -15,11 +15,16 @@ pub mod persistent_storage;
 
 pub mod storage;
 
+/// Opens the persistent credential storage at `path`, panicking on failure.
+///
+/// With `key`, the database is encrypted with SQLCipher using the raw 256-bit key, and an
+/// existing plaintext database is encrypted in place first.
 #[cfg(all(not(target_arch = "wasm32"), feature = "persistent-storage"))]
 pub async fn initialise_persistent_storage<P: AsRef<std::path::Path>>(
     path: P,
+    key: Option<&nym_sqlcipher::DatabaseKey>,
 ) -> crate::persistent_storage::PersistentStorage {
-    match persistent_storage::PersistentStorage::new(path, None).await {
+    match persistent_storage::PersistentStorage::new(path, key).await {
         Err(err) => panic!("failed to initialise credential storage - {err}"),
         Ok(storage) => storage,
     }

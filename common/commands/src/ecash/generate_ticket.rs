@@ -66,7 +66,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
     }
     let provider_arr: [u8; 32] = decoded_provider.try_into().unwrap();
 
-    let persistent_storage = initialise_persistent_storage(&credentials_store).await;
+    let persistent_storage = initialise_persistent_storage(&credentials_store, None).await;
     let Some(mut next_ticketbook) = persistent_storage
         .get_next_unspent_usable_ticketbook(args.ticketbook_type.to_string(), 0)
         .await?

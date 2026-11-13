@@ -567,7 +567,7 @@ async fn create_mixnet_client(
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
     let debug_config = config.debug;
 
-    let storage = EmbeddedProviderStorage::from_paths(paths.clone(), &debug_config)
+    let storage = EmbeddedProviderStorage::from_paths(paths.clone(), &debug_config, None)
         .await
         .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient {
             source: Box::new(err.into()),

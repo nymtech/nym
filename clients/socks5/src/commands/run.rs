@@ -74,6 +74,7 @@ pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn std::error::Error +
         config.storage_paths.common_paths,
         &config.core.base.debug,
         args.key_passphrase.key_passphrase,
+        None,
     )
     .await?;
     let user_agent = nym_bin_common::bin_info!().into();

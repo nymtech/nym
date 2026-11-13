@@ -68,7 +68,8 @@ impl Args {
 }
 
 pub async fn execute(args: Args) -> anyhow::Result<()> {
-    let credentials_store = initialise_persistent_storage(args.credentials_store.clone()).await;
+    let credentials_store =
+        initialise_persistent_storage(args.credentials_store.clone(), None).await;
 
     let version = args.version;
     let standalone = args.standalone;

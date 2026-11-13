@@ -65,7 +65,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
         "using credentials store at '{}'",
         credentials_store.display()
     );
-    let credentials_store = initialise_persistent_storage(credentials_store).await;
+    let credentials_store = initialise_persistent_storage(credentials_store, None).await;
 
     let version = args.version;
     let raw_key = args.key_data()?;

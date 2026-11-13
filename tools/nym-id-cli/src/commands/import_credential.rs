@@ -32,7 +32,8 @@ pub(crate) struct Args {
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
     let credentials_store =
-        nym_credential_storage::initialise_persistent_storage(args.credentials_store_path).await;
+        nym_credential_storage::initialise_persistent_storage(args.credentials_store_path, None)
+            .await;
 
     let raw_credential = match args.credential_data {
         Some(data) => data,

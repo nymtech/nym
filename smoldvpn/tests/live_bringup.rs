@@ -58,6 +58,7 @@ async fn new_session(data_dir: &str) -> Option<Session> {
             mnemonic: mnemonic()?,
             network: NymNetworkDetails::new_from_env(),
             credential_store_path: Some(format!("{data_dir}/creds.db").into()),
+            database_key: None,
             data_path: data_dir.into(),
             dvpn_directory_url: None,
             automatic_topups: None,

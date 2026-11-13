@@ -115,6 +115,7 @@ impl SocketClient {
             self.config.storage_paths.common_paths.clone(),
             &self.config.base.debug,
             self.key_passphrase.clone(),
+            None,
         )
         .await?)
     }

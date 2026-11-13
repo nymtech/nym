@@ -749,7 +749,7 @@ pub async fn initialise(
 
     // insert all required information into the gateways store
     // (I hate that we have to do it, but that's currently the simplest thing to do)
-    let storage = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    let storage = setup_fs_gateways_storage(&paths.gateway_registrations, None).await?;
     store_gateway_details(&storage, &gateway_details).await?;
     set_active_gateway(&storage, &gateway_details.gateway_id().to_base58_string()).await?;
 

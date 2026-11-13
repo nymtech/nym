@@ -10,7 +10,7 @@ use nym_client_core::cli_helpers::client_import_expiration_date_signatures::{
 pub(crate) async fn execute(
     args: CommonClientImportExpirationDateSignaturesArgs,
 ) -> Result<(), NetworkRequesterError> {
-    import_expiration_date_signatures::<CliNetworkRequesterClient, _>(args).await?;
+    import_expiration_date_signatures::<CliNetworkRequesterClient, _>(args, None).await?;
     println!("successfully imported expiration date signatures!");
     Ok(())
 }

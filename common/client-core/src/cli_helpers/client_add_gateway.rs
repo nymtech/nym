@@ -19,45 +19,41 @@ use nym_validator_client::UserAgent;
 use std::path::PathBuf;
 use tracing::info;
 
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[derive(Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct CommonClientAddGatewayArgs {
     /// Id of client we want to add gateway for.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub id: String,
 
     /// Explicitly specify id of the gateway to register with.
     /// If unspecified, a random gateway will be chosen instead.
-    #[cfg_attr(feature = "cli", clap(long, alias = "gateway"))]
+    #[clap(long, alias = "gateway")]
     pub gateway_id: Option<ed25519::PublicKey>,
 
     /// Specifies whether the client will attempt to enforce tls connection to the desired gateway.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub force_tls_gateway: bool,
 
     /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
     /// uniformly.
-    #[cfg_attr(feature = "cli", clap(long, conflicts_with = "gateway_id"))]
+    #[clap(long, conflicts_with = "gateway_id")]
     pub latency_based_selection: bool,
 
     /// Specify whether this new gateway should be set as the active one
-    #[cfg_attr(feature = "cli", clap(long, default_value_t = true))]
+    #[clap(long, default_value_t = true)]
     pub set_active: bool,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[cfg_attr(
-        feature = "cli",
-        clap(
-            long,
-            alias = "api_validators",
-            value_delimiter = ',',
-            group = "network"
-        )
+    #[clap(
+        long,
+        alias = "api_validators",
+        value_delimiter = ',',
+        group = "network"
     )]
     pub nym_apis: Option<Vec<url::Url>>,
 
     /// Path to .json file containing custom network specification.
-    #[cfg_attr(feature = "cli", clap(long, group = "network", hide = true))]
+    #[clap(long, group = "network", hide = true)]
     pub custom_mixnet: Option<PathBuf>,
 }
 
@@ -65,6 +61,7 @@ pub async fn add_gateway<C, A>(
     args: A,
     user_agent: Option<UserAgent>,
     key_passphrase: Option<Passphrase>,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
 ) -> Result<GatewayInfo, C::Error>
 where
     A: AsRef<CommonClientAddGatewayArgs>,
@@ -78,7 +75,8 @@ where
     let paths = config.common_paths();
 
     let key_store = OnDiskKeys::with_passphrase(paths.keys.clone(), key_passphrase);
-    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    let details_store =
+        setup_fs_gateways_storage(&paths.gateway_registrations, database_key).await?;
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = common_args.gateway_id;

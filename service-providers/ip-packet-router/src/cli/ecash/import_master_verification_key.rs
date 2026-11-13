@@ -10,7 +10,7 @@ use nym_ip_packet_router::error::IpPacketRouterError;
 pub(crate) async fn execute(
     args: CommonClientImportMasterVerificationKeyArgs,
 ) -> Result<(), IpPacketRouterError> {
-    import_master_verification_key::<CliIpPacketRouterClient, _>(args).await?;
+    import_master_verification_key::<CliIpPacketRouterClient, _>(args, None).await?;
     println!("successfully imported master verification key!");
     Ok(())
 }

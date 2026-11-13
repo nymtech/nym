@@ -6,11 +6,23 @@ use crate::error::ClientError;
 use nym_client_core::cli_helpers::client_import_coin_index_signatures::{
     import_coin_index_signatures, CommonClientImportCoinIndexSignaturesArgs,
 };
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 
-pub(crate) async fn execute(
-    args: CommonClientImportCoinIndexSignaturesArgs,
-) -> Result<(), ClientError> {
-    import_coin_index_signatures::<CliNativeClient, _>(args).await?;
+#[derive(clap::Args)]
+pub(crate) struct Args {
+    #[command(flatten)]
+    common_args: CommonClientImportCoinIndexSignaturesArgs,
+
+    #[command(flatten)]
+    database_key: DatabaseKeyArgs,
+}
+
+pub(crate) async fn execute(args: Args) -> Result<(), ClientError> {
+    import_coin_index_signatures::<CliNativeClient, _>(
+        args.common_args,
+        args.database_key.database_key.as_ref(),
+    )
+    .await?;
     println!("successfully imported coin index signatures!");
     Ok(())
 }

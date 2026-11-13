@@ -58,4 +58,10 @@ pub enum StorageError {
     FailedToCreateStorage {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+
+    #[error("failed to set up database encryption: {source}")]
+    EncryptionError {
+        #[from]
+        source: nym_sqlcipher::SqlCipherError,
+    },
 }

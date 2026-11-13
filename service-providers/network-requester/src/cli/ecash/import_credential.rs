@@ -8,7 +8,7 @@ use nym_client_core::cli_helpers::client_import_credential::{
 };
 
 pub async fn execute(args: CommonClientImportTicketBookArgs) -> Result<(), NetworkRequesterError> {
-    import_credential::<CliNetworkRequesterClient, _>(args).await?;
+    import_credential::<CliNetworkRequesterClient, _>(args, None).await?;
     println!("successfully imported credential!");
     Ok(())
 }

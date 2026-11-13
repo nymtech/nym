@@ -10,7 +10,7 @@ use nym_ip_packet_router::error::IpPacketRouterError;
 pub(crate) async fn execute(
     args: CommonClientImportExpirationDateSignaturesArgs,
 ) -> Result<(), IpPacketRouterError> {
-    import_expiration_date_signatures::<CliIpPacketRouterClient, _>(args).await?;
+    import_expiration_date_signatures::<CliIpPacketRouterClient, _>(args, None).await?;
     println!("successfully imported expiration date signatures!");
     Ok(())
 }

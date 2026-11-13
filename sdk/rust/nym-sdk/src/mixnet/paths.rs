@@ -51,6 +51,10 @@ pub struct StoragePaths {
 
     /// Passphrase protecting the private keys; plaintext keys get encrypted on first load with it.
     key_passphrase: Option<Passphrase>,
+
+    /// Raw SQLCipher key encrypting the credential, reply SURB and gateway registration databases;
+    /// plaintext databases get encrypted on first open with it.
+    database_key: Option<nym_sqlcipher::DatabaseKey>,
 }
 
 impl StoragePaths {
@@ -78,6 +82,7 @@ impl StoragePaths {
             reply_surb_database_path: dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
             gateway_registrations: dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
             key_passphrase: None,
+            database_key: None,
         })
     }
 
@@ -87,6 +92,19 @@ impl StoragePaths {
     #[must_use]
     pub fn with_key_passphrase(mut self, key_passphrase: Option<Passphrase>) -> Self {
         self.key_passphrase = key_passphrase;
+        self
+    }
+
+    /// Encrypts the credential, reply SURB and gateway registration databases with SQLCipher,
+    /// using the raw 256-bit `key` as is, without passphrase key derivation. Databases still in
+    /// plaintext are encrypted the first time they are opened. The same key must be provided on
+    /// every run.
+    ///
+    /// SQLCipher has to be linked in place of SQLite, e.g. with the `sqlcipher` feature.
+    /// Otherwise opening the databases fails, without creating or changing them.
+    #[must_use]
+    pub fn with_database_key(mut self, key: Option<nym_sqlcipher::DatabaseKey>) -> Self {
+        self.database_key = key;
         self
     }
 
@@ -116,11 +134,11 @@ impl StoragePaths {
         ))
     }
 
-    /// Instantiates default ecash credential storage.
+    /// Instantiates default ecash credential storage, encrypted if a database key is set.
     pub async fn persistent_credential_storage(
         &self,
     ) -> Result<PersistentCredentialStorage, Error> {
-        PersistentCredentialStorage::init(&self.credential_database_path)
+        PersistentCredentialStorage::new(&self.credential_database_path, self.database_key())
             .await
             .map_err(|source| Error::CredentialStorageError {
                 source: Box::new(source),
@@ -132,16 +150,22 @@ impl StoragePaths {
         self.persistent_fs_reply_backend(&Default::default()).await
     }
 
-    /// Instantiates default reply surb storage backend with the provided metadata config.
+    /// Instantiates default reply surb storage backend with the provided metadata config,
+    /// encrypted if a database key is set.
     pub async fn persistent_fs_reply_backend(
         &self,
         surb_config: &config::ReplySurbs,
     ) -> Result<fs_backend::Backend, Error> {
         Ok(non_wasm_helpers::setup_fs_reply_surb_backend(
             &self.reply_surb_database_path,
+            self.database_key(),
             surb_config,
         )
         .await?)
+    }
+
+    fn database_key(&self) -> Option<&nym_sqlcipher::DatabaseKey> {
+        self.database_key.as_ref()
     }
 
     /// Instantiates default persistent key storage.
@@ -149,8 +173,13 @@ impl StoragePaths {
         OnDiskKeys::with_passphrase(self.client_keys_paths(), self.key_passphrase.clone())
     }
 
+    /// Instantiates gateway registrations storage, encrypted if a database key is set.
     pub async fn on_disk_gateway_details_storage(&self) -> Result<OnDiskGatewaysDetails, Error> {
-        Ok(non_wasm_helpers::setup_fs_gateways_storage(&self.gateway_registrations).await?)
+        Ok(non_wasm_helpers::setup_fs_gateways_storage(
+            &self.gateway_registrations,
+            self.database_key(),
+        )
+        .await?)
     }
 
     pub fn credential_database_paths(&self) -> Vec<PathBuf> {
@@ -220,6 +249,7 @@ impl From<CommonClientPaths> for StoragePaths {
             reply_surb_database_path: value.reply_surb_database,
             gateway_registrations: value.gateway_registrations,
             key_passphrase: None,
+            database_key: None,
         }
     }
 }

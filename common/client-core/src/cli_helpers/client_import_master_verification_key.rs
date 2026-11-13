@@ -5,40 +5,38 @@ use crate::cli_helpers::{CliClient, CliClientConfig};
 use std::fs;
 use std::path::PathBuf;
 
-#[cfg(feature = "cli")]
 fn parse_encoded_key_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
     bs58::decode(raw).into_vec()
 }
 
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[cfg_attr(feature = "cli",
-    clap(
-        group(clap::ArgGroup::new("key_data_group").required(true)),
-    ))
-]
+#[derive(clap::Args)]
+#[clap(group(clap::ArgGroup::new("key_data_group").required(true)))]
 pub struct CommonClientImportMasterVerificationKeyArgs {
     /// Id of client that is going to import the key
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub id: String,
 
     /// Config file of the client that is supposed to use the key.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub(crate) client_config: PathBuf,
 
     /// Explicitly provide the encoded key data (as base58)
-    #[cfg_attr(feature = "cli", clap(long, group = "key_data_group", value_parser = parse_encoded_key_data))]
+    #[clap(long, group = "key_data_group", value_parser = parse_encoded_key_data)]
     pub(crate) key_data: Option<Vec<u8>>,
 
     /// Specifies the path to file containing binary key data
-    #[cfg_attr(feature = "cli", clap(long, group = "key_data_group"))]
+    #[clap(long, group = "key_data_group")]
     pub(crate) key_path: Option<PathBuf>,
 
     // currently hidden as there exists only a single serialization standard
-    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    #[clap(long, hide = true)]
     pub(crate) version: Option<u8>,
 }
 
-pub async fn import_master_verification_key<C, A>(args: A) -> Result<(), C::Error>
+pub async fn import_master_verification_key<C, A>(
+    args: A,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
+) -> Result<(), C::Error>
 where
     A: Into<CommonClientImportMasterVerificationKeyArgs>,
     C: CliClient,
@@ -50,8 +48,11 @@ where
     let config = C::try_load_current_config(id).await?;
     let paths = config.common_paths();
 
-    let credentials_store =
-        nym_credential_storage::initialise_persistent_storage(&paths.credentials_database).await;
+    let credentials_store = nym_credential_storage::initialise_persistent_storage(
+        &paths.credentials_database,
+        database_key,
+    )
+    .await;
 
     let version = common_args.version;
     let raw_key = match common_args.key_data {

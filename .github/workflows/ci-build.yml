@@ -78,6 +78,45 @@ jobs:
           (Get-Content Cargo.toml) -replace '\[profile.dev\]', "`$&`ndebug = false" | Set-Content Cargo.toml
           git diff
 
+      # nym-sqlcipher's tests build the bundled SQLCipher, which needs OpenSSL on Windows
+      - name: Install OpenSSL (win)
+        if: contains(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Find-OpenSsl {
+            @("$env:ProgramFiles\OpenSSL-Win64", "$env:ProgramFiles\OpenSSL") |
+              Where-Object { Test-Path "$_\include\openssl" } |
+              Select-Object -First 1
+          }
+          # the runner is persistent, so OpenSSL may be installed by an earlier run
+          $dir = Find-OpenSsl
+          if (-not $dir) {
+            # winget's manifest can point at installers Shining Light has already removed, so
+            # pick the current OpenSSL 3.5 LTS installer from their published list instead
+            $hashes = Invoke-RestMethod https://slproweb.com/download/win32_openssl_hashes.json
+            $msi = $hashes.files.PSObject.Properties.Value |
+              Where-Object {
+                $_.installer -eq 'msi' -and $_.arch -eq 'INTEL' -and $_.bits -eq 64 -and
+                -not $_.light -and $_.basever -like '3.5.*'
+              } |
+              Sort-Object { [version]$_.basever } |
+              Select-Object -Last 1
+            if (-not $msi) { throw "no OpenSSL 3.5 installer found" }
+
+            $installer = Join-Path $env:RUNNER_TEMP (Split-Path $msi.url -Leaf)
+            Invoke-WebRequest $msi.url -OutFile $installer
+            $sha256 = (Get-FileHash $installer -Algorithm SHA256).Hash
+            if ($sha256 -ne $msi.sha256) { throw "checksum mismatch for $($msi.url)" }
+
+            $install = Start-Process msiexec.exe -Wait -PassThru `
+              -ArgumentList "/i `"$installer`" /qn /norestart"
+            if ($install.ExitCode -notin 0, 3010) { throw "msiexec failed with exit code $($install.ExitCode)" }
+            $dir = Find-OpenSsl
+          }
+          if (-not $dir) { throw "OpenSSL headers not found after installing" }
+          "OPENSSL_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:

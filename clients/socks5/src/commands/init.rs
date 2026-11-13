@@ -14,6 +14,7 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_init::{
     initialise_client, CommonClientInitArgs, InitResultsWithConfig, InitialisableClient,
 };
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
@@ -50,6 +51,9 @@ pub(crate) struct Init {
 
     #[command(flatten)]
     key_passphrase: KeyPassphraseArgs,
+
+    #[command(flatten)]
+    database_key: DatabaseKeyArgs,
 
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
@@ -136,7 +140,14 @@ pub(crate) async fn execute(mut args: Init) -> Result<(), Socks5ClientError> {
     let user_agent = nym_bin_common::bin_info!().into();
     let output = args.output;
     let key_passphrase = args.key_passphrase.key_passphrase.take();
-    let res = initialise_client::<CliSocks5Client>(args, Some(user_agent), key_passphrase).await?;
+    let database_key = args.database_key.database_key.take();
+    let res = initialise_client::<CliSocks5Client>(
+        args,
+        Some(user_agent),
+        key_passphrase,
+        database_key.as_ref(),
+    )
+    .await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

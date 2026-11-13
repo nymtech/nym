@@ -9,23 +9,26 @@ use crate::{
 };
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd};
-use std::{io, path::Path, time::Duration};
+use std::{io, path::Path};
 use time::OffsetDateTime;
 use tracing::{error, info, trace};
 use url::Url;
 
-/// Maximum rename retry attempts when the database file is temporarily locked.
-const ARCHIVE_MAX_RETRY_ATTEMPTS: u8 = 15;
+/// Maximum rename attempts when the database file is temporarily locked.
+#[cfg(windows)]
+const ARCHIVE_MAX_RENAME_ATTEMPTS: u8 = 15;
 
-/// Delay between archive rename retry attempts.
-const ARCHIVE_RETRY_DELAY: Duration = Duration::from_millis(200);
+/// Delay between archive rename attempts.
+#[cfg(windows)]
+const ARCHIVE_RENAME_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(200);
 
-async fn setup_fresh_backend<P: AsRef<Path>>(
-    db_path: P,
+async fn setup_fresh_backend(
+    db_path: &Path,
+    db_key: Option<&nym_sqlcipher::DatabaseKey>,
     surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
     info!("Creating fresh surb database");
-    let mut storage_backend = match fs_backend::Backend::init(db_path).await {
+    let mut storage_backend = match fs_backend::Backend::init(db_path, db_key).await {
         Ok(backend) => backend,
         Err(err) => {
             error!(
@@ -78,62 +81,51 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
         };
     let renamed = db_path.with_extension(new_extension);
 
-    // On Windows, sqlx may release its OS file handles asynchronously after
-    // pool.close() returns, briefly keeping the file locked
-    // (ERROR_SHARING_VIOLATION, os error 32).  Retry with a short delay to
-    // give the OS time to flush the remaining handles.
-    for attempt in 0..ARCHIVE_MAX_RETRY_ATTEMPTS {
-        match tokio::fs::rename(db_path, &renamed).await {
-            Ok(()) => return Ok(()),
-            Err(e) if is_file_locked_error(&e) && (attempt + 1) < ARCHIVE_MAX_RETRY_ATTEMPTS => {
+    #[cfg(windows)]
+    let result = rename_with_retry(db_path, &renamed).await;
+    #[cfg(not(windows))]
+    let result = tokio::fs::rename(db_path, &renamed).await;
+
+    result.inspect_err(|err| {
+        error!(
+            "Failed to rename corrupt database file {} to {}: {err}",
+            db_path.display(),
+            renamed.display()
+        )
+    })
+}
+
+/// Renames `from` to `to`, retrying while the file is locked.
+///
+/// While sqlx 0.9 should close database file upon `sqlite_pool.close().await`,
+/// it's possible that some of code paths do not wait for pool to close
+/// before continuing execution.
+#[cfg(windows)]
+async fn rename_with_retry(from: &Path, to: &Path) -> io::Result<()> {
+    for attempt in 1..ARCHIVE_MAX_RENAME_ATTEMPTS {
+        match tokio::fs::rename(from, to).await {
+            // ERROR_SHARING_VIOLATION = 32, ERROR_LOCK_VIOLATION = 33
+            Err(err) if matches!(err.raw_os_error(), Some(32 | 33)) => {
                 trace!(
-                    "Database file is temporarily locked, retrying archive \
-                     (attempt {}/{}): {e}",
-                    attempt + 1,
-                    ARCHIVE_MAX_RETRY_ATTEMPTS
+                    "Database file is temporarily locked, retrying rename \
+                     (attempt {attempt}/{ARCHIVE_MAX_RENAME_ATTEMPTS}): {err}"
                 );
-                tokio::time::sleep(ARCHIVE_RETRY_DELAY).await;
+                tokio::time::sleep(ARCHIVE_RENAME_RETRY_DELAY).await;
             }
-            Err(e) => {
-                error!(
-                    "Failed to rename corrupt database file: {} to {}",
-                    db_path.display(),
-                    renamed.display()
-                );
-                return Err(e);
-            }
+            result => return result,
         }
     }
 
-    // Reached only when every attempt was blocked by a file lock.
-    error!(
-        "Failed to rename corrupt database file after {} attempts: {} to {}",
-        ARCHIVE_MAX_RETRY_ATTEMPTS,
-        db_path.display(),
-        renamed.display()
-    );
-    Err(io::Error::other(
-        "corrupt database archive blocked by persistent file lock",
-    ))
+    tokio::fs::rename(from, to).await
 }
 
-/// Returns `true` when the IO error indicates a temporary file lock held by another handle
-/// within the same process.  Only meaningful on Windows; always `false` elsewhere.
-fn is_file_locked_error(e: &io::Error) -> bool {
-    #[cfg(windows)]
-    {
-        // ERROR_SHARING_VIOLATION = 32, ERROR_LOCK_VIOLATION = 33
-        matches!(e.raw_os_error(), Some(32) | Some(33))
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = e;
-        false
-    }
-}
-
+/// Sets up the reply SURB database: loads the existing one, or creates a fresh one.
+///
+/// With `db_key`, the database is encrypted with SQLCipher using the raw 256-bit key, and an
+/// existing plaintext database is encrypted in place first.
 pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     db_path: P,
+    db_key: Option<&nym_sqlcipher::DatabaseKey>,
     surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
     // if the database file doesnt exist, initialise fresh storage, otherwise attempt to load
@@ -141,26 +133,50 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     let db_path = db_path.as_ref();
     if db_path.exists() {
         info!("Loading existing surb database");
-        match fs_backend::Backend::try_load(db_path).await {
-            Ok(backend) => Ok(backend),
-            Err(err) => {
-                error!(
-                    "setup_fs_reply_surb_backend: Failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future"
-                );
-                archive_corrupted_database(db_path).await?;
-                setup_fresh_backend(db_path, surb_config).await
-            }
+        match fs_backend::Backend::try_load(db_path, db_key).await {
+            Ok(backend) => return Ok(backend),
+            Err(err) => handle_load_failure(db_path, err).await?,
         }
-    } else {
-        setup_fresh_backend(db_path, surb_config).await
+    }
+
+    setup_fresh_backend(db_path, db_key, surb_config).await
+}
+
+/// Handles failing to load the existing surb database at `db_path`: archives it so a fresh one
+/// can be created in its place, unless the failure is down to its encryption, e.g. a wrong key,
+/// which a fresh database wouldn't fix and archiving would hide.
+async fn handle_load_failure(
+    db_path: &Path,
+    err: fs_backend::StorageError,
+) -> Result<(), ClientCoreError> {
+    match err {
+        // a fresh database wouldn't fix a wrong key, and archiving would hide the data
+        fs_backend::StorageError::EncryptionError { .. } => {
+            error!("Failed to open the encrypted surb database: {err}");
+            Err(ClientCoreError::SurbStorageError {
+                source: Box::new(err),
+            })
+        }
+        _ => {
+            error!(
+                "setup_fs_reply_surb_backend: Failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future"
+            );
+            archive_corrupted_database(db_path).await?;
+            Ok(())
+        }
     }
 }
 
+/// Sets up the gateway registrations database.
+///
+/// With `db_key`, the database is encrypted with SQLCipher using the raw 256-bit key, and an
+/// existing plaintext database is encrypted in place first.
 pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
     db_path: P,
+    db_key: Option<&nym_sqlcipher::DatabaseKey>,
 ) -> Result<OnDiskGatewaysDetails, ClientCoreError> {
     trace!("setting up gateways details storage");
-    OnDiskGatewaysDetails::init(db_path)
+    OnDiskGatewaysDetails::init(db_path, db_key)
         .await
         .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
             source: Box::new(source),

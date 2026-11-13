@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{Args, Subcommand};
-use nym_client_core::cli_helpers::client_import_coin_index_signatures::CommonClientImportCoinIndexSignaturesArgs;
-use nym_client_core::cli_helpers::client_import_credential::CommonClientImportTicketBookArgs;
-use nym_client_core::cli_helpers::client_import_expiration_date_signatures::CommonClientImportExpirationDateSignaturesArgs;
-use nym_client_core::cli_helpers::client_import_master_verification_key::CommonClientImportMasterVerificationKeyArgs;
 use std::error::Error;
 
 pub(crate) mod import_coin_index_signatures;
@@ -46,14 +42,14 @@ pub enum EcashCommands {
     ShowTicketBooks(show_ticketbooks::Args),
 
     /// Import a pre-generated ticketbook
-    ImportTicketBook(CommonClientImportTicketBookArgs),
+    ImportTicketBook(import_credential::Args),
 
     /// Import coin index signatures needed for ticketbooks
-    ImportCoinIndexSignatures(CommonClientImportCoinIndexSignaturesArgs),
+    ImportCoinIndexSignatures(import_coin_index_signatures::Args),
 
     /// Import expiration date signatures needed for ticketbooks
-    ImportExpirationDateSignatures(CommonClientImportExpirationDateSignaturesArgs),
+    ImportExpirationDateSignatures(import_expiration_date_signatures::Args),
 
     /// Import master verification key needed for ticketbooks
-    ImportMasterVerificationKey(CommonClientImportMasterVerificationKeyArgs),
+    ImportMasterVerificationKey(import_master_verification_key::Args),
 }

@@ -98,6 +98,9 @@ pub use native_client::MixnetClientSender;
 /// Passphrase for [`StoragePaths::with_key_passphrase`].
 #[cfg(feature = "fs-storage")]
 pub use nym_client_core::client::key_manager::persistence::Passphrase;
+/// Database key for [`StoragePaths::with_database_key`].
+#[cfg(feature = "fs-storage")]
+pub use nym_sqlcipher::DatabaseKey;
 #[cfg(feature = "fs-storage")]
 pub use paths::StoragePaths;
 pub use sink::{MixnetMessageSink, MixnetMessageSinkTranslator};

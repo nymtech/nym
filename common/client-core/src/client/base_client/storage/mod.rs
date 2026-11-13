@@ -146,24 +146,35 @@ impl OnDiskPersistent {
         }
     }
 
+    /// Opens all client stores under `paths`.
+    ///
+    /// With `database_key`, the credential, reply SURB and gateway registration databases are
+    /// encrypted with SQLCipher using the raw 256-bit key, and existing plaintext databases are
+    /// encrypted in place first.
     pub async fn from_paths(
         paths: CommonClientPaths,
         debug_config: &config::DebugConfig,
         key_passphrase: Option<Passphrase>,
+        database_key: Option<&nym_sqlcipher::DatabaseKey>,
     ) -> Result<Self, ClientCoreError> {
         let key_store = OnDiskKeys::with_passphrase(paths.keys, key_passphrase);
 
         let reply_store = non_wasm_helpers::setup_fs_reply_surb_backend(
             paths.reply_surb_database,
+            database_key,
             &debug_config.reply_surbs,
         )
         .await?;
 
-        let credential_store =
-            nym_credential_storage::initialise_persistent_storage(paths.credentials_database).await;
+        let credential_store = nym_credential_storage::initialise_persistent_storage(
+            paths.credentials_database,
+            database_key,
+        )
+        .await;
 
         let gateway_details_store =
-            non_wasm_helpers::setup_fs_gateways_storage(paths.gateway_registrations).await?;
+            non_wasm_helpers::setup_fs_gateways_storage(paths.gateway_registrations, database_key)
+                .await?;
 
         Ok(OnDiskPersistent {
             key_store,

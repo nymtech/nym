@@ -19,9 +19,15 @@ pub struct OnDiskGatewaysDetails {
 }
 
 impl OnDiskGatewaysDetails {
-    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+    /// Opens the gateway registrations database at `database_path`. With `key`, it's encrypted
+    /// with SQLCipher using the raw 256-bit key, and an existing plaintext database is encrypted in
+    /// place first.
+    pub async fn init<P: AsRef<Path>>(
+        database_path: P,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
+    ) -> Result<Self, StorageError> {
         Ok(OnDiskGatewaysDetails {
-            manager: StorageManager::init(database_path).await?,
+            manager: StorageManager::init(database_path, key).await?,
         })
     }
 }

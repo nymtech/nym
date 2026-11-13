@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::ArgGroup;
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_id::import_standalone_ticketbook;
 use std::fs;
 use std::path::PathBuf;
@@ -28,11 +29,17 @@ pub(crate) struct Args {
     // currently hidden as there exists only a single serialization standard
     #[clap(long, hide = true)]
     pub(crate) version: Option<u8>,
+
+    #[clap(flatten)]
+    pub(crate) database_key: DatabaseKeyArgs,
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
-    let credentials_store =
-        nym_credential_storage::initialise_persistent_storage(args.credentials_store_path).await;
+    let credentials_store = nym_credential_storage::initialise_persistent_storage(
+        args.credentials_store_path,
+        args.database_key.database_key.as_ref(),
+    )
+    .await;
 
     let raw_credential = match args.credential_data {
         Some(data) => data,

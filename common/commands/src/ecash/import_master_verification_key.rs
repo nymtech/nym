@@ -5,6 +5,7 @@ use crate::utils::CommonConfigsWrapper;
 use anyhow::bail;
 use clap::ArgGroup;
 use clap::Parser;
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_id::import_credential::import_master_verification_key;
 use std::fs;
@@ -34,6 +35,9 @@ pub struct Args {
     // currently hidden as there exists only a single serialization standard
     #[clap(long, hide = true)]
     pub(crate) version: Option<u8>,
+
+    #[clap(flatten)]
+    pub(crate) database_key: DatabaseKeyArgs,
 }
 
 impl Args {
@@ -65,7 +69,9 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
         "using credentials store at '{}'",
         credentials_store.display()
     );
-    let credentials_store = initialise_persistent_storage(credentials_store).await;
+    let credentials_store =
+        initialise_persistent_storage(credentials_store, args.database_key.database_key.as_ref())
+            .await;
 
     let version = args.version;
     let raw_key = args.key_data()?;

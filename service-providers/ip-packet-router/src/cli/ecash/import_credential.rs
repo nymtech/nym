@@ -8,7 +8,7 @@ use nym_client_core::cli_helpers::client_import_credential::{
 use nym_ip_packet_router::error::IpPacketRouterError;
 
 pub async fn execute(args: CommonClientImportTicketBookArgs) -> Result<(), IpPacketRouterError> {
-    import_credential::<CliIpPacketRouterClient, _>(args).await?;
+    import_credential::<CliIpPacketRouterClient, _>(args, None).await?;
     println!("successfully imported credential!");
     Ok(())
 }

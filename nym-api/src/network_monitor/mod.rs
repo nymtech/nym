@@ -115,6 +115,7 @@ impl NetworkMonitorBuilder {
             BandwidthController::new(
                 nym_credential_storage::initialise_persistent_storage(
                     &self.config.storage_paths.credentials_database_path,
+                    None,
                 )
                 .await,
             )

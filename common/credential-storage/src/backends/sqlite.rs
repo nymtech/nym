@@ -29,7 +29,7 @@ impl SqliteEcashTicketbookManager {
         self.connection_pool.close().await
     }
 
-    pub(crate) async fn cleanup_expired(&self, deadline: Date) -> Result<(), sqlx::Error> {
+    pub(crate) async fn cleanup_expired(&self, deadline: Date) -> sqlx::Result<()> {
         sqlx::query!(
             "DELETE FROM ecash_ticketbook WHERE expiration_date <= ?",
             deadline
@@ -40,9 +40,7 @@ impl SqliteEcashTicketbookManager {
     }
 
     /// Starts a write (IMMEDIATE) transaction, to prevent issue when upgrading from a read one to a write one
-    pub(crate) async fn begin_storage_write_tx(
-        &self,
-    ) -> Result<Transaction<'_, Sqlite>, sqlx::Error> {
+    pub(crate) async fn begin_storage_write_tx(&self) -> sqlx::Result<Transaction<'_, Sqlite>> {
         self.connection_pool.begin_with("BEGIN IMMEDIATE").await
     }
 
@@ -56,7 +54,7 @@ impl SqliteEcashTicketbookManager {
         epoch_id: u32,
         total_tickets: u32,
         used_tickets: u32,
-    ) -> Result<(), sqlx::Error> {
+    ) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 INSERT INTO ecash_ticketbook
@@ -75,7 +73,7 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
-    pub(crate) async fn contains_ticketbook_data(&self, data: &[u8]) -> Result<bool, sqlx::Error> {
+    pub(crate) async fn contains_ticketbook_data(&self, data: &[u8]) -> sqlx::Result<bool> {
         let exists = sqlx::query(
             r#"
                 SELECT 1
@@ -94,7 +92,7 @@ impl SqliteEcashTicketbookManager {
 
     pub(crate) async fn get_ticketbooks_info(
         &self,
-    ) -> Result<Vec<BasicTicketbookInformation>, sqlx::Error> {
+    ) -> sqlx::Result<Vec<BasicTicketbookInformation>> {
         sqlx::query_as(
             r#"
                     SELECT id, expiration_date, ticketbook_type, epoch_id, total_tickets, used_tickets
@@ -110,7 +108,7 @@ impl SqliteEcashTicketbookManager {
         ticketbook_id: i64,
         reverted_spent: u32,
         expected_current_total_spent: u32,
-    ) -> Result<bool, sqlx::Error> {
+    ) -> sqlx::Result<bool> {
         // the 'AND' clause will ensure this will only be executed if nobody else interacted with the row
         let affected = sqlx::query!(
             r#"
@@ -132,7 +130,7 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn get_master_verification_key(
         &self,
         epoch_id: i64,
-    ) -> Result<Option<RawVerificationKey>, sqlx::Error> {
+    ) -> sqlx::Result<Option<RawVerificationKey>> {
         sqlx::query_as!(
             RawVerificationKey,
             r#"
@@ -150,7 +148,7 @@ impl SqliteEcashTicketbookManager {
         serialisation_revision: u8,
         epoch_id: i64,
         data: &[u8],
-    ) -> Result<(), sqlx::Error> {
+    ) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 INSERT OR IGNORE INTO master_verification_key(epoch_id, serialised_key, serialization_revision) VALUES (?, ?, ?);
@@ -175,7 +173,7 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn get_coin_index_signatures(
         &self,
         epoch_id: i64,
-    ) -> Result<Option<RawCoinIndexSignatures>, sqlx::Error> {
+    ) -> sqlx::Result<Option<RawCoinIndexSignatures>> {
         sqlx::query_as!(
             RawCoinIndexSignatures,
             r#"
@@ -193,7 +191,7 @@ impl SqliteEcashTicketbookManager {
         serialisation_revision: u8,
         epoch_id: i64,
         data: &[u8],
-    ) -> Result<(), sqlx::Error> {
+    ) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 INSERT OR IGNORE INTO coin_indices_signatures(epoch_id, serialised_signatures, serialization_revision) VALUES (?, ?, ?);
@@ -219,7 +217,7 @@ impl SqliteEcashTicketbookManager {
         &self,
         expiration_date: Date,
         epoch_id: i64,
-    ) -> Result<Option<RawExpirationDateSignatures>, sqlx::Error> {
+    ) -> sqlx::Result<Option<RawExpirationDateSignatures>> {
         sqlx::query_as!(
             RawExpirationDateSignatures,
             r#"
@@ -240,7 +238,7 @@ impl SqliteEcashTicketbookManager {
         epoch_id: i64,
         expiration_date: Date,
         data: &[u8],
-    ) -> Result<(), sqlx::Error> {
+    ) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 INSERT OR IGNORE INTO expiration_date_signatures(expiration_date, epoch_id, serialised_signatures, serialization_revision)
@@ -264,9 +262,7 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
-    pub(crate) async fn get_available_global_data(
-        &self,
-    ) -> Result<AvailableGlobalData, sqlx::Error> {
+    pub(crate) async fn get_available_global_data(&self) -> sqlx::Result<AvailableGlobalData> {
         let master_verification_key_epochs = sqlx::query_scalar!(
             r#"SELECT epoch_id as "epoch_id: i64" FROM master_verification_key"#
         )
@@ -304,7 +300,7 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn get_emergency_credential(
         &self,
         typ: &str,
-    ) -> Result<Option<EmergencyCredential>, sqlx::Error> {
+    ) -> sqlx::Result<Option<EmergencyCredential>> {
         sqlx::query_as(
             r#"
                 SELECT *
@@ -323,7 +319,7 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn insert_emergency_credential(
         &self,
         credential: &EmergencyCredentialContent,
-    ) -> Result<(), sqlx::Error> {
+    ) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 INSERT INTO emergency_credential
@@ -340,7 +336,7 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
-    pub(crate) async fn remove_emergency_credential(&self, id: i64) -> Result<(), sqlx::Error> {
+    pub(crate) async fn remove_emergency_credential(&self, id: i64) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 DELETE FROM emergency_credential
@@ -353,10 +349,7 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
-    pub(crate) async fn remove_emergency_credentials_of_type(
-        &self,
-        typ: &str,
-    ) -> Result<(), sqlx::Error> {
+    pub(crate) async fn remove_emergency_credentials_of_type(&self, typ: &str) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 DELETE FROM emergency_credential
@@ -369,14 +362,14 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
-    pub(crate) async fn clear_ticketbooks(&self) -> Result<(), sqlx::Error> {
+    pub(crate) async fn clear_ticketbooks(&self) -> sqlx::Result<()> {
         sqlx::query!("DELETE FROM ecash_ticketbook")
             .execute(&self.connection_pool)
             .await?;
         Ok(())
     }
 
-    pub(crate) async fn clear_emergency_credentials(&self) -> Result<(), sqlx::Error> {
+    pub(crate) async fn clear_emergency_credentials(&self) -> sqlx::Result<()> {
         sqlx::query!("DELETE FROM emergency_credential")
             .execute(&self.connection_pool)
             .await?;
@@ -389,7 +382,7 @@ pub(crate) async fn get_next_unspent_ticketbook<'a, E>(
     ticketbook_type: String,
     deadline: Date,
     tickets: u32,
-) -> Result<Option<StoredIssuedTicketbook>, sqlx::Error>
+) -> sqlx::Result<Option<StoredIssuedTicketbook>>
 where
     E: Executor<'a, Database = Sqlite>,
 {
@@ -415,7 +408,7 @@ pub(crate) async fn increase_used_ticketbook_tickets<'a, E>(
     executor: E,
     ticketbook_id: i64,
     extra_spent: u32,
-) -> Result<(), sqlx::Error>
+) -> sqlx::Result<()>
 where
     E: Executor<'a, Database = Sqlite>,
 {

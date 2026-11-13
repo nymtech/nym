@@ -21,7 +21,6 @@ pub struct AvailableTicketbook {
 }
 
 impl AvailableTicketbook {
-    #[cfg(feature = "cli")]
     fn table_row(&self) -> comfy_table::Row {
         let ecash_today = ecash_today().date();
 
@@ -80,7 +79,6 @@ impl TryFrom<BasicTicketbookInformation> for AvailableTicketbook {
 #[serde(transparent)]
 pub struct AvailableTicketbooks(Vec<AvailableTicketbook>);
 
-#[cfg(feature = "cli")]
 impl std::fmt::Display for AvailableTicketbooks {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut table = comfy_table::Table::new();
@@ -103,15 +101,17 @@ impl std::fmt::Display for AvailableTicketbooks {
     }
 }
 
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[derive(Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct CommonShowTicketbooksArgs {
     /// Id of client that is going to display the ticketbook information
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub id: String,
 }
 
-pub async fn show_ticketbooks<C, A>(args: A) -> Result<AvailableTicketbooks, C::Error>
+pub async fn show_ticketbooks<C, A>(
+    args: A,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
+) -> Result<AvailableTicketbooks, C::Error>
 where
     A: AsRef<CommonShowTicketbooksArgs>,
     C: CliClient,
@@ -122,8 +122,11 @@ where
     let config = C::try_load_current_config(id).await?;
     let paths = config.common_paths();
 
-    let credentials_store =
-        nym_credential_storage::initialise_persistent_storage(&paths.credentials_database).await;
+    let credentials_store = nym_credential_storage::initialise_persistent_storage(
+        &paths.credentials_database,
+        database_key,
+    )
+    .await;
     let ticketbooks = credentials_store
         .get_ticketbooks_info()
         .await

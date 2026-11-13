@@ -6,6 +6,7 @@ use anyhow::{anyhow, bail};
 use clap::Parser;
 use colored::Colorize;
 use comfy_table::Table;
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
@@ -39,6 +40,9 @@ pub struct Args {
     /// Path to the dedicated credential storage database
     #[clap(long, group = "source")]
     pub(crate) credential_storage: Option<PathBuf>,
+
+    #[clap(flatten)]
+    pub(crate) database_key: DatabaseKeyArgs,
 }
 
 pub async fn execute(args: Args) -> anyhow::Result<()> {
@@ -66,7 +70,9 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
     }
     let provider_arr: [u8; 32] = decoded_provider.try_into().unwrap();
 
-    let persistent_storage = initialise_persistent_storage(&credentials_store).await;
+    let persistent_storage =
+        initialise_persistent_storage(&credentials_store, args.database_key.database_key.as_ref())
+            .await;
     let Some(mut next_ticketbook) = persistent_storage
         .get_next_unspent_usable_ticketbook(args.ticketbook_type.to_string(), 0)
         .await?

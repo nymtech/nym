@@ -5,6 +5,7 @@ use crate::commands::CliNativeClient;
 use crate::error::ClientError;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_add_gateway::{add_gateway, CommonClientAddGatewayArgs};
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
 
 #[derive(clap::Args)]
@@ -14,6 +15,9 @@ pub(crate) struct Args {
 
     #[command(flatten)]
     key_passphrase: KeyPassphraseArgs,
+
+    #[command(flatten)]
+    database_key: DatabaseKeyArgs,
 
     #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
@@ -27,10 +31,15 @@ impl AsRef<CommonClientAddGatewayArgs> for Args {
 
 pub(crate) async fn execute(mut args: Args) -> Result<(), ClientError> {
     let user_agent = nym_bin_common::bin_info!().into();
-    let output = args.output;
     let key_passphrase = args.key_passphrase.key_passphrase.take();
-    let res = add_gateway::<CliNativeClient, _>(args, Some(user_agent), key_passphrase).await?;
+    let res = add_gateway::<CliNativeClient, _>(
+        &args,
+        Some(user_agent),
+        key_passphrase,
+        args.database_key.database_key.as_ref(),
+    )
+    .await?;
 
-    println!("{}", output.format(&res));
+    println!("{}", args.output.format(&res));
     Ok(())
 }

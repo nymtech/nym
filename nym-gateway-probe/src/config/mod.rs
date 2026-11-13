@@ -27,7 +27,8 @@ pub struct ProbeConfig {
     ///   wg-lp       - Entry LP + Exit LP (nested forwarding) + WireGuard
     ///   lp-only     - LP registration only (no WireGuard)
     ///   socks5-only - Socks5 network requester test
-    ///   all         - Mixnet, wireguard over authenticator and LP registration
+    ///   bridges-only - Bridge transports via WG forward path (needs mixnet + credentials)
+    ///   all         - Mixnet, wireguard over authenticator, LP registration and bridge transports
     ///
     #[arg(long, default_value_t = TestMode::default(), verbatim_doc_comment)]
     pub test_mode: TestMode,

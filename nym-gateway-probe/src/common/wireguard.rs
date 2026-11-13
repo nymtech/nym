@@ -25,6 +25,7 @@ fn safe_ratio(received: u16, sent: u16) -> f32 {
 /// WireGuard tunnel configuration for netstack testing.
 ///
 /// Contains all the parameters needed to establish and test a WireGuard tunnel.
+#[derive(Clone)]
 pub struct WgTunnelConfig {
     /// Client's private IPv4 address in the tunnel
     pub private_ipv4: String,
@@ -34,7 +35,8 @@ pub struct WgTunnelConfig {
     pub private_key_hex: String,
     /// Gateway's WireGuard public key (hex encoded)
     pub public_key_hex: String,
-    /// WireGuard endpoint address (gateway_ip:port)
+    /// WireGuard endpoint address (gateway_ip:port), or a local bridge
+    /// forwarder listen address when traffic is sent through a BridgeConn.
     pub endpoint: String,
 }
 
@@ -185,4 +187,76 @@ pub fn run_tunnel_tests(
     }
 
     wg_outcome
+}
+
+/// Outcome of a slim WireGuard pass through a bridge forwarder.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BridgeTunnelOutcome {
+    pub can_handshake: bool,
+    pub ping_ips_performance: f32,
+}
+
+/// Handshake + IP ping through a bridge forwarder (IPv4 netstack only).
+///
+/// Slim pass: no metadata, download, DNS host pings, or port checks. `Err` is
+/// a netstack failure after the transport dial already succeeded.
+pub fn run_bridge_tunnel_tests(
+    config: &WgTunnelConfig,
+    netstack_args: &NetstackArgs,
+    awg_args: &str,
+) -> Result<BridgeTunnelOutcome, String> {
+    let mut args = netstack_args.clone();
+    args.netstack_ping_hosts_v4.clear();
+    args.netstack_ping_hosts_v6.clear();
+    args.netstack_ping_ips_v6.clear();
+    args.port_check_ports.clear();
+    if args.netstack_ping_ips_v4.is_empty() {
+        args.netstack_ping_ips_v4.push("1.1.1.1".to_string());
+    } else {
+        args.netstack_ping_ips_v4.truncate(1);
+    }
+    // `0` sends no traffic; Go then reports no handshake.
+    args.netstack_num_ping = args.netstack_num_ping.clamp(1, 2);
+
+    // `for_bridge_forward` sets skip_download. Do not use download_timeout_sec
+    // = 0: Go's http.Client treats that as "no timeout".
+    let mut netstack_request = NetstackRequest::new(
+        &config.private_ipv4,
+        &config.private_ipv6,
+        &config.private_key_hex,
+        &config.public_key_hex,
+        &config.endpoint,
+        "",
+        args.netstack_download_timeout_sec,
+        awg_args,
+        args,
+        false,
+    );
+    netstack_request.for_bridge_forward();
+
+    info!(
+        "Testing WireGuard through bridge endpoint {}...",
+        config.endpoint
+    );
+    let ipv4_request = NetstackRequestGo::from_rust_v4(&netstack_request);
+    match crate::common::netstack::ping(&ipv4_request) {
+        Ok(NetstackResult::Response(response)) => {
+            info!(
+                "bridge tunnel handshake={} ping_ips={}/{}",
+                response.can_handshake, response.received_ips, response.sent_ips
+            );
+            Ok(BridgeTunnelOutcome {
+                can_handshake: response.can_handshake,
+                ping_ips_performance: safe_ratio(response.received_ips, response.sent_ips),
+            })
+        }
+        Ok(NetstackResult::Error { error }) => {
+            error!("Netstack runtime error (bridge tunnel): {error}");
+            Err(format!("netstack runtime error: {error}"))
+        }
+        Err(error) => {
+            error!("Internal error (bridge tunnel): {error}");
+            Err(format!("netstack internal error: {error}"))
+        }
+    }
 }

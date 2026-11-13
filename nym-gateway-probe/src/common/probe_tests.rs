@@ -42,16 +42,16 @@ use tokio::net::TcpStream;
 use tokio_util::{codec::Decoder, sync::CancellationToken};
 use tracing::*;
 
-pub async fn wg_probe(
+/// Authenticator registration for a WireGuard peer. The returned config's
+/// `endpoint` is the gateway's public WG address; bridge probes overwrite it
+/// with a local `UdpForwarder` listen address.
+pub async fn wg_register(
     mut auth_client: AuthenticatorClient,
     gateway_ip: IpAddr,
     auth_version: AuthenticatorVersion,
-    awg_args: Option<String>,
-    netstack_args: NetstackArgs,
-    port_check_only: bool,
     // TODO: update type
     credential: CredentialSpendingData,
-) -> anyhow::Result<WgProbeResults> {
+) -> anyhow::Result<WgTunnelConfig> {
     info!("attempting to use authenticator version {auth_version:?}");
 
     // that's a long conversion chain
@@ -138,28 +138,47 @@ pub async fn wg_probe(
 
     info!("Successfully registered with the gateway");
 
-    // Run tunnel connectivity tests using shared helper.
-    // run_tunnel_tests issues blocking CGo calls into Go, so it must run on
-    // tokio's dedicated blocking thread pool to avoid stalling the async runtime.
-    let tunnel_config = WgTunnelConfig::new(
+    Ok(WgTunnelConfig::new(
         registered_data.private_ips().ipv4.to_string(),
         registered_data.private_ips().ipv6.to_string(),
         private_key_hex,
         public_key_hex,
         wg_endpoint,
-    );
-    let awg_str = awg_args.unwrap_or_default();
+    ))
+}
 
+/// Direct WG tunnel test for an already-registered peer.
+pub async fn wg_tunnel_probe(
+    tunnel_config: WgTunnelConfig,
+    awg_args: Option<String>,
+    netstack_args: NetstackArgs,
+    port_check_only: bool,
+) -> anyhow::Result<WgProbeResults> {
+    let awg_str = awg_args.unwrap_or_default();
+    // run_tunnel_tests issues blocking CGo calls into Go, so it must run on
+    // tokio's dedicated blocking thread pool to avoid stalling the async runtime.
     let mut tunnel_result = tokio::task::spawn_blocking(move || {
         run_tunnel_tests(&tunnel_config, &netstack_args, &awg_str, port_check_only)
     })
     .await
     .map_err(|e| anyhow::anyhow!("netstack task panicked: {e}"))?;
-
     // can_register is determined by the auth handshake above, not by netstack
     tunnel_result.can_register = true;
-
     Ok(tunnel_result)
+}
+
+pub async fn wg_probe(
+    auth_client: AuthenticatorClient,
+    gateway_ip: IpAddr,
+    auth_version: AuthenticatorVersion,
+    awg_args: Option<String>,
+    netstack_args: NetstackArgs,
+    port_check_only: bool,
+    // TODO: update type
+    credential: CredentialSpendingData,
+) -> anyhow::Result<WgProbeResults> {
+    let tunnel_config = wg_register(auth_client, gateway_ip, auth_version, credential).await?;
+    wg_tunnel_probe(tunnel_config, awg_args, netstack_args, port_check_only).await
 }
 
 pub async fn lp_registration_probe(
@@ -292,6 +311,7 @@ pub async fn do_ping(
             socks5: None,
             wg: None,
             lp: None,
+            bridges: None,
         }),
         mixnet_client,
     )

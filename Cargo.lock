@@ -7702,6 +7702,7 @@ dependencies = [
  "nym-bandwidth-controller",
  "nym-bandwidth-fetcher",
  "nym-bin-common",
+ "nym-bridges",
  "nym-client-core",
  "nym-config",
  "nym-connection-monitor",
@@ -7725,6 +7726,7 @@ dependencies = [
  "pnet_packet",
  "rand 0.10.2",
  "reqwest 0.13.4",
+ "rustls 0.23.46",
  "semver 1.0.28",
  "serde",
  "serde_json",
@@ -8721,7 +8723,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "2.0.2"
+version = "2.0.3-rc1"
 dependencies = [
  "anyhow",
  "clap",
@@ -8742,7 +8744,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.6.5"
+version = "4.6.6-rc1"
 dependencies = [
  "ammonia",
  "anyhow",

@@ -118,6 +118,11 @@ impl BandwidthStorageManager {
     }
 
     #[instrument(skip_all)]
+    pub async fn expired(&self) -> bool {
+        self.client_bandwidth.expired().await
+    }
+
+    #[instrument(skip_all)]
     pub async fn try_use_bandwidth(&mut self, required_bandwidth: i64) -> Result<i64> {
         if self.client_bandwidth.expired().await {
             self.expire_bandwidth().await?;

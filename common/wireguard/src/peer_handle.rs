@@ -85,6 +85,15 @@ impl PeerHandle {
         }
     }
 
+    async fn expired_bandwidth(&self) -> bool {
+        self.bandwidth_storage_manager
+            .inner
+            .write()
+            .await
+            .expired()
+            .await
+    }
+
     /// Attempt to use the specified amount of bandwidth and update internal cache.
     /// Returns the amount of bandwidth remaining
     async fn try_use_bandwidth(&self, spent: i64) -> nym_credential_verification::Result<i64> {
@@ -121,6 +130,13 @@ impl PeerHandle {
 
         let spent_bandwidth = kernel_peer.consumed_kernel_bandwidth(&cached_peer);
         self.cached_peer.update(kernel_peer);
+
+        if self.expired_bandwidth().await {
+            debug!("{self} has expired bandwidth, removing it");
+            let success = self.remove_peer().await?;
+            self.cached_peer.remove_peer();
+            return Ok(!success);
+        }
 
         if spent_bandwidth > 0 {
             trace!("{self} has used {spent_bandwidth} of bandwidth");

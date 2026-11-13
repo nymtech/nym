@@ -18,7 +18,7 @@ impl RetainedHeight {
                 .map(|committed| DetailedNodePerformanceV3 {
                     performance_score: committed.score,
                     source_epoch: committed.epoch_id,
-                    computed_at: self.reads.block_time,
+                    computed_at: self.block_time(),
                     medians: auxiliary.node_medians(committed.epoch_id, node_id),
                 }),
         }

@@ -1,8 +1,9 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::ConfigScoreDataResponse;
+use nym_api_requests::models::{CirculatingSupplyResponse, ConfigScoreDataResponse};
 use nym_contract_anchor::whole_set;
+use nym_contracts_common::truncate_decimal;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{
     ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, KeyRotationState, NodeId,
@@ -11,9 +12,12 @@ use nym_mixnet_contract_common::{
 use nym_topology::CachedEpochRewardedSet;
 use nym_validator_client::nyxd::contract_traits::PinnedMixnetQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::Coin;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tendermint::block::Height;
+
+const TOTAL_SUPPLY_AMOUNT: u128 = 1_000_000_000_000_000; // 1B tokens
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ConfigScoreData {
@@ -81,6 +85,24 @@ impl MixnetContractData {
     pub(crate) fn current_key_rotation_id(&self) -> u32 {
         self.key_rotation_state
             .key_rotation_id(self.current_interval.current_epoch_absolute_id())
+    }
+
+    /// The total supply less the mixmining reserve, every token having vested.
+    pub(crate) fn circulating_supply(&self) -> CirculatingSupplyResponse {
+        let mix_denom = &self.rewarding_denom;
+        let reward_pool = self.current_reward_params.interval.reward_pool;
+        let mixmining_reserve_amount = truncate_decimal(reward_pool).u128();
+
+        CirculatingSupplyResponse {
+            total_supply: Coin::new(TOTAL_SUPPLY_AMOUNT, mix_denom).into(),
+            mixmining_reserve: Coin::new(mixmining_reserve_amount, mix_denom).into(),
+            vesting_tokens: Coin::new(0, mix_denom).into(),
+            circulating_supply: Coin::new(
+                TOTAL_SUPPLY_AMOUNT - mixmining_reserve_amount,
+                mix_denom,
+            )
+            .into(),
+        }
     }
 }
 
@@ -210,5 +232,22 @@ pub(crate) mod test_helpers {
                 initial_epoch_id: 0,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_helpers::populated_mixnet_data;
+    use cosmwasm_std::coin;
+
+    #[test]
+    fn the_circulating_supply_is_the_total_less_the_mixmining_reserve() {
+        // the fixture's reward pool holds 100M of the 1B NYM
+        let supply = populated_mixnet_data().circulating_supply();
+
+        assert_eq!(supply.total_supply, coin(1_000_000_000_000_000, "unym"));
+        assert_eq!(supply.mixmining_reserve, coin(100_000_000_000_000, "unym"));
+        assert_eq!(supply.vesting_tokens, coin(0, "unym"));
+        assert_eq!(supply.circulating_supply, coin(900_000_000_000_000, "unym"));
     }
 }

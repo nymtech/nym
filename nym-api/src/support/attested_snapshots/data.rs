@@ -200,6 +200,19 @@ impl RetainedHeight {
     pub(crate) fn height(&self) -> Height {
         self.reads.directory.height()
     }
+
+    /// The time of the block at the height.
+    pub(crate) fn block_time(&self) -> OffsetDateTime {
+        self.reads.block_time
+    }
+
+    pub(crate) fn mixnet(&self) -> &MixnetContractData {
+        &self.reads.mixnet
+    }
+
+    pub(crate) fn node_families(&self) -> &NodeFamiliesData {
+        &self.reads.node_families
+    }
 }
 
 // saved as its reads alone: the view is built again when they are loaded

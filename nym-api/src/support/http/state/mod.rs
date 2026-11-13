@@ -148,7 +148,7 @@ impl AppState {
                     .address_info_cache
                     .collect_balances(
                         self.nyxd_client.clone(),
-                        self.mixnet_contract_cache.inner_cache.clone(),
+                        self.contract_snapshots.clone(),
                         self.network_details()
                             .network
                             .chain_details

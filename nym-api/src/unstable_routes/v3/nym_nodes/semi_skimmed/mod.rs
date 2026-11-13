@@ -88,7 +88,7 @@ pub(super) async fn nodes_expanded(
     // min of all caches
     let refreshed_at = refreshed_at([
         rewarded_set.timestamp(),
-        snapshot.reads.block_time,
+        snapshot.block_time(),
         describe_cache.timestamp(),
     ]);
 

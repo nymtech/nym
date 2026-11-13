@@ -90,6 +90,21 @@ impl ContractSnapshots {
 }
 
 #[cfg(test)]
+pub(crate) mod test_helpers {
+    use super::*;
+    use crate::support::attested_snapshots::data::HeightReads;
+
+    /// Snapshots whose one height holds `reads`, settled.
+    pub(crate) fn settled_snapshots(reads: HeightReads) -> ContractSnapshots {
+        let entry = RetainedHeight::new(reads, false);
+        let mut data = AttestedSnapshotsCacheData::default();
+        data.set_last_polled_height(entry.height());
+        data.insert_entry(entry);
+        ContractSnapshots::new(SharedCache::new_with_value(data), 0)
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::support::attested_snapshots::data::test_helpers::empty_retained_height;

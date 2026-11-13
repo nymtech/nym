@@ -46,7 +46,12 @@ async fn config_score_details(
 ) -> AxumResult<FormattedResponse<ConfigScoreDataResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let data = state.nym_contract_cache().maybe_config_score_data().await?;
+    let data = state
+        .latest_snapshot()
+        .await?
+        .mixnet()
+        .config_score_data
+        .clone();
 
     Ok(output.to_response(data.into()))
 }

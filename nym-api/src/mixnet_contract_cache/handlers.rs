@@ -43,16 +43,11 @@ pub(crate) fn legacy_nodes_routes() -> Router<AppState> {
 async fn get_interval_reward_params(
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> FormattedResponse<Option<RewardingParams>> {
+) -> AxumResult<FormattedResponse<Option<RewardingParams>>> {
     let output = output.output.unwrap_or_default();
 
-    output.to_response(
-        state
-            .nym_contract_cache()
-            .interval_reward_params()
-            .await
-            .ok(),
-    )
+    let snapshot = state.latest_snapshot().await?;
+    Ok(output.to_response(Some(snapshot.mixnet().current_reward_params)))
 }
 
 #[utoipa::path(
@@ -71,10 +66,11 @@ async fn get_interval_reward_params(
 async fn get_current_epoch(
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> FormattedResponse<Option<Interval>> {
+) -> AxumResult<FormattedResponse<Option<Interval>>> {
     let output = output.output.unwrap_or_default();
 
-    output.to_response(state.nym_contract_cache().current_interval().await.ok())
+    let snapshot = state.latest_snapshot().await?;
+    Ok(output.to_response(Some(snapshot.mixnet().current_interval)))
 }
 
 //
@@ -97,12 +93,11 @@ async fn get_current_key_rotation_info(
 ) -> ApiResult<FormattedResponse<KeyRotationInfoResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let contract_cache = state.nym_contract_cache();
-    let current_interval = contract_cache.current_interval().await?;
-    let key_rotation_state = contract_cache.get_key_rotation_state().await?;
+    let snapshot = state.latest_snapshot().await?;
+    let current_interval = snapshot.mixnet().current_interval;
 
     let details = KeyRotationDetails {
-        key_rotation_state,
+        key_rotation_state: snapshot.mixnet().key_rotation_state,
         current_absolute_epoch_id: current_interval.current_epoch_absolute_id(),
         current_epoch_start: current_interval.current_epoch_start(),
         epoch_duration: current_interval.epoch_length(),

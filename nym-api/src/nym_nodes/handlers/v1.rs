@@ -72,7 +72,7 @@ async fn rewarded_set(
 ) -> AxumResult<FormattedResponse<RewardedSetResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let rewarded_set = state.nym_contract_cache().rewarded_set_owned().await?;
+    let rewarded_set = state.latest_snapshot().await?.mixnet().rewarded_set.clone();
 
     Ok(output.to_response(nym_mixnet_contract_common::EpochRewardedSet::from(rewarded_set).into()))
 }
@@ -204,22 +204,22 @@ async fn nodes_noise(
 async fn get_bonded_nodes(
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,
-) -> FormattedResponse<PaginatedResponse<NymNodeDetails>> {
+) -> AxumResult<FormattedResponse<PaginatedResponse<NymNodeDetails>>> {
     // TODO: implement it
     let _ = pagination;
     let output = pagination.output.unwrap_or_default();
 
-    let details = state.nym_contract_cache().nym_nodes().await;
+    let details = state.latest_snapshot().await?.mixnet().nym_nodes.clone();
     let total = details.len();
 
-    output.to_response(PaginatedResponse {
+    Ok(output.to_response(PaginatedResponse {
         pagination: Pagination {
             total,
             page: 0,
             size: total,
         },
         data: details,
-    })
+    }))
 }
 
 #[utoipa::path(
@@ -284,14 +284,11 @@ async fn get_node_annotation(
 ) -> AxumResult<FormattedResponse<AnnotationResponseV1>> {
     let output = output.output.unwrap_or_default();
 
-    let rewarded_set = state.rewarded_set().await?;
     let snapshot = state.latest_snapshot().await?;
 
     Ok(output.to_response(AnnotationResponseV1 {
         node_id,
-        annotation: snapshot
-            .node_annotation(node_id, &rewarded_set)
-            .map(Into::into),
+        annotation: snapshot.node_annotation(node_id).map(Into::into),
     }))
 }
 
@@ -345,20 +342,24 @@ async fn get_node_stake_saturation(
 ) -> AxumResult<FormattedResponse<StakeSaturationResponse>> {
     let output = output.get_output();
 
-    let contract_cache = state.nym_contract_cache();
-    let Some(node) = contract_cache.nym_node(node_id).await? else {
+    let snapshot = state.latest_snapshot().await?;
+    let mixnet = snapshot.mixnet();
+    let Some(node) = mixnet
+        .nym_nodes
+        .iter()
+        .find(|node| node.node_id() == node_id)
+    else {
         return Err(AxumErrorResponse::not_found("nym node bond not found"));
     };
 
-    let rewarding_params = contract_cache.interval_reward_params().await?;
-    let as_at = contract_cache.cache_timestamp().await;
+    let rewarding_params = &mixnet.current_reward_params;
 
     Ok(output.to_response(StakeSaturationResponse {
-        saturation: node.rewarding_details.bond_saturation(&rewarding_params),
+        saturation: node.rewarding_details.bond_saturation(rewarding_params),
         uncapped_saturation: node
             .rewarding_details
-            .uncapped_bond_saturation(&rewarding_params),
-        as_at: as_at.unix_timestamp(),
+            .uncapped_bond_saturation(rewarding_params),
+        as_at: snapshot.block_time().unix_timestamp(),
     }))
 }
 

@@ -147,6 +147,15 @@ impl NodeFamiliesData {
         ))
     }
 
+    pub(crate) fn family(&self, family_id: NodeFamilyId) -> Option<&CachedFamily> {
+        self.families.get(&family_id)
+    }
+
+    /// The family `node_id` is a member of.
+    pub(crate) fn family_for_node(&self, node_id: NodeId) -> Option<&CachedFamily> {
+        self.family(*self.family_by_member.get(&node_id)?)
+    }
+
     fn join(
         height: Height,
         families: Vec<nym_node_families_contract_common::NodeFamily>,

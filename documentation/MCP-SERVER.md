@@ -5,6 +5,8 @@ is the contributor reference for that machinery: the retrieval pipeline, how the
 MCP route serves from it, where the key goes, what is tunable, and how to test a
 deployment.
 
+A move of the index to a Postgres store is planned: see [`MCP-STORE.md`](MCP-STORE.md). Until then, this file describes what runs.
+
 Read this before changing anything under `docs/lib/retrieval/`, `docs/lib/mcp/`,
 `docs/pages/api/`, or `scripts/next-scripts/generate-*`.
 

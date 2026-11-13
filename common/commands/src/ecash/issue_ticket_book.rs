@@ -25,9 +25,16 @@ use std::sync::Arc;
 use tempfile::NamedTempFile;
 use zeroize::Zeroizing;
 
+const KEY_PASSPHRASE_HELP: &str = "Passphrase decrypting the client's private identity key, \
+    if it's stored encrypted. Only used with --client-config. A plaintext key is read as is and \
+    stays unencrypted. Prefer the environment variable: a flag value is visible in the process list";
+
 #[derive(Debug, Parser)]
 #[clap(
     group(ArgGroup::new("output").required(true)),
+    // the shared help describes the clients, which also encrypt plaintext keys on load; this
+    // command only reads the identity key
+    mut_arg("key_passphrase", |arg| arg.help(KEY_PASSPHRASE_HELP)),
 )]
 pub struct Args {
     /// Specify which type of ticketbook should be issued

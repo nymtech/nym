@@ -68,7 +68,7 @@ nym-sqlcipher = { workspace = true }
 nym-id = { workspace = true }
 nym-credential-proxy-requests = { workspace = true }
 
-nym-pemstore = { workspace = true }
+nym-pemstore = { workspace = true, features = ["encryption"] }
 nym-types = { workspace = true }
 
 [lints]

@@ -10,6 +10,8 @@ use log::info;
 use nym_bandwidth_controller::BandwidthController;
 use nym_bandwidth_fetcher::NyxdCredentialFetcher;
 use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
+use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
+use nym_client_core::client::key_manager::persistence::Passphrase;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
@@ -24,9 +26,16 @@ use std::sync::Arc;
 use tempfile::NamedTempFile;
 use zeroize::Zeroizing;
 
+const KEY_PASSPHRASE_HELP: &str = "Passphrase decrypting the client's private identity key, \
+    if it's stored encrypted. Only used with --client-config. A plaintext key is read as is and \
+    stays unencrypted. Prefer the environment variable: a flag value is visible in the process list";
+
 #[derive(Debug, Parser)]
 #[clap(
     group(ArgGroup::new("output").required(true)),
+    // the shared help describes the clients, which also encrypt plaintext keys on load; this
+    // command only reads the identity key
+    mut_arg("key_passphrase", |arg| arg.help(KEY_PASSPHRASE_HELP)),
 )]
 pub struct Args {
     /// Specify which type of ticketbook should be issued
@@ -62,12 +71,16 @@ pub struct Args {
     pub(crate) bs58_encoded_client_secret: Option<String>,
 
     #[clap(flatten)]
+    pub(crate) key_passphrase: KeyPassphraseArgs,
+
+    #[clap(flatten)]
     pub(crate) database_key: DatabaseKeyArgs,
 }
 
 async fn issue_client_ticketbook(
     config_path: PathBuf,
     ticketbook_type: TicketType,
+    key_passphrase: Option<&Passphrase>,
     database_key: Option<&nym_sqlcipher::DatabaseKey>,
     client: SigningClient,
 ) -> anyhow::Result<()> {
@@ -91,7 +104,8 @@ async fn issue_client_ticketbook(
     );
     let requests_store = loaded.try_get_credential_requests_store()?;
     let persistent_storage = initialise_persistent_storage(credentials_store, database_key).await;
-    let private_id_key: ed25519::PrivateKey = nym_pemstore::load_key(private_id_key)?;
+    let private_id_key: ed25519::PrivateKey =
+        nym_pemstore::load_key_with(private_id_key, key_passphrase)?;
 
     let fetcher = NyxdCredentialFetcher::new(
         Arc::new(client),
@@ -192,6 +206,7 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         return issue_client_ticketbook(
             client_config,
             args.ticketbook_type,
+            args.key_passphrase.key_passphrase.as_ref(),
             args.database_key.database_key.as_ref(),
             client,
         )

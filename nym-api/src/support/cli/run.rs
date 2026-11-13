@@ -24,7 +24,6 @@ use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
-use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::AppState;
 use crate::support::http::{RouterBuilder, TASK_MANAGER_TIMEOUT_S};
 use crate::support::nyxd;
@@ -257,11 +256,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         SharedCache::new()
     };
 
-    let mixnet_contract_cache = MixnetContractCacheState::new(
-        mixnet_contract_cache_state,
-        mixnet_contract_cache_refresh_requester,
-    );
-
     let router = RouterBuilder::with_default_routes(config.base.utility_routes_bearer.take())
         .with_state(AppState {
             identity_keypair,
@@ -273,10 +267,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
                 config.address_cache.capacity,
             ),
             forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
-            mixnet_contract_cache,
-            node_families_cache,
             storage,
-            described_nodes_cache,
             network_details,
             // filled on demand from the database, for the unstable test-run routes
             node_info_cache: unstable::NodeInfoCache::default(),

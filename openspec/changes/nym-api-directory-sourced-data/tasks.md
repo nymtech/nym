@@ -25,7 +25,7 @@
 
 ## 5. Routes read the latest settled snapshot
 
-- [ ] 5.1 Give `AppState` accessors for the mixnet state, the families data and the node view of the latest settled snapshot, answering 503 when none has settled; remove the contract cache, describe cache and families cache handles
+- [x] 5.1 Make `AppState::latest_snapshot` the only accessor for the mixnet state, the families data and the node view (a route takes it once, so a response never mixes two heights), answering 503 when none has settled; remove the contract cache, describe cache and families cache handles
 - [ ] 5.2 Re-point every reader of the mixnet contract cache: epoch, reward parameters, key rotation information, rewarded set, bonded nodes, stake saturation, config score details, circulating supply, annotations, the account collector; derived values (key rotation id, circulating supply) become methods on the moved data type
 - [ ] 5.3 Re-point the node families routes
 - [ ] 5.4 Build the skimmed and semi-skimmed routes of every version, the described routes and the noise-key route from the node view, with `refreshed_at` the block time of the height

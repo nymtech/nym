@@ -257,7 +257,6 @@ mod tests {
     use super::*;
     use crate::ecash::tests::build_dummy_ecash_state;
     use crate::network::models::NetworkDetailsV2;
-    use crate::support::caching::cache::SharedCache;
     use crate::support::config;
     use crate::support::http::state::test_helpers::build_app_state;
     use crate::support::storage::NymApiStorage;
@@ -272,12 +271,7 @@ mod tests {
         cfg.ecash_signer.enabled = false;
         let bundle = build_dummy_ecash_state(&cfg, storage.clone(), [7u8; 32]).await;
 
-        let mut app_state = build_app_state(
-            storage,
-            bundle.ecash_state,
-            bundle.real_client,
-            SharedCache::new(),
-        );
+        let mut app_state = build_app_state(storage, bundle.ecash_state, bundle.real_client);
         app_state.network_details = NetworkDetailsV2::new("localhost".to_string(), network);
 
         TestServer::new(

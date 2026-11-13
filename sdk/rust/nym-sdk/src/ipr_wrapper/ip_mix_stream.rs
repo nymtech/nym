@@ -30,6 +30,12 @@ const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
 /// merely-slow node isn't downgraded spuriously.
 const IPR_V10_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(15);
 
+/// How long IPR reply frames may wait behind a missing one before it is
+/// skipped. Each frame is a self-contained bundle of IP packets and TCP
+/// inside the tunnel retransmits, so waiting for a lost frame forever would
+/// stall the tunnel. 1.5 s held 10 of 10 test tunnels open on mainnet (#7400).
+const IPR_STREAM_GAP_TIMEOUT: Duration = Duration::from_millis(1500);
+
 /// Env var overriding the node version used for IPR protocol gating (semver,
 /// e.g. "1.37.0"). Debug knob for exercising a protocol version against a node
 /// the directory reports as older, such as a local IPR that isn't a directory
@@ -139,6 +145,7 @@ impl IpMixStream {
     ) -> Result<Self, Error> {
         let mut client = MixnetClient::connect_new().await?;
         let mut stream = client.open_stream(ipr_address, Some(10)).await?;
+        stream.set_gap_timeout(Some(IPR_STREAM_GAP_TIMEOUT)).await;
 
         info!("Connecting to IP packet router at {ipr_address}");
         let (allocated_ips, negotiated_mtu, protocol_version) =

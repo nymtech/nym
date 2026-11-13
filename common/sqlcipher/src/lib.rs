@@ -70,6 +70,9 @@ pub enum SqlCipherError {
         source: sqlx::Error,
     },
 
+    #[error("invalid database path {}: it has no file name", path.display())]
+    InvalidPath { path: PathBuf },
+
     #[error("I/O error on {}: {source}", path.display())]
     Io {
         path: PathBuf,
@@ -147,7 +150,7 @@ pub async fn encrypt_database_if_needed(
 
     // left over from a migration interrupted before the copy replaced the original,
     // which is therefore still intact
-    let migration_path = migration_path(database_path);
+    let migration_path = migration_path(database_path)?;
     remove_if_exists(&migration_path).await?;
     remove_if_exists(&journal_path(&migration_path, "-journal")).await?;
 
@@ -321,11 +324,16 @@ fn raw_key_literal(key: &Key) -> Zeroizing<String> {
     Zeroizing::new(format!("x'{}'", hex.as_str()))
 }
 
-fn migration_path(database_path: &Path) -> PathBuf {
-    let mut file_name = database_path.file_name().unwrap_or_default().to_owned();
+fn migration_path(database_path: &Path) -> Result<PathBuf, SqlCipherError> {
+    let mut file_name = database_path
+        .file_name()
+        .ok_or_else(|| SqlCipherError::InvalidPath {
+            path: database_path.to_path_buf(),
+        })?
+        .to_owned();
     file_name.push(".");
     file_name.push(MIGRATION_EXTENSION);
-    database_path.with_file_name(file_name)
+    Ok(database_path.with_file_name(file_name))
 }
 
 /// Path of a SQLite sidecar file, e.g. `<db>-wal`.
@@ -585,11 +593,21 @@ mod tests {
         assert!(!path.exists());
     }
 
+    #[test]
+    fn migration_path_requires_file_name() {
+        for path in ["/", "db/.."] {
+            assert!(matches!(
+                migration_path(Path::new(path)),
+                Err(SqlCipherError::InvalidPath { .. })
+            ));
+        }
+    }
+
     #[tokio::test]
     async fn leftover_migration_files_are_removed() {
         let dir = tempfile::tempdir().unwrap();
         let path = database_path(&dir);
-        let migration = migration_path(&path);
+        let migration = migration_path(&path).unwrap();
         std::fs::write(&migration, b"partial copy").unwrap();
         std::fs::write(journal_path(&migration, "-journal"), b"journal").unwrap();
         create_plaintext_database(&path, SqliteAutoVacuum::Incremental).await;

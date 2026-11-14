@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use sqlx::{Postgres, migrate::Migrator, postgres::PgConnectOptions};
+use std::env;
 use std::str::FromStr;
 use tracing::info;
 
@@ -19,7 +20,15 @@ pub(crate) struct Storage {
 
 impl Storage {
     pub async fn init(connection_url: String) -> Result<Self> {
-        let connect_options = PgConnectOptions::from_str(&connection_url)?;
+        let mut connect_options = PgConnectOptions::from_str(&connection_url)?;
+
+        let ssl_cert_path = env::var("PG_CERT").ok();
+
+        if let Some(ssl_cert) = ssl_cert_path {
+            connect_options = connect_options
+                .ssl_mode(sqlx::postgres::PgSslMode::Require)
+                .ssl_root_cert(ssl_cert);
+        }
 
         let pool = DbPool::connect_with(connect_options)
             .await

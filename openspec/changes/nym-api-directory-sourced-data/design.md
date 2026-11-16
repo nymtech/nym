@@ -125,7 +125,7 @@ Expected effect: geolocation is reused on most heights and performance on most h
 ## Risks / Trade-offs
 
 - [More reads per height, so more ways for an instance to skip one] → the height is all-or-nothing by design; the next poll retries the newest height; three misses in a row lead to 503 (D9), which lets clients move to another instance.
-- [Nodes not yet publishing the #7399 fields are served with no noise key, terms not accepted and no Lewes Protocol details] → the change ships a few releases after nodes started publishing; there is no measured threshold.
+- [Nodes not yet publishing the #7399 fields are served with no noise key, terms not accepted and no Lewes Protocol details; the v3 skimmed routes, which list only nodes with Lewes Protocol details, leave them out altogether] → the change ships a few releases after nodes started publishing; there is no measured threshold.
 - [A node holding a role can be missing from the topology: no sphinx key for the rotation yet, or a non-public address] → accepted (D4); the config score follow-up addresses the address case.
 - [Epoch and key rotation changes reach clients and not-yet-upgraded nym-nodes up to about 10 minutes late] → within the overlap in which nodes keep the previous sphinx key; upgraded nodes read the chain.
 - [On nym-node's nym-api fallback path, the snapshot delay plus the transition can exceed the 20% threshold, so the fixed stuck check can warn when nothing is stuck] → fallback path only, the effect is a warning and a slower retry.

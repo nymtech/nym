@@ -179,6 +179,28 @@ impl NymNodeDescriptionConversion for SkimmedNodeV1 {
     }
 }
 
+impl NymNodeDescriptionConversion for SemiSkimmedNodeV1 {
+    fn from_description(
+        node: &NymNodeDescriptionV3,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> Option<Self> {
+        Some(node.to_semi_skimmed_node(current_rotation_id, role, performance))
+    }
+}
+
+impl NymNodeDescriptionConversion for SemiSkimmedNodeV3 {
+    fn from_description(
+        node: &NymNodeDescriptionV3,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> Option<Self> {
+        Some(node.to_semi_skimmed_node_v3(current_rotation_id, role, performance))
+    }
+}
+
 impl NymNodeDescriptionConversion for SkimmedNodeV2 {
     fn from_description(
         node: &NymNodeDescriptionV3,

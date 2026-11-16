@@ -1,23 +1,23 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::nym_nodes::node_view::NodeSubset;
 use crate::support::http::state::AppState;
-use crate::unstable_routes::helpers::{build_nym_nodes_response, refreshed_at};
+use crate::unstable_routes::helpers::build_nym_nodes_response;
 use crate::unstable_routes::v2::nym_nodes::helpers::NodesParams;
 use crate::unstable_routes::v2::nym_nodes::skimmed::PaginatedSkimmedNodes;
 use axum::extract::{Query, State};
-use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
-use nym_api_requests::models::OffsetDateTimeJsonSchemaWrapper;
 use nym_api_requests::nym_nodes::{PaginatedCachedNodesResponseV2, SkimmedNodeV1};
 use nym_http_api_common::Output;
 use nym_mixnet_contract_common::Interval;
 use std::time::Duration;
+use time::OffsetDateTime;
 
 fn maybe_add_expires_header(
     output: Output,
     interval: Interval,
     current_key_rotation: u32,
-    refreshed_at: OffsetDateTimeJsonSchemaWrapper,
+    refreshed_at: OffsetDateTime,
     nodes: Vec<SkimmedNodeV1>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
@@ -42,90 +42,43 @@ fn maybe_add_expires_header(
     Ok(base_response.with_expires_header(expiration))
 }
 
-// hehe, what an abomination, but it's used in multiple different places and I hate copy-pasting code,
-// especially if it has multiple loops, etc
-pub(crate) async fn build_skimmed_nodes_response<'a, NI>(
-    state: &'a AppState,
-    Query(query_params): Query<NodesParams>,
-    nym_nodes_subset: NI,
+/// The `subset` nodes of the latest settled snapshot, or no nodes when the client already holds
+/// the snapshot's epoch.
+async fn build_skimmed_nodes_response(
+    state: &AppState,
+    query_params: NodesParams,
+    subset: NodeSubset,
     active_only: bool,
-    output: Output,
-) -> PaginatedSkimmedNodes
-where
-    // iterator returning relevant subset of nym-nodes (like mixing nym-nodes, entries, etc.)
-    NI: Iterator<Item = &'a NymNodeDescriptionV3> + 'a,
-{
+) -> PaginatedSkimmedNodes {
     // TODO: implement it
     let _ = query_params.per_page;
     let _ = query_params.page;
+    let output = query_params.output.unwrap_or_default();
 
-    // 1. get the rewarded set
-    let rewarded_set = state.rewarded_set().await?;
-
-    // 2. grab the latest settled performance snapshot so that we could attach scores to the [nym] nodes
     let snapshot = state.latest_snapshot().await?;
+    let interval = snapshot.mixnet().current_interval;
+    let current_key_rotation = snapshot.mixnet().current_key_rotation_id();
 
-    // 3. implicitly grab the relevant described nodes
-    // (ideally it'd be tied directly to the NI iterator, but I couldn't defeat the compiler)
-    let describe_cache = state.describe_nodes_cache_data().await?;
-
-    let contract_cache = state.nym_contract_cache();
-
-    let interval = contract_cache.current_interval().await?;
-    let current_key_rotation = contract_cache.current_key_rotation_id().await?;
-
-    // 4.0 If the client indicates that they already know about the current topology send empty response
+    // If the client indicates that they already know about the current topology send empty response
     if let Some(client_known_epoch) = query_params.epoch_id {
         if client_known_epoch == interval.current_epoch_id() {
             return Ok(
                 output.to_response(PaginatedCachedNodesResponseV2::no_updates(
                     interval.current_epoch_absolute_id(),
                     current_key_rotation,
+                    snapshot.block_time(),
                 )),
             );
         }
     }
 
-    // 4. start building the response
-    let nodes = build_nym_nodes_response(
-        &rewarded_set,
-        nym_nodes_subset,
-        &snapshot,
-        current_key_rotation,
-        active_only,
-    );
-
-    // 5. if we allow legacy nodes, repeat the procedure for them, otherwise return just nym-nodes
-    if let Some(true) = query_params.no_legacy {
-        // min of all caches
-        let refreshed_at = refreshed_at([
-            rewarded_set.timestamp(),
-            snapshot.block_time(),
-            describe_cache.timestamp(),
-        ]);
-
-        return maybe_add_expires_header(
-            output,
-            interval,
-            current_key_rotation,
-            refreshed_at,
-            nodes,
-            active_only,
-        );
-    }
-
-    // min of all caches
-    let refreshed_at = refreshed_at([
-        rewarded_set.timestamp(),
-        snapshot.block_time(),
-        describe_cache.timestamp(),
-    ]);
+    let nodes = build_nym_nodes_response(&snapshot, subset, active_only);
 
     maybe_add_expires_header(
         output,
         interval,
         current_key_rotation,
-        refreshed_at,
+        snapshot.block_time(),
         nodes,
         active_only,
     )
@@ -138,100 +91,38 @@ pub(crate) async fn nodes_basic(
 ) -> PaginatedSkimmedNodes {
     let output = query_params.output.unwrap_or_default();
 
-    // unfortunately we have to build the response semi-manually here as we need to add two sources of legacy nodes
-
-    // 1. grab all relevant described nym-nodes
-    let rewarded_set = state.rewarded_set().await?;
-
-    let describe_cache = state.describe_nodes_cache_data().await?;
-    let all_nym_nodes = describe_cache.all_nym_nodes();
     let snapshot = state.latest_snapshot().await?;
-
-    let interval = state.nym_contract_cache().current_interval().await?;
-    let current_key_rotation = state.nym_contract_cache().current_key_rotation_id().await?;
-
-    let nodes = build_nym_nodes_response(
-        &rewarded_set,
-        all_nym_nodes,
-        &snapshot,
-        current_key_rotation,
-        active_only,
-    );
-
-    // min of all caches
-    let refreshed_at = refreshed_at([
-        rewarded_set.timestamp(),
-        snapshot.block_time(),
-        describe_cache.timestamp(),
-    ]);
+    let mixnet = snapshot.mixnet();
+    let nodes = build_nym_nodes_response(&snapshot, NodeSubset::All, active_only);
 
     Ok(output.to_response(PaginatedCachedNodesResponseV2::new_full(
-        interval.current_epoch_absolute_id(),
-        current_key_rotation,
-        refreshed_at,
+        mixnet.current_interval.current_epoch_absolute_id(),
+        mixnet.current_key_rotation_id(),
+        snapshot.block_time(),
         nodes,
     )))
 }
 
 pub(crate) async fn mixnodes_basic(
     state: State<AppState>,
-    query_params: Query<NodesParams>,
+    Query(query_params): Query<NodesParams>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
-    let output = query_params.output.unwrap_or_default();
-
-    // 1. grab all relevant described nym-nodes
-    let describe_cache = state.describe_nodes_cache_data().await?;
-    let mixing_nym_nodes = describe_cache.mixing_nym_nodes();
-
-    build_skimmed_nodes_response(
-        &state.0,
-        query_params,
-        mixing_nym_nodes,
-        active_only,
-        output,
-    )
-    .await
+    build_skimmed_nodes_response(&state, query_params, NodeSubset::Mixing, active_only).await
 }
 
 pub(crate) async fn entry_gateways_basic(
     state: State<AppState>,
-    query_params: Query<NodesParams>,
+    Query(query_params): Query<NodesParams>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
-    let output = query_params.output.unwrap_or_default();
-
-    // 1. grab all relevant described nym-nodes
-    let describe_cache = state.describe_nodes_cache_data().await?;
-    let mixing_nym_nodes = describe_cache.entry_capable_nym_nodes();
-
-    build_skimmed_nodes_response(
-        &state.0,
-        query_params,
-        mixing_nym_nodes,
-        active_only,
-        output,
-    )
-    .await
+    build_skimmed_nodes_response(&state, query_params, NodeSubset::EntryCapable, active_only).await
 }
 
 pub(crate) async fn exit_gateways_basic(
     state: State<AppState>,
-    query_params: Query<NodesParams>,
+    Query(query_params): Query<NodesParams>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
-    let output = query_params.output.unwrap_or_default();
-
-    // 1. grab all relevant described nym-nodes
-    let describe_cache = state.describe_nodes_cache_data().await?;
-    let mixing_nym_nodes = describe_cache.exit_capable_nym_nodes();
-
-    build_skimmed_nodes_response(
-        &state.0,
-        query_params,
-        mixing_nym_nodes,
-        active_only,
-        output,
-    )
-    .await
+    build_skimmed_nodes_response(&state, query_params, NodeSubset::ExitCapable, active_only).await
 }

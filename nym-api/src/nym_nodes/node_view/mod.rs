@@ -51,6 +51,34 @@ impl NodeView {
     pub(crate) fn node_with_address(&self, address: IpAddr) -> Option<NodeId> {
         self.node_by_address.get(&address.to_canonical()).copied()
     }
+
+    /// The listed nodes in `subset`, in ascending node id order.
+    pub(crate) fn nodes(&self, subset: NodeSubset) -> impl Iterator<Item = &NymNodeDescriptionV3> {
+        self.nodes
+            .values()
+            .filter(move |node| subset.includes(node))
+    }
+}
+
+/// The listed nodes a route serves, by the roles they declare.
+#[derive(Clone, Copy)]
+pub(crate) enum NodeSubset {
+    All,
+    Mixing,
+    EntryCapable,
+    ExitCapable,
+}
+
+impl NodeSubset {
+    fn includes(self, node: &NymNodeDescriptionV3) -> bool {
+        let declared = &node.description.declared_role;
+        match self {
+            NodeSubset::All => true,
+            NodeSubset::Mixing => declared.mixnode,
+            NodeSubset::EntryCapable => declared.entry,
+            NodeSubset::ExitCapable => declared.can_operate_exit_gateway(),
+        }
+    }
 }
 
 /// The nodes listed at a snapshot height, by node id: the bonded nodes the directory describes
@@ -204,6 +232,7 @@ mod tests {
         verified_node, ROTATION,
     };
     use super::*;
+    use nym_api_requests::models::described::v3::{mock_nym_node_description, DeclaredRolesV3};
 
     #[test]
     fn a_node_with_an_entry_that_does_not_verify_is_not_listed() {
@@ -250,6 +279,29 @@ mod tests {
         assert!(is_listed(&bond(), private_address_node(), true));
     }
 
+    #[test]
+    fn a_subset_holds_the_nodes_declaring_its_role_in_ascending_id_order() {
+        let view = NodeView {
+            nodes: BTreeMap::from([
+                declaring(4, true, false, false),
+                declaring(1, false, true, true),
+                declaring(3, false, false, true),
+                declaring(2, false, true, false),
+            ]),
+            node_by_address: HashMap::new(),
+        };
+        let ids = |subset| {
+            view.nodes(subset)
+                .map(|node| node.node_id)
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(ids(NodeSubset::All), [1, 2, 3, 4]);
+        assert_eq!(ids(NodeSubset::Mixing), [4]);
+        assert_eq!(ids(NodeSubset::EntryCapable), [1, 2]);
+        assert_eq!(ids(NodeSubset::ExitCapable), [1, 3]);
+    }
+
     /// A node announcing `10.0.0.5`.
     fn private_address_node() -> DirectoryNode {
         let mut information = node_information();
@@ -273,5 +325,23 @@ mod tests {
             unsafe_allow_illegal_ips,
         )
         .contains_key(&node_id)
+    }
+
+    /// A listed node declaring the given modes, both exit roles following its exit mode.
+    fn declaring(
+        node_id: NodeId,
+        mixnode: bool,
+        entry: bool,
+        exit: bool,
+    ) -> (NodeId, NymNodeDescriptionV3) {
+        let mut node = mock_nym_node_description(node_id.into());
+        node.node_id = node_id;
+        node.description.declared_role = DeclaredRolesV3 {
+            mixnode,
+            entry,
+            exit_nr: exit,
+            exit_ipr: exit,
+        };
+        (node_id, node)
     }
 }

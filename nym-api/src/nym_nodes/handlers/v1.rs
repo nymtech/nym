@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
+use crate::nym_nodes::node_view::NodeSubset;
 use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
@@ -157,10 +158,11 @@ async fn nodes_noise(
     let _ = pagination;
     let output = pagination.output.unwrap_or_default();
 
-    let describe_cache = state.describe_nodes_cache_data().await?;
+    let snapshot = state.latest_snapshot().await?;
 
-    let nodes = describe_cache
-        .all_nodes()
+    let nodes = snapshot
+        .node_view
+        .nodes(NodeSubset::All)
         .filter_map(|n| {
             n.description
                 .host_information
@@ -245,11 +247,12 @@ async fn get_described_nodes(
     let _ = pagination;
     let output = pagination.output.unwrap_or_default();
 
-    let cache = state.described_nodes_cache.get().await?;
+    let snapshot = state.latest_snapshot().await?;
 
     // convert description to V1
-    let descriptions = cache
-        .all_nodes()
+    let descriptions = snapshot
+        .node_view
+        .nodes(NodeSubset::All)
         .map(|d| d.clone().into())
         .collect::<Vec<_>>();
 

@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn derived_keys_match_their_known_answer() {
         let derivation =
-            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::INITIAL);
+            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::LP);
 
         assert_eq!(
             derivation
@@ -144,10 +144,8 @@ mod tests {
 
     #[test]
     fn the_gateway_changes_both_keys() {
-        let first =
-            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::INITIAL);
-        let second =
-            GatewayKeyDerivation::new(&private_key(1), public_key(3), GenerationId::INITIAL);
+        let first = GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::LP);
+        let second = GatewayKeyDerivation::new(&private_key(1), public_key(3), GenerationId::LP);
 
         assert_ne!(
             first.identity_keypair().public_key(),
@@ -161,8 +159,7 @@ mod tests {
 
     #[test]
     fn the_generation_id_changes_both_keys() {
-        let first =
-            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::INITIAL);
+        let first = GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::LP);
         let second = GatewayKeyDerivation::new(
             &private_key(1),
             public_key(2),
@@ -182,7 +179,7 @@ mod tests {
     #[test]
     fn the_key_type_changes_the_derived_secret() {
         let derivation =
-            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::INITIAL);
+            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::LP);
 
         assert_ne!(
             *derivation.expand::<32>(IDENTITY_KEY_LABEL),

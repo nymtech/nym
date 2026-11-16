@@ -52,15 +52,15 @@ The full investigation, with line references and the reasoning behind each decis
 
 The stored `ClientKeys` stay exactly as they are and act as the root. For a new remote registration the client derives the identity and encryption keys for that gateway and recomputes them whenever the registration is loaded. This is unconditional: there is no switch that keeps a new remote registration on the root keys.
 
-Why: nothing new and secret has to be stored, so the passphrase protection of the key files keeps covering every identity and the key store keeps holding exactly what it holds today; and a client that loses its registration store gets the same identity back at a gateway it never refreshed at, together with the bandwidth it paid for there.
+Why: nothing new and secret has to be stored, so the passphrase protection of the key files keeps covering every identity and the key store keeps holding exactly what it holds today.
 
-Alternative considered: random keys per gateway, stored with the registration. Rejected because it loses the identity and the credited bandwidth with that database, and puts private keys in a database that is only protected when its encryption is switched on.
+Alternative considered: random keys per gateway, stored with the registration. Rejected because it puts private keys in a database that is only protected when its encryption is switched on, outside the passphrase protection of the key files.
 
 ### Decision 2: Both per-gateway keys come from the root identity key
 
 The x25519 key is derived per gateway too, because it is part of the address and two addresses of one client could otherwise be matched by it. Both derivations use the root ed25519 identity private key as input.
 
-Why: restoring that one key restores every per-gateway identity and address.
+Why: one secret, the root identity key, together with the stored generation ids, determines every per-gateway identity and address.
 
 Consequence: the stored root x25519 key is used only by legacy and custom registrations. New clients still generate and store it, because `ClientKeys` is unchanged, but nothing new uses it.
 
@@ -84,17 +84,19 @@ Alternatives considered: SHA-512 and SHA-256, both of which the codebase uses fo
 
 The construction is pinned by a known-answer test. Once clients have registered, a change to the hash, a label or the encoding changes their identities and strands their bandwidth.
 
-### Decision 4: The generation id is zero for a first registration and random on refresh
+### Decision 4: Every stored registration draws a random generation id
 
-The generation id (`GenerationId`) is 16 bytes: all zeros for the first derived registration with a gateway, and 16 bytes from the OS random generator at each refresh. The previous value is overwritten, not kept.
+The generation id (`GenerationId`) is 16 bytes from the OS random generator, drawn for a client's first registration with a gateway and again at each refresh. The previous value is overwritten, not kept. The all-zero id is used only by the LP client, which stores no registration (Decision 16).
 
-Why zero first: a client that never refreshed still recovers its identity and bandwidth after losing the registration store.
+Why random from the first registration: a client knows a gateway only through its stored registration. With a fixed first id, a client that lost or deleted its registrations store would register at that id again and show the gateway its first identity, also at a gateway where it had since refreshed, and it could not tell the two cases apart. With a random id, a lost store is a fresh start at every gateway, and no stored registration ever presents an identity the client has moved away from.
 
-Why random on refresh and not a counter: after a lost store, a counter would restart at zero and each later refresh would walk back through identities the gateway has already seen, silently delivering nothing. And because old ids are not kept, a leaked root can recompute only generation zero and the current generation.
+Why not a counter: after a lost store, a counter would restart and each later registration would walk back through identities the gateway has already seen. And because old ids are not kept, a leaked root together with the registrations store can recompute only the current generation at each gateway.
 
-Why 16 bytes: the chance of an accidental repeat after `k` refreshes at one gateway is about `k^2 / 2^129`. Four random bytes would give about 1% after ten thousand refreshes. A repeat would only show the gateway an earlier identity again.
+Why 16 bytes: the chance of an accidental repeat after `k` registrations and refreshes at one gateway is about `k^2 / 2^129`. Four random bytes would give about 1% after ten thousand. A repeat would only show the gateway an earlier identity again.
 
-Alternatives considered: a monotonic counter, and a random id from the first registration on, which gives up recovery after a lost store.
+Cost: a client that loses its registrations store keeps its root but gets a new identity at every gateway. The bandwidth credited to its old identities is forfeited, messages queued for them are not collected, and its address changes even at a gateway it returns to. Nothing in this repository or in nym-vpn-client loses the registrations store while keeping the key files: nym-vpn-client deletes both together, the wasm client keeps both in one database, and the SDK keeps both in one directory by default.
+
+Alternatives considered: a monotonic counter; and an all-zero id for the first registration with a random id on refresh. The latter let a client that lost its store recover its identity and bandwidth, but only at a gateway it returned to, which in practice means a pinned gateway, and only where it had never refreshed. Where it had refreshed, the same loss showed the gateway the client's first identity again, and that cost fell on exactly the applications that asked for unlinkability.
 
 ### Decision 5: The stored registration carries the generation id, and its absence marks a legacy registration
 
@@ -106,7 +108,7 @@ Why: existing registrations keep their identity, shared key, address and credite
 
 ### Decision 6: The keys in use with a gateway have their own type
 
-A new type, `GatewayClientKeys`, holds the identity keypair, the x25519 keypair and the acknowledgement key that a client uses with one gateway. `ClientKeys` resolves it from a gateway identity and an optional generation id: derived keys when an id is given, the root keys when none is, and the root acknowledgement key in every case. A stored registration supplies its gateway and its id, which is absent for a legacy or custom registration; the LP client, which stores no registration, supplies its chosen gateway and the zero id. `InitialisationResult` carries a `GatewayClientKeys`, and the gateway client, the address, the received-message decryption and the statistics id read from it.
+A new type, `GatewayClientKeys`, holds the identity keypair, the x25519 keypair and the acknowledgement key that a client uses with one gateway. `ClientKeys` resolves it from a gateway identity and an optional generation id: derived keys when an id is given, the root keys when none is, and the root acknowledgement key in every case. A stored registration supplies its gateway and its id, which is absent for a legacy or custom registration; the LP client, which stores no registration, supplies its chosen gateway and the all-zero id, `GenerationId::LP`, which no stored registration carries. `InitialisationResult` carries a `GatewayClientKeys`, and the gateway client, the address, the received-message decryption and the statistics id read from it.
 
 `ClientKeys` remains the root type, and the only type a key store loads or saves.
 
@@ -121,8 +123,8 @@ The SDK builder gains `refresh_gateway_keys`. The SDK's gateway setup at connect
 The replacement is one new operation on `GatewaysDetailsStore`, in the manner of the existing `update_gateway_published_data`, which the on-disk backend performs as a single update. Removing the registration and storing it again with the existing operations was rejected: on disk that is five separate statements with no transaction around them, and removing the active gateway's registration also clears the active-gateway pointer, so an interruption could leave a half-written registration.
 
 - The flag applies to that connect only.
-- With no stored registration it changes nothing: the client registers at generation zero.
-- A legacy registration moves to derived keys at generation zero.
+- With no stored registration it changes nothing: the client makes an ordinary first registration.
+- A legacy registration moves to derived keys under a newly drawn generation id.
 - If the new registration fails, the connect fails. The client is never quietly connected under the identity the application asked to leave. The old registration stays stored for a later connect without the flag.
 - The client never connects as its old identity during a refresh. Forget-me for the old identity therefore has to be sent when the previous session disconnects, which the SDK already supports.
 - The flag is exposed by the SDK and by `nym-registration-client`, which builds the mixnet client nym-vpn-client uses. The command-line clients and the wasm client do not expose it. Over LP the flag fails the connect (Decision 16).
@@ -135,7 +137,7 @@ Alternatives considered: refreshing automatically at every connect, which costs 
 
 `reset_client_identity` generates new random root keys, removes every gateway registration and clears the reply store, and leaves the credential store alone. It is available on a client that is not connected, it contacts no gateway, and it is exposed by the SDK and by `nym-registration-client` only. For on-disk storage it works from `StoragePaths`, which already holds the database key the registration and reply stores are opened with. The reply store is cleared of its reply SURBs and reply keys with the delete operations it already has.
 
-Why replace the root: with a deterministic derivation, removing a registration and registering again yields the generation-zero identity again. Only a new root, or a new generation id at every gateway, gives a fresh identity everywhere, and a new root needs no bookkeeping.
+Why replace the root: removing the registrations alone would give a fresh identity at every gateway with a stored registration, since each new registration draws a random generation id, but not to an LP client, which derives at the zero id from the root at every start. A new root covers both and needs no bookkeeping.
 
 Because the ecash key no longer derives from the root (Decision 11), a reset does not change it.
 
@@ -214,10 +216,11 @@ Alternatives considered: leaving LP on the root keys as a non-goal, rejected for
 
 ## Risks / Trade-offs
 
-- **A leaked root reveals the first and the current identity at every gateway.** Earlier refreshed generations stay hidden because their ids are not kept. A leaked derived key reveals nothing else.
+- **A leaked root reveals the LP identity at any gateway.** Together with the registrations store it also reveals the current identity at each gateway with a stored registration; earlier generations stay hidden because their ids are not kept. A leaked derived key reveals nothing else.
 - **The root identity key has two jobs.** It is the HKDF input and, for legacy and custom registrations, still a signing key. The two go through different functions (HMAC under the protocol label, and ed25519's own hash of the seed). It no longer seeds ecash.
 - **A refresh or a reset forfeits the bandwidth credited to the old identity** and makes the client unreachable at its old address. Both happen only when the application asks.
-- **Abandoned identities pile up at gateways.** A gateway removes a client record only on the client's forget-me. Each refresh or reset leaves a shared-key and bandwidth row behind unless forget-me was sent on the previous disconnect.
+- **A lost registrations store is a fresh start.** A client that loses or deletes it gets a new identity at every gateway, forfeits the bandwidth credited to the old identities and changes address, even at a gateway it returns to (Decision 4).
+- **Abandoned identities pile up at gateways.** A gateway removes a client record only on the client's forget-me. Each refresh, reset or lost registrations store leaves a shared-key and bandwidth row behind unless forget-me was sent on the previous disconnect.
 - **Network-wide unique-user counts are inflated.** Matching published identity hashes across gateways stops working, and a refreshed client counts more than once at one gateway. This is accepted: a value that de-duplicates a client across gateways is a value that links it.
 - **Legacy registrations stay linkable** to the gateways that hold them until refreshed or reset.
 - **Two kinds of registration** have to be supported for as long as legacy rows exist.
@@ -233,7 +236,7 @@ Alternatives considered: leaving LP on the root keys as a non-goal, rejected for
 ## Migration Plan
 
 1. Land the change as one PR. On first start, a client's registrations database gains the generation id column, empty on every existing row. No other store is migrated.
-2. Existing registrations keep authenticating with the root identity. New registrations use derived keys at generation zero.
+2. Existing registrations keep authenticating with the root identity. New registrations use derived keys under a random generation id.
 3. An application that wants a fresh identity at a gateway sets `refresh_gateway_keys` on connect, ideally with forget-me configured on the preceding disconnect.
 4. nym-vpn-client moves its fetcher call to `new_with_keypair` when it upgrades the dependency. No gateway rollout is involved.
 

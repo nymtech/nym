@@ -8,6 +8,7 @@ use crate::client::base_client::storage::helpers::{
     store_gateway_details, update_stored_published_data_gateway,
 };
 use crate::client::key_manager::ClientKeys;
+use crate::client::key_manager::gateway_keys::GatewayClientKeys;
 use crate::client::key_manager::persistence::KeyStore;
 use crate::error::ClientCoreError;
 use crate::init::helpers::{
@@ -108,19 +109,22 @@ where
         });
     }
 
-    let (gateway_details, authenticated_ephemeral_client) = match selected_gateway {
+    let (gateway_details, gateway_keys, authenticated_ephemeral_client) = match selected_gateway {
         SelectedGateway::Remote {
             gateway_id,
 
             gateway_listeners,
         } => {
-            // if we're using a 'normal' gateway setup, do register
-            let our_identity = client_keys.identity_keypair();
+            // if we're using a 'normal' gateway setup, do register.
+            // random even for a first registration, so registering again never brings back an
+            // identity the gateway has seen before
+            let generation_id = GenerationId::new_random(&mut rng);
+            let gateway_keys = client_keys.gateway_keys(gateway_id, Some(generation_id));
 
             let registration = helpers::register_with_gateway(
                 gateway_id,
                 gateway_listeners.clone(),
-                our_identity,
+                gateway_keys.identity_keypair(),
                 #[cfg(unix)]
                 connection_fd_callback,
             )
@@ -130,8 +134,9 @@ where
                     gateway_id,
                     registration.shared_keys,
                     GatewayPublishedData::new(gateway_listeners),
-                    GenerationId::INITIAL,
+                    generation_id,
                 ),
+                gateway_keys,
                 Some(registration.authenticated_ephemeral_client),
             )
         }
@@ -140,6 +145,7 @@ where
             additional_data,
         } => (
             GatewayDetails::new_custom(gateway_id, additional_data),
+            client_keys.gateway_keys(gateway_id, None),
             None,
         ),
     };
@@ -151,7 +157,7 @@ where
 
     Ok(InitialisationResult {
         gateway_registration,
-        client_keys,
+        gateway_keys,
         authenticated_ephemeral_client,
     })
 }
@@ -218,18 +224,18 @@ where
     // no need to persist anything as we got everything from the storage
     Ok(InitialisationResult::new_loaded(
         loaded_details,
-        loaded_keys,
+        &loaded_keys,
     ))
 }
 
 fn reuse_gateway_connection(
     authenticated_ephemeral_client: InitGatewayClient,
     gateway_registration: GatewayRegistration,
-    client_keys: ClientKeys,
+    gateway_keys: GatewayClientKeys,
 ) -> InitialisationResult {
     InitialisationResult {
         gateway_registration,
-        client_keys,
+        gateway_keys,
         authenticated_ephemeral_client: Some(authenticated_ephemeral_client),
     }
 }
@@ -269,13 +275,13 @@ where
         GatewaySetup::ReuseConnection {
             authenticated_ephemeral_client,
             gateway_details,
-            client_keys: managed_keys,
+            gateway_keys,
         } => {
             tracing::debug!("GatewaySetup::ReuseConnection");
             Ok(reuse_gateway_connection(
                 *authenticated_ephemeral_client,
                 *gateway_details,
-                managed_keys,
+                gateway_keys,
             ))
         }
     }

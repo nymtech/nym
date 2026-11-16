@@ -554,7 +554,7 @@ where
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown_tracker: &ShutdownTracker,
     ) -> Result<GatewayClient, ClientCoreError> {
-        let managed_keys = initialisation_result.client_keys;
+        let managed_keys = initialisation_result.gateway_keys;
         let GatewayDetails::Remote(details) = initialisation_result.gateway_registration.details
         else {
             return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails);
@@ -1037,9 +1037,9 @@ where
             reply_controller::requests::new_control_channels();
 
         let self_address = Self::mix_address(&init_res);
-        let ack_key = init_res.client_keys.ack_key();
-        let encryption_keys = init_res.client_keys.encryption_keypair();
-        let identity_keys = init_res.client_keys.identity_keypair();
+        let ack_key = init_res.gateway_keys.ack_key();
+        let encryption_keys = init_res.gateway_keys.encryption_keypair();
+        let identity_keys = init_res.gateway_keys.identity_keypair();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.

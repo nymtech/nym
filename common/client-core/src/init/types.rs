@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::key_manager::ClientKeys;
+use crate::client::key_manager::gateway_keys::GatewayClientKeys;
 use crate::client::key_manager::persistence::KeyStore;
 use crate::config::Config;
 use crate::error::ClientCoreError;
@@ -119,20 +120,23 @@ pub struct RegistrationResult {
 
 /// Result of fully initialising a client:
 /// - details of the associated gateway
-/// - all loaded (or derived) keys
+/// - the keys the client uses with that gateway
 /// - an optional authenticated handle of an ephemeral gateway handle created for the purposes of registration,
 ///   if this was the first time this client registered
 pub struct InitialisationResult {
     pub gateway_registration: GatewayRegistration,
-    pub client_keys: ClientKeys,
+    pub gateway_keys: GatewayClientKeys,
     pub authenticated_ephemeral_client: Option<InitGatewayClient>,
 }
 
 impl InitialisationResult {
-    pub fn new_loaded(gateway_registration: GatewayRegistration, client_keys: ClientKeys) -> Self {
+    /// Resolves the keys from the registration's gateway and generation.
+    pub fn new_loaded(gateway_registration: GatewayRegistration, client_keys: &ClientKeys) -> Self {
+        let details = &gateway_registration.details;
+        let gateway_keys = client_keys.gateway_keys(details.gateway_id(), details.generation_id());
         InitialisationResult {
             gateway_registration,
-            client_keys,
+            gateway_keys,
             authenticated_ephemeral_client: None,
         }
     }
@@ -147,8 +151,8 @@ impl InitialisationResult {
 
     pub fn client_address(&self) -> Recipient {
         Recipient::new(
-            *self.client_keys.identity_keypair().public_key(),
-            *self.client_keys.encryption_keypair().public_key(),
+            *self.gateway_keys.identity_keypair().public_key(),
+            *self.gateway_keys.encryption_keypair().public_key(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
             self.gateway_id(),
@@ -261,7 +265,7 @@ pub enum GatewaySetup {
         // Details of this pre-initialised client (i.e. gateway and keys)
         gateway_details: Box<GatewayRegistration>,
 
-        client_keys: ClientKeys,
+        gateway_keys: GatewayClientKeys,
     },
 }
 
@@ -289,7 +293,7 @@ impl Debug for GatewaySetup {
                 .debug_struct("GatewaySetup::ReuseConnection")
                 .field("authenticated_ephemeral_client", &"***")
                 .field("gateway_details", gateway_details)
-                .field("client_keys", &"***")
+                .field("gateway_keys", &"***")
                 .finish(),
         }
     }
@@ -301,7 +305,7 @@ impl GatewaySetup {
             Ok(GatewaySetup::ReuseConnection {
                 authenticated_ephemeral_client: Box::new(authenticated_ephemeral_client),
                 gateway_details: Box::new(init_res.gateway_registration),
-                client_keys: init_res.client_keys,
+                gateway_keys: init_res.gateway_keys,
             })
         } else {
             Err(ClientCoreError::NoInitClientPresent)

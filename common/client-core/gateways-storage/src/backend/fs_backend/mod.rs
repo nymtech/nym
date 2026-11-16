@@ -238,7 +238,6 @@ mod tests {
         let store = in_memory_store().await;
         let generation_ids = [
             None,
-            Some(GenerationId::INITIAL),
             Some(GenerationId::new_random(&mut deterministic_rng())),
         ];
 
@@ -257,7 +256,8 @@ mod tests {
     #[tokio::test]
     async fn updating_gateway_keys_keeps_the_gateway_registered_and_active() {
         let store = in_memory_store().await;
-        let registration = remote_registration(1, Some(GenerationId::INITIAL));
+        let mut rng = deterministic_rng();
+        let registration = remote_registration(1, Some(GenerationId::new_random(&mut rng)));
         let gateway_id = registration.gateway_id();
         store.store_gateway_details(&registration).await.unwrap();
         store
@@ -265,7 +265,7 @@ mod tests {
             .await
             .unwrap();
 
-        let generation_id = GenerationId::new_random(&mut deterministic_rng());
+        let generation_id = GenerationId::new_random(&mut rng);
         store
             .update_gateway_keys(&gateway_id, generation_id, shared_key(2))
             .await

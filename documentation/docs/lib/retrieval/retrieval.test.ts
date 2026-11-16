@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { cosineSimilarity, search, getSection } from './retrieval';
 import type { DocIndex, EmbeddedChunk } from '@nymproject/retrieval-indexer/types';
+import { TEST_SCORE_PENALTY } from '@nymproject/retrieval-indexer/search';
 
 describe('cosineSimilarity', () => {
   it('is 1 for identical direction, 0 for orthogonal', () => {
@@ -53,6 +54,13 @@ describe('search', () => {
     const hits = search([1, 0], idx, { minScore: 0.99 });
     expect(hits.every((h) => h.score >= 0.99)).toBe(true);
     expect(hits.some((h) => h.chunk.id === 'docs-c')).toBe(false); // orthogonal
+  });
+
+  it('applies minScore to the penalised score of a test chunk', () => {
+    const prod = chunk('prod', 'nym-code', [1, 0]);
+    const test = { ...chunk('test', 'nym-code', [1, 0]), test: true as const };
+    const hits = search([1, 0], index([prod, test]), { minScore: 1 - TEST_SCORE_PENALTY / 2 });
+    expect(hits.map((h) => h.chunk.id)).toEqual(['prod']);
   });
 
   it('strips the vector from returned chunks', () => {

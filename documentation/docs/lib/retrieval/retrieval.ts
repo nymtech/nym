@@ -27,7 +27,7 @@ export interface SearchOptions {
   topK?: number;
   /** Restrict to these sources; omit for all. */
   sources?: string[];
-  /** Drop hits below this cosine score. */
+  /** Drop hits below this score: the cosine, less TEST_SCORE_PENALTY for a test chunk, as in the store's SEARCH_SQL. */
   minScore?: number;
 }
 

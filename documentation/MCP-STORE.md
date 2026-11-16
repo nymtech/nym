@@ -105,6 +105,6 @@ Search is a sequential scan with no vector index (design decision 5). A `search_
 | The store is unreachable | `search_docs`, `search_code` and `get_section` fail | The route should return an error, not an empty result. Task 5.2 has to decide this |
 | A producer stops writing | Its shard ages, and the answers drift from the source | `staleShards` in the package reports the age of each shard. No job runs it yet |
 | Two runs write the same shard at once | One fails and must run again | The CI `concurrency` group prevents it |
-| The model of a modality changes | Every shard of the modality must be embedded again. One producer cannot switch alone: the package rejects its run while other shards keep the old model | Delete the shards of the modality (owner), then run each producer |
+| The model of a modality changes | Every shard of the modality needs new vectors. One producer cannot switch alone: the package rejects its run while other shards keep the old model | Run all producers of the modality in one `indexShards` call, one run for each shard, so that the shards change model in one transaction. Do not delete the shards first: the delete cascades to their chunks, and the modality has no rows until the producers commit |
 | The store is lost | The index is gone until the producers run again | Run each producer once. The cost is one full embedding run |
 

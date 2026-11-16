@@ -15,11 +15,26 @@ The guide covers task 4.1 of the OpenSpec change `add-shared-retrieval-index`, f
 
 1. Create a database for the store on the Exoscale Postgres server. The store is about 64 MB today and about 130 MB at 20,000 chunks, and the server needs enough RAM to keep it cached.
 2. Note the server's direct address (Postgres) and its pooled address (PgBouncer). You need both in step 4.
-3. Put the owner account's direct connection string in a shell variable for the next steps:
+3. Put the owner password in `~/.pgpass`, so that it does not go into your shell history or into a connection string:
 
    ```
-   export OWNER_URL='postgresql://<owner>:<password>@<direct address>/<database>?sslmode=require'
+   touch ~/.pgpass && chmod 600 ~/.pgpass
    ```
+
+   Then add this line to the file with an editor:
+
+   ```
+   <direct host>:*:<database>:<owner>:<password>
+   ```
+
+   `<direct host>` is the host name of the direct address, without the port, and `*` matches any port. `libpq` ignores the file if other users can read it, so set the mode before you write the password.
+4. Put the owner account's direct connection string, with no password, in a shell variable for the next steps:
+
+   ```
+   export OWNER_URL='postgresql://<owner>@<direct address>/<database>?sslmode=verify-full&sslrootcert=<CA certificate file>'
+   ```
+
+   With `verify-full`, `psql` checks the server certificate against the CA certificate in `sslrootcert`, and checks that the certificate names the host. `require` only encrypts the connection, and it accepts a server that uses a certificate for a different host.
 
 ## 2. Create the schema
 

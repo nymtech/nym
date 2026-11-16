@@ -1,6 +1,6 @@
 ## 1. Registration store: the generation id
 
-- [x] 1.1 Add a `GenerationId` type over 16 bytes to `common/client-core/gateways-storage`, with an all-zero value for a first registration and a constructor that draws 16 bytes from the OS random generator
+- [x] 1.1 Add a `GenerationId` type over 16 bytes to `common/client-core/gateways-storage`, with an all-zero value for a first registration and a constructor that draws 16 bytes from a caller-supplied `CryptoRng`
 - [x] 1.2 Add an optional generation id to `RemoteGatewayDetails` and `RawRemoteGatewayDetails`, and take it in `GatewayDetails::new_remote`, with an accessor on `GatewayDetails` that returns none for a custom registration
 - [x] 1.3 Add the single sqlite migration for this change in `fs_gateways_migrations`: a nullable 16-byte column on `remote_gateway_details`, left empty on every existing row
 - [x] 1.4 Read and write the column in the on-disk backend's queries, and carry the field in the in-memory backend
@@ -12,25 +12,27 @@
 
 - [x] 2.1 Add the derivation to `common/client-core/src/client/key_manager`: HKDF over BLAKE3, extracted once from the root identity private key and the salt label into a zeroized pseudorandom key held by a derivation struct, then expanded per key type with the key-type label, gateway identity public key and generation id as info, building an ed25519 keypair from the identity output and an x25519 keypair from the other
 - [x] 2.2 Fix the labels as constants beside the derivation: salt `nym-client-gateway-keys-v1`, info labels `identity` and `diffie-hellman`
-- [ ] 2.3 Add a known-answer test for a fixed root key, gateway key and generation id, using deterministic keys from `nym_test_utils`, with a comment saying that a changed output strands existing registrations
-- [ ] 2.4 Test that changing the gateway key, the generation id or the key type each changes the derived key, and that the root x25519 key has no influence on either output
+- [x] 2.3 Add a known-answer test for a fixed root key, gateway key and generation id, built from fixed bytes (not `nym_test_utils`, whose seeded keys change when 7.3 removes the keypair `index` field) and checked against an independent computation from the spec, with a comment saying that a changed output strands existing registrations
+- [x] 2.4 Test that changing the gateway key, the generation id or the key type each changes the derived key; the root x25519 key cannot influence either output because the derivation does not take it
 
 ## 3. The keys in use with a gateway
 
 - [ ] 3.1 Add `GatewayClientKeys` to the key manager, holding the identity keypair, the x25519 keypair and the acknowledgement key in use with one gateway, with no way to persist it to a key store
-- [ ] 3.2 Add a method on `ClientKeys` that resolves the `GatewayClientKeys` for a registration: derived identity and x25519 keys when the registration carries a generation id, the root keys when it does not or when it is a custom registration, and the root acknowledgement key in every case
+- [ ] 3.2 Add a method on `ClientKeys` that resolves the `GatewayClientKeys` from a gateway identity and an optional generation id: derived identity and x25519 keys when an id is given, the root keys when none is (a legacy or custom registration supplies none), and the root acknowledgement key in every case
 - [ ] 3.3 Make `InitialisationResult` carry a `GatewayClientKeys`; in `setup_new_gateway`, register a remote gateway with the keys derived at the zero generation id and store that id with the registration, and keep registering a custom gateway with the root keys
 - [ ] 3.4 Return the resolved keys from `use_loaded_gateway_details`, and convert `GatewaySetup::ReuseConnection` and `try_reuse_connection` to carry `GatewayClientKeys`, leaving the commented-out call in the wasm client as it is
 - [ ] 3.5 Follow the new type in the base client and in the other readers of the initialisation result: `common/wasm/client-core`, `wasm/client`, `common/socks5-client-core`, `service-providers/network-requester` and `sdk/rust/nym-sdk`
-- [ ] 3.6 Test the resolution: a legacy registration yields the root keys, a derived registration yields keys that differ from the root and match the derivation, a custom registration yields the root keys, and two gateways yield different identity and x25519 keys
+- [ ] 3.6 In the LP client (`common/client-core/src/client/base_client/lp_client.rs`), once the gateway is chosen, resolve the keys for it at the zero generation id and use them for the address, the dialer's registration and the data plane's decryption key; add a comment on the dialer's `request()` that a session with any further gateway needs keys derived for that gateway first
+- [ ] 3.7 Test the resolution: a legacy registration yields the root keys, a derived registration yields keys that differ from the root and match the derivation, a custom registration yields the root keys, and two gateways yield different identity and x25519 keys
 
 ## 4. Refresh on connect
 
-- [ ] 4.1 Add a refresh path to `common/client-core/src/init` beside `setup_new_gateway`: for a gateway that already has a stored registration, choose the next generation id (the zero id for a legacy registration, a random id for a derived one), register under the keys derived from it, and only then replace the stored registration through the new store operation
+- [ ] 4.1 Add a refresh path to `common/client-core/src/init` beside `setup_new_gateway`: for a gateway that already has a stored registration, choose the next generation id (the zero id for a legacy registration, a random id drawn with `os_rng()` for a derived one), register under the keys derived from it, and only then replace the stored registration through the new store operation
 - [ ] 4.2 When the registration of a refresh fails, return an error from the connect and leave the stored registration untouched, with no fallback to it
 - [ ] 4.3 Add the one-shot `refresh_gateway_keys` flag to the SDK's `MixnetClientBuilder`, and in `setup_gateway` take the refresh path where the stored registration for the chosen gateway would otherwise be loaded; with no stored registration the flag changes nothing
-- [ ] 4.4 Surface the flag through the `nym-registration-client` builder
-- [ ] 4.5 Test the choice of the next generation id: zero for a legacy registration, a non-zero random value for a derived one
+- [ ] 4.4 Fail a connect over LP (`connect_to_lp`) when `refresh_gateway_keys` is set, before any gateway is dialled
+- [ ] 4.5 Surface the flag through the `nym-registration-client` builder
+- [ ] 4.6 Test the choice of the next generation id: zero for a legacy registration, a non-zero random value for a derived one; and that a connect over LP with the flag set fails
 
 ## 5. Full reset
 
@@ -46,7 +48,7 @@
 ## 7. Remove derivation material
 
 - [ ] 7.1 Remove `DerivationMaterial` from `common/crypto/src/hkdf.rs`, `ClientKeys::from_master_key` with its tests in `key_manager/test.rs`, and the derivation material argument of `initialise_keys_and_gateway`
-- [ ] 7.2 Remove `with_derivation_material` from client-core's base client builder and from the SDK's `MixnetClientBuilder`, with the fields behind them
+- [ ] 7.2 Remove `with_derivation_material` from client-core's base client builder, the LP client builder (`LpBaseClientBuilder`) and the SDK's `MixnetClientBuilder`, with the fields behind them
 - [ ] 7.3 Remove `ed25519::KeyPair::from_secret`, the keypair's `index` field and `fake_index`
 - [ ] 7.4 Run the workspace tests and update any value that a test pinned from a seeded generator and that changed because `KeyPair::new` no longer draws the index
 

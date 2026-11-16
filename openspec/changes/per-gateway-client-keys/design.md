@@ -10,6 +10,7 @@ A mixnet client built on `client-core` holds one `ClientKeys` set (`common/clien
 - **Ecash.** The ecash user key is `hash_to_scalar(seed)`. nym-sdk's `create_bandwidth_client` and nym-cli pass the mixnet identity private key as that seed. `nym-sdk-session` passes SHA-256 over a label and the mnemonic entropy. nym-vpn-client passes the private key at the cosmos HD path of its account mnemonic. An issued ticketbook stores its own ecash secret and spends from it.
 - **Sender tags.** A client uses one sender tag per recipient for anonymous messages. Tags are not persisted: a client generates fresh ones at every start, so a tag never outlives the address it was created under.
 - **Derivation material.** A client can derive its identity from a master key and an index through `with_derivation_material`. Nothing in this repository or in nym-vpn-client uses it.
+- **LP mode.** A client built with `with_lp(true)` runs `LpBaseClient` (`common/client-core/src/client/base_client/lp_client.rs`) and keeps no stored registration. At every start it picks the requested gateway, or a random LP gateway if none was requested, builds its address from the root keys, and registers with that gateway over LP under the root identity and root encryption key (`client/lp/control/dialer.rs`). Its dialer is built to open sessions with further gateways under the same identity, but nothing opens a session with any gateway other than the home gateway yet.
 
 Constraints that shaped the design:
 
@@ -41,6 +42,9 @@ The full investigation, with line references and the reasoning behind each decis
 - Making an ecash blacklist robust. The ecash key in an issuance request is the requester's free choice under any seed scheme.
 - Moving nym-vpn-client onto the shared ecash helper. It supplies its own ecash keypair.
 - Renaming the existing `encryption_keypair` items, or re-enabling the wasm client's use of the reuse-connection path.
+- Per-gateway keys for LP sessions with gateways other than the client's home gateway. Nothing opens such sessions yet, and what they register and how traffic arriving through them is decrypted is not decided.
+- A key refresh over LP, which would need a stored generation id that an LP client does not keep.
+- The LP dialer's handshake keypair, which is fresh at every start and shared by the sessions of that run.
 
 ## Decisions
 
@@ -102,7 +106,7 @@ Why: existing registrations keep their identity, shared key, address and credite
 
 ### Decision 6: The keys in use with a gateway have their own type
 
-A new type, `GatewayClientKeys`, holds the identity keypair, the x25519 keypair and the acknowledgement key that a client uses with one gateway. `ClientKeys` resolves it for a registration: derived keys for a registration with a generation id, the root keys for a legacy or custom one, and the root acknowledgement key in every case. `InitialisationResult` carries a `GatewayClientKeys`, and the gateway client, the address, the received-message decryption and the statistics id read from it.
+A new type, `GatewayClientKeys`, holds the identity keypair, the x25519 keypair and the acknowledgement key that a client uses with one gateway. `ClientKeys` resolves it from a gateway identity and an optional generation id: derived keys when an id is given, the root keys when none is, and the root acknowledgement key in every case. A stored registration supplies its gateway and its id, which is absent for a legacy or custom registration; the LP client, which stores no registration, supplies its chosen gateway and the zero id. `InitialisationResult` carries a `GatewayClientKeys`, and the gateway client, the address, the received-message decryption and the statistics id read from it.
 
 `ClientKeys` remains the root type, and the only type a key store loads or saves.
 
@@ -121,7 +125,7 @@ The replacement is one new operation on `GatewaysDetailsStore`, in the manner of
 - A legacy registration moves to derived keys at generation zero.
 - If the new registration fails, the connect fails. The client is never quietly connected under the identity the application asked to leave. The old registration stays stored for a later connect without the flag.
 - The client never connects as its old identity during a refresh. Forget-me for the old identity therefore has to be sent when the previous session disconnects, which the SDK already supports.
-- The flag is exposed by the SDK and by `nym-registration-client`, which builds the mixnet client nym-vpn-client uses. The command-line clients and the wasm client do not expose it.
+- The flag is exposed by the SDK and by `nym-registration-client`, which builds the mixnet client nym-vpn-client uses. The command-line clients and the wasm client do not expose it. Over LP the flag fails the connect (Decision 16).
 
 Why at connect: it is the least linkable moment, since no connection as the old identity precedes it, and the cheapest, since a client whose balance is low would spend a ticket there anyway.
 
@@ -188,11 +192,25 @@ These are checked from the finished diff, and demonstrated end to end by the QA 
 
 ### Decision 15: The derivation material option is removed
 
-`DerivationMaterial`, `ClientKeys::from_master_key`, both `with_derivation_material` builder options and `ed25519::KeyPair::from_secret` are removed, together with the `index` field on the ed25519 keypair, which every constructor writes and nothing reads.
+`DerivationMaterial`, `ClientKeys::from_master_key`, the three `with_derivation_material` builder options (the base client's, the LP client's and the SDK's) and `ed25519::KeyPair::from_secret` are removed, together with the `index` field on the ed25519 keypair, which every constructor writes and nothing reads.
 
 Why: nothing in this repository or in nym-vpn-client uses the option, and keeping it would force a decision about what a reset means for a client whose root comes from a master key. With it gone, a root is always random.
 
 Cost: an application outside those two repositories that uses the option breaks at compile time. And `KeyPair::new` draws a random number for the `index` field before it generates the key, so removing the field changes what a seeded test generator produces afterwards. Tests elsewhere in the workspace that pin keys or addresses may need new values.
+
+### Decision 16: An LP client derives the keys for its home gateway at generation zero
+
+After `LpBaseClient` has chosen its gateway, it resolves the `GatewayClientKeys` for that gateway at the zero generation id and uses them for its address, for the registration its dialer sends, and for decrypting the messages it receives. It does so at every start, since it stores no registration.
+
+- `refresh_gateway_keys` set on a connect over LP fails that connect with an error. A refreshed id could not be kept, so the next start would silently return to generation zero.
+- A full reset applies to an LP client like any other, because it replaces the root.
+- The dialer holds the home gateway's derived keys. A comment on its `request()`, which would open sessions with further gateways and which nothing calls yet, records that each such session needs keys derived for its own gateway first.
+
+Why: an LP client that requests no gateway picks a random one at every start, so under its root identity it shows one identity to a different gateway each run, which is the strongest form of the link this change removes.
+
+Cost: an LP client's identity at its gateway changes once on upgrade, and a client with a requested LP gateway changes address once. Bandwidth an LP gateway credited to the root identity, if any, is not reachable under the derived identity.
+
+Alternatives considered: leaving LP on the root keys as a non-goal, rejected for the reason above; and deriving per dialled gateway, deferred because the meaning of a session with a further gateway is not decided.
 
 ## Risks / Trade-offs
 
@@ -207,6 +225,8 @@ Cost: an application outside those two repositories that uses the option breaks 
 - **Pinned test values may change** across the workspace, because of the removed `index` field.
 - **One-time ecash key change** for nym-sdk, nym-cli and `nym-sdk-session` clients. Existing ticketbooks are unaffected.
 - **No downgrade.** The registrations database is migrated without ignore-missing, so an older binary refuses a database that carries the new migration. This is true of every earlier migration of that database.
+- **LP-mode clients change identity once on upgrade**, and one with a requested LP gateway changes address once (Decision 16).
+- **Further LP sessions would share the home identity.** If the dialer starts opening sessions with further gateways before per-dial derivation exists, those gateways see the home gateway's derived identity. The comment on `request()` is the only guard.
 - **Live wiring is first exercised at QA.** No unit test reaches a real gateway, so a mistake between the derivation and the handshake would be found by the QA pass after merge.
 - **The wasm stores were located but not read** during the investigation. The wasm registration is stored as one serde struct with an existing defaulted field, so an added optional field is expected to read old data.
 
@@ -226,6 +246,7 @@ These need a real gateway and funded accounts, so they belong to the QA pass aga
 - **Upgrade from the released version.** A client with an existing registration and existing ticketbooks is upgraded. It connects with that registration without registering again, and spends a ticket from a ticketbook issued before the upgrade.
 - **Fresh client.** A new client registers with a gateway, restarts and authenticates again. The identity the gateway sees differs from the client's root identity.
 - **Refresh.** A connect with `refresh_gateway_keys` registers under a new identity, and the next connect without the flag keeps that identity.
+- **LP mode.** A client connecting with `with_lp(true)` registers with its LP gateway under an identity that differs from its root identity, receives a message sent to its address, and presents the same identity to the same requested gateway on its next start.
 
 ## Open Questions
 

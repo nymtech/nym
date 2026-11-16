@@ -3,10 +3,9 @@
 
 use crate::BadGateway;
 use nym_crypto::asymmetric::ed25519;
-use nym_crypto::rng::os_rng;
 use nym_gateway_client::client::GatewayListeners;
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
-use rand::Rng;
+use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -329,10 +328,10 @@ impl GenerationId {
     /// The generation id of a client's first derived registration with a gateway.
     pub const INITIAL: GenerationId = GenerationId([0; GENERATION_ID_SIZE]);
 
-    /// A fresh generation id from the OS random generator, as drawn at each key refresh.
-    pub fn new_random() -> GenerationId {
+    /// A fresh random generation id; a key refresh draws it from the OS random generator.
+    pub fn new_random<R: CryptoRng>(rng: &mut R) -> GenerationId {
         let mut bytes = [0; GENERATION_ID_SIZE];
-        os_rng().fill_bytes(&mut bytes);
+        rng.fill_bytes(&mut bytes);
         GenerationId(bytes)
     }
 

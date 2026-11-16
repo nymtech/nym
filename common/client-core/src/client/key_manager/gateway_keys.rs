@@ -80,3 +80,90 @@ impl GatewayKeyDerivation {
         secret
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_test_utils::helpers::deterministic_rng;
+
+    // fixed bytes rather than a seeded generator, so the inputs cannot move under the known answer
+    fn private_key(byte: u8) -> ed25519::PrivateKey {
+        ed25519::PrivateKey::from_bytes(&[byte; ed25519::SECRET_KEY_LENGTH]).unwrap()
+    }
+
+    fn public_key(byte: u8) -> ed25519::PublicKey {
+        ed25519::PublicKey::from(&private_key(byte))
+    }
+
+    // a changed output gives every derived registration a new identity, which strands its address
+    // and the bandwidth credited to it at the gateway. The values were computed from the spec with an
+    // independent HKDF-BLAKE3, Ed25519 and X25519, not from this implementation
+    #[test]
+    fn derived_keys_match_their_known_answer() {
+        let derivation =
+            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::INITIAL);
+
+        assert_eq!(
+            derivation
+                .identity_keypair()
+                .public_key()
+                .to_base58_string(),
+            "G6NNAq2WQigmFSu4QSDEyG6ddSWSKZjTMed9fJ1Pafwg"
+        );
+        assert_eq!(
+            derivation
+                .diffie_hellman_keypair()
+                .public_key()
+                .to_base58_string(),
+            "EZQ4S5q6FdSsb556N6eNHxmvdxmMSh6trdrYpLpkPCTK"
+        );
+    }
+
+    #[test]
+    fn the_gateway_changes_both_keys() {
+        let first =
+            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::INITIAL);
+        let second =
+            GatewayKeyDerivation::new(&private_key(1), public_key(3), GenerationId::INITIAL);
+
+        assert_ne!(
+            first.identity_keypair().public_key(),
+            second.identity_keypair().public_key()
+        );
+        assert_ne!(
+            first.diffie_hellman_keypair().public_key(),
+            second.diffie_hellman_keypair().public_key()
+        );
+    }
+
+    #[test]
+    fn the_generation_id_changes_both_keys() {
+        let first =
+            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::INITIAL);
+        let second = GatewayKeyDerivation::new(
+            &private_key(1),
+            public_key(2),
+            GenerationId::new_random(&mut deterministic_rng()),
+        );
+
+        assert_ne!(
+            first.identity_keypair().public_key(),
+            second.identity_keypair().public_key()
+        );
+        assert_ne!(
+            first.diffie_hellman_keypair().public_key(),
+            second.diffie_hellman_keypair().public_key()
+        );
+    }
+
+    #[test]
+    fn the_key_type_changes_the_derived_secret() {
+        let derivation =
+            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::INITIAL);
+
+        assert_ne!(
+            *derivation.expand::<32>(IDENTITY_KEY_LABEL),
+            *derivation.expand::<32>(DIFFIE_HELLMAN_KEY_LABEL)
+        );
+    }
+}

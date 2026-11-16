@@ -40,7 +40,7 @@ zeroize = { workspace = true }
 nym-id = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bandwidth-fetcher = { workspace = true }
-nym-crypto = { workspace = true, features = ["rand"] }
+nym-crypto = { workspace = true, features = ["hashing", "rand"] }
 nym-gateway-client = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-http-api-client = { workspace = true, features = ["network-defaults"] }

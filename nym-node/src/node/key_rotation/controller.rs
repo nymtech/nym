@@ -3,9 +3,9 @@
 
 use crate::config::Config;
 use crate::node::directory_publisher::{DirectoryPayload, DirectoryPublisherEventsSender};
+use crate::node::helpers::NymApiClient;
 use crate::node::key_rotation::get_key_rotation_details;
 use crate::node::key_rotation::manager::SphinxKeyManager;
-use crate::node::nym_apis_client::NymApisClient;
 use crate::node::nyx_client::NyxClient;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use futures::pin_mut;
@@ -44,7 +44,7 @@ pub(crate) struct KeyRotationController {
     rotation_config: RotationConfig,
     replay_protection_manager: ReplayProtectionBloomfiltersManager,
     nyx_client: NyxClient,
-    nym_apis_client: NymApisClient,
+    nym_api_client: NymApiClient,
     managed_keys: SphinxKeyManager,
     shutdown_token: ShutdownToken,
 
@@ -121,7 +121,7 @@ impl KeyRotationController {
         config: &Config,
         rotation_config: RotationConfig,
         nyx_client: NyxClient,
-        nym_apis_client: NymApisClient,
+        nym_api_client: NymApiClient,
         replay_protection_manager: ReplayProtectionBloomfiltersManager,
         managed_keys: SphinxKeyManager,
         directory_publisher_events: Option<DirectoryPublisherEventsSender>,
@@ -136,7 +136,7 @@ impl KeyRotationController {
             rotation_config,
             replay_protection_manager,
             nyx_client,
-            nym_apis_client,
+            nym_api_client,
             managed_keys,
             shutdown_token,
             directory_publisher_events,
@@ -156,25 +156,8 @@ impl KeyRotationController {
             return NextAction::wait(Duration::from_secs(240));
         }
 
-        // >>>>> START: determine if we called this method pre-maturely due to clock skew
-
         // current rotation id as determined by the current epoch id
         let current_rotation_id = key_rotation_info.current_key_rotation_id();
-
-        // expected rotation id as determined by the current TIME
-        // used to determined epoch stalling or clocks being slightly out of sync
-        let expected_current_rotation_id = key_rotation_info.expected_current_rotation_id();
-
-        if current_rotation_id != expected_current_rotation_id {
-            warn!(
-                "the current rotation is {current_rotation_id} whilst we expected {expected_current_rotation_id}"
-            );
-            // if we got here, it means epoch is most likely NOT stuck (we're within the threshold)
-            // so probably we prematurely called this method before nym-api(s) got to advancing
-            // the epoch and thus the rotation, so wait a bit instead.
-            return NextAction::wait(Duration::from_secs(30));
-        }
-        // >>>>> END: determine if we called this method pre-maturely due to clock skew
 
         // if we're less than 30s until next rotation, we probably started our binary in a rather
         // unfortunate time, just wait until the next rotation rather than do all the work only to throw it
@@ -282,7 +265,7 @@ impl KeyRotationController {
     }
 
     async fn try_get_key_rotation_info(&self) -> Option<KeyRotationDetails> {
-        match get_key_rotation_details(&self.nyx_client, &self.nym_apis_client).await {
+        match get_key_rotation_details(&self.nyx_client, &self.nym_api_client).await {
             Ok(details) => Some(details),
             Err(err) => {
                 warn!(
@@ -308,9 +291,6 @@ impl KeyRotationController {
             // mutex poisoning - we have to exit
             self.shutdown_token.cancel();
         }
-
-        // no need to send the information explicitly to nym-apis, as they're scheduled to refresh
-        // self-described endpoints of all nodes before the key rotation epoch rolls over
     }
 
     /// Best-effort: after pre-announcing a new sphinx key, notify the directory publisher of

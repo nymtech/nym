@@ -3,23 +3,25 @@
 
 use crate::config::NodeModes;
 use crate::error::{KeyIOFailure, NymNodeError};
+use crate::node::NymNode;
+use crate::node::key_rotation::get_key_rotation_details;
 use crate::node::key_rotation::key::{SphinxPrivateKey, SphinxPublicKey};
 use crate::node::node_details::NodeDescription;
-use crate::node::nym_apis_client::NymApisClient;
+use crate::node::nyx_client::NyxClient;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_http_api_client::ClientBuilder;
 use nym_kkt::keys::storage_wrappers::StorableKey;
 use nym_kkt::keys::{
     DHKeyPair, DHPrivateKey, MlKem768KeyPair, MlKem768PrivateKey, MlKem768PublicKey, mceliece,
 };
 use nym_pemstore::KeyPairPath;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-use nym_task::ShutdownToken;
-use nym_validator_client::QueryHttpRpcNyxdClient;
-use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
+use rand::rng;
+use rand::seq::SliceRandom;
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
-use tracing::warn;
+use std::time::Duration;
 use url::Url;
 
 #[derive(Debug, Serialize)]
@@ -299,28 +301,35 @@ pub(crate) fn store_mceliece_keypair(
     Ok(())
 }
 
+/// HTTP client for the nym-apis, queried through `NymApiClientExt`.
+pub(crate) type NymApiClient = nym_http_api_client::Client;
+
+/// Client for the given nym-apis, in random order, moving on to the next one when a request fails.
+pub(crate) fn build_nym_api_client(nym_api_urls: &[Url]) -> Result<NymApiClient, NymNodeError> {
+    if nym_api_urls.is_empty() {
+        return Err(NymNodeError::NoNymApiUrls);
+    }
+
+    let mut urls = nym_api_urls.to_vec();
+    urls.shuffle(&mut rng());
+    let retries = urls.len() - 1;
+
+    Ok(
+        ClientBuilder::new_with_urls(urls.into_iter().map(Into::into).collect())?
+            .no_hickory_dns()
+            .with_user_agent(NymNode::user_agent())
+            .with_timeout(Duration::from_secs(5))
+            .with_retries(retries)
+            .build()?,
+    )
+}
+
+/// Rotation id of the current epoch, read from the chain with nym-api as the fallback.
 pub(crate) async fn get_current_rotation_id(
-    nym_apis: &[Url],
-    fallback_nyxd: &[Url],
+    nyx_client: &NyxClient,
+    nym_api_urls: &[Url],
 ) -> Result<u32, NymNodeError> {
-    let apis_client = NymApisClient::new(nym_apis, ShutdownToken::default())?;
-    if let Ok(rotation_info) = apis_client.get_key_rotation_info().await.map(|r| r.details) {
-        if rotation_info.is_epoch_stuck() {
-            return Err(NymNodeError::StuckEpoch);
-        }
-        let current_epoch = rotation_info.current_absolute_epoch_id;
-        return Ok(rotation_info
-            .key_rotation_state
-            .key_rotation_id(current_epoch));
-    }
-    warn!("failed to retrieve key rotation id from nym apis. falling back to contract query");
-
-    for nyxd_url in fallback_nyxd {
-        let client = QueryHttpRpcNyxdClient::connect_to_default_env(nyxd_url.as_str())?;
-        if let Ok(res) = client.get_key_rotation_id().await {
-            return Ok(res.rotation_id);
-        }
-    }
-
-    Err(NymNodeError::NymApisExhausted)
+    let nym_api_client = build_nym_api_client(nym_api_urls)?;
+    let details = get_key_rotation_details(nyx_client, &nym_api_client).await?;
+    Ok(details.current_key_rotation_id())
 }

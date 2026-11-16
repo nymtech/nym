@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_mixnet_contract_common::nym_node::Role;
-use nym_mixnet_contract_common::{EpochId, Interval, KeyRotationId, KeyRotationState, NodeId};
+use nym_mixnet_contract_common::{EpochId, Interval, KeyRotationState, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -95,7 +95,7 @@ impl KeyRotationDetails {
         let now = OffsetDateTime::now_utc();
         let progress = self.current_epoch_progress(now);
         if progress > 1. {
-            let into_next = 1. - progress;
+            let into_next = progress - 1.;
             // if epoch hasn't progressed for more than 20% of its duration, mark is as stuck
             if into_next > 0.2 {
                 let diff_time =
@@ -107,24 +107,6 @@ impl KeyRotationDetails {
         }
 
         false
-    }
-
-    // based on the current **TIME**, determine what's the expected current rotation id
-    pub fn expected_current_rotation_id(&self) -> KeyRotationId {
-        let now = OffsetDateTime::now_utc();
-        let current_end = now + self.epoch_duration;
-        if now < current_end {
-            return self
-                .key_rotation_state
-                .key_rotation_id(self.current_absolute_epoch_id);
-        }
-
-        let diff = now - current_end;
-        let passed_epochs = diff / self.epoch_duration;
-        let expected_current_epoch = self.current_absolute_epoch_id + passed_epochs.floor() as u32;
-
-        self.key_rotation_state
-            .key_rotation_id(expected_current_epoch)
     }
 
     pub fn until_next_rotation(&self) -> Option<Duration> {
@@ -246,6 +228,37 @@ impl From<DisplayRole> for Role {
             DisplayRole::Layer3 => Role::Layer3,
             DisplayRole::ExitGateway => Role::ExitGateway,
             DisplayRole::Standby => Role::Standby,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_hour_long_epoch_15_minutes_past_its_end_is_stuck() {
+        let details = hour_long_epoch_overdue_by(Duration::from_secs(15 * 60));
+        assert!(details.is_epoch_stuck());
+    }
+
+    #[test]
+    fn an_hour_long_epoch_5_minutes_past_its_end_is_overdue_but_not_stuck() {
+        let details = hour_long_epoch_overdue_by(Duration::from_secs(5 * 60));
+        assert!(!details.is_epoch_stuck());
+        assert!(details.until_next_rotation().is_none());
+    }
+
+    fn hour_long_epoch_overdue_by(overdue: Duration) -> KeyRotationDetails {
+        let epoch_duration = Duration::from_secs(60 * 60);
+        KeyRotationDetails {
+            key_rotation_state: KeyRotationState {
+                validity_epochs: 24,
+                initial_epoch_id: 0,
+            },
+            current_absolute_epoch_id: 100,
+            current_epoch_start: OffsetDateTime::now_utc() - epoch_duration - overdue,
+            epoch_duration,
         }
     }
 }

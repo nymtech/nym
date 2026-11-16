@@ -47,9 +47,9 @@
 
 - [x] 7.1 Add the chain read of the key rotation details (interval and key rotation state) to the shared `NyxClient`
 - [x] 7.2 Make `setup_key_rotation` and the controller's `try_get_key_rotation_info` read the chain first and fall back to nym-api, logging the fallback
-- [ ] 7.3 Make `get_current_rotation_id` take the shared `NyxClient` instead of chain URLs: chain first, nym-api as fallback, no failure on a stuck epoch; build the client before the call in `NymNode::new`, and build one for the read in `NymNode::initialise`, the sphinx key reset command and the v9 config migration
-- [ ] 7.4 Fix `KeyRotationDetails::is_epoch_stuck` with unit tests for the spec's two controller scenarios, and delete `expected_current_rotation_id` with the controller's mismatch branch
-- [ ] 7.5 Remove the startup refresh request (`try_refresh_remote_nym_api_cache`, `broadcast_force_refresh`)
+- [x] 7.3 Make `get_current_rotation_id` take the shared `NyxClient` instead of chain URLs: chain first, nym-api as fallback, no failure on a stuck epoch; build the client before the call in `NymNode::new`, and build one for the read in `NymNode::initialise`, the sphinx key reset command and the v9 config migration
+- [x] 7.4 Fix `KeyRotationDetails::is_epoch_stuck` with unit tests for the spec's two controller scenarios, and delete `expected_current_rotation_id` with the controller's mismatch branch
+- [x] 7.5 Remove the startup refresh request (`try_refresh_remote_nym_api_cache`, `broadcast_force_refresh`) and `NymApisClient`: the key rotation fallback, the controller and the network refresher use the HTTP client built once with every nym-api URL, so a failing nym-api is left behind
 
 ## 8. Verification and wrap-up
 

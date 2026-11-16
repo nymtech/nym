@@ -8,6 +8,8 @@ use crate::config::persistence::{
 use crate::config::upgrade_helpers::try_load_current_config;
 use crate::node::helpers::get_current_rotation_id;
 use crate::node::key_rotation::manager::SphinxKeyManager;
+use crate::node::nyx_client::NyxClient;
+use nym_config::defaults::NymNetworkDetails;
 use std::fs;
 use std::fs::read_dir;
 use std::path::PathBuf;
@@ -45,8 +47,11 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
     warn!("RESETTING SPHINX KEYS OF NODE {}", config.id);
 
     // 1. attempt to retrieve current rotation id
+    let mnemonic = config.storage_paths.load_mnemonic_from_file()?;
+    let network = NymNetworkDetails::new_from_env();
+    let nyx_client = NyxClient::new(&config.nyx.nyxd_urls, &network, &mnemonic)?;
     let current_rotation_id =
-        get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
+        get_current_rotation_id(&nyx_client, &config.mixnet.nym_api_urls).await?;
 
     // 2. remove all bloomfilters
     info!("clearing old replay protection bloomfilters...");

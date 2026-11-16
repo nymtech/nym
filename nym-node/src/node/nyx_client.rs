@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config;
 use crate::error::NymNodeError;
 use nym_config::defaults::NymNetworkDetails;
 use nym_validator_client::models::KeyRotationDetails;
@@ -13,6 +12,7 @@ use rand::rng;
 use rand::seq::IndexedRandom;
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use url::Url;
 
 #[derive(Clone)]
 pub struct NyxClient {
@@ -21,12 +21,11 @@ pub struct NyxClient {
 
 impl NyxClient {
     pub(crate) fn new(
-        config: &config::Nyx,
+        nyxd_urls: &[Url],
         network: &NymNetworkDetails,
         mnemonic: &bip39::Mnemonic,
     ) -> Result<NyxClient, NymNodeError> {
-        let endpoint = config
-            .nyxd_urls
+        let endpoint = nyxd_urls
             .choose(&mut rng())
             .ok_or(NymNodeError::NoNyxEndpoints)?;
 

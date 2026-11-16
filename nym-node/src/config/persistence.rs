@@ -92,17 +92,7 @@ impl NymNodePaths {
     }
 
     pub fn load_mnemonic_from_file(&self) -> Result<Zeroizing<bip39::Mnemonic>, EntryGatewayError> {
-        let stringified =
-            Zeroizing::new(fs::read_to_string(&self.cosmos_mnemonic).map_err(|source| {
-                EntryGatewayError::MnemonicLoadFailure {
-                    path: self.cosmos_mnemonic.clone(),
-                    source,
-                }
-            })?);
-
-        Ok(Zeroizing::new(bip39::Mnemonic::parse::<&str>(
-            stringified.as_ref(),
-        )?))
+        load_mnemonic(&self.cosmos_mnemonic)
     }
 
     pub fn save_mnemonic_to_file(
@@ -138,6 +128,19 @@ impl NymNodePaths {
             }
         })
     }
+}
+
+pub fn load_mnemonic(path: &Path) -> Result<Zeroizing<bip39::Mnemonic>, EntryGatewayError> {
+    let stringified = Zeroizing::new(fs::read_to_string(path).map_err(|source| {
+        EntryGatewayError::MnemonicLoadFailure {
+            path: path.to_path_buf(),
+            source,
+        }
+    })?);
+
+    Ok(Zeroizing::new(bip39::Mnemonic::parse::<&str>(
+        stringified.as_ref(),
+    )?))
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]

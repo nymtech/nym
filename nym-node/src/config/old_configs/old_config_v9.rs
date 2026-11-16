@@ -14,15 +14,17 @@ use crate::config::old_configs::old_config_v10::{
 };
 use crate::config::persistence::{
     DEFAULT_PRIMARY_X25519_SPHINX_KEY_FILENAME, DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME,
+    load_mnemonic,
 };
 use crate::config::{DEFAULT_HTTP_PORT, NodeModes};
 use crate::error::{KeyIOFailure, NymNodeError};
 use crate::node::helpers::{get_current_rotation_id, load_key, store_key};
 use crate::node::key_rotation::key::SphinxPrivateKey;
+use crate::node::nyx_client::NyxClient;
 use celes::Country;
 use clap::ValueEnum;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
-use nym_config::defaults::DEFAULT_VERLOC_LISTENING_PORT;
+use nym_config::defaults::{DEFAULT_VERLOC_LISTENING_PORT, NymNetworkDetails};
 use nym_config::helpers::{in6addr_any_init, inaddr_any};
 use nym_config::{
     defaults::TICKETBOOK_VALIDITY_DAYS,
@@ -1157,8 +1159,10 @@ impl ConfigV9 {
 
 async fn upgrade_sphinx_key(old_cfg: &ConfigV9) -> Result<(PathBuf, PathBuf), NymNodeError> {
     // we mark the current sphinx key as the primary and attach the current rotation id
-    let rotation_id =
-        get_current_rotation_id(&old_cfg.mixnet.nym_api_urls, &old_cfg.mixnet.nyxd_urls).await?;
+    let mnemonic = load_mnemonic(&old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic)?;
+    let network = NymNetworkDetails::new_from_env();
+    let nyx_client = NyxClient::new(&old_cfg.mixnet.nyxd_urls, &network, &mnemonic)?;
+    let rotation_id = get_current_rotation_id(&nyx_client, &old_cfg.mixnet.nym_api_urls).await?;
 
     let current_sphinx_key_path = &old_cfg.storage_paths.keys.private_x25519_sphinx_key_file;
     let current_pubkey_path = &old_cfg.storage_paths.keys.public_x25519_sphinx_key_file;

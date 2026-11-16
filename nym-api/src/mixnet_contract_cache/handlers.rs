@@ -95,14 +95,8 @@ async fn get_current_key_rotation_info(
     let output = output.output.unwrap_or_default();
 
     let snapshot = state.latest_snapshot().await?;
-    let current_interval = snapshot.mixnet().current_interval;
-
-    let details = KeyRotationDetails {
-        key_rotation_state: snapshot.mixnet().key_rotation_state,
-        current_absolute_epoch_id: current_interval.current_epoch_absolute_id(),
-        current_epoch_start: current_interval.current_epoch_start(),
-        epoch_duration: current_interval.epoch_length(),
-    };
+    let mixnet = snapshot.mixnet();
+    let details = KeyRotationDetails::new(mixnet.key_rotation_state, &mixnet.current_interval);
 
     Ok(output.to_response(details.into()))
 }

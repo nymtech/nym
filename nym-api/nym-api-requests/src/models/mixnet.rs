@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_mixnet_contract_common::nym_node::Role;
-use nym_mixnet_contract_common::{EpochId, KeyRotationId, KeyRotationState, NodeId};
+use nym_mixnet_contract_common::{EpochId, Interval, KeyRotationId, KeyRotationState, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -62,6 +62,15 @@ pub struct KeyRotationDetails {
 }
 
 impl KeyRotationDetails {
+    pub fn new(key_rotation_state: KeyRotationState, current_interval: &Interval) -> Self {
+        KeyRotationDetails {
+            key_rotation_state,
+            current_absolute_epoch_id: current_interval.current_epoch_absolute_id(),
+            current_epoch_start: current_interval.current_epoch_start(),
+            epoch_duration: current_interval.epoch_length(),
+        }
+    }
+
     pub fn current_key_rotation_id(&self) -> u32 {
         self.key_rotation_state
             .key_rotation_id(self.current_absolute_epoch_id)

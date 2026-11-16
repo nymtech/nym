@@ -65,6 +65,12 @@ pub enum LpError {
     #[error("State machine not found for lp_id: {0}")]
     StateMachineNotFound(LpReceiverIndex),
 
+    /// Attempted to send on a session that has been demoted in favour of a newer one.
+    #[error(
+        "session {receiver_index} is read-only (demoted) and cannot be used for sending; it may only drain in-flight packets"
+    )]
+    SessionReadOnly { receiver_index: LpReceiverIndex },
+
     #[error("attempted to create an LP responder without providing a valid KEM keys")]
     ResponderWithMissingKEMKeys,
 

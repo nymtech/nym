@@ -71,3 +71,5 @@ nym-client-websocket-requests = { workspace = true }
 nym-id = { workspace = true }
 
 [dev-dependencies]
+
+[lints]

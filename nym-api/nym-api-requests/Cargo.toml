@@ -6,7 +6,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -70,3 +69,5 @@ default = []
 generate-ts = ["ts-rs", "nym-mixnet-contract-common/generate-ts"]
 # exposes deterministic data mocks (e.g. `mock_nym_node_description`) to downstream crates' tests
 mock-fixtures = ["dep:nym-test-utils", "nym-crypto/rand"]
+
+[lints]

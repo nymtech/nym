@@ -557,7 +557,7 @@ apply_smtps_465_rate_limit() {
 
 NETWORK_FIREWALL_COMMENT="NYM-NETWORK-FW"
 HOST_SSH_PORT="${HOST_SSH_PORT:-22}"
-NETWORK_FIREWALL_TCP_PORTS=("$HOST_SSH_PORT" 80 443 1789 1790 8080 9000 9001 41264)
+NETWORK_FIREWALL_TCP_PORTS=("$HOST_SSH_PORT" 80 443 1789 1790 4422 4443 8080 9000 9001 41264)
 NETWORK_FIREWALL_UDP_PORTS=(4443 51822 51264)
 NETWORK_FIREWALL_WG_TCP_PORT=51830
 
@@ -956,6 +956,7 @@ apply_port_allowlist() {
     ["IRCv3TLS"]="6697"
     ["Iroh"]="7842"
     ["ViberDesktop3"]="7985"
+    ["Railgun"]="8000"              # exit-policy vote: open tcp+udp 8000
     ["HTTPAlternate"]="8008"
     ["GaduGadu"]="8074"
     ["WorldOfWorldcraft5"]="8080"

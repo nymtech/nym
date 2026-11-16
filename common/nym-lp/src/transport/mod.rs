@@ -6,4 +6,4 @@ pub mod traits;
 
 pub use error::LpTransportError;
 
-pub use traits::{LpHandshakeChannel, LpTransportChannel};
+pub use traits::{LpDatagramChannel, LpHandshakeChannel, LpTransportChannel};

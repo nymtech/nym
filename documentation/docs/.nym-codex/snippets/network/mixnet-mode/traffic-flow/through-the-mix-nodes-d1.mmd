@@ -1,0 +1,24 @@
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    participant Entry as Entry Gateway
+    participant M1 as Mix Layer 1
+    participant M2 as Mix Layer 2
+    participant M3 as Mix Layer 3
+    participant Exit as Exit Gateway
+
+    Entry->>M1: Sphinx Packet
+    M1->>M1: Decrypt layer
+    M1->>M1: Verify HMAC
+    M1->>M1: Random delay
+    M1->>M2: Sphinx Packet
+    M2->>M2: Decrypt layer
+    M2->>M2: Verify HMAC
+    M2->>M2: Random delay
+    M2->>M3: Sphinx Packet
+    M3->>M3: Decrypt layer
+    M3->>M3: Verify HMAC
+    M3->>M3: Random delay
+    M3->>Exit: Sphinx Packet

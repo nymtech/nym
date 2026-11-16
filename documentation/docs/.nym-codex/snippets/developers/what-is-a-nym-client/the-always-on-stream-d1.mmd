@@ -1,0 +1,18 @@
+---
+config:
+  theme: neo-dark
+  layout: elk
+
+title: Cover Traffic Stream
+---
+sequenceDiagram
+    box Local Machine
+        participant App Logic
+        participant Nym Client
+    end
+    participant Entry Gateway
+
+    loop Cover Traffic Stream
+        Nym Client->>Nym Client: Delay
+        Nym Client->>Entry Gateway: Cover traffic
+    end

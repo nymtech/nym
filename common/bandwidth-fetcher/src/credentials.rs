@@ -16,6 +16,7 @@ use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
     IssuanceTicketBook, IssuedTicketBook, obtain_aggregate_wallet,
 };
+use nym_credentials_interface::KeyPairUser;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{Date, OffsetDateTime, ecash_default_expiration_date};
 use nym_validator_client::rpc::TendermintRpcClient;
@@ -40,7 +41,7 @@ use zeroize::Zeroizing;
 // Batching them is TODO, it requires extensive changes to the BC
 pub struct NyxdCredentialFetcher<C> {
     client: Arc<C>,
-    client_id: Zeroizing<Vec<u8>>,
+    ecash_keypair: KeyPairUser,
     pending_storage: PendingCredentialRequestsStorage,
     ecash_api_clients: Arc<EcashApiClientsCache>,
     public_data_fetcher: NyxdGlobalDataFetcher<C>,
@@ -53,10 +54,26 @@ where
     C: DkgQueryClient,
 {
     /// Creates a fetcher whose pending-request recovery store lives at `db_path`.
+    /// The ecash keypair is derived from `client_id`.
     pub async fn new(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
         client_id: Zeroizing<Vec<u8>>,
+    ) -> Result<Self, NyxdFetcherError> {
+        Self::new_with_keypair(
+            client,
+            db_path,
+            KeyPairUser::new_seeded(client_id.as_slice()),
+        )
+        .await
+    }
+
+    /// Creates a fetcher whose pending-request recovery store lives at `db_path`,
+    /// using `ecash_keypair` for issued ticketbooks.
+    pub async fn new_with_keypair(
+        client: Arc<C>,
+        db_path: impl AsRef<Path>,
+        ecash_keypair: KeyPairUser,
     ) -> Result<Self, NyxdFetcherError> {
         let pending_storage = PendingCredentialRequestsStorage::init(db_path).await?;
         let ecash_api_clients = Arc::new(EcashApiClientsCache::new());
@@ -67,7 +84,7 @@ where
 
         Ok(NyxdCredentialFetcher {
             client,
-            client_id,
+            ecash_keypair,
             ecash_api_clients,
             pending_storage,
             public_data_fetcher,
@@ -285,9 +302,9 @@ where
 
         info!("our ticketbook deposit has been stored under id {deposit_id}");
 
-        Ok(IssuanceTicketBook::new_with_expiration(
+        Ok(IssuanceTicketBook::new_with_keypair(
             deposit_id,
-            &self.client_id,
+            self.ecash_keypair.clone(),
             signing_key,
             ticketbook_type,
             expiration,

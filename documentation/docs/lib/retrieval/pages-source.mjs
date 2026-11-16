@@ -13,7 +13,9 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials } from './mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, frontmatterLines } from './mdx.mjs';
+import { openRepo, citationText, pageLinks, linkRoute, routeOf } from '../snippets/repo.mts';
+import { extractCode } from '../snippets/extract.mts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,12 +24,47 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // generators at another tree. The Nextra 4 move from pages/ to content/ is then an
 // env change, not a code edit, and the index can be built against an arbitrary dir.
 export const PAGES_DIR = path.resolve(__dirname, '../..', process.env.DOCS_CONTENT_DIR ?? 'content');
+// Output root of the text generators (llms-full.txt, docs-index.json, the .md
+// mirror). DOCS_PUBLIC_DIR points them elsewhere, so a before/after compare of a
+// snippet split can run without touching public/.
+export const PUBLIC_DIR = path.resolve(__dirname, '../..', process.env.DOCS_PUBLIC_DIR ?? 'public');
 // tsconfig baseUrl: bare specifiers like 'components/...' resolve from here.
 export const DOCS_ROOT = path.resolve(__dirname, '../..');
 export const SITE_URL = 'https://nym.com/docs';
 
 // Auto-generated / non-content trees, skipped by every generator.
 export const SKIP_DIRS = new Set(['api', 'archive', 'playground']);
+
+/**
+ * What a generator needs to compose a page that imports snippets (D18): the
+ * `@snippets` alias, the extracted code, and the docs link map. NYM_CODEX_ROOT
+ * points at another repository root, for a dry run of a split.
+ */
+export async function loadSnippets(root = process.env.NYM_CODEX_ROOT) {
+  const repo = openRepo(root ? path.resolve(root) : undefined);
+  // The link map comes from the content tree the generators read (DOCS_CONTENT_DIR included).
+  repo.manifest.sites.docs = { ...repo.manifest.sites.docs, pages: path.relative(repo.root, PAGES_DIR) };
+  const links = pageLinks(repo, 'docs');
+  // With no docs page that imports a snippet, the docs build needs no extraction,
+  // so a codex-only citation cannot fail a docs deploy.
+  if (links.size === 0) return null;
+  const { code, errors } = await extractCode(repo);
+  if (errors.length) throw new Error(`snippet code extraction failed:\n${errors.join('\n')}`);
+  return { repo, code, links };
+}
+
+/** inlineMdxPartials options for one page, with or without snippets. */
+export function composeOptions(filePath, snippets) {
+  const base = { filePath, root: DOCS_ROOT };
+  if (!snippets) return base;
+  const page = routeOf(path.relative(PAGES_DIR, filePath));
+  return {
+    ...base,
+    aliases: snippets.repo.aliases,
+    citation: (id, attrs) => citationText(snippets.repo, id, { code: snippets.code, attrs }),
+    link: (id) => linkRoute(snippets.links, id, page),
+  };
+}
 
 /** Ordered child keys for a directory: _meta.js order, else alphabetical. */
 function getPageOrder(dir) {
@@ -62,8 +99,11 @@ function fileToUrl(filePath) {
  * Recursively collect content pages under `dir` (defaults to PAGES_DIR) in
  * _meta order, as PageRecords. Pages whose body is empty after MDX stripping
  * (pure-JSX or redirect pages) are skipped.
+ * @param {string} [dir]
+ * @param {{ source?: string, expand?: object, values?: object, snippets?: object | null }} [opts]
+ * @param {Set<string>} [seen]
  */
-export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, values } = {}) {
+export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, values, snippets } = {}, seen = new Set()) {
   const pages = [];
   for (const key of getPageOrder(dir)) {
     const subDir = path.join(dir, key);
@@ -81,12 +121,16 @@ export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, val
       }
     }
 
+    // A directory's index.mdx is its page, and its _meta.js lists it again as
+    // `index`; one file is one page.
+    if (filePath && seen.has(filePath)) filePath = null;
     if (filePath) {
+      seen.add(filePath);
       const raw = fs.readFileSync(filePath, 'utf-8');
       const { data, content } = parseFrontmatter(raw);
       // Partials first: their text is part of the page, so it must be present
       // before headings are split and components are expanded.
-      const whole = inlineMdxPartials(content, { filePath, root: DOCS_ROOT });
+      const whole = inlineMdxPartials(content, { ...composeOptions(filePath, snippets), lineOffset: frontmatterLines(raw, content) });
       const body = stripMdx(whole, { expand, values });
       if (body.length > 0) {
         pages.push({
@@ -100,7 +144,7 @@ export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, val
     }
 
     if (fs.existsSync(subDir) && fs.statSync(subDir).isDirectory()) {
-      pages.push(...collectPages(subDir, { source, expand, values }));
+      pages.push(...collectPages(subDir, { source, expand, values, snippets }, seen));
     }
   }
   return pages;

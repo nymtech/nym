@@ -282,7 +282,8 @@ impl<C: DirectoryChainClient> DirectoryPublisher<C> {
             DirectoryPayload::Wireguard(self.node_details.directory_wireguard()),
             DirectoryPayload::NodeInformation(self.node_details.directory_node_information()),
             DirectoryPayload::LewesProtocolDetails(
-                self.node_details.directory_lewes_protocol_details(),
+                self.node_details
+                    .directory_lewes_protocol_details(self.ed25519_identity_keys.private_key()),
             ),
         ]
     }

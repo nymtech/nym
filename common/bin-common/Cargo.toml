@@ -6,7 +6,6 @@ authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -55,3 +54,5 @@ otel-otlp = [
 ]
 clap = ["dep:clap", "dep:clap_complete", "dep:clap_complete_fig"]
 models = []
+
+[lints]

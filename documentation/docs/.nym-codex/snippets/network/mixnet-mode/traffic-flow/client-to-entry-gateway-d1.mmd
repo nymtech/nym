@@ -1,0 +1,21 @@
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    box Local Machine
+        participant App as Application
+        participant Client as Nym Client
+    end
+    participant Gateway as Entry Gateway
+
+    Gateway->>Client: Key Exchange
+
+    loop Continuous Traffic
+        Client->>Gateway: Cover packet
+        Client->>Gateway: Cover packet
+        App-->>Client: Data to send
+        Client->>Client: Encrypt as Sphinx
+        Client->>Gateway: Real packet
+        Client->>Gateway: Cover packet
+    end

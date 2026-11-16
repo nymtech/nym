@@ -6,7 +6,6 @@ authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -24,3 +23,5 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tap = { workspace = true }
 thiserror = { workspace = true }
+
+[lints]

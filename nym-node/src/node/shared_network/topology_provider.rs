@@ -5,6 +5,9 @@ use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::shared_network::CachedNetwork;
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
+use nym_lp::peer::LpRemotePeer;
+use nym_topology::lp::LpTopologyProvider;
+use nym_topology::lp::{LpRoutingNode, LpTopology};
 use nym_topology::{EntryDetails, NodeId, NymTopology, Role, RoutingNode, TopologyProvider};
 use std::net::SocketAddr;
 use std::ops::Deref;
@@ -16,8 +19,12 @@ const LOCAL_NODE_ID: NodeId = 1234567890;
 pub(crate) struct LocalGatewayNode {
     pub(crate) active_sphinx_keys: ActiveSphinxKeys,
     pub(crate) mix_host: SocketAddr,
+    pub(crate) lp_control_host: SocketAddr,
+    pub(crate) lp_data_host: SocketAddr,
     pub(crate) identity_key: ed25519::PublicKey,
     pub(crate) entry: EntryDetails,
+    pub(crate) lp_remote_peer: LpRemotePeer,
+    pub(crate) build_version: semver::Version,
 }
 
 impl LocalGatewayNode {
@@ -33,6 +40,29 @@ impl LocalGatewayNode {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
+        }
+    }
+
+    /// The same node as an LP route names it.
+    pub(crate) fn to_lp_routing_node(&self) -> LpRoutingNode {
+        LpRoutingNode {
+            node_id: LOCAL_NODE_ID,
+            control_host: self.lp_control_host,
+            data_host: self.lp_data_host,
+            ip_addresses: self.entry.ip_addresses.clone(),
+            identity_key: self.identity_key,
+            sphinx_key: self.active_sphinx_keys.primary().deref().x25519_pubkey(),
+            supported_roles: nym_topology::SupportedRoles {
+                mixnode: false,
+                mixnet_entry: true,
+                mixnet_exit: true,
+            },
+            // this is the node's own entry, so these are its own published details - the clients
+            // embedded inside it reach it in-process rather than over any of these listeners
+            control_port: self.lp_control_host.port(),
+            data_port: self.lp_data_host.port(),
+            remote_peer: self.lp_remote_peer.clone(),
+            build_version: self.build_version.clone(),
         }
     }
 }
@@ -65,14 +95,32 @@ impl TopologyProvider for CachedTopologyProvider {
 
         let mut topology = self
             .cached_network
-            .network_topology(self.min_mix_performance)
-            .await;
+            .network_topology(self.min_mix_performance);
 
         if !topology.has_node(self.gateway_node.identity_key) {
             debug!("{self_node} didn't exist in topology. inserting it.",);
             topology.insert_node_details(self.gateway_node.to_routing_node());
         }
         topology.force_set_active(LOCAL_NODE_ID, Role::EntryGateway);
+
+        Some(topology)
+    }
+}
+
+#[async_trait]
+impl LpTopologyProvider for CachedTopologyProvider {
+    async fn get_new_lp_topology(&mut self) -> Option<LpTopology> {
+        let self_node = self.gateway_node.identity_key;
+
+        let mut topology = self
+            .cached_network
+            .lp_network_topology(self.min_mix_performance);
+
+        if !topology.has_node(self_node) {
+            debug!("{self_node} didn't exist in the LP topology. inserting it.");
+            topology.insert_node_details(self.gateway_node.to_lp_routing_node());
+        }
+        topology.force_set_entry_gateway(LOCAL_NODE_ID);
 
         Some(topology)
     }

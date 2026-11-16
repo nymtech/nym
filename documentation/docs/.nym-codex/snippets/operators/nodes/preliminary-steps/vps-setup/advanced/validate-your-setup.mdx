@@ -1,0 +1,12 @@
+#### Validate your setup [#validate-your-setup]
+
+- Make sure the `root` disk has the expected space by running:
+```bash
+df -h
+```
+
+- If not, run:
+```bash
+growpart /dev/vda 1
+resize2fs /dev/vda1
+```

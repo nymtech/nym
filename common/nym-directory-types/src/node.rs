@@ -38,6 +38,26 @@ pub struct NodeInformation {
     /// The roles this node operates in.
     #[prost(message, optional, tag = "7")]
     pub modes: Option<NodeModes>,
+
+    /// The node's x25519 Noise public key, encoded (32 bytes).
+    #[prost(bytes, tag = "8")]
+    pub x25519_noise_key: Vec<u8>,
+
+    /// Specifies whether this node operator has agreed to the operator terms and conditions.
+    #[prost(bool, tag = "9")]
+    pub accepted_operator_terms_and_conditions: bool,
+}
+
+impl NodeInformation {
+    /// The Noise x25519 public key as a fixed 32-byte array, or an error if the stored bytes are
+    /// not exactly 32 long (the length of an x25519 public key).
+    pub fn x25519_noise_key_bytes(&self) -> Result<[u8; 32], DirectoryTypesError> {
+        self.x25519_noise_key.as_slice().try_into().map_err(|_| {
+            DirectoryTypesError::InvalidX25519KeyLength {
+                got: self.x25519_noise_key.len(),
+            }
+        })
+    }
 }
 
 /// A node's externally-announced ports. Stored as `u32` because protobuf has no 16-bit
@@ -125,6 +145,11 @@ pub struct LewesProtocolDetails {
     /// LP UDP data port (default 51264) for Sphinx packets wrapped in LP.
     #[prost(uint32, tag = "4")]
     pub data_port: u32,
+
+    /// The node's ed25519 signature over the JSON of its HTTP API `LewesProtocol` model, NOT over
+    /// this message. Carried only so legacy clients can verify the LP details as before.
+    #[prost(bytes, tag = "5")]
+    pub legacy_http_api_signature: Vec<u8>,
 }
 
 impl LewesProtocolDetails {

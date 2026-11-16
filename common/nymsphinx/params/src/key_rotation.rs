@@ -1,6 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
+
 use thiserror::Error;
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
@@ -30,6 +32,16 @@ impl SphinxKeyRotation {
 
     pub fn is_odd(&self) -> bool {
         matches!(self, SphinxKeyRotation::OddRotation)
+    }
+}
+
+impl Display for SphinxKeyRotation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SphinxKeyRotation::Unknown => write!(f, "unknown"),
+            SphinxKeyRotation::OddRotation => write!(f, "odd"),
+            SphinxKeyRotation::EvenRotation => write!(f, "even"),
+        }
     }
 }
 

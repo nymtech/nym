@@ -6,7 +6,6 @@ authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version = "1.85"
 readme.workspace = true
@@ -108,3 +107,5 @@ contract-testing = ["nym-mixnet-contract-common/contract-testing"]
 # Features below are added to make clippy happy, it seems like they're unused we should remove them
 tendermint-rpc-http-client = ["tendermint-rpc/http-client"]
 tendermint-rpc-websocket-client = ["tendermint-rpc/websocket-client"]
+
+[lints]

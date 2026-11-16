@@ -1,49 +1,14 @@
 ---
 asIndexPage: true
 ---
-
-import { Callout } from 'nextra/components';
-import { VarInfo } from 'components/variable-info.tsx';
+import Intro from '@snippets/nym/operators/nodes/validator-setup/index/intro.mdx'
+import WhichSetupDoYouNeed from '@snippets/nym/operators/nodes/validator-setup/index/which-setup-do-you-need.mdx'
+import PagesInThisSection from '@snippets/nym/operators/nodes/validator-setup/index/pages-in-this-section.mdx'
+import SignerSetupPath from '@snippets/nym/operators/nodes/validator-setup/index/signer-setup-path.mdx'
 
 # Nyx Validator Setup
 
-<VarInfo />
-
-Nym has two main codebases: the [Nym platform](https://github.com/nymtech/nym) written in Rust, which contains everything except the validators, and the [Nym validators](https://github.com/nymtech/nyxd) written in Go and maintained as a fork of [wasmd](https://github.com/CosmWasm/wasmd).
-
-The validator is a Go application built on the [Cosmos SDK](https://docs.cosmos.network). The underlying state-replication engine is powered by [CometBFT](https://cometbft.com/), where the consensus mechanism is based on the [Tendermint Consensus Algorithm](https://arxiv.org/abs/1807.04938). A [CosmWasm](https://cosmwasm.com) smart contract module controls crucial mixnet functionalities like the decentralised directory service, node bonding and delegated mixnet staking.
-
-<Callout type="info" emoji="ℹ️">
-At present our mainnet operates with a select group of reputed validators and we are not accepting new validators at this time. We do extend the set from time to time - if you are interested, get in touch with the Nym team. Any updates to this policy will be announced.
-</Callout>
-
-## Which setup do you need?
-
-There are three distinct roles in this section, each with its own page. Read this overview first, then follow the page matching your role.
-
-| Role | What it does | Page |
-| :-- | :-- | :-- |
-| **Consensus validator** | Proposes and signs blocks, joins network consensus | [Nyx validator setup](/operators/nodes/validator-setup/nyx-validator) |
-| **Full node** | Does not sign blocks, serves RPC / API / gRPC to applications | [Nyx validator setup](/operators/nodes/validator-setup/nyx-validator) |
-| **Nym API signer** | Runs `nym-api` in ecash signing mode alongside a local full node | [Nym API signer setup](/operators/nodes/validator-setup/nym-api-signer-setup) |
-
-<Callout type="warning" emoji="⚠️">
-It is highly recommended to run `nym-api` alongside a **full node** and not a signing validator, since you will be exposing HTTP ports to the internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
-</Callout>
-
-## Pages in this section
-
-- [Nyx Validator Setup](/operators/nodes/validator-setup/nyx-validator) - install `nyxd`, initialise, configure and run a validator or full node, join consensus, day 2 operations
-- [Nym API](/operators/nodes/validator-setup/nym-api) - what the Nym API is, how it is rewarded, hardware requirements and caching mode setup
-- [Nym API Signer Setup](/operators/nodes/validator-setup/nym-api-signer-setup) - the full mainnet ecash signer walkthrough
-- [Local RPC Setup](/operators/nodes/validator-setup/local-rpc-setup) - a loopback-only `nyxd` RPC backing a signer
-- [Nyx & Nym API Configuration](/operators/nodes/validator-setup/nyx-configuration) - `systemd` automation, reverse proxy, Prometheus metrics and port reference
-
-## Signer setup path
-
-If you are setting up an ecash signer, the order matters. Follow these two pages in sequence:
-
-1. [Local RPC Setup](/operators/nodes/validator-setup/local-rpc-setup) - get `nyxd` synced and listening on `127.0.0.1:26657`
-2. [Nym API Signer Setup](/operators/nodes/validator-setup/nym-api-signer-setup) - initialise `nym-api`, enable zk-nym signing and expose the announce address over HTTPS
-
-Do not start the API before the local RPC reports `catching_up == false`.
+<Intro />
+<WhichSetupDoYouNeed />
+<PagesInThisSection />
+<SignerSetupPath />

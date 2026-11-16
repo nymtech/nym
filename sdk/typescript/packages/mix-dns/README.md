@@ -1,8 +1,6 @@
 # @nymproject/mix-dns
 
-Hostname-to-IP resolution over the Nym mixnet. Resolves over DNS-over-HTTPS
-(DoH), so each lookup is an HTTPS request (TCP plus TLS) to a DoH resolver,
-made from the mixnet exit rather than from the client.
+Hostname-to-IP resolution over the Nym mixnet. Resolves over DNS-over-HTTPS (DoH), so each lookup is an HTTPS request (TCP plus TLS) to a DoH resolver. The client opens the TLS session to the resolver through the mixnet, and the exit forwards only ciphertext. The resolver sees the exit's IP, not the client's.
 
 ## Usage
 

@@ -6,7 +6,6 @@ authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-homepage.workspace = true
 documentation.workspace = true
 # pinned (not inherited from workspace) because this crate is imported by the ecash contract,
 # and the contracts workspace cannot be built with rustc more recent than 1.86

@@ -534,6 +534,8 @@ pub async fn try_upgrade_config_v14<P: AsRef<Path>>(
                 session_ttl: old_cfg.lp.debug.session_ttl,
                 state_cleanup_interval: old_cfg.lp.debug.state_cleanup_interval,
                 max_concurrent_forwards: old_cfg.lp.debug.max_concurrent_forwards,
+                // the remaining knobs postdate v14, so there is nothing to carry over
+                ..Default::default()
             },
         },
         gateway_tasks: GatewayTasksConfig {

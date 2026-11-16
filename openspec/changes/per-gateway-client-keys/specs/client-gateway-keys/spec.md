@@ -80,6 +80,30 @@ A custom gateway registration, as used by a service provider embedded in a node,
 - **WHEN** a node starts an embedded service provider on a version with this change, on a new node or an existing one
 - **THEN** the provider's address contains its root identity and root encryption public keys
 
+### Requirement: A client in LP mode presents keys derived for its gateway
+
+A mixnet client that connects over the Lewes Protocol SHALL register with the gateway it has chosen under the identity keypair derived for that gateway at the zero generation id, and SHALL use the x25519 keypair derived for that gateway in its address and to decrypt the messages it receives. It MUST NOT present its root identity public key to that gateway. An LP client keeps no stored registration, so it SHALL derive at the zero generation id at every start.
+
+A connect over the Lewes Protocol with the `refresh_gateway_keys` flag set SHALL fail with an error, because the refreshed generation id could not be kept. A full reset SHALL apply to an LP client as to any other client.
+
+Sessions with gateways other than the client's home gateway are not covered by this requirement.
+
+#### Scenario: An LP client does not show its root identity
+- **WHEN** a client connects over LP
+- **THEN** the identity public key it registers with its gateway differs from its root identity public key, and the identity and encryption keys in its address are the ones derived for that gateway
+
+#### Scenario: An LP client keeps its identity at a gateway across starts
+- **WHEN** an LP client with a requested gateway starts twice
+- **THEN** it registers with that gateway under the same identity both times
+
+#### Scenario: Two LP gateways see unrelated keys
+- **WHEN** an LP client connects to gateway A on one start and to gateway B on another
+- **THEN** its identity public keys at A and at B differ, and its encryption public keys at A and at B differ
+
+#### Scenario: A refresh is rejected over LP
+- **WHEN** an application sets the refresh flag and connects over LP
+- **THEN** the connect fails with an error before any gateway is dialled
+
 ### Requirement: Keys at a gateway are refreshed only by an explicit flag on connect
 
 An application SHALL be able to request a key refresh when it connects, through the `refresh_gateway_keys` flag. When the flag is set and a registration exists for the gateway being connected to, the client SHALL draw a new random generation id, perform a new registration handshake with that gateway under the identity derived from it, and replace the stored registration, including its shared key and generation id. The flag SHALL apply to that one connect only. Without the flag the client MUST NOT refresh.
@@ -90,7 +114,7 @@ The stored registration MUST be replaced only after the new registration has suc
 
 As part of a refresh the client MUST NOT connect to the gateway as its previous identity.
 
-The flag SHALL be settable on the SDK's mixnet client builder and through `nym-registration-client`. It is not exposed by the command-line clients or by the wasm client.
+The flag SHALL be settable on the SDK's mixnet client builder and through `nym-registration-client`. It is not exposed by the command-line clients or by the wasm client. This requirement applies to clients that keep stored registrations; over LP the flag is rejected, as required for LP clients.
 
 #### Scenario: A refresh gives the gateway a new client
 - **WHEN** an application connects with the refresh flag to a gateway it has a derived registration for

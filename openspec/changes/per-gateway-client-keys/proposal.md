@@ -10,6 +10,7 @@ The same identity key is also the seed of the client's ecash key in nym-sdk and 
 - **Existing registrations are untouched.** A registration made before this change keeps using the root keys directly. Nothing is re-registered on upgrade, so addresses and bandwidth already credited at gateways are kept. Custom registrations, used by the service providers embedded in a node, also keep the root keys.
 - **Refreshable keys.** A flag on connect gives the client a fresh identity at the gateway it is connecting to, by drawing a new random generation id and registering again. Nothing refreshes without the flag.
 - **Full reset.** An explicit call replaces the root keys and clears the gateway registrations and the reply store, keeping the credential store.
+- **LP mode.** A client that connects over the Lewes Protocol registers with its gateway under the keys derived for that gateway at generation zero, at every start. It keeps no stored registration, so a refresh is not available over LP and the flag fails the connect; a full reset applies as usual. Sessions with further LP gateways, which nothing opens yet, are not covered.
 - **BREAKING (nym-sdk):** `MixnetClient::identity_keypair()`, `sign()` and `sign_text()` are removed. Nothing in this repository calls them.
 - **BREAKING (nym-sdk, client-core, nym-crypto):** the derivation material option is removed: `with_derivation_material`, `DerivationMaterial`, `ClientKeys::from_master_key`, `ed25519::KeyPair::from_secret` and the unread `index` field of the ed25519 keypair. Nothing in this repository or in nym-vpn-client uses it. A client's root keys are always random.
 - **Ecash key moves off the identity key.** A client that buys its own ticketbooks derives its ecash key from the payment mnemonic through one shared helper. The construction is the one `nym-sdk-session` uses today, with a label that names the purpose.
@@ -31,7 +32,8 @@ The same identity key is also the seed of the client's ecash key in nym-sdk and 
 
 ## Impact
 
-- **common/client-core** (`init`, `client/base_client`, `client/key_manager`): key derivation, the keys type carried by the initialisation result, and the refresh path.
+- **common/client-core** (`init`, `client/base_client`, `client/key_manager`): key derivation, the keys type carried by the initialisation result, the refresh path, and the LP client's keys for its gateway (`client/base_client/lp_client.rs`, with a note on the dialer in `client/lp/control`).
+- **LP-mode clients** change identity at their gateway once on upgrade, and one with a requested LP gateway changes address once.
 - **common/client-core/gateways-storage**: one sqlite migration for the generation id on a stored registration, and the same field in the in-memory and wasm stores. `GatewaysDetailsStore` gains an operation that replaces a stored registration in place, and every implementation in the repository is updated: on disk, in memory, wasm and the SDK's custom-storage example. The reply store is not changed. After the migration an older binary cannot open the registrations database.
 - **common/wasm/client-core**, **wasm/client**, **common/socks5-client-core**, **service-providers/network-requester**: consumers of the client-core initialisation result.
 - **sdk/rust/nym-sdk**: the refresh flag, the reset call, removal of `identity_keypair()`, `sign()` and `sign_text()`, and `create_bandwidth_client` no longer reading the client keys.

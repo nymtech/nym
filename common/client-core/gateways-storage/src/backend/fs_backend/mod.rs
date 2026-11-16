@@ -199,7 +199,7 @@ mod tests {
     use super::*;
     use crate::RemoteGatewayDetails;
     use nym_gateway_client::client::GatewayListeners;
-    use nym_test_utils::helpers::dummy_ed25519_keypair;
+    use nym_test_utils::helpers::{deterministic_rng, dummy_ed25519_keypair};
 
     async fn in_memory_store() -> OnDiskGatewaysDetails {
         let connection_pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
@@ -239,7 +239,7 @@ mod tests {
         let generation_ids = [
             None,
             Some(GenerationId::INITIAL),
-            Some(GenerationId::new_random()),
+            Some(GenerationId::new_random(&mut deterministic_rng())),
         ];
 
         for (gateway_seed, generation_id) in (1..).zip(generation_ids) {
@@ -265,7 +265,7 @@ mod tests {
             .await
             .unwrap();
 
-        let generation_id = GenerationId::new_random();
+        let generation_id = GenerationId::new_random(&mut deterministic_rng());
         store
             .update_gateway_keys(&gateway_id, generation_id, shared_key(2))
             .await

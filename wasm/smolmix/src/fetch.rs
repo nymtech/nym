@@ -31,6 +31,49 @@ struct FetchInit {
     method: String,
     headers: Vec<(String, String)>,
     body: Option<Vec<u8>>,
+    redirect: RedirectMode,
+}
+
+/// `RequestInit.redirect`. `manual` returns the redirect response itself,
+/// where a browser's fetch returns an opaque-redirect response.
+#[cfg(feature = "fetch")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RedirectMode {
+    /// Follow up to `max_redirects` hops (the default).
+    Follow,
+    /// Fail the request at the first redirect.
+    Error,
+    /// Return the redirect response itself to the caller.
+    Manual,
+}
+
+#[cfg(feature = "fetch")]
+impl RedirectMode {
+    /// Read `init.redirect`. Only an absent value defaults to `follow`.
+    fn from_init(init: &JsValue) -> Result<Self, FetchError> {
+        let value = Reflect::get(init, &JsValue::from_str("redirect"))
+            .map_err(|e| FetchError::Js(format!("failed to read 'redirect': {e:?}")))?;
+        if value.is_undefined() {
+            return Ok(Self::Follow);
+        }
+        match value.as_string() {
+            Some(mode) => Self::parse(&mode),
+            None => Err(FetchError::Http(
+                "invalid redirect mode (expected follow, error or manual)".into(),
+            )),
+        }
+    }
+
+    fn parse(value: &str) -> Result<Self, FetchError> {
+        match value {
+            "follow" => Ok(Self::Follow),
+            "error" => Ok(Self::Error),
+            "manual" => Ok(Self::Manual),
+            other => Err(FetchError::Http(format!(
+                "invalid redirect mode '{other}' (expected follow, error or manual)"
+            ))),
+        }
+    }
 }
 
 /// Execute a fetch request through the mixnet tunnel.
@@ -162,7 +205,21 @@ pub async fn fetch(
             tunnel.return_to_pool(host, port, conn);
         }
 
-        // 4. Follow redirects (3xx with Location header). Any other status,
+        // 4. Only `follow` goes on to a redirect. Under `error` a redirect
+        //    status fails before `Location` is read, as in the Fetch
+        //    standard; every other response returns as it is.
+        match opts.redirect {
+            RedirectMode::Follow => {}
+            RedirectMode::Error if is_redirect_status(response.status) => {
+                return Err(FetchError::Http(format!(
+                    "{} redirect refused: redirect mode is 'error'",
+                    response.status
+                )));
+            }
+            RedirectMode::Error | RedirectMode::Manual => return serialise_response(&response),
+        }
+
+        // 5. Follow redirects (3xx with Location header). Any other status,
         //    or a 3xx without Location, returns directly.
         if !(300..400).contains(&response.status) {
             return serialise_response(&response);
@@ -488,7 +545,7 @@ async fn connect_once(
 
 // RequestInit extraction (via js_sys::Reflect, no serde): `fetch` feature only.
 
-/// Extract method, headers, and body from a JS `RequestInit` object.
+/// Extract method, headers, body, and redirect mode from a JS `RequestInit` object.
 #[cfg(feature = "fetch")]
 fn parse_init(init: &JsValue) -> Result<FetchInit, FetchError> {
     // Handle undefined/null init (bare GET request)
@@ -497,6 +554,7 @@ fn parse_init(init: &JsValue) -> Result<FetchInit, FetchError> {
             method: "GET".into(),
             headers: Vec::new(),
             body: None,
+            redirect: RedirectMode::Follow,
         });
     }
 
@@ -507,11 +565,13 @@ fn parse_init(init: &JsValue) -> Result<FetchInit, FetchError> {
 
     let headers = extract_headers(init)?;
     let body = extract_body(init)?;
+    let redirect = RedirectMode::from_init(init)?;
 
     Ok(FetchInit {
         method,
         headers,
         body,
+        redirect,
     })
 }
 
@@ -619,6 +679,12 @@ fn set_prop(obj: &Object, key: &str, val: &JsValue) -> Result<(), FetchError> {
         .map_err(|e| FetchError::Js(format!("failed to set '{key}': {e:?}")))
 }
 
+/// The Fetch standard's redirect statuses.
+#[cfg(feature = "fetch")]
+fn is_redirect_status(status: u16) -> bool {
+    matches!(status, 301 | 302 | 303 | 307 | 308)
+}
+
 /// Whether the URL scheme is one we'll forward to.
 #[cfg(feature = "fetch")]
 fn is_http_scheme(url: &Url) -> bool {
@@ -640,4 +706,27 @@ fn is_idempotent(method: &str) -> bool {
 fn strip_sensitive_headers(headers: &mut Vec<(String, String)>) {
     const SENSITIVE: &[&str] = &["authorization", "cookie", "proxy-authorization"];
     headers.retain(|(k, _)| !SENSITIVE.iter().any(|name| k.eq_ignore_ascii_case(name)));
+}
+
+#[cfg(all(test, feature = "fetch"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn redirect_mode_parses_fetch_values() {
+        assert_eq!(RedirectMode::parse("follow").unwrap(), RedirectMode::Follow);
+        assert_eq!(RedirectMode::parse("error").unwrap(), RedirectMode::Error);
+        assert_eq!(RedirectMode::parse("manual").unwrap(), RedirectMode::Manual);
+        assert!(RedirectMode::parse("Follow").is_err());
+    }
+
+    #[test]
+    fn redirect_statuses_match_fetch() {
+        for status in [301, 302, 303, 307, 308] {
+            assert!(is_redirect_status(status));
+        }
+        for status in [200, 300, 304, 305, 306, 309, 400] {
+            assert!(!is_redirect_status(status));
+        }
+    }
 }

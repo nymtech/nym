@@ -30,7 +30,7 @@
 - [x] 5.3 Re-point the node families routes
 - [x] 5.4 Build the skimmed and semi-skimmed routes of every version, the described routes and the noise-key route from the node view, with `refreshed_at` the block time of the height
 - [x] 5.5 Compute `Expires` on active-only responses as the design's D7 states; unit tests with the spec's mid-epoch and overdue examples
-- [ ] 5.6 Answer `by-addresses` from the view's address index
+- [x] 5.6 Answer `by-addresses` from the view's address index
 - [ ] 5.7 Make `refresh-described` answer 410 Gone with the upgrade message, removing the forced-refresh state and its request verification
 - [ ] 5.8 Remove the `/v1/utility` routes, the `utility_routes_bearer` config field, the `--utility-routes-bearer` flag and its environment variable
 - [ ] 5.9 Make `GET /v1/legacy/mixnodes` and `GET /v1/legacy/gateways` always answer an empty list (count 0), marked deprecated in OpenAPI and on the handler

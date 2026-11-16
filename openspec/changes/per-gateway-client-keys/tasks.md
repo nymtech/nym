@@ -1,12 +1,12 @@
 ## 1. Registration store: the generation id
 
-- [x] 1.1 Add a `GenerationId` type over 16 bytes to `common/client-core/gateways-storage`, with an all-zero value for a first registration and a constructor that draws 16 bytes from a caller-supplied `CryptoRng`
+- [x] 1.1 Add a `GenerationId` type over 16 bytes to `common/client-core/gateways-storage`, with an all-zero value for the LP client (`GenerationId::LP`, documented as never stored) and a constructor that draws 16 bytes from a caller-supplied `CryptoRng`
 - [x] 1.2 Add an optional generation id to `RemoteGatewayDetails` and `RawRemoteGatewayDetails`, and take it in `GatewayDetails::new_remote`, with an accessor on `GatewayDetails` that returns none for a custom registration
 - [x] 1.3 Add the single sqlite migration for this change in `fs_gateways_migrations`: a nullable 16-byte column on `remote_gateway_details`, left empty on every existing row
 - [x] 1.4 Read and write the column in the on-disk backend's queries, and carry the field in the in-memory backend
 - [x] 1.5 Carry the field in the wasm registration store (`common/wasm/client-core/src/storage`) as a defaulted optional field, treating a stored registration without it as legacy
 - [x] 1.6 Add an operation to `GatewaysDetailsStore` that replaces the shared key and generation id of an existing remote registration in place, in the manner of `update_gateway_published_data`: a single update in the on-disk backend, plus the in-memory backend, the wasm store and the SDK's custom-storage example
-- [x] 1.7 Test the on-disk backend against an in-memory database opened without a database key: a registration round-trips with no generation id, with the zero id and with a random id, and the replace operation changes the shared key and generation id while the gateway stays registered and active
+- [x] 1.7 Test the on-disk backend against an in-memory database opened without a database key: a registration round-trips with no generation id and with a random id, and the replace operation changes the shared key and generation id while the gateway stays registered and active
 
 ## 2. Per-gateway key derivation
 
@@ -19,20 +19,20 @@
 
 - [x] 3.1 Add `GatewayClientKeys` to the key manager, holding the identity keypair, the x25519 keypair and the acknowledgement key in use with one gateway, with no way to persist it to a key store
 - [x] 3.2 Add a method on `ClientKeys` that resolves the `GatewayClientKeys` from a gateway identity and an optional generation id: derived identity and x25519 keys when an id is given, the root keys when none is (a legacy or custom registration supplies none), and the root acknowledgement key in every case
-- [ ] 3.3 Make `InitialisationResult` carry a `GatewayClientKeys`; in `setup_new_gateway`, register a remote gateway with the keys derived at the zero generation id and store that id with the registration, and keep registering a custom gateway with the root keys
-- [ ] 3.4 Return the resolved keys from `use_loaded_gateway_details`, and convert `GatewaySetup::ReuseConnection` and `try_reuse_connection` to carry `GatewayClientKeys`, leaving the commented-out call in the wasm client as it is
+- [x] 3.3 Make `InitialisationResult` carry a `GatewayClientKeys` in a field named `gateway_keys`; in `setup_new_gateway`, register a remote gateway with the keys derived from a generation id drawn with `os_rng()` and store that id with the registration, and keep registering a custom gateway with the root keys; rename `GenerationId::INITIAL` to `GenerationId::LP`, documenting why the LP client uses a fixed id and that no stored registration carries it
+- [x] 3.4 Return the resolved keys from `use_loaded_gateway_details`, through `InitialisationResult::new_loaded`, which resolves them from the registration it is given, and convert `GatewaySetup::ReuseConnection` and `try_reuse_connection` to carry `GatewayClientKeys`, leaving the commented-out call in the wasm client as it is
 - [ ] 3.5 Follow the new type in the base client and in the other readers of the initialisation result: `common/wasm/client-core`, `wasm/client`, `common/socks5-client-core`, `service-providers/network-requester` and `sdk/rust/nym-sdk`
-- [ ] 3.6 In the LP client (`common/client-core/src/client/base_client/lp_client.rs`), once the gateway is chosen, resolve the keys for it at the zero generation id and use them for the address, the dialer's registration and the data plane's decryption key; add a comment on the dialer's `request()` that a session with any further gateway needs keys derived for that gateway first
+- [ ] 3.6 In the LP client (`common/client-core/src/client/base_client/lp_client.rs`), once the gateway is chosen, resolve the keys for it at `GenerationId::LP` and use them for the address, the dialer's registration and the data plane's decryption key; add a comment on the dialer's `request()` that a session with any further gateway needs keys derived for that gateway first
 - [ ] 3.7 Test the resolution: a legacy registration yields the root keys, a derived registration yields keys that differ from the root and match the derivation, a custom registration yields the root keys, and two gateways yield different identity and x25519 keys
 
 ## 4. Refresh on connect
 
-- [ ] 4.1 Add a refresh path to `common/client-core/src/init` beside `setup_new_gateway`: for a gateway that already has a stored registration, choose the next generation id (the zero id for a legacy registration, a random id drawn with `os_rng()` for a derived one), register under the keys derived from it, and only then replace the stored registration through the new store operation
+- [ ] 4.1 Add a refresh path to `common/client-core/src/init` beside `setup_new_gateway`: for a gateway that already has a stored registration, legacy or derived, draw a new generation id with `os_rng()`, register under the keys derived from it, and only then replace the stored registration through the new store operation
 - [ ] 4.2 When the registration of a refresh fails, return an error from the connect and leave the stored registration untouched, with no fallback to it
 - [ ] 4.3 Add the one-shot `refresh_gateway_keys` flag to the SDK's `MixnetClientBuilder`, and in `setup_gateway` take the refresh path where the stored registration for the chosen gateway would otherwise be loaded; with no stored registration the flag changes nothing
 - [ ] 4.4 Fail a connect over LP (`connect_to_lp`) when `refresh_gateway_keys` is set, before any gateway is dialled
 - [ ] 4.5 Surface the flag through the `nym-registration-client` builder
-- [ ] 4.6 Test the choice of the next generation id: zero for a legacy registration, a non-zero random value for a derived one; and that a connect over LP with the flag set fails
+- [ ] 4.6 Test that a connect over LP with the flag set fails before any gateway is dialled
 
 ## 5. Full reset
 

@@ -42,21 +42,17 @@ A later change to this construction MUST use a different salt version, so that i
 
 ### Requirement: Each derived registration carries a 16-byte generation id
 
-Every registration that uses derived keys SHALL carry a 16-byte generation id, stored with the registration. The first derived registration a client makes with a gateway SHALL use a generation id of all zeros. A refresh SHALL replace it with 16 bytes drawn from the operating system's cryptographic random generator. A previous generation id MUST NOT be retained once it has been replaced.
+Every registration that uses derived keys SHALL carry a 16-byte generation id, stored with the registration. A client SHALL draw the generation id as 16 bytes from the operating system's cryptographic random generator for every new registration with a gateway, the first one included, and again at each refresh, which replaces the stored id. A previous generation id MUST NOT be retained once it has been replaced. The all-zero generation id is used only by a client in LP mode, which stores no registration.
 
 The generation id is not secret. It MUST NOT be sent to the gateway.
 
-#### Scenario: A first registration is at generation zero
+#### Scenario: A first registration draws a random generation id
 - **WHEN** a client registers with a gateway for the first time
-- **THEN** the stored generation id for that registration is all zeros
+- **THEN** the stored generation id for that registration is 16 bytes newly drawn from the operating system's random generator
 
-#### Scenario: A never-refreshed registration survives the loss of the registration store
-- **WHEN** a client loses its registration store, keeps its root keys, and registers again with a gateway at which it had never refreshed its keys
-- **THEN** it presents the same identity as before, and the gateway still holds the bandwidth credited to that identity
-
-#### Scenario: A refresh after a lost store does not walk back through old identities
-- **WHEN** a client that had refreshed its keys at a gateway loses its registration store, registers again at generation zero, and then refreshes
-- **THEN** the refreshed identity is derived from a newly drawn random generation id, not from any value it used before
+#### Scenario: A lost registration store is a fresh start
+- **WHEN** a client loses its registration store, keeps its root keys, and registers again with a gateway it was registered with before
+- **THEN** it presents an identity derived from a newly drawn generation id, which differs from every identity it presented to that gateway before
 
 ### Requirement: Registrations made before this change keep using the root keys
 
@@ -108,7 +104,7 @@ Sessions with gateways other than the client's home gateway are not covered by t
 
 An application SHALL be able to request a key refresh when it connects, through the `refresh_gateway_keys` flag. When the flag is set and a registration exists for the gateway being connected to, the client SHALL draw a new random generation id, perform a new registration handshake with that gateway under the identity derived from it, and replace the stored registration, including its shared key and generation id. The flag SHALL apply to that one connect only. Without the flag the client MUST NOT refresh.
 
-Refreshing a registration that carries no generation id SHALL move it to derived keys at generation zero. When no registration exists for that gateway the flag SHALL have no effect beyond the ordinary first registration at generation zero.
+Refreshing a registration that carries no generation id SHALL move it to derived keys under a newly drawn generation id. When no registration exists for that gateway the flag SHALL have no effect beyond the ordinary first registration.
 
 The stored registration MUST be replaced only after the new registration has succeeded. If it fails, the stored registration SHALL be left as it was and the connect SHALL fail with an error: the client MUST NOT fall back to the stored registration for that connect. The replacement SHALL be a single store operation, so that an interruption cannot leave the gateway without a stored registration or with a mix of old and new values.
 
@@ -130,7 +126,7 @@ The flag SHALL be settable on the SDK's mixnet client builder and through `nym-r
 
 #### Scenario: A legacy registration is refreshed onto derived keys
 - **WHEN** an application connects with the flag to a gateway whose stored registration carries no generation id
-- **THEN** the client registers under the identity derived at generation zero, which differs from its root identity
+- **THEN** the client registers under an identity derived from a newly drawn generation id, which differs from its root identity
 
 #### Scenario: A failed refresh leaves the old registration in place
 - **WHEN** the registration handshake of a refresh fails
@@ -148,7 +144,7 @@ The flag SHALL be settable on the SDK's mixnet client builder and through `nym-r
 
 The SDK SHALL provide an explicit reset operation, `reset_client_identity`, also reachable through `nym-registration-client`. A reset SHALL generate new random root keys, remove every stored gateway registration and clear the reply store of its reply SURBs and reply keys. A reset MUST NOT modify the credential store, MUST NOT contact any gateway and MUST NOT happen implicitly. It SHALL be available only on a client that is not connected.
 
-A reset replaces the root because registering again with the same root and gateway yields the generation-zero identity again, so removing registrations alone would not give the client a fresh identity.
+A reset replaces the root because an LP client derives its keys from the root at the zero generation id at every start, so removing registrations alone would not give an LP client a fresh identity.
 
 #### Scenario: A reset makes a brand-new client
 - **WHEN** an application resets a client and then connects to a gateway it was registered with before

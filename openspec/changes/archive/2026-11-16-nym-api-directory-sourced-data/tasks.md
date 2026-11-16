@@ -53,7 +53,7 @@
 
 ## 8. Verification and wrap-up
 
-- [ ] 8.1 Run `cargo fmt`, `cargo check --workspace` and the tests of the touched crates (validator-client, nym-directory-client, nym-epoch-driver, nym-api, nym-api-requests, nym-node)
-- [ ] 8.2 Run the build locally against mainnet and diff its described and skimmed responses against the live nym-api with a script kept in `~/workspace/claude-notes/directory-topology-issues/`, recording the result there; rerun once nodes publishing the #7399 fields are deployed
-- [ ] 8.3 Draft the PR description listing every route whose behaviour changes and the operator-facing breaks (removed flags, renamed override, ignored config sections), with an explicit "Deprecated, answering empty" group for `GET /v1/legacy/mixnodes` and `GET /v1/legacy/gateways` in the format of the epoch driver PR's "Deprecated, serving frozen data" group (`~/workspace/claude-notes/epoch-driver-issues/pr-description.md`)
-- [ ] 8.4 Archive the change inside the PR and check `git diff openspec/specs`
+- [x] 8.1 Run `cargo fmt`, `cargo check --workspace` and the tests of the touched crates (validator-client, nym-directory-client, nym-epoch-driver, nym-api, nym-api-requests, nym-node)
+- [x] 8.2 Dropped: the local comparison against mainnet cannot run, since mainnet has no performance contract address and the snapshot producer does not start without one (design.md, Open Questions)
+- [x] 8.3 Draft the PR description listing every route whose behaviour changes and the operator-facing breaks (removed flags, renamed override, ignored config sections), with an explicit "Deprecated, answering empty" group for `GET /v1/legacy/mixnodes` and `GET /v1/legacy/gateways` in the format of the epoch driver PR's "Deprecated, serving frozen data" group (`~/workspace/claude-notes/epoch-driver-issues/pr-description.md`)
+- [x] 8.4 Archive the change inside the PR and check `git diff openspec/specs`

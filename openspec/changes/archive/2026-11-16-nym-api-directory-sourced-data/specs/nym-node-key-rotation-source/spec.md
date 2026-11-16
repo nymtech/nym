@@ -4,9 +4,9 @@
 
 nym-node SHALL read the interval and the key rotation state from the mixnet contract to learn the current epoch and key rotation, and SHALL ask nym-api for them only when the chain read fails. This SHALL hold wherever the node needs them: when it sets up key rotation at startup, in its running key rotation controller, and where it determines the current rotation id (initialisation, every start, the sphinx key reset command and config migration). The chain read SHALL go through the node's shared chain client. The commands that run without a node (initialisation, the sphinx key reset command and config migration) SHALL build that same client for the read, so that the node has one way of reading the chain.
 
-#### Scenario: The node starts with every nym-api unreachable
-- **WHEN** a node starts while its chain connection works and no nym-api answers
-- **THEN** it reads the key rotation information from the chain, sets up key rotation and starts
+#### Scenario: Key rotation is set up with every nym-api unreachable
+- **WHEN** a node sets up key rotation at startup while its chain connection works and no nym-api answers
+- **THEN** it reads the key rotation information from the chain and sets up key rotation
 
 #### Scenario: nym-api is the fallback
 - **WHEN** the chain read of the key rotation information fails and a nym-api answers

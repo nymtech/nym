@@ -137,11 +137,10 @@ Expected effect: geolocation is reused on most heights and performance on most h
 
 ## Migration Plan
 
-1. Before merging, run the new build locally against mainnet and diff its described and skimmed responses against the live nym-api with a throwaway script kept outside the repository. Differences are expected only in the placeholders and, until nodes publishing them are deployed, in the three #7399 fields; rerun once they are.
-2. Merge when the release it will ship in is a few releases after the one in which nodes started publishing the #7399 fields. There is no runtime switch: the deploy is the cutover. nym-node and nym-api ship in the same release.
-3. During the rollout instances on the old and new release serve different data; they converge once all are upgraded.
-4. Rollback is a redeploy of the previous release. Its caches are rebuilt at startup (their files on disk are reused only if still within their age limits), and the snapshot file written by the new release fails to load there and is refilled.
+1. Merge when the release it will ship in is a few releases after the one in which nodes started publishing the #7399 fields. There is no runtime switch: the deploy is the cutover. nym-node and nym-api ship in the same release.
+2. During the rollout instances on the old and new release serve different data; they converge once all are upgraded.
+3. Rollback is a redeploy of the previous release. Its caches are rebuilt at startup (their files on disk are reused only if still within their age limits), and the snapshot file written by the new release fails to load there and is refilled.
 
 ## Open Questions
 
-- Whether the local read-only run for the comparison needs anything beyond an RPC with enough history has not been checked. If it is not simple, the comparison is dropped.
+None. The planned local comparison of described and skimmed responses against the live mainnet nym-api was dropped: mainnet's network defaults carry no performance contract address, and the snapshot producer does not start without one, so a local build cannot run against mainnet until that contract is deployed there.

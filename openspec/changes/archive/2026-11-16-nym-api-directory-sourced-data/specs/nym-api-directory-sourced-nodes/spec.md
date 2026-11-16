@@ -52,7 +52,7 @@ A node whose `NodeInformation` announces any IP address that is not publicly rou
 
 Each listed node's values SHALL come from its verified directory entries and its node details at the snapshot's height: identity, node id and contract node type from the node details; addresses, hostname, ports, location, modes and `build_version` from `NodeInformation`; the current and, when published, pre-announced sphinx keys from the sphinx keys entry; service provider addresses, wireguard details and Lewes Protocol details from their entries; the noise key, the acceptance of the operator terms and the node's own Lewes Protocol signature from the fields nodes publish for them.
 
-A node that does not publish one of those three fields SHALL be served without it: no noise key, terms not accepted, and no Lewes Protocol details at all. Lewes Protocol content MUST NOT be served without the node's own signature over it.
+A node that does not publish one of those three fields SHALL be served without it: no noise key, terms not accepted, and no Lewes Protocol details at all; the v3 skimmed routes, whose node type requires Lewes Protocol details, leave such a node out. Lewes Protocol content MUST NOT be served without the node's own signature over it.
 
 The declared `exit_nr` and `exit_ipr` roles SHALL both equal the node's exit mode, and the declared mixnode and entry roles its mixnode and entry modes.
 
@@ -72,7 +72,7 @@ Values the directory does not hold SHALL be served as fixed placeholders: in `bu
 
 #### Scenario: Unsigned Lewes Protocol details are not served
 - **WHEN** a listed node publishes Lewes Protocol details without its own signature
-- **THEN** it is served with no Lewes Protocol details
+- **THEN** it is served with no Lewes Protocol details, and the v3 skimmed routes leave it out
 
 ### Requirement: Active-only responses expire when the first snapshot after the epoch is due becomes served
 

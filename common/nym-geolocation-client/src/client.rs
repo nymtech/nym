@@ -85,9 +85,13 @@ mod tests {
     use nym_crypto::asymmetric::ed25519;
     use nym_lthash::LtHash16;
     use nym_validator_client::nyxd::error::NyxdError;
-    use nym_validator_client::nyxd::nym_mixnet_contract_common::nym_node::NodeDetailsResponse;
+    use nym_validator_client::nyxd::nym_mixnet_contract_common::nym_node::{
+        EpochAssignmentResponse, NodeDetailsResponse, Role, RolesMetadataResponse,
+    };
     use nym_validator_client::nyxd::nym_mixnet_contract_common::{
-        Addr, Coin, NodeId, NymNode, NymNodeBond, NymNodeDetails,
+        Addr, Coin, ContractState, ContractStateParams, CurrentIntervalResponse,
+        HistoricalNymNodeVersionEntry, KeyRotationState, NodeId, NymNode, NymNodeBond,
+        NymNodeDetails, RewardingParams,
     };
     use std::collections::BTreeMap;
 
@@ -178,6 +182,64 @@ mod tests {
             _: Height,
         ) -> Result<Vec<NymNodeDetails>, NyxdError> {
             // the whole-set read takes the identities from the bonds
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+        }
+
+        // the whole-set read reads nothing below
+        async fn get_rewarded_set_metadata_at_height(
+            &self,
+            _: Height,
+        ) -> Result<RolesMetadataResponse, NyxdError> {
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+        }
+
+        async fn get_role_assignment_at_height(
+            &self,
+            _: Role,
+            _: Height,
+        ) -> Result<EpochAssignmentResponse, NyxdError> {
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+        }
+
+        async fn get_current_interval_details_at_height(
+            &self,
+            _: Height,
+        ) -> Result<CurrentIntervalResponse, NyxdError> {
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+        }
+
+        async fn get_key_rotation_state_at_height(
+            &self,
+            _: Height,
+        ) -> Result<KeyRotationState, NyxdError> {
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+        }
+
+        async fn get_rewarding_parameters_at_height(
+            &self,
+            _: Height,
+        ) -> Result<RewardingParams, NyxdError> {
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+        }
+
+        async fn get_mixnet_contract_state_at_height(
+            &self,
+            _: Height,
+        ) -> Result<ContractState, NyxdError> {
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+        }
+
+        async fn get_mixnet_contract_state_params_at_height(
+            &self,
+            _: Height,
+        ) -> Result<ContractStateParams, NyxdError> {
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+        }
+
+        async fn get_full_nym_node_version_history_at_height(
+            &self,
+            _: Height,
+        ) -> Result<Vec<HistoricalNymNodeVersionEntry>, NyxdError> {
             Err(NyxdError::unavailable_contract_address("mixnet contract"))
         }
     }

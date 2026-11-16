@@ -335,6 +335,10 @@ impl GenerationId {
         os_rng().fill_bytes(&mut bytes);
         GenerationId(bytes)
     }
+
+    pub fn as_bytes(&self) -> &[u8; GENERATION_ID_SIZE] {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

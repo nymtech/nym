@@ -20,6 +20,10 @@ pub struct WasmRawRegisteredGateway {
     #[serde(default)]
     pub derived_aes256_gcm_siv_key: Vec<u8>,
 
+    /// None for a registration that uses the client's root keys, including any stored without this field.
+    #[serde(default)]
+    pub generation_id: Option<Vec<u8>>,
+
     #[zeroize(skip)]
     pub published_data: WasmRawGatewayPublishedData,
 }
@@ -32,6 +36,7 @@ impl TryFrom<WasmRawRegisteredGateway> for GatewayRegistration {
         let raw_remote = RawRemoteGatewayDetails {
             gateway_id_bs58: value.gateway_id_bs58,
             derived_aes256_gcm_siv_key: value.derived_aes256_gcm_siv_key,
+            generation_id: value.generation_id,
             published_data: RawGatewayPublishedData {
                 gateway_listener: value.published_data.gateway_listener,
                 fallback_listener: value.published_data.fallback_listener,
@@ -59,6 +64,9 @@ impl<'a> From<&'a GatewayRegistration> for WasmRawRegisteredGateway {
             gateway_id_bs58: remote_details.gateway_id.to_string(),
             registration_timestamp: value.registration_timestamp,
             derived_aes256_gcm_siv_key,
+            generation_id: remote_details
+                .generation_id
+                .map(|id| id.as_bytes().to_vec()),
             published_data: (&remote_details.published_data).into(),
         }
     }

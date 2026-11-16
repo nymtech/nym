@@ -1,7 +1,7 @@
 ## 1. Registration store: the generation id
 
 - [x] 1.1 Add a `GenerationId` type over 16 bytes to `common/client-core/gateways-storage`, with an all-zero value for a first registration and a constructor that draws 16 bytes from the OS random generator
-- [ ] 1.2 Add an optional generation id to `RemoteGatewayDetails` and `RawRemoteGatewayDetails`, and take it in `GatewayDetails::new_remote`, with an accessor on `GatewayDetails` that returns none for a custom registration
+- [x] 1.2 Add an optional generation id to `RemoteGatewayDetails` and `RawRemoteGatewayDetails`, and take it in `GatewayDetails::new_remote`, with an accessor on `GatewayDetails` that returns none for a custom registration
 - [ ] 1.3 Add the single sqlite migration for this change in `fs_gateways_migrations`: a nullable 16-byte column on `remote_gateway_details`, left empty on every existing row
 - [ ] 1.4 Read and write the column in the on-disk backend's queries, and carry the field in the in-memory backend
 - [ ] 1.5 Carry the field in the wasm registration store (`common/wasm/client-core/src/storage`) as a defaulted optional field, treating a stored registration without it as legacy

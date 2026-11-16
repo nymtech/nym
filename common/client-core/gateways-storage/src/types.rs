@@ -71,11 +71,13 @@ impl GatewayDetails {
         gateway_id: ed25519::PublicKey,
         shared_key: Arc<SharedSymmetricKey>,
         published_data: GatewayPublishedData,
+        generation_id: GenerationId,
     ) -> Self {
         GatewayDetails::Remote(RemoteGatewayDetails {
             gateway_id,
             shared_key,
             published_data,
+            generation_id: Some(generation_id),
         })
     }
 
@@ -93,6 +95,13 @@ impl GatewayDetails {
     pub fn shared_key(&self) -> Option<&SharedSymmetricKey> {
         match self {
             GatewayDetails::Remote(details) => Some(&details.shared_key),
+            GatewayDetails::Custom(_) => None,
+        }
+    }
+
+    pub fn generation_id(&self) -> Option<GenerationId> {
+        match self {
+            GatewayDetails::Remote(details) => details.generation_id,
             GatewayDetails::Custom(_) => None,
         }
     }
@@ -242,6 +251,7 @@ impl TryFrom<RawGatewayPublishedData> for GatewayPublishedData {
 pub struct RawRemoteGatewayDetails {
     pub gateway_id_bs58: String,
     pub derived_aes256_gcm_siv_key: Vec<u8>,
+    pub generation_id: Option<Vec<u8>>,
     #[zeroize(skip)]
     #[cfg_attr(feature = "sqlx", sqlx(flatten))]
     pub published_data: RawGatewayPublishedData,
@@ -265,10 +275,25 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
                 source,
             })?;
 
+        let generation_id = value
+            .generation_id
+            .as_deref()
+            .map(|bytes| {
+                bytes
+                    .try_into()
+                    .map(GenerationId)
+                    .map_err(|_| BadGateway::MalformedGenerationId {
+                        gateway_id: value.gateway_id_bs58.clone(),
+                        length: bytes.len(),
+                    })
+            })
+            .transpose()?;
+
         Ok(RemoteGatewayDetails {
             gateway_id,
             shared_key: Arc::new(shared_key),
             published_data: value.published_data.clone().try_into()?,
+            generation_id,
         })
     }
 }
@@ -278,6 +303,7 @@ impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
         RawRemoteGatewayDetails {
             gateway_id_bs58: value.gateway_id.to_base58_string(),
             derived_aes256_gcm_siv_key: value.shared_key.to_bytes(),
+            generation_id: value.generation_id.map(|id| id.0.to_vec()),
             published_data: (&value.published_data).into(),
         }
     }
@@ -290,6 +316,9 @@ pub struct RemoteGatewayDetails {
     pub shared_key: Arc<SharedSymmetricKey>,
 
     pub published_data: GatewayPublishedData,
+
+    /// None for a registration that uses the client's root keys.
+    pub generation_id: Option<GenerationId>,
 }
 
 /// Selects the generation of the keys a client derives for one gateway registration.

@@ -19,6 +19,7 @@ use crate::node::http::state::AppState;
 use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
+use crate::node::key_rotation::get_key_rotation_details;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::lp::active_sessions::{ActiveLpSessions, LpPeer};
 use crate::node::lp::control::LpControlSetup;
@@ -1007,11 +1008,12 @@ impl NymNode {
         directory_publisher_events_sender: Option<DirectoryPublisherEventsSender>,
     ) -> Result<(), NymNodeError> {
         let managed_keys = self.take_managed_sphinx_keys()?;
-        let rotation_state = nym_apis_client.get_key_rotation_info().await?;
+        let rotation_details = get_key_rotation_details(&self.nyx_client, &nym_apis_client).await?;
 
         let rotation_controller = KeyRotationController::new(
             &self.config,
-            rotation_state.into(),
+            rotation_details.into(),
+            self.nyx_client.clone(),
             nym_apis_client,
             replay_protection_manager,
             managed_keys,

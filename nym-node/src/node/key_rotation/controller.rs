@@ -3,12 +3,14 @@
 
 use crate::config::Config;
 use crate::node::directory_publisher::{DirectoryPayload, DirectoryPublisherEventsSender};
+use crate::node::key_rotation::get_key_rotation_details;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::nym_apis_client::NymApisClient;
+use crate::node::nyx_client::NyxClient;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use futures::pin_mut;
 use nym_task::ShutdownToken;
-use nym_validator_client::models::{KeyRotationDetails, KeyRotationInfoResponse, KeyRotationState};
+use nym_validator_client::models::{KeyRotationDetails, KeyRotationState};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::{Instant, interval, sleep};
@@ -25,11 +27,11 @@ impl RotationConfig {
     }
 }
 
-impl From<KeyRotationInfoResponse> for RotationConfig {
-    fn from(value: KeyRotationInfoResponse) -> Self {
+impl From<KeyRotationDetails> for RotationConfig {
+    fn from(details: KeyRotationDetails) -> Self {
         RotationConfig {
-            epoch_duration: value.details.epoch_duration,
-            rotation_state: value.details.key_rotation_state,
+            epoch_duration: details.epoch_duration,
+            rotation_state: details.key_rotation_state,
         }
     }
 }
@@ -41,7 +43,8 @@ pub(crate) struct KeyRotationController {
 
     rotation_config: RotationConfig,
     replay_protection_manager: ReplayProtectionBloomfiltersManager,
-    client: NymApisClient,
+    nyx_client: NyxClient,
+    nym_apis_client: NymApisClient,
     managed_keys: SphinxKeyManager,
     shutdown_token: ShutdownToken,
 
@@ -117,7 +120,8 @@ impl KeyRotationController {
     pub(crate) fn new(
         config: &Config,
         rotation_config: RotationConfig,
-        client: NymApisClient,
+        nyx_client: NyxClient,
+        nym_apis_client: NymApisClient,
         replay_protection_manager: ReplayProtectionBloomfiltersManager,
         managed_keys: SphinxKeyManager,
         directory_publisher_events: Option<DirectoryPublisherEventsSender>,
@@ -131,7 +135,8 @@ impl KeyRotationController {
                 .rotation_state_poling_interval,
             rotation_config,
             replay_protection_manager,
-            client,
+            nyx_client,
+            nym_apis_client,
             managed_keys,
             shutdown_token,
             directory_publisher_events,
@@ -277,14 +282,15 @@ impl KeyRotationController {
     }
 
     async fn try_get_key_rotation_info(&self) -> Option<KeyRotationDetails> {
-        let Ok(rotation_info) = self.client.get_key_rotation_info().await else {
-            warn!(
-                "failed to retrieve key rotation information from ANY nym-api - we might miss configuration changes"
-            );
-            return None;
-        };
-
-        Some(rotation_info.details)
+        match get_key_rotation_details(&self.nyx_client, &self.nym_apis_client).await {
+            Ok(details) => Some(details),
+            Err(err) => {
+                warn!(
+                    "failed to retrieve key rotation information from the chain and ANY nym-api - we might miss configuration changes: {err}"
+                );
+                None
+            }
+        }
     }
 
     async fn pre_announce_new_key(&self, rotation_id: u32) {

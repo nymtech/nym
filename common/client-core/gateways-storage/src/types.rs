@@ -391,3 +391,28 @@ impl CustomGatewayDetails {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
+
+    #[test]
+    fn generation_id_of_wrong_length_is_rejected() {
+        let raw = RawRemoteGatewayDetails {
+            gateway_id_bs58: dummy_ed25519_keypair(1).public_key().to_base58_string(),
+            derived_aes256_gcm_siv_key: vec![1; 32],
+            generation_id: Some(vec![0; GENERATION_ID_SIZE - 1]),
+            published_data: RawGatewayPublishedData {
+                gateway_listener: "ws://127.0.0.1:9000".to_string(),
+                fallback_listener: None,
+                expiration_timestamp: OffsetDateTime::now_utc(),
+            },
+        };
+
+        assert!(matches!(
+            RemoteGatewayDetails::try_from(raw),
+            Err(BadGateway::MalformedGenerationId { length, .. }) if length == GENERATION_ID_SIZE - 1
+        ));
+    }
+}

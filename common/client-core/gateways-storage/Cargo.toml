@@ -37,6 +37,10 @@ optional = true
 workspace = true
 optional = true
 
+[dev-dependencies]
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

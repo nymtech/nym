@@ -5,80 +5,24 @@ schemaType: "FAQPage"
 section: "Developers"
 lastUpdated: "2026-03-15"
 ---
+import Intro from '@snippets/nym/developers/rust/mixnet/troubleshooting/intro.mdx'
+import AlwaysDisconnectYourClient from '@snippets/nym/developers/rust/mixnet/troubleshooting/always-disconnect-your-client.mdx'
+import WaitingForNonEmptyMessages from '@snippets/nym/developers/rust/mixnet/troubleshooting/waiting-for-non-empty-messages.mdx'
+import VerboseTaskClientIsBeingDroppedLogging from '@snippets/nym/developers/rust/mixnet/troubleshooting/verbose-task-client-is-being-dropped-logging.mdx'
+import OnClientShutdownExpected from '@snippets/nym/developers/rust/mixnet/troubleshooting/on-client-shutdown-expected.mdx'
+import NotOnClientShutdownUnexpected from '@snippets/nym/developers/rust/mixnet/troubleshooting/not-on-client-shutdown-unexpected.mdx'
+import AccidentallyKillingYourClientProcessTooEarly from '@snippets/nym/developers/rust/mixnet/troubleshooting/accidentally-killing-your-client-process-too-early.mdx'
+import LotsOfDuplicateFragmentReceivedMessages from '@snippets/nym/developers/rust/mixnet/troubleshooting/lots-of-duplicate-fragment-received-messages.mdx'
+import AndroidMixnetBootstrapFailsWithACertificateRevokedOcspError from '@snippets/nym/developers/rust/mixnet/troubleshooting/android-mixnet-bootstrap-fails-with-a-certificate-revoked--ocsp-error.mdx'
 
 # Troubleshooting
 
-import { Callout } from 'nextra/components';
-
-Common issues and how to resolve them.
-
-## Always disconnect your client
-
-You should always **manually disconnect your client** with `client.disconnect().await`. The client writes to a local DB and manages SURB storage, so it needs to shut down gracefully. Failing to do this can lead to the errors described below.
-
-## Waiting for non-empty messages
-
-When listening for a response, you may receive empty messages. These are SURB replenishment requests: the remote side asking for more reply SURBs. Filter them out:
-
-```rust
-let mut message = None;
-while let Some(new_message) = client.wait_for_messages().await {
-    if !new_message.is_empty() {
-        message = new_message.into_iter().next();
-        break;
-    }
-}
-```
-
-<Callout type="info">
-Prefer `client.next().await` (from the `futures::StreamExt` trait, not the Nym Stream module) over `client.wait_for_messages().await`; it returns one message at a time which is easier to work with. You'll need `use futures::StreamExt;` in scope.
-</Callout>
-
-## Verbose `task client is being dropped` logging
-
-### On client shutdown (expected)
-
-When calling `client.disconnect().await`, the client logs that its background tasks are shutting down. This is normal and expected.
-
-Control log verbosity with `RUST_LOG`:
-
-```sh
-RUST_LOG=warn cargo run --example simple
-```
-
-### Not on client shutdown (unexpected)
-
-If you see these messages unexpectedly, you may be killing the client process too early. See the next section.
-
-## Accidentally killing your client process too early
-
-If you see errors like `Polling shutdown failed: channel closed` or panics about `action control task has died`, your client is being dropped before it finishes sending.
-
-`send_plain_message()` is async, but **it only blocks until the message is placed in the client's internal queue**, not until it's actually sent into the Mixnet. After queuing, the client still needs to route-encrypt the message and interleave it with cover traffic.
-
-Make sure the program stays alive long enough. In practice this means awaiting a response or calling `sleep` before disconnecting:
-
-```rust
-// Send a message
-client.send_plain_message(recipient, "hello").await.unwrap();
-
-// Wait for the reply (keeps the client alive)
-if let Some(received) = client.wait_for_messages().await {
-    for r in received {
-        println!("Received: {}", String::from_utf8_lossy(&r.message));
-    }
-}
-
-// Always disconnect gracefully
-client.disconnect().await;
-```
-
-## Lots of `duplicate fragment received` messages
-
-`WARN` level logs about duplicate fragments are caused by Mixnet-level packet retransmission: the original and the retransmitted copy both arrive. This is not a bug in your client logic.
-
-## Android: mixnet bootstrap fails with a certificate `Revoked` / OCSP error
-
-When you compile the SDK for Android (via `uniffi` + `cargo-ndk`), the client can fail to bootstrap the mixnet with a hard `Revoked` or "Certificate does not specify OCSP responder" error on certain Validator endpoints. The cause is `rustls-platform-verifier` routing certificate validation through Java's `CertPathValidator`, which enforces an OCSP check the endpoint does not satisfy. iOS and the desktop targets are unaffected; they tolerate or skip the check.
-
-Configure the client to use preconfigured TLS roots with `webpki_roots::TLS_SERVER_ROOTS` instead of the platform verifier to get around it.
+<Intro />
+<AlwaysDisconnectYourClient />
+<WaitingForNonEmptyMessages />
+<VerboseTaskClientIsBeingDroppedLogging />
+<OnClientShutdownExpected />
+<NotOnClientShutdownUnexpected />
+<AccidentallyKillingYourClientProcessTooEarly />
+<LotsOfDuplicateFragmentReceivedMessages />
+<AndroidMixnetBootstrapFailsWithACertificateRevokedOcspError />

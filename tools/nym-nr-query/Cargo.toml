@@ -18,3 +18,5 @@ nym-service-providers-common = { workspace = true }
 nym-socks5-requests = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }
+
+[lints]

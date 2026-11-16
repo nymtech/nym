@@ -45,7 +45,7 @@ pub fn generate_loop_cover_surb_ack<R>(
 where
     R: CryptoRng,
 {
-    Ok(SurbAck::construct(
+    Ok(SurbAck::construct_legacy(
         rng,
         full_address,
         ack_key,
@@ -132,7 +132,7 @@ where
     // once merged, that's an easy rng injection point for sphinx packets : )
     #[allow(deprecated)]
     let packet = match packet_type {
-        PacketType::Mix => NymPacket::sphinx_build(
+        PacketType::Mix => NymPacket::sphinx_build_legacy(
             packet_size.payload_size(),
             packet_payload,
             &route,

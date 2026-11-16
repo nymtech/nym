@@ -1,0 +1,15 @@
+#### Check node balances with `show_balances.py` [#check-node-balances-with-show_balancespy]
+
+Once you populated and saved `nodes.csv`, run `show_balances.py`. The program shows both the operator's bonding balance and the node's gas-account balance. It flags any node under 1 NYM as a
+config-score penalty risk.
+
+- Usage
+```sh
+python3 show_balances.py nodes.csv [options]
+```
+| Flag | Purpose |
+|---|---|
+| `csv_file` (positional) | Path to the nodes CSV |
+| `--dry-run` | Print without querying the network |
+
+Shows the node balance when `IP` is present, and the bonding balance when `bonding_account_address` is present.

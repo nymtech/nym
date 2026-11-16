@@ -33,6 +33,56 @@ export function pageDescription(data) {
 }
 
 /**
+ * A code fence tracker, by the CommonMark rule: a fence opens with three or
+ * more backticks or tildes, and closes on a line of the same character, at
+ * least as long, with no info string. Call it once for each line, in order:
+ * it returns 'open', 'inside', 'close', or null for a line outside any fence.
+ * `tracker.info` holds the info string of the open fence (`mermaid`, `rust`),
+ * and `tracker.isOpen()` tells whether a fence is still open after the last line.
+ */
+export function fenceTracker() {
+  let open = null;
+  const tracker = (line) => {
+    if (open) {
+      const close = line.match(/^\s*(`{3,}|~{3,})\s*$/);
+      if (close && close[1][0] === open.ch && close[1].length >= open.len) {
+        open = null;
+        return 'close';
+      }
+      return 'inside';
+    }
+    const m = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+    if (!m || (m[1][0] === '`' && m[2].includes('`'))) return null;
+    open = { ch: m[1][0], len: m[1].length };
+    tracker.info = m[2].trim();
+    return 'open';
+  };
+  tracker.info = '';
+  tracker.isOpen = () => open !== null;
+  return tracker;
+}
+
+/**
+ * An explicit heading anchor at the end of a heading: Nextra 4 writes it as
+ * `## Title [#anchor]` (remark-custom-heading-id), and the older `{#anchor}` form
+ * is still read. Group 1 or group 2 holds the anchor.
+ */
+export const HEADING_ANCHOR = /\s*(?:\{#([\w-]+)\}|\[#([^\]]+)\])\s*$/;
+
+/**
+ * Remove explicit anchors from heading lines, outside code fences. Nextra renders
+ * the anchor as the heading id and not as text, so a plain-text copy of the page
+ * must not show it either.
+ */
+export function stripHeadingIds(body) {
+  const fence = fenceTracker();
+  return body.split('\n').map((line) => {
+    if (fence(line) || !/^#{1,6}\s/.test(line)) return line;
+    return line.replace(HEADING_ANCHOR, '');
+  }).join('\n');
+}
+
+/**
  * Inline MDX partials before anything else looks at the page.
  *
  * A page's source file is not the page's content. `performance-and-testing.mdx`
@@ -48,30 +98,61 @@ export function pageDescription(data) {
  *
  * Specifiers are resolved the way the app resolves them: bare paths against the
  * docs root (tsconfig `baseUrl`), and `./` or `../` against the importing file.
- * Nesting works and cycles are broken, so a partial may include another.
+ * `aliases` maps a prefix such as `@snippets/nym/` to a directory, as the site's
+ * bundler alias does. Nesting works and cycles are broken, so a partial may
+ * include another.
+ *
+ * Snippet pages also hold citations and `snippet:` links. With `citation`, each
+ * `<Snippet id="..." />` becomes the text that `citation(id, attrs)` returns
+ * (a `mermaid` fence for a diagram, for example). With `link`, each
+ * `](snippet:<id>)` becomes `](<link(id)>)`. Both skip code fences.
  *
  * @param {string} content   page body, frontmatter already removed
- * @param {{ filePath: string, root: string, seen?: Set<string> }} opts
+ * @param {{ filePath: string, root: string, lineOffset?: number, aliases?: Record<string, string>,
+ *   citation?: (id: string, attrs: string) => string, link?: (id: string) => string,
+ *   seen?: Set<string> }} opts  `lineOffset`: the lines of frontmatter above `content`,
+ *   so an error names the line in the file
  */
-export function inlineMdxPartials(content, { filePath, root, seen = new Set() }) {
-  const imports = [...content.matchAll(/^import\s+(\w+)\s+from\s+['"]([^'"]+\.mdx)['"]\s*;?\s*$/gm)];
-  if (imports.length === 0) return content;
-
+export function inlineMdxPartials(content, opts) {
+  const { filePath, root, lineOffset = 0, aliases = {}, citation, link, seen = new Set() } = opts;
+  // Citations and links first, in this file's own text, so an error names its line.
+  const at = (line) => (fn) => {
+    try {
+      return fn();
+    } catch (error) {
+      throw new Error(`${filePath}:${line + lineOffset}: ${error.message}`, { cause: error });
+    }
+  };
   let out = content;
-  for (const [, name, spec] of imports) {
-    const resolved = spec.startsWith('.')
-      ? path.resolve(path.dirname(filePath), spec)
-      : path.resolve(root, spec);
+  if (citation) {
+    out = outsideFences(out, (text, line) => text.replace(CITATION, (whole, id, attrs, offset) =>
+      at(line + lineOf(text, offset))(() => citation(id, attrs.trim()))));
+  }
+  if (link) {
+    out = outsideFences(out, (text, line) => text.replace(/\]\(snippet:([^)\s]+)\)/g, (whole, id, offset) =>
+      `](${at(line + lineOf(text, offset))(() => link(id))})`));
+  }
 
+  for (const { name, spec, line: bodyLine } of mdxImports(content)) {
+    const line = bodyLine + lineOffset;
+    const resolved = resolveImport(spec, { filePath, root, aliases });
+
+    // Nextra fails the site build on this import, so a text output must not
+    // pass it silently with the partial's text missing.
+    if (!fs.existsSync(resolved)) {
+      throw new Error(`${filePath}:${line}: cannot resolve the MDX import '${spec}'`);
+    }
     // A cycle would otherwise recurse until the stack gives out.
-    if (seen.has(resolved) || !fs.existsSync(resolved)) continue;
+    if (seen.has(resolved)) continue;
 
-    const { content: partial } = parseFrontmatter(fs.readFileSync(resolved, 'utf-8'));
-    const nested = inlineMdxPartials(partial, {
-      filePath: resolved,
-      root,
-      seen: new Set([...seen, resolved]),
-    });
+    const raw = fs.readFileSync(resolved, 'utf-8');
+    const { content: partial } = parseFrontmatter(raw);
+    let nested;
+    try {
+      nested = inlineMdxPartials(partial, { ...opts, filePath: resolved, lineOffset: frontmatterLines(raw, partial), seen: new Set([...seen, resolved]) });
+    } catch (error) {
+      throw new Error(`${filePath}:${line}: in '${spec}': ${error.message}`, { cause: error });
+    }
 
     // The tag can appear anywhere, including nested inside another element as
     // `<MyTab><NodePerfMixnet /></MyTab>`, so this is not a whole-line match.
@@ -82,6 +163,63 @@ export function inlineMdxPartials(content, { filePath, root, seen = new Set() })
     );
   }
   return out;
+}
+
+/** The lines above `content` in `raw`: the frontmatter that parseFrontmatter removed. */
+export const frontmatterLines = (raw, content) => raw.split('\n').length - content.split('\n').length;
+
+/**
+ * `<Snippet id="..." view="..." />`, the citation form of a snippet body, with
+ * its attributes in any order. Group 1 is the id, group 2 all the attributes.
+ */
+export const CITATION = /<Snippet\s+(?=[^>]*?\bid="([^"]+)")([^>]*?)\s*\/>/g;
+
+const lineOf = (text, offset) => text.slice(0, offset).split('\n').length - 1;
+
+/** Apply `fn(text, firstLine)` to each run of lines outside a code fence. Lines are 1-indexed. */
+function outsideFences(text, fn) {
+  const out = [];
+  let run = [];
+  let runStart = 1;
+  const fence = fenceTracker();
+  const flush = () => { if (run.length) out.push(fn(run.join('\n'), runStart)); run = []; };
+  text.split('\n').forEach((line, i) => {
+    if (fence(line)) {
+      flush();
+      out.push(line);
+      return;
+    }
+    if (run.length === 0) runStart = i + 1;
+    run.push(line);
+  });
+  flush();
+  return out.join('\n');
+}
+
+/**
+ * Resolve an import specifier the way the app does: an alias prefix to its
+ * directory, `./` and `../` against the importing file, a bare path against the
+ * docs root (tsconfig `baseUrl`).
+ */
+export function resolveImport(spec, { filePath, root, aliases = {} }) {
+  const prefix = Object.keys(aliases).find((p) => spec.startsWith(p));
+  if (prefix) return path.join(aliases[prefix], spec.slice(prefix.length));
+  return spec.startsWith('.') ? path.resolve(path.dirname(filePath), spec) : path.resolve(root, spec);
+}
+
+/**
+ * The `.mdx` default imports of a body, outside code fences, with the 1-indexed
+ * line of each. An import line inside a fence is example code, not an import.
+ */
+function mdxImports(content) {
+  const found = [];
+  const fence = fenceTracker();
+  content.split('\n').forEach((text, i) => {
+    if (fence(text)) return;
+    const m = text.match(/^import\s+(\w+)\s+from\s+['"]([^'"]+\.mdx)['"]\s*;?\s*$/);
+    if (m) found.push({ name: m[1], spec: m[2], line: i + 1 });
+  });
+  return found;
 }
 
 /**
@@ -102,7 +240,7 @@ export function stripMdx(content, { expand, values } = {}) {
   let fence = null;
   let jsDepth = 0;
   let inComment = false;
-  const ctx = { scenarioId: scenarioIdOf(content) };
+  const ctx = { ...scenariosOf(content) };
 
   for (const line of content.split('\n')) {
     const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/);
@@ -149,6 +287,8 @@ export function stripMdx(content, { expand, values } = {}) {
     // reader cannot read, and a version requirement is exactly the kind of thing
     // someone comes to the docs for.
     let text = values ? substitute(line, values) : line;
+    // A comment inside a line of prose renders as nothing too.
+    text = text.replace(/\{\s*\/\*[^]*?\*\/\s*\}/g, '');
     // A bare expression line we could not resolve renders as nothing on the page,
     // so it should contribute nothing here either.
     if (/^\s*\{[^{}]*\}\s*$/.test(text)) continue;
@@ -182,17 +322,34 @@ function bracketDelta(line) {
 
 /** Replace `{IDENT}` with its value where the identifier is one we loaded. */
 function substitute(line, values) {
-  return line.replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (whole, name) =>
-    Object.prototype.hasOwnProperty.call(values, name) ? values[name] : whole,
-  );
+  const known = (name) => Object.prototype.hasOwnProperty.call(values, name);
+  return line
+    // `<Version name="X" />` (components/version.tsx), and `<Version name="X" code />` as inline code.
+    .replace(/<Version\s+name="([A-Za-z_$][\w$]*)"(\s+code)?\s*\/>/g, (whole, name, code) =>
+      known(name) ? (code ? `\`${values[name]}\`` : values[name]) : whole,
+    )
+    // `<Stat name="X" />` (components/stat.tsx): a network count, as `stat.X`.
+    .replace(/<Stat\s+name="(\w+)"\s*\/>/g, (whole, name) => (known(`stat.${name}`) ? values[`stat.${name}`] : whole))
+    .replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (whole, name) => (known(name) ? values[name] : whole));
 }
 
 /**
- * The scenario a page declares, from `requireGenericScenario('id')`. Threat-model
- * configuration pages name their scenario once at the top and then render it
- * through several components.
+ * The scenarios a page declares: `export const mixnet = requireWalletScenario('mixnet-ipr')`.
+ * A component names one through its props (`<NetworkDiagram item={mixnet} />`).
+ * Returns `scenarios` (const name -> { source, id }, or null for a const built
+ * by a spread), `firstScenario`, `scenarioId` (the first generic one, for a page
+ * that names it once), and `pageTitle`.
  */
-function scenarioIdOf(content) {
-  const m = content.match(/requireGenericScenario\(\s*["']([^"']+)["']\s*\)/);
-  return m ? m[1] : null;
+function scenariosOf(content) {
+  const scenarios = new Map();
+  for (const [, name, source, id] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*require(Generic|Browsing|Messaging|Wallet)Scenario\(\s*["']([^"']+)["']\s*\)/g)) {
+    scenarios.set(name, { source: source.toLowerCase(), id });
+  }
+  // A const built by a spread (`{ ...requireGenericScenario('mixnet'), paths: ... }`)
+  // can override any field, so it names no scenario the projection can state.
+  for (const [, name] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*\{\s*\.\.\./g)) scenarios.set(name, null);
+  const firstScenario = [...scenarios.values()].find(Boolean) ?? null;
+  const generic = [...scenarios.values()].find((s) => s?.source === 'generic');
+  const pageTitle = content.match(/^# (.+)$/m)?.[1].trim() ?? null;
+  return { scenarios, firstScenario, scenarioId: generic?.id ?? null, pageTitle };
 }

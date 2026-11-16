@@ -1,0 +1,5 @@
+## Nym node Upgrade [#nym-node-upgrade]
+
+Since `v2024.13-magura` (`nym-node v1.1.10`), **operators NO longer update node information in the Mixnet smart contract** (wallet version information), **only upgrade node binary** (on VPS), resulting in `~/.nym/nym-nodes/<ID>/config/config.toml` update.
+
+The upgrade has three steps: [upgrade the `nym-node` binary](snippet:nym/operators/nodes/maintenance/manual-upgrade/upgrade-nym-node-binary), [restart the node](snippet:nym/operators/nodes/maintenance/manual-upgrade/restart-the-node), and [check that the node reports the new version](snippet:nym/operators/nodes/maintenance/manual-upgrade/check-if-your-node-is-reporting-the-version-correctly).

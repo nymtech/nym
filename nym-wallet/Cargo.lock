@@ -5425,6 +5425,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-directory-types"
+version = "2.0.0"
+dependencies = [
+ "prost",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nym-ecash-contract-common"
 version = "2.0.0"
 dependencies = [
@@ -5656,9 +5665,11 @@ version = "2.0.0"
 dependencies = [
  "async-trait",
  "celes",
+ "hex",
  "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
+ "nym-directory-types",
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-kkt-ciphersuite",

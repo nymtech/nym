@@ -4,6 +4,68 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.21-hanoi] (2026-10-28)
+
+- Add conformance to Eq for KeyPairUser and SecretKeyUser ([#7380])
+- Wire up console_error_panic_hook feature in nym-wasm-client-core ([#7374])
+- Remove unused dependencies ([#7373])
+- Declare a [lints] table in every workspace crate ([#7372])
+- Remove redundant package.homepage ([#7371])
+- Fix clippy lints reported by newer toolchain ([#7370])
+- Accept key pair in NyxdCredentialFetcher ([#7368])
+- fixing clippy lints and stuff ([#7228])
+- bugfix: update trait function signature for domain fronting ([#7221])
+- chore: remove already run mixnet contract migrations ([#7220])
+- chore: upgrade libcrux libraries and re-enable nonce control ([#7214])
+- feat: performance contract: multiple kinds ([#7213])
+- feat: NMv3: config score calculation ([#7188])
+- update validator rewarder ([#7186])
+- feat: NMv3: node score aggregation ([#7181])
+- feat NMv3: review nits: additional tests and updated docs ([#7176])
+- feat: use Geolocation contract within NS API ([#7168])
+- feat: attested geolocation retrieval ([#7156])
+- feat: NMv3: Nym API integration ([#7136])
+- feat: NMv3: gateway liveness probes ([#7128])
+- feat: NMv3: mixnode liveness sending ([#7115])
+- feat: NMv3: per kind submission ([#7100])
+- feat: NMv3: per kind scheduling ([#7095])
+- feat: NMv3: allow storing different test results ([#7086])
+- feat: NMv3: announce agents' ed25519 identities to the contract ([#7080])
+- feat: NMv3: unmetered ephemeral client sessions ([#7078])
+- feat: NMv3: forwarding of final hop network monitor packets ([#7063])
+- feat: add network monitor agent ed25519 key to announced data ([#7059])
+- Feat/nmv3 liveness checks ([#7058])
+
+[#7380]: https://github.com/nymtech/nym/pull/7380
+[#7374]: https://github.com/nymtech/nym/pull/7374
+[#7373]: https://github.com/nymtech/nym/pull/7373
+[#7372]: https://github.com/nymtech/nym/pull/7372
+[#7371]: https://github.com/nymtech/nym/pull/7371
+[#7370]: https://github.com/nymtech/nym/pull/7370
+[#7368]: https://github.com/nymtech/nym/pull/7368
+[#7228]: https://github.com/nymtech/nym/pull/7228
+[#7221]: https://github.com/nymtech/nym/pull/7221
+[#7220]: https://github.com/nymtech/nym/pull/7220
+[#7214]: https://github.com/nymtech/nym/pull/7214
+[#7213]: https://github.com/nymtech/nym/pull/7213
+[#7188]: https://github.com/nymtech/nym/pull/7188
+[#7186]: https://github.com/nymtech/nym/pull/7186
+[#7181]: https://github.com/nymtech/nym/pull/7181
+[#7176]: https://github.com/nymtech/nym/pull/7176
+[#7168]: https://github.com/nymtech/nym/pull/7168
+[#7156]: https://github.com/nymtech/nym/pull/7156
+[#7136]: https://github.com/nymtech/nym/pull/7136
+[#7128]: https://github.com/nymtech/nym/pull/7128
+[#7115]: https://github.com/nymtech/nym/pull/7115
+[#7100]: https://github.com/nymtech/nym/pull/7100
+[#7095]: https://github.com/nymtech/nym/pull/7095
+[#7086]: https://github.com/nymtech/nym/pull/7086
+[#7080]: https://github.com/nymtech/nym/pull/7080
+[#7078]: https://github.com/nymtech/nym/pull/7078
+[#7063]: https://github.com/nymtech/nym/pull/7063
+[#7059]: https://github.com/nymtech/nym/pull/7059
+[#7058]: https://github.com/nymtech/nym/pull/7058
+
 ## [2026.20-glasgow] (2026-10-13)
 
 - bugfix: one sphinx-key write per rotation (with jitter) ([#7212])

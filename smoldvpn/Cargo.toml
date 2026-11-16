@@ -9,7 +9,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme = "README.md"
@@ -115,3 +114,5 @@ path = "examples/smoldvpn-config.rs"
 [[example]]
 name = "smoldvpn-topup"
 path = "examples/smoldvpn-topup.rs"
+
+[lints]

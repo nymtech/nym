@@ -17,16 +17,12 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from '../../docs/lib/retrieval/mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, stripHeadingIds, frontmatterLines } from '../../docs/lib/retrieval/mdx.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 // PAGES_DIR / SITE_URL / SKIP_DIRS are shared with the ordered generators. Only
 // the walk differs: this generator uses a flat file collector (below) so it also
 // emits .md for pages not listed in any _meta.json.
-import { PAGES_DIR, SITE_URL, SKIP_DIRS } from '../../docs/lib/retrieval/pages-source.mjs';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PUBLIC_DIR = path.resolve(__dirname, '../../docs/public');
+import { PAGES_DIR, PUBLIC_DIR, SITE_URL, SKIP_DIRS, loadSnippets, composeOptions } from '../../docs/lib/retrieval/pages-source.mjs';
 
 /** pages-relative slug: strip extension and a trailing /index; root -> "index". */
 function pageSlug(filePath) {
@@ -53,6 +49,7 @@ function collectFiles(dir) {
 console.log(`Scanning ${PAGES_DIR} ...`);
 const expand = await loadProjections();
 const values = await loadDocValues();
+const snippets = await loadSnippets();
 const files = collectFiles(PAGES_DIR);
 
 let written = 0;
@@ -60,7 +57,9 @@ const seen = new Map(); // outPath -> source file, to catch silent overwrites
 for (const file of files) {
   const raw = fs.readFileSync(file, 'utf-8');
   const { data, content } = parseFrontmatter(raw);
-  const body = stripMdx(content, { expand, values });
+  // Partials first, as collectPages does: their text is on the rendered page.
+  const whole = inlineMdxPartials(content, { ...composeOptions(file, snippets), lineOffset: frontmatterLines(raw, content) });
+  const body = stripMdx(whole, { expand, values });
   if (!body) continue; // skip pages that are pure JSX/redirects with no prose
 
   const slug = pageSlug(file);
@@ -80,7 +79,7 @@ for (const file of files) {
   seen.set(outPath, file);
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, `${header.join('\n')}\n${body}\n`);
+  fs.writeFileSync(outPath, `${header.join('\n')}\n${stripHeadingIds(body)}\n`);
   written++;
 }
 

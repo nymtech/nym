@@ -165,6 +165,9 @@ pub(crate) struct HeightReads {
     /// The time of the block every read was taken at.
     pub(crate) block_time: OffsetDateTime,
 
+    /// The snapshot interval, in blocks, of the cadence grid the height was taken on.
+    pub(crate) snapshot_interval: u32,
+
     pub(crate) directory: AttestedSnapshot<DirectoryEntryRecord>,
 
     pub(crate) performance: PerformanceSnapshot,
@@ -334,6 +337,7 @@ pub(crate) mod test_helpers {
     pub(crate) fn empty_height_reads(height: u32) -> HeightReads {
         HeightReads {
             block_time: block_time(height),
+            snapshot_interval: 100,
             directory: snapshot(height, Vec::new(), BTreeMap::new()),
             performance: snapshot(height, Vec::new(), BTreeMap::new()).into(),
             performance_auxiliary: PerformanceAuxiliary::new_for_tests(weights(), BTreeMap::new()),
@@ -435,6 +439,7 @@ mod tests {
 
         let reads = HeightReads {
             block_time: block_time(height),
+            snapshot_interval: 100,
             directory: snapshot(height, directory, identities.clone()),
             performance: snapshot(
                 height,
@@ -655,6 +660,7 @@ mod tests {
         );
         assert!(entry.performance.bonded_entry(1).is_some());
         assert_eq!(entry.block_time, expected.block_time);
+        assert_eq!(entry.snapshot_interval, expected.snapshot_interval);
         assert_eq!(entry.performance_auxiliary, expected.performance_auxiliary);
         assert_eq!(entry.geolocation.records(), expected.geolocation.records());
         assert_eq!(

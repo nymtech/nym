@@ -134,7 +134,7 @@ impl AttestedSnapshotsProducer {
             }
             let Some(produced) = self
                 .shutdown_token
-                .run_until_cancelled(self.produce_height(height))
+                .run_until_cancelled(self.produce_height(height, cadence.interval.interval))
                 .await
             else {
                 // startup then stops at its wait for the caches
@@ -169,7 +169,7 @@ impl AttestedSnapshotsProducer {
             Some(target) if !self.holds(target).await => {
                 let Some(produced) = self
                     .shutdown_token
-                    .run_until_cancelled(self.produce_height(target))
+                    .run_until_cancelled(self.produce_height(target, cadence.interval.interval))
                     .await
                 else {
                     return Ok(());
@@ -193,8 +193,12 @@ impl AttestedSnapshotsProducer {
 
     /// Every attested contract's snapshot at `height`, signed, with the mixnet and node families
     /// contracts read there, or an error naming each contract that could not be read or verified
-    /// there.
-    async fn produce_height(&self, height: Height) -> anyhow::Result<RetainedHeight> {
+    /// there. `snapshot_interval` is that of the cadence `height` was chosen on.
+    async fn produce_height(
+        &self,
+        height: Height,
+        snapshot_interval: u32,
+    ) -> anyhow::Result<RetainedHeight> {
         // first, so that nothing is read when trust at `height` cannot be established
         let app_hash = self
             .chain_anchor
@@ -228,6 +232,7 @@ impl AttestedSnapshotsProducer {
 
         let reads = HeightReads {
             block_time,
+            snapshot_interval,
             directory: self.attest(&self.directory, &app_hash, directory),
             performance: self
                 .attest(&self.performance, &app_hash, performance)

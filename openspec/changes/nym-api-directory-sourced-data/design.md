@@ -85,7 +85,7 @@ On the routes that carry the header today (active-only responses), with `t` the 
 2. `k` = the smallest integer of at least 1 with `t + k·Δ·b >= due`.
 3. `Expires` = `t + (k·Δ + L)·b`.
 
-When the epoch is already overdue at the served height this is the next snapshot. Every instance computes the same value from the same height. Expiring at every snapshot was rejected: the active set only changes with the epoch, so it would give up most of the caching. Keeping the epoch rule unchanged was rejected: for up to 10 minutes after each epoch end the header would lie in the past.
+When the epoch is already overdue at the served height this is the next snapshot. `Δ` is the interval of the cadence the served height was taken on, held with the height; `L` is the instance's settle lag. Every instance computes the same value from the same height. Expiring at every snapshot was rejected: the active set only changes with the epoch, so it would give up most of the caching. Keeping the epoch rule unchanged was rejected: for up to 10 minutes after each epoch end the header would lie in the past.
 
 ### D8. One fixed block time
 

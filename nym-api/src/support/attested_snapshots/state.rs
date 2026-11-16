@@ -29,6 +29,10 @@ impl ContractSnapshots {
         ContractSnapshots { cache, settle_lag }
     }
 
+    pub(crate) fn settle_lag(&self) -> usize {
+        self.settle_lag
+    }
+
     /// The latest settled entry, read under the cache's guard; `None` while none has settled.
     pub(crate) async fn latest_entry(&self) -> Option<RwLockReadGuard<'_, RetainedHeight>> {
         let guard = self.cache.get().await.ok()?;

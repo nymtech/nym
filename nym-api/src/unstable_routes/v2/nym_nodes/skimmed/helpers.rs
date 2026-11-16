@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::nym_nodes::node_view::NodeSubset;
+use crate::support::attested_snapshots::data::RetainedHeight;
 use crate::support::http::state::AppState;
 use crate::unstable_routes::helpers::build_nym_nodes_response;
 use crate::unstable_routes::v2::nym_nodes::helpers::NodesParams;
@@ -9,37 +10,31 @@ use crate::unstable_routes::v2::nym_nodes::skimmed::PaginatedSkimmedNodes;
 use axum::extract::{Query, State};
 use nym_api_requests::nym_nodes::{PaginatedCachedNodesResponseV2, SkimmedNodeV1};
 use nym_http_api_common::Output;
-use nym_mixnet_contract_common::Interval;
-use std::time::Duration;
-use time::OffsetDateTime;
 
 fn maybe_add_expires_header(
     output: Output,
-    interval: Interval,
-    current_key_rotation: u32,
-    refreshed_at: OffsetDateTime,
+    snapshot: &RetainedHeight,
+    settle_lag: usize,
     nodes: Vec<SkimmedNodeV1>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
+    let mixnet = snapshot.mixnet();
     let base_response = output.to_response(
         PaginatedCachedNodesResponseV2::new_full(
-            interval.current_epoch_absolute_id(),
-            current_key_rotation,
-            refreshed_at,
+            mixnet.current_interval.current_epoch_absolute_id(),
+            mixnet.current_key_rotation_id(),
+            snapshot.block_time(),
             nodes,
         )
-        .fresh(interval),
+        .fresh(mixnet.current_interval),
     );
 
     if !active_only {
         return Ok(base_response);
     }
 
-    // if caller requested only active nodes, the response is valid until the epoch changes
-    // (but add 2 minutes due to epoch transition not being instantaneous
-    let epoch_end = interval.current_epoch_end();
-    let expiration = epoch_end + Duration::from_secs(120);
-    Ok(base_response.with_expires_header(expiration))
+    // the active set changes only with the epoch
+    Ok(base_response.with_expires_header(snapshot.active_set_expiry(settle_lag)))
 }
 
 /// The `subset` nodes of the latest settled snapshot, or no nodes when the client already holds
@@ -76,9 +71,8 @@ async fn build_skimmed_nodes_response(
 
     maybe_add_expires_header(
         output,
-        interval,
-        current_key_rotation,
-        snapshot.block_time(),
+        &snapshot,
+        state.contract_snapshots.settle_lag(),
         nodes,
         active_only,
     )

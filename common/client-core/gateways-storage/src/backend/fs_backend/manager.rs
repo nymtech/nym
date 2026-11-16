@@ -165,11 +165,12 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes256_gcm_siv_key, gateway_listener, fallback_listener, expiration_timestamp)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes256_gcm_siv_key, generation_id, gateway_listener, fallback_listener, expiration_timestamp)
+                VALUES (?, ?, ?, ?, ?, ?)
             "#,
             remote.gateway_id_bs58,
             remote.derived_aes256_gcm_siv_key,
+            remote.generation_id,
             remote.published_data.gateway_listener,
             remote.published_data.fallback_listener,
             remote.published_data.expiration_timestamp

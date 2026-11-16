@@ -12,6 +12,7 @@ use rand::CryptoRng;
 use std::sync::Arc;
 use zeroize::ZeroizeOnDrop;
 
+mod gateway_keys;
 pub mod persistence;
 mod test;
 

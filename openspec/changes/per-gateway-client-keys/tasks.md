@@ -10,8 +10,8 @@
 
 ## 2. Per-gateway key derivation
 
-- [ ] 2.1 Add the derivation to `common/client-core/src/client/key_manager`: HKDF over BLAKE3 through `nym_crypto::hkdf::extract_then_expand`, the root identity private key as input key material, the salt label, and key-type label, gateway identity public key and generation id as info, building an ed25519 keypair from the identity output and an x25519 keypair from the other
-- [ ] 2.2 Fix the labels as constants beside the derivation: salt `nym-client-gateway-keys-v1`, info labels `identity` and `diffie-hellman`
+- [x] 2.1 Add the derivation to `common/client-core/src/client/key_manager`: HKDF over BLAKE3, extracted once from the root identity private key and the salt label into a zeroized pseudorandom key held by a derivation struct, then expanded per key type with the key-type label, gateway identity public key and generation id as info, building an ed25519 keypair from the identity output and an x25519 keypair from the other
+- [x] 2.2 Fix the labels as constants beside the derivation: salt `nym-client-gateway-keys-v1`, info labels `identity` and `diffie-hellman`
 - [ ] 2.3 Add a known-answer test for a fixed root key, gateway key and generation id, using deterministic keys from `nym_test_utils`, with a comment saying that a changed output strands existing registrations
 - [ ] 2.4 Test that changing the gateway key, the generation id or the key type each changes the derived key, and that the root x25519 key has no influence on either output
 

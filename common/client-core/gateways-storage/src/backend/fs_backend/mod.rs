@@ -3,12 +3,15 @@
 
 use crate::{
     ActiveGateway, BadGateway, GatewayDetails, GatewayPublishedData, GatewayRegistration,
-    GatewayType, GatewaysDetailsStore, StorageError,
+    GatewayType, GatewaysDetailsStore, GenerationId, StorageError,
 };
 use async_trait::async_trait;
 use manager::StorageManager;
 use nym_crypto::asymmetric::ed25519;
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use std::path::Path;
+use std::sync::Arc;
+use zeroize::Zeroizing;
 
 pub mod error;
 mod manager;
@@ -147,6 +150,23 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
             .update_remote_gateway_published_data(
                 &gateway_id.to_base58_string(),
                 &published_data.into(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn update_gateway_keys(
+        &self,
+        gateway_id: &ed25519::PublicKey,
+        generation_id: GenerationId,
+        shared_key: Arc<SharedSymmetricKey>,
+    ) -> Result<(), Self::StorageError> {
+        let shared_key = Zeroizing::new(shared_key.to_bytes());
+        self.manager
+            .update_remote_gateway_keys(
+                &gateway_id.to_base58_string(),
+                generation_id.as_bytes(),
+                &shared_key,
             )
             .await?;
         Ok(())

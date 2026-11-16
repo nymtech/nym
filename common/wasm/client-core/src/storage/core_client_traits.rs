@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use nym_client_core::client::base_client::storage::{
     gateways_storage::{
         ActiveGateway, GatewayPublishedData, GatewayRegistration, GatewaysDetailsStore,
+        GenerationId,
     },
     MixnetClientStorage,
 };
@@ -18,7 +19,9 @@ use nym_client_core::client::key_manager::ClientKeys;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_crypto::asymmetric::ed25519;
+use nym_gateway_client::SharedSymmetricKey;
 use nym_wasm_utils::console_log;
+use std::sync::Arc;
 
 // temporary until other variants are properly implemented (probably it should get changed into `ClientStorage`
 // implementing all traits and everything getting combined
@@ -180,6 +183,20 @@ impl GatewaysDetailsStore for ClientStorage {
             .await?;
         gateway.published_data = published_data.into();
         // Store it again, key didn't change
+        self.store_gateway_details(&gateway.try_into()?).await
+    }
+
+    async fn update_gateway_keys(
+        &self,
+        gateway_id: &ed25519::PublicKey,
+        generation_id: GenerationId,
+        shared_key: Arc<SharedSymmetricKey>,
+    ) -> Result<(), Self::StorageError> {
+        let mut gateway = self
+            .must_get_registered_gateway(&gateway_id.to_base58_string())
+            .await?;
+        gateway.generation_id = Some(generation_id.as_bytes().to_vec());
+        gateway.derived_aes256_gcm_siv_key = shared_key.to_bytes();
         self.store_gateway_details(&gateway.try_into()?).await
     }
 

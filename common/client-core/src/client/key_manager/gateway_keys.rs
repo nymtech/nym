@@ -5,12 +5,35 @@ use nym_client_core_gateways_storage::GenerationId;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::blake3;
 use nym_crypto::hkdf::SimpleHkdf;
+use nym_sphinx::acknowledgements::AckKey;
+use std::sync::Arc;
 use zeroize::Zeroizing;
 
 // changing any of these changes every derived key; a new construction needs a new salt version
 const GATEWAY_KEYS_HKDF_SALT: &[u8] = b"nym-client-gateway-keys-v1";
 const IDENTITY_KEY_LABEL: &[u8] = b"identity";
 const DIFFIE_HELLMAN_KEY_LABEL: &[u8] = b"diffie-hellman";
+
+/// The keys a client uses with one gateway, resolved from the root keys and never stored.
+pub struct GatewayClientKeys {
+    pub(super) identity_keypair: Arc<ed25519::KeyPair>,
+    pub(super) encryption_keypair: Arc<x25519::KeyPair>,
+    pub(super) ack_key: Arc<AckKey>,
+}
+
+impl GatewayClientKeys {
+    pub fn identity_keypair(&self) -> Arc<ed25519::KeyPair> {
+        Arc::clone(&self.identity_keypair)
+    }
+
+    pub fn encryption_keypair(&self) -> Arc<x25519::KeyPair> {
+        Arc::clone(&self.encryption_keypair)
+    }
+
+    pub fn ack_key(&self) -> Arc<AckKey> {
+        Arc::clone(&self.ack_key)
+    }
+}
 
 /// Derives the keys a client uses with one gateway at one generation.
 pub(super) struct GatewayKeyDerivation {

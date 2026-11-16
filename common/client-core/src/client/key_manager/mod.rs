@@ -1,7 +1,9 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::key_manager::gateway_keys::{GatewayClientKeys, GatewayKeyDerivation};
 use crate::client::key_manager::persistence::KeyStore;
+use nym_client_core_gateways_storage::GenerationId;
 use nym_crypto::{
     asymmetric::{ed25519, x25519},
     hkdf::{DerivationMaterial, InvalidLength},
@@ -12,7 +14,7 @@ use rand::CryptoRng;
 use std::sync::Arc;
 use zeroize::ZeroizeOnDrop;
 
-mod gateway_keys;
+pub mod gateway_keys;
 pub mod persistence;
 mod test;
 
@@ -98,6 +100,32 @@ impl ClientKeys {
     /// Gets an atomically reference counted pointer to [`AckKey`].
     pub fn ack_key(&self) -> Arc<AckKey> {
         Arc::clone(&self.ack_key)
+    }
+
+    /// The keys for a gateway: derived at the generation if one is given, otherwise the root keys.
+    pub fn gateway_keys(
+        &self,
+        gateway_id: ed25519::PublicKey,
+        generation_id: Option<GenerationId>,
+    ) -> GatewayClientKeys {
+        let Some(generation_id) = generation_id else {
+            return GatewayClientKeys {
+                identity_keypair: self.identity_keypair(),
+                encryption_keypair: self.encryption_keypair(),
+                ack_key: self.ack_key(),
+            };
+        };
+
+        let derivation = GatewayKeyDerivation::new(
+            self.identity_keypair.private_key(),
+            gateway_id,
+            generation_id,
+        );
+        GatewayClientKeys {
+            identity_keypair: Arc::new(derivation.identity_keypair()),
+            encryption_keypair: Arc::new(derivation.diffie_hellman_keypair()),
+            ack_key: self.ack_key(),
+        }
     }
 }
 

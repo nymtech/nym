@@ -17,8 +17,8 @@
 
 ## 3. The keys in use with a gateway
 
-- [ ] 3.1 Add `GatewayClientKeys` to the key manager, holding the identity keypair, the x25519 keypair and the acknowledgement key in use with one gateway, with no way to persist it to a key store
-- [ ] 3.2 Add a method on `ClientKeys` that resolves the `GatewayClientKeys` from a gateway identity and an optional generation id: derived identity and x25519 keys when an id is given, the root keys when none is (a legacy or custom registration supplies none), and the root acknowledgement key in every case
+- [x] 3.1 Add `GatewayClientKeys` to the key manager, holding the identity keypair, the x25519 keypair and the acknowledgement key in use with one gateway, with no way to persist it to a key store
+- [x] 3.2 Add a method on `ClientKeys` that resolves the `GatewayClientKeys` from a gateway identity and an optional generation id: derived identity and x25519 keys when an id is given, the root keys when none is (a legacy or custom registration supplies none), and the root acknowledgement key in every case
 - [ ] 3.3 Make `InitialisationResult` carry a `GatewayClientKeys`; in `setup_new_gateway`, register a remote gateway with the keys derived at the zero generation id and store that id with the registration, and keep registering a custom gateway with the root keys
 - [ ] 3.4 Return the resolved keys from `use_loaded_gateway_details`, and convert `GatewaySetup::ReuseConnection` and `try_reuse_connection` to carry `GatewayClientKeys`, leaving the commented-out call in the wasm client as it is
 - [ ] 3.5 Follow the new type in the base client and in the other readers of the initialisation result: `common/wasm/client-core`, `wasm/client`, `common/socks5-client-core`, `service-providers/network-requester` and `sdk/rust/nym-sdk`

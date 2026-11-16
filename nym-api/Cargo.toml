@@ -24,7 +24,6 @@ clap = { workspace = true, features = ["cargo", "derive", "env"] }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 moka = { workspace = true }
-pin-project = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -85,7 +84,7 @@ nym-api-requests = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-bin-common = { workspace = true, features = ["output_format", "openapi", "basic_tracing", "ip_check"] }
-nym-node-requests = { workspace = true, features = ["client"] }
+nym-node-requests = { workspace = true }
 nym-network-defaults = {workspace = true, features = ["serde", "utoipa"]}
 nym-http-api-common = { workspace = true, features = ["utoipa", "output", "middleware"] }
 nym-serde-helpers = { workspace = true, features = ["date"] }

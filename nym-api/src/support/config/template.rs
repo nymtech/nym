@@ -63,4 +63,11 @@ decryption_key_path = '{{ ecash_signer.storage_paths.decryption_key_path }}'
 # Path to the dkg dealer public key with proof
 public_key_with_proof_path = '{{ ecash_signer.storage_paths.public_key_with_proof_path }}'
 
+##### attested snapshots config options #####
+
+[directory.debug]
+
+# Lists nodes announcing addresses that are not publicly routable; for local test networks only.
+unsafe_allow_illegal_ips = {{ directory.debug.unsafe_allow_illegal_ips }}
+
 "#;

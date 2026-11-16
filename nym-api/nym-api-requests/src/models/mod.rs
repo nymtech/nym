@@ -21,7 +21,6 @@ pub mod node_families;
 pub mod node_status;
 pub mod performance;
 pub mod schema_helpers;
-pub mod utility;
 
 // don't break existing imports
 pub use api_status::*;

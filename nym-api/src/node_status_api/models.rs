@@ -267,31 +267,10 @@ impl AxumErrorResponse {
         }
     }
 
-    pub(crate) fn unauthorised(msg: impl Display) -> Self {
-        Self {
-            message: RequestError::new(msg.to_string()),
-            status: StatusCode::UNAUTHORIZED,
-        }
-    }
-
-    pub(crate) fn unprocessable_entity(msg: impl Display) -> Self {
-        Self {
-            message: RequestError::new(msg.to_string()),
-            status: StatusCode::UNPROCESSABLE_ENTITY,
-        }
-    }
-
     pub(crate) fn bad_request(msg: impl Display) -> Self {
         Self {
             message: RequestError::new(msg.to_string()),
             status: StatusCode::BAD_REQUEST,
-        }
-    }
-
-    pub(crate) fn too_many(msg: impl Display) -> Self {
-        Self {
-            message: RequestError::new(msg.to_string()),
-            status: StatusCode::TOO_MANY_REQUESTS,
         }
     }
 }

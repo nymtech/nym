@@ -9,16 +9,11 @@ use crate::ecash::dkg::controller::keys::{
 };
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
-use crate::key_rotation::KeyRotationController;
-use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2 as NetworkDetails;
-use crate::node_describe_cache::cache::DescribedNodes;
-use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_status_api::handlers::unstable;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::attested_snapshots;
 use crate::support::caching::cache::SharedCache;
-use crate::support::caching::startup::StartupCaches;
 use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
@@ -29,7 +24,7 @@ use crate::support::nyxd;
 use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::migrate_to_directory_services_v2_1;
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
-use crate::{ecash, mixnet_contract_cache, node_describe_cache, node_families, signers_cache};
+use crate::{ecash, signers_cache};
 use anyhow::{bail, Context};
 use nym_config::defaults::v2::NymNetworkDetails;
 use nym_crypto::asymmetric::ed25519;
@@ -88,8 +83,9 @@ pub(crate) struct Args {
     #[clap(long, env = "ADDRESS_CACHE_CAPACITY")]
     pub(crate) address_cache_capacity: Option<u64>,
 
+    /// List nodes announcing addresses that are not publicly routable; for local test networks only.
     #[clap(hide = true, long, default_value_t = false)]
-    pub(crate) allow_illegal_ips: bool,
+    pub(crate) unsafe_allow_illegal_ips: bool,
 }
 
 pub(crate) async fn initialise_storage(config: &Config) -> anyhow::Result<NymApiStorage> {
@@ -135,56 +131,9 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownManager> 
     )
     .await?;
 
-    // ===== STARTUP CACHES: each loaded from its persisted file while fresh and refreshed in the
-    // background, beside the attested snapshots' startup production
+    // ===== ATTESTED SNAPSHOTS: every attested contract's, produced together under one chain
+    // anchor, with the mixnet and node families contracts read at the same heights
     let storage_cfg = &config.base.storage_paths;
-
-    // MIXNET CONTRACT
-    let mixnet_path = storage_cfg.cache_file("mixnet_contract");
-    let ttl = config.mixnet_contract_cache.debug.caching_interval;
-    let mixnet_contract_cache_state = MixnetContractCache::new(&mixnet_path, ttl);
-    let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
-        &config.mixnet_contract_cache,
-        &mixnet_contract_cache_state,
-        nyxd_client.clone(),
-        mixnet_path,
-    );
-    let mixnet_contract_cache_refresh_requester =
-        mixnet_contract_cache_refresher.refresh_requester();
-    let contract_cache_watcher =
-        mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
-
-    // DESCRIBED NODES
-    let described_path = storage_cfg.cache_file("described_nodes");
-    let ttl = config.describe_cache.debug.caching_interval;
-    let described_nodes_cache =
-        SharedCache::<DescribedNodes>::new_with_persistent(&described_path, ttl);
-    let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
-        &config.describe_cache,
-        mixnet_contract_cache_state.clone(),
-        described_nodes_cache.clone(),
-        described_path,
-    );
-    let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
-    describe_cache_refresher.start(shutdown_manager.clone_shutdown_token());
-
-    // NODE FAMILIES
-    let node_families_path = storage_cfg.cache_file("node_families");
-    let ttl = config.node_families_cache.debug.caching_interval;
-    let node_families_cache =
-        SharedCache::<NodeFamiliesCacheData>::new_with_persistent(&node_families_path, ttl);
-    node_families::build_refresher(
-        &config.node_families_cache,
-        &mixnet_contract_cache_state,
-        &node_families_cache,
-        nyxd_client.clone(),
-        node_families_path,
-    )
-    .start(shutdown_manager.clone_shutdown_token());
-
-    // ATTESTED SNAPSHOTS
-    // every attested contract's, produced together under one chain anchor; the routes read each
-    // node's published performance from the latest settled one
     let contract_snapshots = attested_snapshots::start(
         &config.directory.debug,
         nyxd_client.query_client(),
@@ -195,17 +144,10 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownManager> 
     )
     .await?;
 
-    // ===== WAIT: nothing else is spawned and nothing is served until the startup caches hold
-    // values and a performance snapshot has settled, so that no route reads one that was never
-    // built
-    let startup_caches = StartupCaches {
-        mixnet_contract: mixnet_contract_cache_state.clone(),
-        described_nodes: described_nodes_cache.clone(),
-        node_families: node_families_cache.clone(),
-        contract_snapshots: contract_snapshots.clone(),
-    };
-    if startup_caches
-        .wait_until_built(&shutdown_manager.clone_shutdown_token())
+    // ===== WAIT: nothing else is spawned and nothing is served until a snapshot has settled, since
+    // every route serving node, epoch or family data reads it
+    if contract_snapshots
+        .wait_until_settled(&shutdown_manager.clone_shutdown_token())
         .await
         .is_err()
     {
@@ -230,15 +172,6 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownManager> 
     }
 
     ecash_state.spawn_background_cleaner();
-
-    // a background task watching the contract changes and requesting self-described cache
-    // refresh upon being close to key rotation rollover
-    KeyRotationController::new(
-        describe_cache_refresh_requester,
-        contract_cache_watcher,
-        mixnet_contract_cache_state.clone(),
-    )
-    .start(shutdown_manager.clone_shutdown_token());
 
     // it probes this nym-api's own HTTP after its start delay, which therefore runs from here
     let ecash_signers_cache = if config.signers_cache.enabled {

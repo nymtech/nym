@@ -6395,7 +6395,6 @@ dependencies = [
  "nym-ticketbooks-merkle",
  "nym-topology",
  "nym-validator-client",
- "pin-project",
  "rand 0.10.2",
  "rand_chacha 0.10.0",
  "reqwest 0.13.4",

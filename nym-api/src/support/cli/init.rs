@@ -46,8 +46,9 @@ pub(crate) struct Args {
     #[clap(long)]
     pub(crate) bind_address: Option<SocketAddr>,
 
+    /// List nodes announcing addresses that are not publicly routable; for local test networks only.
     #[clap(hide = true, long, default_value_t = false)]
-    pub(crate) allow_illegal_ips: bool,
+    pub(crate) unsafe_allow_illegal_ips: bool,
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {

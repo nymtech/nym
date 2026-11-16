@@ -27,7 +27,7 @@ pub(crate) struct OverrideConfig {
 
     pub(crate) address_cache_capacity: Option<u64>,
 
-    pub(crate) allow_illegal_ips: bool,
+    pub(crate) unsafe_allow_illegal_ips: bool,
 }
 
 impl From<init::Args> for OverrideConfig {
@@ -41,7 +41,7 @@ impl From<init::Args> for OverrideConfig {
             // irrelevant for --init command because we set the value in --run
             address_cache_ttl: None,
             address_cache_capacity: None,
-            allow_illegal_ips: args.allow_illegal_ips,
+            unsafe_allow_illegal_ips: args.unsafe_allow_illegal_ips,
         }
     }
 }
@@ -56,7 +56,7 @@ impl From<run::Args> for OverrideConfig {
             bind_address: args.bind_address,
             address_cache_ttl: args.address_cache_ttl_seconds.map(Duration::from_secs),
             address_cache_capacity: args.address_cache_capacity,
-            allow_illegal_ips: args.allow_illegal_ips,
+            unsafe_allow_illegal_ips: args.unsafe_allow_illegal_ips,
         }
     }
 }

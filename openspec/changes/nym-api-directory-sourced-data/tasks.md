@@ -37,11 +37,11 @@
 
 ## 6. Removal and configuration
 
-- [ ] 6.1 Delete `node_describe_cache/` and nym-api's `key_rotation/` controller, with their wiring and that of the mixnet contract cache and node families refreshers (deleted in tasks 3.2 and 3.3) in `support/cli/run.rs`
-- [ ] 6.2 Reduce `StartupCaches` to the settled snapshot and update its tests
-- [ ] 6.3 Remove the `[describe_cache]`, `[mixnet_contract_cache]` and `[node_families_cache]` config structs, defaults and template entries, keeping old config files loadable
-- [ ] 6.4 Add `[directory.debug] unsafe_allow_illegal_ips` (the config field came with task 4.3) to the template, and rename the hidden flag to `--unsafe-allow-illegal-ips`, setting that field
-- [ ] 6.5 Remove dependencies and code left unused by the removals
+- [x] 6.1 Delete `node_describe_cache/` and nym-api's `key_rotation/` controller, with their wiring and that of the mixnet contract cache and node families refreshers (deleted in tasks 3.2 and 3.3) in `support/cli/run.rs`
+- [x] 6.2 Replace `StartupCaches` with a wait for the settled snapshot on `ContractSnapshots` and move its tests there
+- [x] 6.3 Remove the `[describe_cache]`, `[mixnet_contract_cache]` and `[node_families_cache]` config structs, defaults and template entries, keeping old config files loadable
+- [x] 6.4 Add `[directory.debug] unsafe_allow_illegal_ips` (the config field came with task 4.3) to the template, and rename the hidden flag to `--unsafe-allow-illegal-ips`, setting that field
+- [x] 6.5 Remove dependencies and code left unused by the removals
 
 ## 7. nym-node
 

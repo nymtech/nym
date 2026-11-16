@@ -199,6 +199,25 @@ impl StorageManager {
         Ok(())
     }
 
+    pub(crate) async fn update_remote_gateway_keys(
+        &self,
+        gateway_id_bs58: &str,
+        generation_id: &[u8],
+        derived_aes256_gcm_siv_key: &[u8],
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                UPDATE remote_gateway_details SET generation_id = ?, derived_aes256_gcm_siv_key = ? WHERE gateway_id_bs58 = ?
+            "#,
+            generation_id,
+            derived_aes256_gcm_siv_key,
+            gateway_id_bs58
+        )
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
     pub(crate) async fn remove_remote_gateway_details(
         &self,
         gateway_id: &str,

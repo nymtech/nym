@@ -17,7 +17,7 @@ use crate::init::types::{
     GatewaySelectionSpecification, GatewaySetup, InitialisationResult, SelectedGateway,
 };
 use nym_client_core_gateways_storage::{GatewayDetails, GatewayRegistration};
-use nym_client_core_gateways_storage::{GatewayPublishedData, GatewaysDetailsStore};
+use nym_client_core_gateways_storage::{GatewayPublishedData, GatewaysDetailsStore, GenerationId};
 use nym_crypto::rng::os_rng;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_topology::node::RoutingNode;
@@ -130,6 +130,7 @@ where
                     gateway_id,
                     registration.shared_keys,
                     GatewayPublishedData::new(gateway_listeners),
+                    GenerationId::INITIAL,
                 ),
                 Some(registration.authenticated_ephemeral_client),
             )

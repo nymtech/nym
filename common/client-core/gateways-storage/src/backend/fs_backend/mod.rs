@@ -193,3 +193,87 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::RemoteGatewayDetails;
+    use nym_gateway_client::client::GatewayListeners;
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
+
+    async fn in_memory_store() -> OnDiskGatewaysDetails {
+        let connection_pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!("./fs_gateways_migrations")
+            .run(&connection_pool)
+            .await
+            .unwrap();
+        OnDiskGatewaysDetails {
+            manager: StorageManager { connection_pool },
+        }
+    }
+
+    fn shared_key(byte: u8) -> Arc<SharedSymmetricKey> {
+        Arc::new(SharedSymmetricKey::try_from_bytes(&[byte; 32]).unwrap())
+    }
+
+    fn remote_registration(
+        gateway_seed: u64,
+        generation_id: Option<GenerationId>,
+    ) -> GatewayRegistration {
+        let listeners = GatewayListeners {
+            primary: "ws://127.0.0.1:9000".parse().unwrap(),
+            fallback: None,
+        };
+        GatewayDetails::Remote(RemoteGatewayDetails {
+            gateway_id: *dummy_ed25519_keypair(gateway_seed).public_key(),
+            shared_key: shared_key(1),
+            published_data: GatewayPublishedData::new(listeners),
+            generation_id,
+        })
+        .into()
+    }
+
+    #[tokio::test]
+    async fn generation_id_round_trips() {
+        let store = in_memory_store().await;
+        let generation_ids = [
+            None,
+            Some(GenerationId::INITIAL),
+            Some(GenerationId::new_random()),
+        ];
+
+        for (gateway_seed, generation_id) in (1..).zip(generation_ids) {
+            let registration = remote_registration(gateway_seed, generation_id);
+            store.store_gateway_details(&registration).await.unwrap();
+
+            let loaded = store
+                .load_gateway_details(&registration.gateway_id().to_base58_string())
+                .await
+                .unwrap();
+            assert_eq!(loaded.details.generation_id(), generation_id);
+        }
+    }
+
+    #[tokio::test]
+    async fn updating_gateway_keys_keeps_the_gateway_registered_and_active() {
+        let store = in_memory_store().await;
+        let registration = remote_registration(1, Some(GenerationId::INITIAL));
+        let gateway_id = registration.gateway_id();
+        store.store_gateway_details(&registration).await.unwrap();
+        store
+            .set_active_gateway(&gateway_id.to_base58_string())
+            .await
+            .unwrap();
+
+        let generation_id = GenerationId::new_random();
+        store
+            .update_gateway_keys(&gateway_id, generation_id, shared_key(2))
+            .await
+            .unwrap();
+
+        let active = store.active_gateway().await.unwrap().registration.unwrap();
+        assert_eq!(active.gateway_id(), gateway_id);
+        assert_eq!(active.details.generation_id(), Some(generation_id));
+        assert_eq!(active.details.shared_key(), Some(&*shared_key(2)));
+    }
+}

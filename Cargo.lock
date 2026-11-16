@@ -6921,6 +6921,7 @@ dependencies = [
  "nym-gateway-client",
  "nym-gateway-requests",
  "nym-sqlcipher",
+ "nym-test-utils",
  "rand 0.10.2",
  "serde",
  "sqlx",

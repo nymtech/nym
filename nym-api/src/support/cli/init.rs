@@ -48,10 +48,6 @@ pub(crate) struct Args {
 
     #[clap(hide = true, long, default_value_t = false)]
     pub(crate) allow_illegal_ips: bool,
-
-    /// Bearer token for exposing and accessing additional utility routes
-    #[clap(long, env = "NYMAPI_UTILITY_ROUTES_BEARER_ARG")]
-    pub(crate) utility_routes_bearer: Option<String>,
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {

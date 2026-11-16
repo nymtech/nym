@@ -18,9 +18,6 @@ local_validator = '{{ base.local_validator }}'
 # Socket address this api will use for binding its http API.
 bind_address = '{{ base.bind_address }}'
 
-# Bearer token for exposing and accessing additional utility routes
-utility_routes_bearer = '{{ base.utility_routes_bearer }}'
-
 # Mnemonic used for the ecash signer's DKG and multisig operations
 mnemonic = '{{ base.mnemonic }}'
 

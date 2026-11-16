@@ -23,7 +23,6 @@ use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::AppState;
 use crate::support::http::{RouterBuilder, TASK_MANAGER_TIMEOUT_S};
 use crate::support::nyxd;
@@ -91,10 +90,6 @@ pub(crate) struct Args {
 
     #[clap(hide = true, long, default_value_t = false)]
     pub(crate) allow_illegal_ips: bool,
-
-    /// Bearer token for exposing and accessing additional utility routes
-    #[clap(long, env = "NYMAPI_UTILITY_ROUTES_BEARER_ARG")]
-    pub(crate) utility_routes_bearer: Option<String>,
 }
 
 pub(crate) async fn initialise_storage(config: &Config) -> anyhow::Result<NymApiStorage> {
@@ -107,7 +102,7 @@ pub(crate) async fn initialise_storage(config: &Config) -> anyhow::Result<NymApi
     Ok(storage)
 }
 
-async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManager> {
+async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownManager> {
     let shutdown_manager = ShutdownManager::build_new_default()?
         .with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
 
@@ -256,28 +251,24 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         SharedCache::new()
     };
 
-    let router = RouterBuilder::with_default_routes(config.base.utility_routes_bearer.take())
-        .with_state(AppState {
-            identity_keypair,
-            nyxd_client,
-            chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
-            ecash_signers_cache,
-            address_info_cache: AddressInfoCache::new(
-                config.address_cache.time_to_live,
-                config.address_cache.capacity,
-            ),
-            forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
-            storage,
-            network_details,
-            // filled on demand from the database, for the unstable test-run routes
-            node_info_cache: unstable::NodeInfoCache::default(),
-            contract_info_cache: ContractDetailsCache::new(
-                config.contracts_info_cache.time_to_live,
-            ),
-            api_status: ApiStatusState::new(signer_information),
-            ecash_state: Arc::new(ecash_state),
-            contract_snapshots,
-        });
+    let router = RouterBuilder::with_default_routes().with_state(AppState {
+        identity_keypair,
+        nyxd_client,
+        chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
+        ecash_signers_cache,
+        address_info_cache: AddressInfoCache::new(
+            config.address_cache.time_to_live,
+            config.address_cache.capacity,
+        ),
+        storage,
+        network_details,
+        // filled on demand from the database, for the unstable test-run routes
+        node_info_cache: unstable::NodeInfoCache::default(),
+        contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
+        api_status: ApiStatusState::new(signer_information),
+        ecash_state: Arc::new(ecash_state),
+        contract_snapshots,
+    });
 
     let bind_address = config.base.bind_address.to_owned();
     let server = router.build_server(&bind_address).await?;

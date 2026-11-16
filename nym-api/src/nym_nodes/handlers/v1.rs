@@ -6,12 +6,13 @@ use crate::nym_nodes::node_view::NodeSubset;
 use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::Router;
 use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
 use nym_api_requests::models::described::NoiseDetails;
 use nym_api_requests::models::{
-    AnnotationResponseV1, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
+    AnnotationResponseV1, NodeDatePerformanceResponse, NodePerformanceResponse,
     PerformanceHistoryResponse, RewardedSetResponse, StakeSaturationResponse,
     UptimeHistoryResponse,
 };
@@ -21,8 +22,7 @@ use nym_http_api_common::{FormattedResponse, Output, OutputParams};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NymNodeDetails;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use time::{Date, OffsetDateTime};
+use time::Date;
 use tower_http::compression::CompressionLayer;
 use utoipa::{IntoParams, ToSchema};
 
@@ -78,62 +78,23 @@ async fn rewarded_set(
     Ok(output.to_response(nym_mixnet_contract_common::EpochRewardedSet::from(rewarded_set).into()))
 }
 
+/// Removed: nym-api reads node data from the directory, so there is nothing to refresh.
 #[utoipa::path(
     tag = "Nym Nodes",
     post,
-    request_body = NodeRefreshBody,
     path = "/refresh-described",
     context_path = "/v1/nym-nodes",
+    responses(
+        (status = 410, description = "the endpoint was removed", body = String, content_type = "text/plain")
+    ),
 )]
-async fn refresh_described(
-    State(state): State<AppState>,
-    Json(request_body): Json<NodeRefreshBody>,
-) -> AxumResult<Json<()>> {
-    let Some(refresh_data) = state
-        .nym_contract_cache()
-        .get_node_refresh_data(request_body.node_identity)
-        .await
-    else {
-        return Err(AxumErrorResponse::not_found(format!(
-            "node with identity {} does not seem to exist",
-            request_body.node_identity
-        )));
-    };
-
-    if !request_body.verify_signature() {
-        return Err(AxumErrorResponse::unauthorised("invalid request signature"));
-    }
-
-    if request_body.is_stale() {
-        return Err(AxumErrorResponse::bad_request("the request is stale"));
-    }
-
-    let node_id = refresh_data.node_id();
-    if let Some(last) = state.forced_refresh.last_refreshed(node_id).await {
-        // max 1 refresh a minute
-        let minute_ago = OffsetDateTime::now_utc() - Duration::from_secs(60);
-        if last > minute_ago {
-            return Err(AxumErrorResponse::too_many(
-                "already refreshed node in the last minute",
-            ));
-        }
-    }
-    // to make sure you can't ddos the endpoint while a request is in progress
-    state.forced_refresh.set_last_refreshed(node_id).await;
-    let allow_all_ips = state.forced_refresh.allow_all_ip_addresses;
-
-    if let Some(updated_data) = refresh_data.try_refresh(allow_all_ips).await {
-        let Ok(mut describe_cache) = state.described_nodes_cache.write().await else {
-            return Err(AxumErrorResponse::service_unavailable(""));
-        };
-        describe_cache.get_mut().force_update(updated_data)
-    } else {
-        return Err(AxumErrorResponse::unprocessable_entity(
-            "failed to refresh node description",
-        ));
-    }
-
-    Ok(Json(()))
+#[deprecated]
+async fn refresh_described() -> (StatusCode, &'static str) {
+    (
+        StatusCode::GONE,
+        "this endpoint was removed: nym-api reads node data from the directory contract and no \
+        longer queries nym-nodes. Please upgrade your nym-node.",
+    )
 }
 
 #[utoipa::path(

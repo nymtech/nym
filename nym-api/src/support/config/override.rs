@@ -9,9 +9,6 @@ pub(crate) struct OverrideConfig {
     /// Endpoint to nyxd instance used for contract information.
     pub(crate) nyxd_validator: Option<url::Url>,
 
-    /// Bearer token for exposing and accessing additional utility routes
-    pub(crate) utility_routes_bearer: Option<String>,
-
     /// Mnemonic used for the ecash signer's DKG and multisig transactions
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
 
@@ -37,7 +34,6 @@ impl From<init::Args> for OverrideConfig {
     fn from(args: init::Args) -> Self {
         OverrideConfig {
             nyxd_validator: args.nyxd_validator,
-            utility_routes_bearer: args.utility_routes_bearer,
             mnemonic: args.mnemonic,
             enable_zk_nym: Some(args.enable_zk_nym),
             announce_address: args.announce_address,
@@ -54,7 +50,6 @@ impl From<run::Args> for OverrideConfig {
     fn from(args: run::Args) -> Self {
         OverrideConfig {
             nyxd_validator: args.nyxd_validator,
-            utility_routes_bearer: args.utility_routes_bearer,
             mnemonic: args.mnemonic,
             enable_zk_nym: args.enable_zk_nym,
             announce_address: args.announce_address,

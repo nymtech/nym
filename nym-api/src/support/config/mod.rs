@@ -171,9 +171,6 @@ impl Config {
         if let Some(nyxd_upstream) = args.nyxd_validator {
             self.base.local_validator = nyxd_upstream;
         }
-        if let Some(bearer) = args.utility_routes_bearer {
-            self.base.utility_routes_bearer = Some(bearer)
-        }
         if let Some(mnemonic) = args.mnemonic {
             self.base.mnemonic = Some(mnemonic)
         }
@@ -278,11 +275,6 @@ pub struct Base {
     #[serde(default = "default_http_socket_addr")]
     pub bind_address: SocketAddr,
 
-    /// Bearer token for exposing and accessing additional utility routes
-    #[serde(default)]
-    #[serde(deserialize_with = "de_maybe_stringified")]
-    pub utility_routes_bearer: Option<String>,
-
     /// Mnemonic used for the ecash signer's DKG and multisig operations
     // TODO: similarly to the note in gateway, this should get moved to a separate file
     #[serde(deserialize_with = "de_maybe_stringified")]
@@ -308,7 +300,6 @@ impl Base {
             id,
             local_validator: default_validator,
             bind_address: default_http_socket_addr(),
-            utility_routes_bearer: None,
             mnemonic: None,
         }
     }

@@ -21,6 +21,7 @@ pub(crate) fn epoch_routes() -> Router<AppState> {
 }
 
 // /v1/legacy
+#[allow(deprecated)]
 pub(crate) fn legacy_nodes_routes() -> Router<AppState> {
     Router::new()
         .route("/mixnodes", get(get_legacy_mixnodes))
@@ -106,6 +107,7 @@ async fn get_current_key_rotation_info(
     Ok(output.to_response(details.into()))
 }
 
+/// Deprecated: legacy mixnodes are no longer read, so this is always empty.
 #[utoipa::path(
     tag = "contract-cache",
     get,
@@ -120,19 +122,17 @@ async fn get_current_key_rotation_info(
     ),
     params(OutputParams)
 )]
+#[deprecated]
 async fn get_legacy_mixnodes(
     Query(output): Query<OutputParams>,
-    State(state): State<AppState>,
-) -> AxumResult<FormattedResponse<LegacyMixnodesResponse>> {
-    let output = output.get_output();
-    let contract_cache = state.nym_contract_cache();
-    let mixnodes = contract_cache.legacy_mixnodes().await?;
-    Ok(output.to_response(LegacyMixnodesResponse {
-        count: mixnodes.len(),
-        nodes: mixnodes,
-    }))
+) -> FormattedResponse<LegacyMixnodesResponse> {
+    output.get_output().to_response(LegacyMixnodesResponse {
+        count: 0,
+        nodes: Vec::new(),
+    })
 }
 
+/// Deprecated: legacy gateways are no longer read, so this is always empty.
 #[utoipa::path(
     tag = "contract-cache",
     get,
@@ -146,15 +146,12 @@ async fn get_legacy_mixnodes(
     ),
     params(OutputParamsV2)
 )]
+#[deprecated]
 async fn get_legacy_gateways(
     Query(output): Query<OutputParamsV2>,
-    State(state): State<AppState>,
-) -> AxumResult<FormattedResponse<LegacyGatewaysResponse>> {
-    let output = output.get_output();
-    let contract_cache = state.nym_contract_cache();
-    let gateways = contract_cache.legacy_gateways().await?;
-    Ok(output.to_response(LegacyGatewaysResponse {
-        count: gateways.len(),
-        nodes: gateways,
-    }))
+) -> FormattedResponse<LegacyGatewaysResponse> {
+    output.get_output().to_response(LegacyGatewaysResponse {
+        count: 0,
+        nodes: Vec::new(),
+    })
 }

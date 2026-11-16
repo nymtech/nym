@@ -12,7 +12,6 @@ use crate::support::attested_snapshots::state::ContractSnapshots;
 use crate::support::caching::cache::SharedCache;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::AppState;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
@@ -33,7 +32,6 @@ pub(crate) fn build_app_state(
         chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
         ecash_signers_cache: Default::default(),
         address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
-        forced_refresh: ForcedRefresh::new(true),
         contract_snapshots: ContractSnapshots::new(SharedCache::new(), 0),
         storage,
         network_details: NetworkDetailsV2::new(

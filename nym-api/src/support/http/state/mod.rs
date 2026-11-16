@@ -12,7 +12,6 @@ use crate::support::attested_snapshots::state::ContractSnapshots;
 use crate::support::caching::cache::SharedCache;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::nyxd::Client;
 use crate::support::storage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
@@ -24,7 +23,6 @@ use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod chain_status;
 pub(crate) mod contract_details;
-pub(crate) mod force_refresh;
 pub(crate) mod helpers;
 #[cfg(test)]
 pub(crate) mod test_helpers;
@@ -49,10 +47,6 @@ pub(crate) struct AppState {
 
     /// Holds mapping between a nyx address and tokens/delegations it holds
     pub(crate) address_info_cache: AddressInfoCache,
-
-    /// Holds information on when nym-nodes requested an explicit request of their self-described data.
-    /// It is used to prevent DoS by nodes constantly requesting the refresh.
-    pub(crate) forced_refresh: ForcedRefresh,
 
     /// Holds reference to the persistent storage of this nym-api.
     pub(crate) storage: storage::NymApiStorage,

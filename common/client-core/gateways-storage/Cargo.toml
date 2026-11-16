@@ -15,6 +15,7 @@ publish = true
 
 [dependencies]
 async-trait.workspace = true
+rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 time.workspace = true
@@ -23,7 +24,7 @@ tracing.workspace = true
 url.workspace = true
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
-nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-gateway-requests = { workspace = true}
 nym-gateway-client = { workspace = true}
 

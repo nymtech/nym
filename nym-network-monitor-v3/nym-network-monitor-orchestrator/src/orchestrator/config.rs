@@ -171,6 +171,16 @@ pub(crate) struct Config {
     /// Config-score penalty applied to a node that cannot transact on chain (balance below the
     /// minimum and no feegrant). A fraction in `[0, 1]`; 0.2 keeps 80% of the score.
     pub(crate) chain_interactions_penalty: f64,
+
+    /// Whether each epoch's measurements are submitted to the performance contract.
+    pub(crate) performance_submission_enabled: bool,
+
+    /// Maximum number of nodes sent to the performance contract in one transaction.
+    pub(crate) performance_submission_batch_size: NonZeroUsize,
+
+    /// Share of a test kind's eligible nodes, in `[0, 1]`, that must have an aggregate above zero for
+    /// that test kind to be submitted; below it the test kind is omitted for every node.
+    pub(crate) performance_submission_coverage_threshold: f64,
 }
 
 impl Config {
@@ -272,7 +282,7 @@ impl Config {
     /// from part of the evidence. The excess of retention over the window is how far back a restart
     /// can still backfill epochs, and its sizing is left to the operator.
     ///
-    /// Also rejects a chain interactions penalty that is not a fraction.
+    /// Also rejects a chain interactions penalty or a coverage threshold that is not a fraction.
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let longest_window = self.aggregation_windows.longest();
         if self.testrun_eviction_age <= longest_window {
@@ -288,6 +298,13 @@ impl Config {
             bail!(
                 "chain interactions penalty ({}) must be within [0, 1]",
                 self.chain_interactions_penalty
+            );
+        }
+
+        if !(0.0..=1.0).contains(&self.performance_submission_coverage_threshold) {
+            bail!(
+                "performance submission coverage threshold ({}) must be within [0, 1]",
+                self.performance_submission_coverage_threshold
             );
         }
         Ok(())
@@ -332,5 +349,8 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         chain_capability_query_concurrency: NonZeroUsize::new(8).unwrap(),
         minimum_on_chain_balance: Coin::new(1_000_000u128, "unym"),
         chain_interactions_penalty: 0.2,
+        performance_submission_enabled: false,
+        performance_submission_batch_size: NonZeroUsize::new(200).unwrap(),
+        performance_submission_coverage_threshold: 0.5,
     }
 }

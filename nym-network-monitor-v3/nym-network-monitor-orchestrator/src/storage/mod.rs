@@ -4,14 +4,15 @@
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    AssignedTestrun, AssignmentRequest, CompletedTestRun, ConfigScoreCandidate, KindHead,
-    KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore, NewTestRun,
+    AssignedTestrun, AssignmentRequest, CompletedTestRun, ConfigScoreCandidate, DescribedNodeRoles,
+    KindHead, KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore, NewTestRun,
     NodeAwaitingCapabilityRefresh, NodeChainCapability, NymNode, TestKind, TestRunInProgress,
     TestRunSubmission, TestRunWindow,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::{Pagination, RunMeasurements};
 use nym_validator_client::client::NodeId;
+use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::path::Path;
@@ -418,30 +419,36 @@ impl NetworkMonitorStorage {
     }
 
     /// The newest epoch that has aggregates stored, or `None` when none has.
-    pub(crate) async fn get_last_materialised_mixnet_epoch(&self) -> anyhow::Result<Option<i64>> {
-        self.storage_manager
+    pub(crate) async fn get_last_materialised_mixnet_epoch(
+        &self,
+    ) -> anyhow::Result<Option<EpochId>> {
+        let last = self
+            .storage_manager
             .get_last_materialised_mixnet_epoch()
-            .await
+            .await?;
+
+        // stored from an `EpochId`, so it fits
+        Ok(last.map(|mixnet_epoch| mixnet_epoch as EpochId))
     }
 
     /// Every aggregate stored for `mixnet_epoch`, ordered by node and then kind.
     pub(crate) async fn get_mixnet_epoch_aggregates(
         &self,
-        mixnet_epoch: i64,
+        mixnet_epoch: EpochId,
     ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
         self.storage_manager
-            .get_mixnet_epoch_aggregates(mixnet_epoch)
+            .get_mixnet_epoch_aggregates(i64::from(mixnet_epoch))
             .await
     }
 
     /// One node's aggregates for `mixnet_epoch`, one per kind that measured it.
     pub(crate) async fn get_mixnet_epoch_aggregates_for_node(
         &self,
-        mixnet_epoch: i64,
+        mixnet_epoch: EpochId,
         node_id: NodeId,
     ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
         self.storage_manager
-            .get_mixnet_epoch_aggregates_for_node(mixnet_epoch, node_id as i64)
+            .get_mixnet_epoch_aggregates_for_node(i64::from(mixnet_epoch), node_id as i64)
             .await
     }
 
@@ -482,6 +489,11 @@ impl NetworkMonitorStorage {
         self.storage_manager.get_config_score_candidates().await
     }
 
+    /// The declared roles of every described node, ordered by node id.
+    pub(crate) async fn get_described_node_roles(&self) -> anyhow::Result<Vec<DescribedNodeRoles>> {
+        self.storage_manager.get_described_node_roles().await
+    }
+
     /// Stores config scores that are not already stored, leaving any that are exactly as they were.
     pub(crate) async fn batch_insert_mixnet_epoch_config_scores(
         &self,
@@ -495,21 +507,21 @@ impl NetworkMonitorStorage {
     /// Every config score stored for `mixnet_epoch`, ordered by node.
     pub(crate) async fn get_mixnet_epoch_config_scores(
         &self,
-        mixnet_epoch: i64,
+        mixnet_epoch: EpochId,
     ) -> anyhow::Result<Vec<MixnetEpochConfigScore>> {
         self.storage_manager
-            .get_mixnet_epoch_config_scores(mixnet_epoch)
+            .get_mixnet_epoch_config_scores(i64::from(mixnet_epoch))
             .await
     }
 
     /// One node's config score for `mixnet_epoch`, or `None` if none was stored.
     pub(crate) async fn get_mixnet_epoch_config_score_for_node(
         &self,
-        mixnet_epoch: i64,
+        mixnet_epoch: EpochId,
         node_id: NodeId,
     ) -> anyhow::Result<Option<MixnetEpochConfigScore>> {
         self.storage_manager
-            .get_mixnet_epoch_config_score_for_node(mixnet_epoch, node_id as i64)
+            .get_mixnet_epoch_config_score_for_node(i64::from(mixnet_epoch), node_id as i64)
             .await
     }
 

@@ -161,10 +161,7 @@ pub fn query_all_records_paged(
 ///
 /// [k]: nym_geolocation_contract_common::constants::storage_keys::DIGEST_STATE
 pub fn query_digest(deps: Deps) -> Result<DigestResponse, GeolocationContractError> {
-    let digest = GEOLOCATION_CONTRACT_STORAGE.load_digest(deps.storage)?;
-    Ok(DigestResponse {
-        digest: digest.out().to_vec().into(),
-    })
+    Ok(GEOLOCATION_CONTRACT_STORAGE.digest.query(deps.storage)?)
 }
 
 #[cfg(test)]

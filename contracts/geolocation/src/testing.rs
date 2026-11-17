@@ -184,7 +184,7 @@ pub trait GeolocationContractTesterExt:
     + Sized
 {
     fn digest(&self) -> LtHash16 {
-        GEOLOCATION_CONTRACT_STORAGE.load_digest(self).unwrap()
+        GEOLOCATION_CONTRACT_STORAGE.digest.load(self).unwrap()
     }
 
     fn add_dummy_agent(&mut self) -> Addr {

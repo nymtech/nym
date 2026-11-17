@@ -61,8 +61,6 @@ const DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY: usize = 8;
 /// estimating timestamps of pruned (no longer servable) heights.
 const DEFAULT_NODE_FAMILIES_BLOCK_TIME_ESTIMATION_LOOKBACK: u32 = 100;
 const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
-const DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS: u32 = 12;
-const DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS: usize = 25;
 
 pub(crate) const DEFAULT_ADDRESS_CACHE_TTL: Duration = Duration::from_secs(60 * 15);
 pub(crate) const DEFAULT_ADDRESS_CACHE_CAPACITY: u64 = 1000;
@@ -513,8 +511,11 @@ impl Default for NodeFamiliesCacheDebug {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct PerformanceProvider {
-    /// Specifies whether this nym-api should attempt to retrieve node performance
-    /// information from the performance contract.
+    /// Whether this nym-api reads the performance contract's data.
+    pub read_performance_contract: bool,
+
+    /// Contract mode: rewarding and active-set selection use the performance contract's figure,
+    /// and nym-api computes no figure of its own. Requires `read_performance_contract`.
     pub use_performance_contract_data: bool,
 
     /// Which properties contribute to a node's score, and in what proportion.
@@ -577,7 +578,16 @@ impl PerformanceProvider {
     }
 
     fn validate(&self) -> anyhow::Result<()> {
-        self.scoring.validate(self.use_performance_contract_data)?;
+        if self.use_performance_contract_data && !self.read_performance_contract {
+            bail!(
+                "[performance_provider].use_performance_contract_data requires \
+                 [performance_provider].read_performance_contract to be enabled"
+            );
+        }
+
+        // checked in both modes, although it has no effect while the contract's figure is used,
+        // so that turning the switch on or off leaves the weights in force untouched
+        self.scoring.validate()?;
         self.debug.validate()
     }
 }
@@ -586,6 +596,7 @@ impl PerformanceProvider {
 impl Default for PerformanceProvider {
     fn default() -> Self {
         PerformanceProvider {
+            read_performance_contract: false,
             // to be changed later
             use_performance_contract_data: false,
             scoring: Default::default(),
@@ -670,7 +681,7 @@ impl PerformanceProviderScoring {
         self.named().into_iter().filter(|(_, p)| p.enabled)
     }
 
-    fn validate(&self, use_performance_contract_data: bool) -> anyhow::Result<()> {
+    fn validate(&self) -> anyhow::Result<()> {
         for (name, property) in self.named() {
             if property.weight < 0.0 || property.weight > 1.0 || !property.weight.is_finite() {
                 bail!(
@@ -678,18 +689,6 @@ impl PerformanceProviderScoring {
                      the range [0.0, 1.0]"
                 );
             }
-        }
-
-        // the contract provider serves none of these, so enabling one alongside it would ask for
-        // a measurement that provider structurally cannot supply
-        if use_performance_contract_data {
-            if let Some((name, _)) = self.enabled().next() {
-                bail!(
-                    "[performance_provider.scoring.{name}] cannot be enabled while \
-                     [performance_provider].use_performance_contract_data is also enabled"
-                );
-            }
-            return Ok(());
         }
 
         // a node's delivery score is the weighted mean of whatever applies to it, so with nothing
@@ -747,20 +746,11 @@ impl PerformanceProviderScoring {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct PerformanceProviderDebug {
-    /// Specifies interval of polling the performance contract. Note it is only applicable
-    /// if the contract data is being used.
-    /// Further note that if there have been no updates to the cache, the performance overhead is negligible
-    /// (i.e. there will be only a single query performed to check if anything has changed)
+    /// Interval at which the window of the performance contract's data is polled, applying when
+    /// `read_performance_contract` is on. A poll finding no new submission costs a single query,
+    /// plus a weights read when the epoch has moved on.
     #[serde(with = "humantime_serde")]
     pub contract_polling_interval: Duration,
-
-    /// Specify the maximum number of epochs we can fallback to if given epoch's performance data
-    /// is not available in the contract
-    pub max_performance_fallback_epochs: u32,
-
-    /// Specify the maximum number of epoch entries to be kept in the cache in case we needed non-current data
-    // (currently we need an equivalent of full day worth of data for legacy endpoints)
-    pub max_epoch_entries_to_retain: usize,
 
     /// If `stress_testing` is enabled, this specifies the minimum % of nodes,
     /// that must have their stress data available in the `stress_testing_data_period`,
@@ -829,8 +819,6 @@ impl Default for PerformanceProviderDebug {
     fn default() -> Self {
         PerformanceProviderDebug {
             contract_polling_interval: DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL,
-            max_performance_fallback_epochs: DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS,
-            max_epoch_entries_to_retain: DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS,
 
             minimum_available_stress_testing_results: DEFAULT_MIN_STRESS_TESTED_NODES,
             chain_interactions_penalty: DEFAULT_CHAIN_INTERACTIONS_PENALTY,
@@ -1352,6 +1340,62 @@ mod tests {
         let err = provider.validate().unwrap_err().to_string();
         assert!(err.contains("must sum to 1.0"), "got: {err}");
     }
+
+    fn contract_mode() -> PerformanceProvider {
+        PerformanceProvider {
+            read_performance_contract: true,
+            use_performance_contract_data: true,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn the_switch_requires_the_read_flag() {
+        let provider = PerformanceProvider {
+            use_performance_contract_data: true,
+            ..Default::default()
+        };
+
+        let err = provider.validate().unwrap_err().to_string();
+        assert!(err.contains("read_performance_contract"), "got: {err}");
+    }
+
+    /// The flip leaves the scoring section as it is, so a rollback restores exactly its weights.
+    #[test]
+    fn the_switch_accepts_the_default_scoring_section() {
+        let provider = contract_mode();
+
+        assert!(provider.scoring.legacy_v1_routing.enabled);
+        assert!(provider.validate().is_ok());
+    }
+
+    #[test]
+    fn the_scoring_rules_still_apply_with_the_switch_on() {
+        let mut provider = contract_mode();
+        provider.scoring.stress_testing = ScoreProperty::new(true, 0.3);
+        let err = provider.validate().unwrap_err().to_string();
+        assert!(err.contains("must sum to 1.0"), "got: {err}");
+
+        let mut provider = contract_mode();
+        provider.scoring.legacy_v1_routing.enabled = false;
+        provider.scoring.stress_testing = ScoreProperty::new(true, 1.0);
+        let err = provider.validate().unwrap_err().to_string();
+        assert!(err.contains("gateways unscoreable"), "got: {err}");
+    }
+
+    #[test]
+    fn a_config_setting_the_removed_knobs_loads() {
+        let provider: PerformanceProvider = toml::from_str(
+            r#"
+            [debug]
+            max_performance_fallback_epochs = 3
+            max_epoch_entries_to_retain = 7
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(provider, PerformanceProvider::default());
+    }
 }
 
 #[cfg(test)]
@@ -1385,5 +1429,15 @@ mod template_tests {
             parsed.performance_provider.scoring,
             Config::new("template-test").performance_provider.scoring
         );
+    }
+
+    #[test]
+    fn the_config_template_round_trips_the_read_flag() {
+        let mut config = Config::new("template-test");
+        config.performance_provider.read_performance_contract = true;
+
+        let parsed: Config =
+            toml::from_str(&config.format_to_string()).expect("rendered template must parse");
+        assert!(parsed.performance_provider.read_performance_contract);
     }
 }

@@ -88,7 +88,7 @@ impl Coverage {
         }
     }
 
-    fn for_kind(&self, kind: TestKind) -> TestKindCoverage {
+    pub(crate) fn for_kind(&self, kind: TestKind) -> TestKindCoverage {
         match kind {
             TestKind::MixnodeLiveness => self.mixnode_liveness,
             TestKind::GatewayLiveness => self.gateway_liveness,

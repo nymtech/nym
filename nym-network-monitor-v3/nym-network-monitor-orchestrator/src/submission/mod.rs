@@ -14,6 +14,7 @@ use nym_validator_client::nyxd::contract_traits::{
 };
 use nym_validator_client::nyxd::nym_performance_contract_common::EpochId;
 use std::num::NonZeroUsize;
+use strum::IntoEnumIterator;
 use tracing::info;
 
 mod plan;
@@ -75,17 +76,11 @@ where
 
         let plan = EpochPlan::build(&config_scores, aggregates, &roles, self.coverage_threshold);
         let coverage = plan.coverage;
-        // the coverage struct carries one field per kind rather than a map, so the three are mapped
-        // onto the family's children by hand
-        for (kind, omitted) in [
-            (TestKind::MixnodeLiveness, coverage.mixnode_liveness.omitted),
-            (TestKind::GatewayLiveness, coverage.gateway_liveness.omitted),
-            (TestKind::MixnodeStress, coverage.stress.omitted),
-        ] {
+        for kind in TestKind::iter() {
             PROMETHEUS_METRICS.set_for_kind(
                 PrometheusMetric::PerformanceSubmissionKindOmitted,
                 kind,
-                i64::from(omitted),
+                i64::from(coverage.for_kind(kind).omitted),
             );
         }
 

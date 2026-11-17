@@ -397,3 +397,120 @@ impl Display for InitResults {
         write!(f, "Registered at: {}", self.gateway_registration)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_client_core_gateways_storage::{GatewayDetails, GatewayPublishedData, GenerationId};
+    use nym_test_utils::helpers::{deterministic_rng, dummy_ed25519_keypair};
+
+    fn gateway_id(seed: u64) -> ed25519::PublicKey {
+        *dummy_ed25519_keypair(seed).public_key()
+    }
+
+    fn remote_registration(
+        gateway_id: ed25519::PublicKey,
+        generation_id: Option<GenerationId>,
+    ) -> GatewayRegistration {
+        let listeners = GatewayListeners {
+            primary: "ws://127.0.0.1:9000".parse().unwrap(),
+            fallback: None,
+        };
+        GatewayDetails::Remote(RemoteGatewayDetails {
+            gateway_id,
+            shared_key: Arc::new(SharedSymmetricKey::try_from_bytes(&[1; 32]).unwrap()),
+            published_data: GatewayPublishedData::new(listeners),
+            generation_id,
+        })
+        .into()
+    }
+
+    #[test]
+    fn a_legacy_registration_resolves_to_the_root_keys() {
+        let root = ClientKeys::generate_new(&mut deterministic_rng());
+
+        let loaded =
+            InitialisationResult::new_loaded(remote_registration(gateway_id(1), None), &root);
+
+        assert_eq!(
+            loaded.gateway_keys.identity_keypair().public_key(),
+            root.identity_keypair().public_key()
+        );
+        assert_eq!(
+            loaded.gateway_keys.encryption_keypair().public_key(),
+            root.encryption_keypair().public_key()
+        );
+    }
+
+    #[test]
+    fn a_custom_registration_resolves_to_the_root_keys() {
+        let root = ClientKeys::generate_new(&mut deterministic_rng());
+        let registration = GatewayDetails::new_custom(gateway_id(1), None).into();
+
+        let loaded = InitialisationResult::new_loaded(registration, &root);
+
+        assert_eq!(
+            loaded.gateway_keys.identity_keypair().public_key(),
+            root.identity_keypair().public_key()
+        );
+        assert_eq!(
+            loaded.gateway_keys.encryption_keypair().public_key(),
+            root.encryption_keypair().public_key()
+        );
+    }
+
+    #[test]
+    fn a_derived_registration_resolves_to_the_keys_for_its_gateway_and_generation() {
+        let mut rng = deterministic_rng();
+        let root = ClientKeys::generate_new(&mut rng);
+        let generation_id = GenerationId::new_random(&mut rng);
+
+        let loaded = InitialisationResult::new_loaded(
+            remote_registration(gateway_id(1), Some(generation_id)),
+            &root,
+        );
+        let expected = root.gateway_keys(gateway_id(1), Some(generation_id));
+
+        assert_eq!(
+            loaded.gateway_keys.identity_keypair().public_key(),
+            expected.identity_keypair().public_key()
+        );
+        assert_eq!(
+            loaded.gateway_keys.encryption_keypair().public_key(),
+            expected.encryption_keypair().public_key()
+        );
+        assert_ne!(
+            loaded.gateway_keys.identity_keypair().public_key(),
+            root.identity_keypair().public_key()
+        );
+        assert_ne!(
+            loaded.gateway_keys.encryption_keypair().public_key(),
+            root.encryption_keypair().public_key()
+        );
+    }
+
+    #[test]
+    fn two_gateways_resolve_to_different_keys() {
+        let mut rng = deterministic_rng();
+        let root = ClientKeys::generate_new(&mut rng);
+        let generation_id = GenerationId::new_random(&mut rng);
+
+        let first = InitialisationResult::new_loaded(
+            remote_registration(gateway_id(1), Some(generation_id)),
+            &root,
+        );
+        let second = InitialisationResult::new_loaded(
+            remote_registration(gateway_id(2), Some(generation_id)),
+            &root,
+        );
+
+        assert_ne!(
+            first.gateway_keys.identity_keypair().public_key(),
+            second.gateway_keys.identity_keypair().public_key()
+        );
+        assert_ne!(
+            first.gateway_keys.encryption_keypair().public_key(),
+            second.gateway_keys.encryption_keypair().public_key()
+        );
+    }
+}

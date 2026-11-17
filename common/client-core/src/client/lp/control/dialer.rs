@@ -178,6 +178,10 @@ where
     /// handshake needs - the outbound tick loop, when it comes to raise dials, runs every
     /// millisecond. Nothing calls this yet; see [`Self::ensure_session`] for the awaitable form,
     /// which is what startup uses.
+    ///
+    /// The dialer registers under the keys derived for the client's home gateway. Before a session
+    /// is opened with any other gateway, that gateway needs keys derived for it, or it is shown the
+    /// identity the client uses at its home gateway.
     pub fn request(&self, gateway: NodeIdentity) {
         if let Err(err) = self.dial(gateway) {
             trace!("LP dialer: not dialing {gateway}: {err}");

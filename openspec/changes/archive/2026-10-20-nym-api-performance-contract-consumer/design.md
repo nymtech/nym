@@ -102,7 +102,7 @@ Selection weights every candidate by the same figure as rewarding, the window's 
 
 Fault mode: when nothing was submitted at X (R < X), every candidate with a score above 0 gets factor 1, so selection among them is by stake alone. Any constant reduces `saturation x performance^20` to proportional-to-stake sampling. A candidate whose frozen score is exactly 0 keeps it: a node that was offline when last measured scores exactly 0 (failed runs score 0, and so does their weighted mean), and giving it factor 1 would bring every node last measured as dead back into the stake-weighted draw for the whole outage. It stays available to the uniform filler, as in normal operation. One warning line is logged; there is no metric. Alternatives considered: factor 1 for every scored candidate, zeros included, which is pure stake but reselects dead nodes; and selecting on the scores frozen at R, the ones rewarding pays meanwhile.
 
-A single test kind down for more than 24 epochs is not a fault. The orchestrator's guard omits it, R keeps advancing on the other kinds, and nodes measured only by the missing kind lose their figure and are skipped. Their role then falls to the sampler's uniform filler (`support/sampling.rs`), which fills a role from zero-weight candidates when positive-weight ones run short. This is accepted, and the orchestrator's omitted-test-kind gauge reports it from its first epoch.
+A single test kind down for more than 24 epochs is not a fault. The orchestrator's guard omits it, R keeps advancing on the other kinds, and nodes measured only by the missing kind lose their figure and are skipped, leaving the draw entirely. The sampler's uniform filler (`support/sampling.rs`) draws zero-weight candidates only from those that remain, so it cannot bring a skipped node back: a role whose candidates are all skipped is left underfilled or empty. This is accepted, and the orchestrator's omitted-test-kind gauge reports it from its first epoch.
 
 ### 7. A node's annotation is carried over only when the gap is ours
 
@@ -183,7 +183,7 @@ Not unit-tested, each a few lines over tested pieces:
 
 - [A query after `BeginEpochTransition` served by an RPC node that has not yet seen the last blocks] -> It could miss a submission that landed just before the transition. Submissions land within minutes of an epoch's start, about an hour before its transition, so only a retried chunk landing in the last seconds is exposed. Accepted.
 - [Pages of the current epoch read across a submission] -> Unpinned pages can miss a node written between two of them. The next poll sees the last submission change and re-pages, and the poll before rewarding runs once the epoch is frozen.
-- [A single test kind down for more than 24 epochs] -> Its nodes lose their figure and their role falls to the uniform filler (Decision 6). The orchestrator's omitted-test-kind gauge reports it from the first epoch.
+- [A single test kind down for more than 24 epochs] -> Its nodes lose their figure and leave the draw; a role whose candidates are all skipped is left underfilled or empty (Decision 6). The orchestrator's omitted-test-kind gauge reports it from the first epoch.
 - [The window cannot load at startup with the switch on] -> nym-api does not start, which is the intent: rewarding without the contract would pay zero.
 - [A carried annotation outlives a node's death] -> Only while the node still answers describe, at most about 75 minutes after it stops (Decision 7).
 - [The startup burst] -> About 260 queries once. The per-epoch steady state is about 50.

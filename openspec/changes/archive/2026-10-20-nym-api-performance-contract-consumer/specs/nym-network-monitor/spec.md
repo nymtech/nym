@@ -200,7 +200,7 @@ With the switch off, the rewards are computed from nym-api's annotations at the 
 
 With the switch on, the rewarded set that follows epoch X SHALL be selected with each candidate weighted by `saturation x performance^20`, where performance is the candidate's contract figure's score at X from the window as brought up to date for rewarding. Candidates are chosen as in legacy mode: bonded, described by nym-api, and declaring at least one role they can be assigned. A candidate without a score MUST be skipped. When nothing was submitted at X, that is R < X, every candidate with a score above 0 MUST be given a performance of 1, so that selection among them is by stake alone, and one warning MUST be logged. A candidate whose score is 0 MUST keep it: a node last measured completely dead stays out of the stake-weighted draw and remains available only to the sampler's uniform filler, as in normal operation.
 
-A test kind the orchestrator omits is not that fault, because R keeps advancing on the other kinds. A node measured by that kind alone keeps its last figure for 24 epochs and is then skipped, its role being filled by the sampler's uniform filler.
+A test kind the orchestrator omits is not that fault, because R keeps advancing on the other kinds. A node measured by that kind alone keeps its last figure for 24 epochs and is then skipped, leaving the draw entirely: the sampler's uniform filler draws only from candidates that remain, so a role whose candidates are all skipped is left underfilled or empty.
 
 #### Scenario: Candidates are weighted by their contract figure
 - **WHEN** two candidates of equal saturation have contract scores of 0.9 and 0.5 at X

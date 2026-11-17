@@ -109,6 +109,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     derivation_material: Option<DerivationMaterial>,
     stream_idle_timeout: Option<std::time::Duration>,
     lp_enabled: bool,
+    refresh_gateway_keys: bool,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -156,6 +157,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             derivation_material: None,
             stream_idle_timeout: None,
             lp_enabled: false,
+            refresh_gateway_keys: false,
         })
     }
 }
@@ -191,6 +193,7 @@ where
             derivation_material: None,
             stream_idle_timeout: None,
             lp_enabled: false,
+            refresh_gateway_keys: false,
         }
     }
 
@@ -221,6 +224,7 @@ where
             derivation_material: self.derivation_material,
             stream_idle_timeout: self.stream_idle_timeout,
             lp_enabled: self.lp_enabled,
+            refresh_gateway_keys: self.refresh_gateway_keys,
         }
     }
 
@@ -268,6 +272,20 @@ where
     #[must_use]
     pub fn with_lp(mut self, lp_enabled: bool) -> Self {
         self.lp_enabled = lp_enabled;
+        self
+    }
+
+    /// Register again with the stored gateway under a new identity when connecting, instead of
+    /// loading its registration.
+    ///
+    /// Off by default; with no stored registration for the gateway it changes nothing. The old
+    /// identity's bandwidth is forfeited and the client's address changes. If the new registration
+    /// fails, the connect fails and the old registration stays stored. The gateway drops the old
+    /// identity only if the previous session disconnected with
+    /// [`with_forget_me`](Self::with_forget_me) set.
+    #[must_use]
+    pub fn refresh_gateway_keys(mut self, refresh_gateway_keys: bool) -> Self {
+        self.refresh_gateway_keys = refresh_gateway_keys;
         self
     }
 
@@ -460,6 +478,7 @@ where
         client.derivation_material = self.derivation_material;
         client.stream_idle_timeout = self.stream_idle_timeout;
         client.lp_enabled = self.lp_enabled;
+        client.refresh_gateway_keys = self.refresh_gateway_keys;
         Ok(client)
     }
 }
@@ -538,6 +557,9 @@ where
 
     /// Reach the network over the Lewes Protocol rather than the gateway's websocket.
     lp_enabled: bool,
+
+    /// Register again under a new identity instead of loading the stored registration.
+    refresh_gateway_keys: bool,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -598,6 +620,7 @@ where
             derivation_material: None,
             stream_idle_timeout: None,
             lp_enabled: false,
+            refresh_gateway_keys: false,
         })
     }
 
@@ -740,6 +763,19 @@ where
         })
     }
 
+    /// Setup for the active gateway's stored registration: loaded, or refreshed when asked.
+    fn stored_gateway_setup(&self) -> GatewaySetup {
+        if self.refresh_gateway_keys {
+            GatewaySetup::RefreshKeys {
+                gateway_id: None,
+                #[cfg(unix)]
+                connection_fd_callback: self.connection_fd_callback.clone(),
+            }
+        } else {
+            GatewaySetup::MustLoad { gateway_id: None }
+        }
+    }
+
     async fn refresh_gateway_published_data(
         &mut self,
         gateway_registration: GatewayRegistration,
@@ -792,12 +828,12 @@ where
             (Some(user_chosen_gateway), Some(active_gateway))
                 if &active_gateway.to_base58_string() == user_chosen_gateway =>
             {
-                GatewaySetup::MustLoad { gateway_id: None }
+                self.stored_gateway_setup()
             }
             // When a user-chosen gateway exists but there's no active gateway, or it doesn't match the active one.
             (Some(_), _) => self.new_gateway_setup().await?,
             // When no user-chosen gateway exists but there's an active gateway.
-            (None, Some(_)) => GatewaySetup::MustLoad { gateway_id: None },
+            (None, Some(_)) => self.stored_gateway_setup(),
             // When there's no user-chosen gateway and no active gateway.
             (None, None) => self.new_gateway_setup().await?,
         };

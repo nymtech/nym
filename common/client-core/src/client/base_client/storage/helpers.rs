@@ -5,9 +5,11 @@ use crate::client::key_manager::ClientKeys;
 use crate::client::key_manager::persistence::KeyStore;
 use crate::error::ClientCoreError;
 use nym_client_core_gateways_storage::{
-    ActiveGateway, GatewayPublishedData, GatewayRegistration, GatewaysDetailsStore,
+    ActiveGateway, GatewayPublishedData, GatewayRegistration, GatewaysDetailsStore, GenerationId,
 };
 use nym_crypto::asymmetric::ed25519;
+use nym_gateway_client::SharedSymmetricKey;
+use std::sync::Arc;
 
 // helpers for error wrapping
 pub async fn set_active_gateway<D>(
@@ -92,6 +94,23 @@ where
 {
     details_store
         .update_gateway_published_data(gateway_id, published_data)
+        .await
+        .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
+            source: Box::new(source),
+        })
+}
+
+pub async fn update_stored_gateway_keys<D>(
+    details_store: &D,
+    gateway_id: &ed25519::PublicKey,
+    generation_id: GenerationId,
+    shared_key: Arc<SharedSymmetricKey>,
+) -> Result<(), ClientCoreError>
+where
+    D: GatewaysDetailsStore,
+{
+    details_store
+        .update_gateway_keys(gateway_id, generation_id, shared_key)
         .await
         .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
             source: Box::new(source),

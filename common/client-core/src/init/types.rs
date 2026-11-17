@@ -246,6 +246,16 @@ pub enum GatewaySetup {
         gateway_id: Option<String>,
     },
 
+    /// Register again with a gateway that has a stored registration, under a newly drawn generation id.
+    RefreshKeys {
+        /// Optionally specify concrete gateway id. If none is selected, the current active gateway will be used.
+        gateway_id: Option<String>,
+
+        /// Callback useful for allowing initial connection to gateway
+        #[cfg(unix)]
+        connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+    },
+
     /// Specifies usage of a new gateway
     New {
         specification: GatewaySelectionSpecification,
@@ -274,6 +284,10 @@ impl Debug for GatewaySetup {
         match self {
             GatewaySetup::MustLoad { gateway_id } => f
                 .debug_struct("GatewaySetup::MustLoad")
+                .field("gateway_id", gateway_id)
+                .finish(),
+            GatewaySetup::RefreshKeys { gateway_id, .. } => f
+                .debug_struct("GatewaySetup::RefreshKeys")
                 .field("gateway_id", gateway_id)
                 .finish(),
             GatewaySetup::New {

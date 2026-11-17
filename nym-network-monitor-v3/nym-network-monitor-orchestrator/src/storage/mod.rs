@@ -15,9 +15,9 @@ use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
-use strum::IntoEnumIterator;
 use time::OffsetDateTime;
 use tracing::log::{LevelFilter, debug};
 
@@ -34,25 +34,6 @@ pub(crate) mod models;
 #[derive(Clone)]
 pub(crate) struct NetworkMonitorStorage {
     pub(crate) storage_manager: StorageManager,
-}
-
-/// The in-flight gauge belonging to a kind. Exhaustive rather than defaulting, so a new kind is a
-/// compile error here instead of a silently unpublished series.
-fn in_progress_metric(kind: TestKind) -> PrometheusMetric {
-    match kind {
-        TestKind::MixnodeLiveness => PrometheusMetric::MixnodeLivenessTestrunsInProgress,
-        TestKind::GatewayLiveness => PrometheusMetric::GatewayLivenessTestrunsInProgress,
-        TestKind::MixnodeStress => PrometheusMetric::MixnodeStressTestrunsInProgress,
-    }
-}
-
-/// The expired-lease counter belonging to a kind, exhaustive for the same reason.
-fn expired_leases_metric(kind: TestKind) -> PrometheusMetric {
-    match kind {
-        TestKind::MixnodeLiveness => PrometheusMetric::MixnodeLivenessLeasesExpired,
-        TestKind::GatewayLiveness => PrometheusMetric::GatewayLivenessLeasesExpired,
-        TestKind::MixnodeStress => PrometheusMetric::MixnodeStressLeasesExpired,
-    }
 }
 
 impl NetworkMonitorStorage {
@@ -119,31 +100,17 @@ impl NetworkMonitorStorage {
     }
 
     /// Records a submitted result against the run dispatched for its node and releases the node's
-    /// lock, in one transaction; see [`StorageManager::submit_testrun`]. A stored result released
-    /// exactly one lock, so it decrements the `TestrunsInProgress` gauge by one.
+    /// lock, in one transaction; see [`StorageManager::submit_testrun`].
     pub(crate) async fn submit_testrun(
         &self,
         run: &NewTestRun,
         measurements: &RunMeasurements,
     ) -> anyhow::Result<TestRunSubmission> {
-        let submission = self
-            .storage_manager
-            .submit_testrun(run, measurements)
-            .await?;
-        if submission == TestRunSubmission::Stored {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -1);
-        }
-        Ok(submission)
-    }
-
-    /// Returns the number of rows currently in `testrun_in_progress`.
-    pub(crate) async fn count_testruns_in_progress(&self) -> anyhow::Result<i64> {
-        self.storage_manager.count_testruns_in_progress().await
+        self.storage_manager.submit_testrun(run, measurements).await
     }
 
     /// Releases every in-flight lock whose lease has already expired, on the assumption that those
-    /// runs will never report back. Decrements the `TestrunsInProgress` gauge by the number of rows
-    /// actually cleared, and counts each kind's expiries against its own series.
+    /// runs will never report back, counting each kind's expiries against its own child series.
     ///
     /// Takes no timeout: the deadline lives on each row, stamped at dispatch from the budget of the
     /// kind being dispatched, so this sweep needs no knowledge of any kind's lease.
@@ -156,36 +123,27 @@ impl NetworkMonitorStorage {
             .await?;
 
         for (kind, count) in &cleared {
-            PROMETHEUS_METRICS.inc_by(expired_leases_metric(*kind), *count as i64);
-        }
-
-        let total: u64 = cleared.values().sum();
-        if total > 0 {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(total as i64));
-        }
-        Ok(total)
-    }
-
-    /// Publishes the per-kind in-flight gauges from the authoritative row counts.
-    ///
-    /// Set from a count rather than maintained by inc/dec like the total gauge: the delta paths
-    /// (assign, submit, expire) would each have to attribute their change to a kind, and a single
-    /// missed attribution leaves a per-kind gauge permanently wrong, whereas a recount cannot drift.
-    /// Every kind is published on every call, so a kind that has drained reads as zero rather than
-    /// holding its last value.
-    pub(crate) async fn publish_in_progress_gauges(&self) -> anyhow::Result<()> {
-        let counts = self
-            .storage_manager
-            .count_testruns_in_progress_by_kind()
-            .await?;
-
-        for kind in TestKind::iter() {
-            PROMETHEUS_METRICS.set(
-                in_progress_metric(kind),
-                counts.get(&kind).copied().unwrap_or_default(),
+            PROMETHEUS_METRICS.inc_by_for_kind(
+                PrometheusMetric::TestrunLeasesExpiredTotal,
+                *kind,
+                *count as i64,
             );
         }
-        Ok(())
+
+        Ok(cleared.values().sum())
+    }
+
+    /// The rows in `testrun_in_progress` counted by kind. Absent means zero.
+    ///
+    /// Read on every telemetry pass rather than maintained by inc/dec: the delta paths (assign,
+    /// submit, expire) would each have to attribute their change to a kind, and a single missed
+    /// attribution leaves a figure permanently wrong, whereas a recount cannot drift.
+    pub(crate) async fn count_testruns_in_progress_by_kind(
+        &self,
+    ) -> anyhow::Result<HashMap<TestKind, i64>> {
+        self.storage_manager
+            .count_testruns_in_progress_by_kind()
+            .await
     }
 
     /// Atomically selects the nodes due for one kind and marks each as having a test run in
@@ -216,11 +174,7 @@ impl NetworkMonitorStorage {
             wave_size: schedule.wave_size,
         };
 
-        let assigned = self.storage_manager.assign_next_testruns(&request).await?;
-        if !assigned.is_empty() {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, assigned.len() as i64);
-        }
-        Ok(assigned)
+        self.storage_manager.assign_next_testruns(&request).await
     }
 
     /// When the node `schedule.kind` would assign next fell due, judged against the same staleness
@@ -242,6 +196,132 @@ impl NetworkMonitorStorage {
             None => KindHead::NeverTested,
             Some(last_tested_at) => KindHead::DueAt(last_tested_at + schedule.staleness_age),
         }))
+    }
+
+    /// How many nodes `schedule.kind` could be assigned right now, under the same staleness gate
+    /// the assignment would apply.
+    pub(crate) async fn count_due_candidates(
+        &self,
+        schedule: &KindSchedule,
+    ) -> anyhow::Result<i64> {
+        let last_tested_before = OffsetDateTime::now_utc() - schedule.staleness_age;
+
+        match schedule.kind {
+            TestKind::MixnodeLiveness => {
+                self.storage_manager
+                    .count_due_mixnode_liveness_candidates(last_tested_before)
+                    .await
+            }
+            TestKind::GatewayLiveness => {
+                self.storage_manager
+                    .count_due_gateway_liveness_candidates(last_tested_before)
+                    .await
+            }
+            TestKind::MixnodeStress => {
+                self.storage_manager
+                    .count_due_mixnode_stress_candidates(last_tested_before)
+                    .await
+            }
+        }
+    }
+
+    /// How overdue the oldest node `schedule.kind` has measured at least once is, or `None` when
+    /// every node it has measured is still within its cadence.
+    ///
+    /// Never-measured nodes are excluded, since they have no due time to be overdue against;
+    /// [`Self::count_never_tested`] reports them instead.
+    pub(crate) async fn head_lateness(
+        &self,
+        schedule: &KindSchedule,
+    ) -> anyhow::Result<Option<Duration>> {
+        let now = OffsetDateTime::now_utc();
+        let last_tested_before = now - schedule.staleness_age;
+
+        let head = match schedule.kind {
+            TestKind::MixnodeLiveness => {
+                self.storage_manager
+                    .peek_measured_mixnode_liveness_head(last_tested_before)
+                    .await?
+            }
+            TestKind::GatewayLiveness => {
+                self.storage_manager
+                    .peek_measured_gateway_liveness_head(last_tested_before)
+                    .await?
+            }
+            TestKind::MixnodeStress => {
+                self.storage_manager
+                    .peek_measured_mixnode_stress_head(last_tested_before)
+                    .await?
+            }
+        };
+
+        Ok(head.map(|last_tested_at| {
+            // the head was selected as having fallen due before `now`, so this cannot be negative
+            (now - (last_tested_at + schedule.staleness_age)).unsigned_abs()
+        }))
+    }
+
+    /// How many nodes `kind` could test but holds no result for.
+    pub(crate) async fn count_never_tested(&self, kind: TestKind) -> anyhow::Result<i64> {
+        match kind {
+            TestKind::MixnodeLiveness => {
+                self.storage_manager
+                    .count_never_tested_mixnode_liveness()
+                    .await
+            }
+            TestKind::GatewayLiveness => {
+                self.storage_manager
+                    .count_never_tested_gateway_liveness()
+                    .await
+            }
+            TestKind::MixnodeStress => {
+                self.storage_manager
+                    .count_never_tested_mixnode_stress()
+                    .await
+            }
+        }
+    }
+
+    /// How many nodes `kind` can test at all. The population is a property of the role, so the two
+    /// mixnode kinds share a count.
+    pub(crate) async fn count_testable_population(&self, kind: TestKind) -> anyhow::Result<i64> {
+        match kind {
+            TestKind::MixnodeLiveness | TestKind::MixnodeStress => {
+                self.storage_manager.count_mixnode_role_population().await
+            }
+            TestKind::GatewayLiveness => self.storage_manager.count_gateway_role_population().await,
+        }
+    }
+
+    /// Bonded nodes absent from every kind's population, for want of a usable description.
+    pub(crate) async fn count_excluded_nodes(&self) -> anyhow::Result<i64> {
+        self.storage_manager.count_excluded_nodes().await
+    }
+
+    /// The in-flight rows already past their lease, counted by kind. Absent means zero.
+    pub(crate) async fn count_expired_testruns_in_progress_by_kind(
+        &self,
+    ) -> anyhow::Result<HashMap<TestKind, i64>> {
+        self.storage_manager
+            .count_expired_testruns_in_progress_by_kind(OffsetDateTime::now_utc())
+            .await
+    }
+
+    /// How long each kind's longest-running dispatch has been outstanding. A kind holding nothing
+    /// in flight is absent rather than carrying its last value.
+    pub(crate) async fn oldest_in_flight_ages(
+        &self,
+    ) -> anyhow::Result<HashMap<TestKind, Duration>> {
+        let now = OffsetDateTime::now_utc();
+        let oldest = self
+            .storage_manager
+            .oldest_testrun_in_progress_by_kind()
+            .await?;
+
+        Ok(oldest
+            .into_iter()
+            .map(|(kind, started_at)| (kind, (now - started_at).unsigned_abs()))
+            .collect())
     }
 
     /// Fetches one completed run of `test_kind` by its id within that kind, or `None` if it has been
@@ -534,5 +614,232 @@ impl NetworkMonitorStorage {
         self.storage_manager
             .evict_old_mixnet_epoch_config_scores(cutoff)
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::models::{
+        FIXTURE_SEEN_AT, bond_only, described_node, gateway, minimal_measurements,
+        minimal_test_run, mixnode,
+    };
+    use strum::IntoEnumIterator;
+
+    /// The shipped liveness cadence, which is what the overdue figures below are judged against.
+    const CADENCE: Duration = Duration::from_secs(15 * 60);
+
+    async fn storage_with(nodes: &[NymNode]) -> NetworkMonitorStorage {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage.store_refresh(nodes, FIXTURE_SEEN_AT).await.unwrap();
+        storage
+    }
+
+    fn schedule(kind: TestKind, wave_size: usize) -> KindSchedule {
+        KindSchedule {
+            kind,
+            staleness_age: CADENCE,
+            lease_budget: Duration::from_secs(60),
+            wave_size,
+        }
+    }
+
+    /// Records a `kind` run against `node_id` finished `ago` before now, which is what sets the
+    /// node's due time for that kind.
+    async fn tested(storage: &NetworkMonitorStorage, kind: TestKind, node_id: i64, ago: Duration) {
+        let run = NewTestRun {
+            test_timestamp: OffsetDateTime::now_utc() - ago,
+            ..minimal_test_run(node_id)
+        };
+        storage
+            .storage_manager
+            .insert_test_run(&run, &minimal_measurements(kind))
+            .await
+            .unwrap();
+    }
+
+    /// Locks `node_id` under `kind`, dispatched `started_ago` back and leased for `lease` from then,
+    /// so a lease shorter than the dispatch age is one the sweep has not yet reaped.
+    async fn in_flight(
+        storage: &NetworkMonitorStorage,
+        kind: TestKind,
+        node_id: i64,
+        started_ago: Duration,
+        lease: Duration,
+    ) {
+        let started_at = OffsetDateTime::now_utc() - started_ago;
+        storage
+            .storage_manager
+            .mark_testrun_in_progress(node_id, started_at, started_at + lease, kind)
+            .await
+            .unwrap()
+    }
+
+    async fn in_flight_counts(storage: &NetworkMonitorStorage) -> HashMap<TestKind, i64> {
+        storage
+            .storage_manager
+            .count_testruns_in_progress_by_kind()
+            .await
+            .unwrap()
+    }
+
+    fn minutes(minutes: u64) -> Duration {
+        Duration::from_secs(minutes * 60)
+    }
+
+    // Both figures come out of one predicate, so the count cannot report a population the
+    // assignment would not have drawn from. Asserted by taking both against one fixture.
+    #[tokio::test]
+    async fn the_due_count_is_drawn_from_the_set_an_assignment_locks() {
+        let storage = storage_with(&[mixnode(1), mixnode(2), gateway(3)]).await;
+        let schedule = schedule(TestKind::MixnodeLiveness, 10);
+
+        let due = storage.count_due_candidates(&schedule).await.unwrap();
+        let assigned = storage.assign_next_testruns(&schedule).await.unwrap();
+
+        assert_eq!(2, due, "the gateway is not a mixnode liveness candidate");
+        assert_eq!(due as usize, assigned.len());
+    }
+
+    // The case that would otherwise read as spare capacity: nothing is assignable, but only because
+    // everything due is already locked.
+    #[tokio::test]
+    async fn a_saturated_kind_reports_no_due_work_while_holding_runs_in_flight() {
+        let storage = storage_with(&[mixnode(1), mixnode(2)]).await;
+        let schedule = schedule(TestKind::MixnodeLiveness, 10);
+        in_flight(
+            &storage,
+            TestKind::MixnodeLiveness,
+            1,
+            Duration::ZERO,
+            minutes(1),
+        )
+        .await;
+        in_flight(
+            &storage,
+            TestKind::MixnodeLiveness,
+            2,
+            Duration::ZERO,
+            minutes(1),
+        )
+        .await;
+
+        assert_eq!(0, storage.count_due_candidates(&schedule).await.unwrap());
+        assert_eq!(
+            Some(&2),
+            in_flight_counts(&storage)
+                .await
+                .get(&TestKind::MixnodeLiveness)
+        );
+    }
+
+    // An expired lease still holds its node, so it is counted in both places rather than deducted
+    // from one: in flight says what is locked, expired says how much of that is abandoned.
+    #[tokio::test]
+    async fn a_dispatch_past_its_lease_is_counted_both_as_in_flight_and_as_expired() {
+        let storage = storage_with(&[mixnode(1)]).await;
+        in_flight(
+            &storage,
+            TestKind::MixnodeLiveness,
+            1,
+            minutes(5),
+            minutes(1),
+        )
+        .await;
+
+        let expired = storage
+            .count_expired_testruns_in_progress_by_kind()
+            .await
+            .unwrap();
+
+        assert_eq!(
+            Some(&1),
+            in_flight_counts(&storage)
+                .await
+                .get(&TestKind::MixnodeLiveness)
+        );
+        assert_eq!(Some(&1), expired.get(&TestKind::MixnodeLiveness));
+    }
+
+    // A node the fleet cannot test must not flatter utilisation by being absent from the
+    // denominator without being visible anywhere else.
+    #[tokio::test]
+    async fn a_bonded_node_without_a_usable_description_is_excluded_and_counted() {
+        let storage = storage_with(&[
+            mixnode(1),
+            bond_only(mixnode(2)),
+            described_node(3, "1.2.3.4", false, false),
+        ])
+        .await;
+
+        for kind in TestKind::iter() {
+            let population = storage.count_testable_population(kind).await.unwrap();
+            let expected = match kind {
+                TestKind::MixnodeLiveness | TestKind::MixnodeStress => 1,
+                TestKind::GatewayLiveness => 0,
+            };
+            assert_eq!(expected, population, "{kind} population");
+        }
+
+        assert_eq!(2, storage.count_excluded_nodes().await.unwrap());
+    }
+
+    // The leading indicator: a wave closing on its deadline is visible before anything breaches.
+    #[tokio::test]
+    async fn an_outstanding_dispatch_ages_while_its_expired_count_stays_zero() {
+        let storage = storage_with(&[mixnode(1)]).await;
+        in_flight(
+            &storage,
+            TestKind::MixnodeLiveness,
+            1,
+            minutes(10),
+            minutes(30),
+        )
+        .await;
+
+        let ages = storage.oldest_in_flight_ages().await.unwrap();
+        let expired = storage
+            .count_expired_testruns_in_progress_by_kind()
+            .await
+            .unwrap();
+
+        assert!(ages[&TestKind::MixnodeLiveness] >= minutes(10));
+        assert_eq!(None, expired.get(&TestKind::MixnodeLiveness));
+        // a kind holding nothing is absent rather than carrying a stale age
+        assert_eq!(None, ages.get(&TestKind::GatewayLiveness));
+    }
+
+    // The case that makes head lateness unusable if the two are folded together: the assignment
+    // order puts a never-tested node at the head, and a live network always has one.
+    #[tokio::test]
+    async fn a_never_tested_node_is_counted_without_disturbing_head_lateness() {
+        let storage = storage_with(&[mixnode(1)]).await;
+        let schedule = schedule(TestKind::MixnodeLiveness, 10);
+        tested(&storage, TestKind::MixnodeLiveness, 1, minutes(20)).await;
+
+        let before = storage.head_lateness(&schedule).await.unwrap();
+
+        // a newly bonded node arrives that the kind has never measured
+        storage
+            .store_refresh(&[mixnode(1), mixnode(2)], FIXTURE_SEEN_AT)
+            .await
+            .unwrap();
+        let after = storage.head_lateness(&schedule).await.unwrap();
+
+        assert_eq!(
+            1,
+            storage
+                .count_never_tested(TestKind::MixnodeLiveness)
+                .await
+                .unwrap()
+        );
+        // 20 minutes measured against a 15 minute cadence, before and after
+        for lateness in [before, after] {
+            let lateness = lateness.expect("the measured head is overdue");
+            assert!(
+                lateness >= minutes(4) && lateness <= minutes(6),
+                "{lateness:?}"
+            );
+        }
     }
 }

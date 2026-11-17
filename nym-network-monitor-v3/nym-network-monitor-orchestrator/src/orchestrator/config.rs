@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::orchestrator::chain_capability_refresher::ChainCapabilityConfig;
+use crate::orchestrator::scheduling_telemetry::TelemetryConfig;
+use crate::orchestrator::stale_results_eviction::EvictionConfig;
 use crate::storage::models::{KindSchedule, TestKind};
 use anyhow::{Context, bail};
 use nym_network_defaults::{NymNetworkDetails, env_configured};
@@ -152,6 +154,25 @@ pub(crate) struct Config {
     /// Maximum number of results to submit in a single POST request, applied per stream
     pub(crate) result_submission_batch_size: usize,
 
+    /// How often the scheduling-telemetry task recomputes the per-kind capacity picture
+    /// (e.g. `15s`). Must not exceed the deployment's Prometheus scrape interval, or the sampled
+    /// series go stale between scrapes.
+    pub(crate) metrics_refresh_interval: Duration,
+
+    /// How recently an agent must have requested work to count towards the working fleet
+    /// (e.g. `15m`). Wants to be a few multiples of however often the deployment invokes its
+    /// agents, which the orchestrator cannot know.
+    pub(crate) agent_liveness_window: Duration,
+
+    /// How often expired in-flight leases are released (e.g. `30s`). Must not exceed the shortest
+    /// configured lease budget: every lease held past its deadline is a node excluded from
+    /// assignment.
+    pub(crate) lease_release_interval: Duration,
+
+    /// How often rows past their retention are deleted (e.g. `1h`). Deliberately independent of the
+    /// lease cadence, since deleting days-old rows is expensive and need happen only rarely.
+    pub(crate) retention_sweep_interval: Duration,
+
     /// How long a node's cached on-chain standing (balance + feegrant) stays valid before it is due
     /// to be re-queried, before jitter (e.g. `24h`).
     pub(crate) chain_capability_refresh_interval: Duration,
@@ -265,6 +286,33 @@ impl Config {
         Ok(client_config)
     }
 
+    pub(crate) fn telemetry_config(&self) -> TelemetryConfig {
+        TelemetryConfig {
+            refresh_interval: self.metrics_refresh_interval,
+            schedules: self.schedules(),
+            agent_liveness_window: self.agent_liveness_window,
+        }
+    }
+
+    pub(crate) fn eviction_config(&self) -> EvictionConfig {
+        EvictionConfig {
+            testrun_eviction_age: self.testrun_eviction_age,
+            aggregate_retention: self.aggregate_retention,
+            lease_release_interval: self.lease_release_interval,
+            retention_sweep_interval: self.retention_sweep_interval,
+        }
+    }
+
+    /// The shortest lease any enabled kind hands out, which is what a lease-release cadence has to
+    /// stay inside. Taken from the schedules rather than from the raw knobs, so a lease belonging
+    /// to a kind that is switched off does not constrain anything.
+    fn shortest_lease_budget(&self) -> Option<Duration> {
+        self.schedules()
+            .iter()
+            .map(|schedule| schedule.lease_budget)
+            .min()
+    }
+
     pub(crate) fn chain_capability_config(&self) -> ChainCapabilityConfig {
         ChainCapabilityConfig {
             denom: self.minimum_on_chain_balance.denom.clone(),
@@ -291,6 +339,18 @@ impl Config {
                  raise --testrun-eviction-age or lower the aggregation windows",
                 humantime::format_duration(self.testrun_eviction_age),
                 humantime::format_duration(longest_window),
+            );
+        }
+
+        if let Some(shortest_lease) = self.shortest_lease_budget()
+            && self.lease_release_interval > shortest_lease
+        {
+            bail!(
+                "lease release interval ({}) must not exceed the shortest configured lease budget \
+                 ({}); every lease held past its deadline excludes its node from assignment, so \
+                 lower --lease-release-interval or raise the lease it is being measured against",
+                humantime::format_duration(self.lease_release_interval),
+                humantime::format_duration(shortest_lease),
             );
         }
 
@@ -343,6 +403,10 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         chain_authorisation_check_max_attempts: NonZeroU32::MIN,
         chain_authorisation_check_retry_delay: Duration::from_secs(1),
         result_submission_interval: Duration::from_secs(15 * 60),
+        metrics_refresh_interval: Duration::from_secs(15),
+        agent_liveness_window: Duration::from_secs(15 * 60),
+        lease_release_interval: Duration::from_secs(30),
+        retention_sweep_interval: Duration::from_secs(60 * 60),
         result_submission_batch_size: 50,
         chain_capability_refresh_interval: Duration::from_secs(24 * 60 * 60),
         chain_capability_refresh_jitter: Duration::from_secs(60 * 60),

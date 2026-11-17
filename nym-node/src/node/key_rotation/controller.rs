@@ -117,6 +117,7 @@ enum KeyRotationActionState {
 }
 
 impl KeyRotationController {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: &Config,
         rotation_config: RotationConfig,

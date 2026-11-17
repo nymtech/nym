@@ -191,6 +191,14 @@ pub(crate) struct NyxArgs {
     )]
     pub(crate) nyxd_urls: Option<Vec<Url>>,
 
+    /// Addresses to nyxd chain endpoint tried, in order, only once every one of `nyxd_urls` has failed.
+    #[clap(
+        long,
+        value_delimiter = ',',
+        env = NYMNODE_NYXD_FALLBACK_URLS_ARG
+    )]
+    pub(crate) nyxd_fallback_urls: Option<Vec<Url>>,
+
     #[clap(
         long,
         env = NYMNODE_NYXD_WEBSOCKET_URL_ARG
@@ -209,6 +217,10 @@ impl NyxArgs {
     pub(crate) fn override_config_section(self, mut section: config::Nyx) -> config::Nyx {
         if let Some(nyxd_urls) = self.nyxd_urls {
             section.nyxd_urls = nyxd_urls
+        }
+
+        if let Some(nyxd_fallback_urls) = self.nyxd_fallback_urls {
+            section.nyxd_fallback_urls = nyxd_fallback_urls
         }
 
         if let Some(websocket) = self.nyxd_websocket_url {

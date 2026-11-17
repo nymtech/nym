@@ -6,6 +6,7 @@ use crate::config::gateway_tasks::{
     ClientBandwidthDebug, StaleMessageDebug, UpgradeModeWatcher, UpgradeModeWatcherDebug,
     ZkNymTicketHandlerDebug,
 };
+use crate::config::old_configs::old_config_v15::ConfigV15;
 use crate::config::persistence::{
     AuthenticatorPaths, GatewayTasksPaths, IpPacketRouterPaths, KeysPaths, NetworkRequesterPaths,
     NymNodePaths, ReplayProtectionPaths, ServiceProvidersPaths, WireguardPaths,
@@ -14,8 +15,8 @@ use crate::config::service_providers::{
     IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
 };
 use crate::config::{
-    Config, Debug, DirectoryConfig, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug,
-    LpConfig, LpDebug, MetricsConfig, Mixnet, MixnetDebug, NodeModes, Nyx, ReplayProtection,
+    Debug, DirectoryConfig, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug,
+    LpConfig, LpDebug, MetricsConfig, Mixnet, MixnetDebug, NodeModes, ReplayProtection,
     ReplayProtectionDebug, ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, gateway_tasks,
     metrics, service_providers,
 };
@@ -332,7 +333,7 @@ impl ConfigV14 {
 pub async fn try_upgrade_config_v14<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV14>,
-) -> Result<Config, NymNodeError> {
+) -> Result<ConfigV15, NymNodeError> {
     debug!("attempting to load v14 config...");
 
     let old_cfg = if let Some(prev_config) = prev_config {
@@ -343,7 +344,7 @@ pub async fn try_upgrade_config_v14<P: AsRef<Path>>(
 
     info!("migrating the old config (v14)...");
 
-    let cfg = Config {
+    let cfg = ConfigV15 {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
         modes: NodeModes {
@@ -475,10 +476,7 @@ pub async fn try_upgrade_config_v14<P: AsRef<Path>>(
             cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
             // /\ MOVED
         },
-        nyx: Nyx {
-            nyxd_websocket_url: old_cfg.nyx.nyxd_websocket_url,
-            nyxd_urls: old_cfg.nyx.nyxd_urls,
-        },
+        nyx: old_cfg.nyx,
         http: Http {
             bind_address: old_cfg.http.bind_address,
             landing_page_assets_path: old_cfg.http.landing_page_assets_path,

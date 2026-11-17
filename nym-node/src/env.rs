@@ -43,6 +43,7 @@ pub mod vars {
 
     // nyxd:
     pub const NYMNODE_NYXD_URLS_ARG: &str = "NYMNODE_NYXD";
+    pub const NYMNODE_NYXD_FALLBACK_URLS_ARG: &str = "NYMNODE_NYXD_FALLBACK";
     pub const NYMNODE_NYXD_WEBSOCKET_URL_ARG: &str = "NYMNODE_NYXD_WEBSOCKET";
 
     // wireguard:

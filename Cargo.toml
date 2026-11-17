@@ -195,6 +195,7 @@ members = [
     "common/nym-contract-anchor",
     "common/nym-contract-attestation",
     "common/nym-geolocation-client",
+    "common/nym-performance-client",
     "tools/internal/nyx-checkpoint-updater",
     "common/nym-directory-types",
 ]
@@ -534,6 +535,7 @@ nym-registration-client = { version = "2.0.1", path = "nym-registration-client" 
 nym-registration-common = { version = "2.0.1", path = "common/registration" }
 nym-sdk-session = { version = "2.0.1", path = "sdk/rust/nym-sdk-session" }
 nym-pemstore = { version = "2.0.1", path = "common/pemstore" }
+nym-performance-client = { version = "2.0.1", path = "common/nym-performance-client" }
 nym-performance-contract-common = { version = "2.0.1", path = "common/cosmwasm-smart-contracts/nym-performance-contract" }
 nym-sdk = { version = "2.0.1", path = "sdk/rust/nym-sdk" }
 nym-serde-helpers = { version = "2.0.1", path = "common/serde-helpers" }

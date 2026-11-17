@@ -1107,7 +1107,9 @@ mod tests {
         use crate::testing::{init_contract_tester, measured_by, GeolocationContractTesterExt};
         use nym_contracts_common_testing::{ArbitraryContractStorageReader, ChainOpts};
         use nym_geolocation_contract_common::constants::{storage_keys, PAYLOAD_VERSION_1};
-        use nym_geolocation_contract_common::{GeolocationRecord, LocationPayload, QueryMsg};
+        use nym_geolocation_contract_common::{
+            DigestLeaf, GeolocationRecord, LocationPayload, QueryMsg,
+        };
         use nym_lthash::{LtHash16, DIGEST_LEN};
 
         /// A payload version this contract has never been taught to read. It stores and commits

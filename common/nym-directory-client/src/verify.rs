@@ -1,11 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! The trust-anchor-independent verification core: recompute the directory digest
-//! locally from the retrieved entries and check it against a trusted digest, then
-//! attribute each node entry to its signing node.
+//! The directory's verified result: built from a record set that has passed the shared
+//! whole-set checks ([`VerifiedRecords`], from any of the read paths in
+//! `nym_contract_anchor::whole_set`), attributing each node entry to its signing node.
 
-use crate::error::DirectoryClientError;
+use nym_contract_anchor::whole_set::VerifiedRecords;
 use nym_contract_attestation::node_identities_hash;
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{
@@ -104,15 +104,65 @@ impl VerifiedDirectoryWithIdentities {
     }
 }
 
-/// Recompute the LtHash accumulator over a set of records using the contract's
-/// canonical [`DirectoryEntryRecord::digest_leaf`] encoding. Order-independent (LtHash
-/// is a multiset commitment), so pagination order does not matter.
-pub fn recompute_accumulator(records: &[DirectoryEntryRecord]) -> LtHash16 {
-    let mut acc = LtHash16::new();
-    for record in records {
-        acc.add(&record.digest_leaf());
+impl VerifiedDirectory {
+    /// Groups `records` that have already passed the digest check, attributing each node
+    /// entry to its signing node under `node_identities`.
+    pub(crate) fn from_verified_records(
+        height: Height,
+        accumulator: LtHash16,
+        records: Vec<DirectoryEntryRecord>,
+        node_identities: &BTreeMap<NodeId, ed25519::PublicKey>,
+    ) -> Self {
+        let mut curated_entries = BTreeMap::new();
+        let mut node_entries = BTreeMap::new();
+
+        for record in records {
+            match record {
+                DirectoryEntryRecord::Curated { key, entry } => {
+                    curated_entries.insert(key, entry.data.into());
+                }
+                DirectoryEntryRecord::Node {
+                    node_id,
+                    label,
+                    entry: node_entry,
+                } => {
+                    // verify the node signature on the submitted data
+                    let verified = match node_identities.get(&node_id) {
+                        Some(identity) => {
+                            node_signature_verifies(node_id, &label, &node_entry, identity)
+                        }
+                        None => false,
+                    };
+                    let entry = node_entries
+                        .entry(node_id)
+                        .or_insert(DirectoryNode::new(verified));
+                    entry.verified &= verified;
+
+                    let data = DirectoryNodeEntry::from(node_entry);
+
+                    if let Ok(known) = KnownLabel::from_str(&label) {
+                        entry.known_labels.insert(known, data);
+                    } else {
+                        entry.unknown_labels.insert(label, data);
+                    }
+                }
+            }
+        }
+
+        // insert empty records for nodes that did not submit any data
+        for node_id in node_identities.keys() {
+            if !node_entries.contains_key(node_id) {
+                node_entries.insert(*node_id, DirectoryNode::new(false));
+            }
+        }
+
+        VerifiedDirectory {
+            height,
+            accumulator,
+            curated_entries,
+            node_entries,
+        }
     }
-    acc
 }
 
 /// Whether `entry`'s stored ed25519 signature verifies as node-authored: the signature
@@ -130,116 +180,45 @@ pub(crate) fn node_signature_verifies(
     identity.verify(payload, &signature).is_ok()
 }
 
-/// Recompute the digest from pre-fetched `records` and check it against
-/// `trusted_accumulator`, then attribute each node entry to its signing node -
-/// needs no chain RPC connection at all, so `records`/`node_identities` can be sourced
-/// from anywhere as long as `trusted_accumulator` (and, if checked,
-/// `trusted_node_identities_hash`) came from a trust anchor. Fails closed
-/// (`DigestMismatch`) on either recompute mismatching its trusted counterpart.
-///
-/// `trusted_node_identities_hash: None` skips the node-identity check entirely - used
-/// by `DirectoryClient::verified_directory`'s RPC-backed path, which authenticates
-/// node identities via a live (though unproven) chain query instead, unchanged from
-/// before this function existed. A caller with no chain connection at all should use
-/// [`verify_directory_offline`], which requires the hash rather than silently skipping
-/// the check.
-pub fn verify_directory(
-    height: Height,
-    records: Vec<DirectoryEntryRecord>,
-    node_identities: &BTreeMap<NodeId, ed25519::PublicKey>,
-    trusted_accumulator: &LtHash16,
-    trusted_node_identities_hash: Option<[u8; 32]>,
-) -> Result<VerifiedDirectory, DirectoryClientError> {
-    if recompute_accumulator(&records) != *trusted_accumulator {
-        return Err(DirectoryClientError::DigestMismatch);
+impl From<VerifiedRecords<DirectoryEntryRecord>> for VerifiedDirectory {
+    fn from(verified: VerifiedRecords<DirectoryEntryRecord>) -> Self {
+        VerifiedDirectory::from_verified_records(
+            verified.height,
+            verified.accumulator,
+            verified.records,
+            &verified.node_identities,
+        )
     }
-
-    if let Some(trusted_hash) = trusted_node_identities_hash {
-        if node_identities_hash(node_identities) != trusted_hash {
-            return Err(DirectoryClientError::DigestMismatch);
-        }
-    }
-
-    let mut curated_entries = BTreeMap::new();
-    let mut node_entries = BTreeMap::new();
-
-    for record in records {
-        match record {
-            DirectoryEntryRecord::Curated { key, entry } => {
-                curated_entries.insert(key, entry.data.into());
-            }
-            DirectoryEntryRecord::Node {
-                node_id,
-                label,
-                entry: node_entry,
-            } => {
-                // verify the node signature on the submitted data
-                let verified = match node_identities.get(&node_id) {
-                    Some(identity) => {
-                        node_signature_verifies(node_id, &label, &node_entry, identity)
-                    }
-                    None => false,
-                };
-                let entry = node_entries
-                    .entry(node_id)
-                    .or_insert(DirectoryNode::new(verified));
-                entry.verified &= verified;
-
-                let data = DirectoryNodeEntry::from(node_entry);
-
-                if let Ok(known) = KnownLabel::from_str(&label) {
-                    entry.known_labels.insert(known, data);
-                } else {
-                    entry.unknown_labels.insert(label, data);
-                }
-            }
-        }
-    }
-
-    // insert empty records for nodes that did not submit any data
-    for node_id in node_identities.keys() {
-        if !node_entries.contains_key(node_id) {
-            node_entries.insert(*node_id, DirectoryNode::new(false));
-        }
-    }
-
-    Ok(VerifiedDirectory {
-        height,
-        accumulator: trusted_accumulator.clone(),
-        curated_entries,
-        node_entries,
-    })
 }
 
-/// [`verify_directory`], but requiring a trusted node-identities hash rather than
-/// silently skipping authorship verification when none is given - the entry point for
-/// callers with no chain RPC connection at all, verifying against an anchor that can
-/// supply one (today, only `AttestedTrustAnchor`, via its `trusted_node_identities_hash`).
-pub fn verify_directory_offline(
-    height: Height,
-    records: Vec<DirectoryEntryRecord>,
-    node_identities: &BTreeMap<NodeId, ed25519::PublicKey>,
-    trusted_accumulator: &LtHash16,
-    trusted_node_identities_hash: Option<[u8; 32]>,
-) -> Result<VerifiedDirectory, DirectoryClientError> {
-    let trusted_hash =
-        trusted_node_identities_hash.ok_or(DirectoryClientError::NodeIdentitiesHashUnavailable)?;
-    verify_directory(
-        height,
-        records,
-        node_identities,
-        trusted_accumulator,
-        Some(trusted_hash),
-    )
+impl From<VerifiedRecords<DirectoryEntryRecord>> for VerifiedDirectoryWithIdentities {
+    fn from(verified: VerifiedRecords<DirectoryEntryRecord>) -> Self {
+        VerifiedDirectoryWithIdentities {
+            directory: VerifiedDirectory::from_verified_records(
+                verified.height,
+                verified.accumulator,
+                verified.records.clone(),
+                &verified.node_identities,
+            ),
+            node_identities: verified.node_identities,
+            records: verified.records,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_contract_attestation::node_identities_hash;
+    use crate::anchor::attested::AttestedTrustAnchor;
+    use nym_contract_anchor::whole_set::{recompute_accumulator, verify_offline};
+    use nym_contract_attestation::source::mock::{
+        MockAttestationSource, mock_app_hash, mock_chain_id, mock_contract,
+    };
+    use nym_contract_attestation::{DigestSnapshot, DirectorySnapshotData};
     use nym_crypto::asymmetric::ed25519::KeyPair;
     use nym_directory_contract_common::CuratedEntry;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
+    use std::collections::HashMap;
 
     fn signed_node_record(
         kp: &KeyPair,
@@ -269,27 +248,6 @@ mod tests {
                 data: data.to_vec().into(),
             },
         )
-    }
-
-    #[test]
-    fn recompute_matches_the_incremental_digest_and_is_order_independent() {
-        let kp = dummy_ed25519_keypair(1);
-        let a = signed_node_record(&kp, 1, "sphinx_key", b"a");
-        let b = signed_node_record(&kp, 2, "sphinx_key", b"b");
-        let c = curated_record("nym-api/1", b"c");
-
-        // an independent, incremental accumulator over the same leaves
-        let mut expected = LtHash16::new();
-        for r in [&a, &b, &c] {
-            expected.add(&r.digest_leaf());
-        }
-
-        assert_eq!(
-            recompute_accumulator(&[a.clone(), b.clone(), c.clone()]),
-            expected
-        );
-        // multiset commitment: a different page order yields the same accumulator
-        assert_eq!(recompute_accumulator(&[c, b, a]), expected);
     }
 
     #[test]
@@ -355,162 +313,91 @@ mod tests {
         ));
     }
 
-    fn sample_directory() -> (
-        Vec<DirectoryEntryRecord>,
-        BTreeMap<NodeId, ed25519::PublicKey>,
-        LtHash16,
-        [u8; 32],
-    ) {
+    /// Two signed node entries and a curated one: the snapshot committing them at height 100,
+    /// and the data a source serves with it.
+    fn sample_directory() -> (DigestSnapshot, DirectorySnapshotData) {
         let a = dummy_ed25519_keypair(1);
         let b = dummy_ed25519_keypair(2);
+        let height = Height::from(100u32);
         let records = vec![
             signed_node_record(&a, 1, "sphinx_key", b"a"),
             signed_node_record(&b, 2, "sphinx_key", b"b"),
             curated_record("nym-api/1", b"c"),
         ];
-        let accumulator = recompute_accumulator(&records);
         let node_identities = BTreeMap::from([(1, *a.public_key()), (2, *b.public_key())]);
-        let pairs: BTreeMap<_, _> = node_identities
-            .iter()
-            .map(|(id, key)| (*id, *key))
-            .collect();
-        let identities_hash = node_identities_hash(&pairs);
-        (records, node_identities, accumulator, identities_hash)
+
+        let snapshot = DigestSnapshot {
+            chain_id: mock_chain_id(),
+            contract: mock_contract(0),
+            height,
+            app_hash: mock_app_hash(1),
+            accumulator: recompute_accumulator(&records),
+            node_identities_hash: node_identities_hash(&node_identities),
+        };
+        let data = DirectorySnapshotData {
+            height,
+            records,
+            node_identities,
+        };
+        (snapshot, data)
     }
 
     #[test]
-    fn verify_directory_succeeds_and_attributes_authorship() {
-        let (records, node_identities, accumulator, identities_hash) = sample_directory();
-        let height = Height::from(100u32);
+    fn the_verified_directory_groups_entries_and_attributes_authorship() {
+        let (snapshot, data) = sample_directory();
 
-        let verified = verify_directory(
-            height,
-            records,
-            &node_identities,
-            &accumulator,
-            Some(identities_hash),
-        )
-        .unwrap();
+        let verified = VerifiedDirectory::from(verify_offline(&snapshot, data).unwrap());
 
-        assert_eq!(verified.height, height);
-        assert_eq!(verified.accumulator, accumulator);
+        assert_eq!(verified.height, snapshot.height);
+        assert_eq!(verified.accumulator, snapshot.accumulator);
         assert_eq!(verified.curated_entries.len(), 1);
         assert_eq!(verified.node_entries.len(), 2);
         assert!(verified.node_entries.values().all(|n| n.verified));
     }
 
+    /// A producer re-serves the raw records and signs the identity hash, so both must survive
+    /// the build unchanged.
     #[test]
-    fn verify_directory_skips_the_node_identity_check_when_hash_is_none() {
-        let (records, node_identities, accumulator, _) = sample_directory();
+    fn the_directory_with_identities_keeps_the_raw_records_and_identities() {
+        let (snapshot, data) = sample_directory();
+        let records = data.records.clone();
 
-        // a wrong hash would be ignored entirely - `None` means "do not check"
-        assert!(
-            verify_directory(
-                Height::from(100u32),
-                records,
-                &node_identities,
-                &accumulator,
-                None,
-            )
-            .is_ok()
+        let verified =
+            VerifiedDirectoryWithIdentities::from(verify_offline(&snapshot, data).unwrap());
+
+        assert_eq!(verified.records, records);
+        assert_eq!(
+            verified.node_identities_digest(),
+            snapshot.node_identities_hash
         );
+        assert_eq!(verified.directory.node_entries.len(), 2);
     }
 
-    #[test]
-    fn verify_directory_fails_closed_on_accumulator_mismatch() {
-        let (records, node_identities, _, identities_hash) = sample_directory();
-        let wrong_accumulator = LtHash16::new();
+    #[tokio::test]
+    async fn the_attested_read_builds_the_same_directory() {
+        let (snapshot, data) = sample_directory();
+        let signers = [dummy_ed25519_keypair(10), dummy_ed25519_keypair(11)];
 
-        let err = verify_directory(
-            Height::from(100u32),
-            records,
-            &node_identities,
-            &wrong_accumulator,
-            Some(identities_hash),
-        )
-        .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
-    }
+        let sources = signers
+            .iter()
+            .map(|kp| {
+                let signed = snapshot.clone().signed(kp);
+                MockAttestationSource::new(
+                    *kp.public_key(),
+                    signed.clone(),
+                    HashMap::from([(snapshot.height, signed)]),
+                )
+                .with_snapshot_data(snapshot.height, data.clone())
+            })
+            .collect();
+        let trusted = signers.iter().map(|kp| *kp.public_key()).collect();
+        let anchor =
+            AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                .unwrap();
 
-    #[test]
-    fn verify_directory_fails_closed_on_node_identities_hash_mismatch() {
-        let (records, node_identities, accumulator, _) = sample_directory();
-        let wrong_hash = [0xffu8; 32];
-
-        let err = verify_directory(
-            Height::from(100u32),
-            records,
-            &node_identities,
-            &accumulator,
-            Some(wrong_hash),
-        )
-        .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
-    }
-
-    #[test]
-    fn verify_directory_offline_requires_a_node_identities_hash() {
-        let (records, node_identities, accumulator, _) = sample_directory();
-
-        let err = verify_directory_offline(
-            Height::from(100u32),
-            records,
-            &node_identities,
-            &accumulator,
-            None,
-        )
-        .unwrap_err();
-        assert!(matches!(
-            err,
-            DirectoryClientError::NodeIdentitiesHashUnavailable
-        ));
-    }
-
-    #[test]
-    fn verify_directory_offline_succeeds_with_a_matching_hash() {
-        let (records, node_identities, accumulator, identities_hash) = sample_directory();
-
-        assert!(
-            verify_directory_offline(
-                Height::from(100u32),
-                records,
-                &node_identities,
-                &accumulator,
-                Some(identities_hash),
-            )
-            .is_ok()
-        );
-    }
-
-    #[test]
-    fn verify_directory_offline_fails_closed_on_accumulator_mismatch() {
-        let (records, node_identities, _, identities_hash) = sample_directory();
-        let wrong_accumulator = LtHash16::new();
-
-        let err = verify_directory_offline(
-            Height::from(100u32),
-            records,
-            &node_identities,
-            &wrong_accumulator,
-            Some(identities_hash),
-        )
-        .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
-    }
-
-    #[test]
-    fn verify_directory_offline_fails_closed_on_node_identities_hash_mismatch() {
-        let (records, node_identities, accumulator, _) = sample_directory();
-        let wrong_hash = [0xffu8; 32];
-
-        let err = verify_directory_offline(
-            Height::from(100u32),
-            records,
-            &node_identities,
-            &accumulator,
-            Some(wrong_hash),
-        )
-        .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
+        let attested =
+            VerifiedDirectory::from(anchor.verified_records(snapshot.height).await.unwrap());
+        let offline = VerifiedDirectory::from(verify_offline(&snapshot, data).unwrap());
+        assert_eq!(attested, offline);
     }
 }

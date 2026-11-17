@@ -16,7 +16,7 @@ use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::contract_traits::PinnedMixnetQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NodeId;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use tracing::error;
 
 /// A contract's whole record set at `height`, checked against the values a trust anchor
@@ -103,6 +103,12 @@ pub fn verify_records<R: DigestLeaf>(
     records: &[R],
     trusted: &LtHash16,
 ) -> Result<(), VerificationError> {
+    // the committed set holds every record once, so a repeated one cannot belong to it
+    let distinct: HashSet<Vec<u8>> = records.iter().map(DigestLeaf::digest_leaf).collect();
+    if distinct.len() != records.len() {
+        return Err(VerificationError::DuplicateRecord);
+    }
+
     if recompute_accumulator(records) != *trusted {
         return Err(VerificationError::DigestMismatch);
     }
@@ -144,7 +150,9 @@ where
 
     let mut identities = BTreeMap::new();
     for bond in bonds {
-        let Ok(identity) = bond.identity().parse() else {
+        if let Ok(identity) = bond.identity().parse() {
+            identities.insert(bond.node_id, identity);
+        } else {
             // should be impossible: the mixnet contract verified signatures under this
             // key when the node bonded
             error!(
@@ -152,9 +160,7 @@ where
                 bond.node_id,
                 bond.identity()
             );
-            continue;
-        };
-        identities.insert(bond.node_id, identity);
+        }
     }
 
     Ok(identities)
@@ -207,6 +213,15 @@ mod tests {
 
         let err = verify_records(&records, &trusted_accumulator()).unwrap_err();
         assert!(matches!(err, VerificationError::DigestMismatch));
+    }
+
+    #[test]
+    fn a_repeated_record_fails() {
+        let mut records = test_records();
+        records.push(records[0].clone());
+
+        let err = verify_records(&records, &trusted_accumulator()).unwrap_err();
+        assert!(matches!(err, VerificationError::DuplicateRecord));
     }
 
     #[test]

@@ -37,7 +37,7 @@ pub(crate) struct KnownAgents {
 
 impl KnownAgents {
     /// Looks up the agent making a request by the address pair it announced, and records that it
-    /// was heard from. Returns `None` if nothing is registered under its IPv4 address, or if the
+    /// requested work. Returns `None` if nothing is registered under its IPv4 address, or if the
     /// registered entry belongs to a different IPv6 address, i.e. this is not the agent we
     /// authorised, in which case nothing is recorded.
     ///
@@ -54,16 +54,16 @@ impl KnownAgents {
             return None;
         }
 
-        agent.last_active_at = OffsetDateTime::now_utc();
+        agent.last_work_request_at = Some(OffsetDateTime::now_utc());
         Some(*agent)
     }
 
-    /// How many agents have been heard from within `window`.
+    /// How many agents have requested work within `window`.
     ///
     /// Counted rather than derived from the cache size: the cache is seeded from every agent ever
     /// authorised and is never pruned, so its size is addresses ever seen rather than agents
     /// currently working. An agent that restarted on a new address leaves a second entry behind,
-    /// which falls out of this count as soon as it stops being heard from.
+    /// which falls out of this count as soon as it stops requesting work.
     pub(crate) async fn seen_within(&self, window: Duration) -> i64 {
         let cutoff = OffsetDateTime::now_utc() - window;
         let guard = self.inner.lock().await;
@@ -71,7 +71,7 @@ impl KnownAgents {
         guard
             .agents
             .values()
-            .filter(|agent| agent.last_active_at >= cutoff)
+            .filter(|agent| agent.last_work_request_at.is_some_and(|at| at >= cutoff))
             .count() as i64
     }
 
@@ -94,7 +94,6 @@ impl KnownAgents {
         match guard.agents.entry(addresses.v4) {
             Entry::Occupied(mut entry) => {
                 let agent = entry.get_mut();
-                agent.last_active_at = OffsetDateTime::now_utc();
 
                 let details_diverged = agent.noise_key != noise_key || agent.mix_v6 != addresses.v6;
                 let identity_diverged = agent.ed25519_identity != ed25519_identity;
@@ -142,7 +141,7 @@ impl KnownAgents {
             Entry::Vacant(entry) => {
                 entry.insert(KnownAgent {
                     mix_v6: addresses.v6,
-                    last_active_at: OffsetDateTime::now_utc(),
+                    last_work_request_at: None,
                     noise_key,
                     ed25519_identity,
                     announced: false,
@@ -229,9 +228,7 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
                 v4_entry.mixnet_address,
                 KnownAgent {
                     mix_v6: v6_entry.mixnet_address,
-                    // the on-chain authorisation timestamp says nothing about liveness,
-                    // so treat a restored entry as freshly active
-                    last_active_at: OffsetDateTime::now_utc(),
+                    last_work_request_at: None,
                     noise_key,
                     ed25519_identity,
                     announced: true,
@@ -259,9 +256,9 @@ pub(crate) struct KnownAgent {
     /// The IPv6 mixnet address announced alongside the IPv4 address this entry is keyed by.
     pub(crate) mix_v6: SocketAddr,
 
-    /// When this agent was last heard from, by announcing itself or by requesting work. What
-    /// `agents_seen_recently` counts against its window.
-    pub(crate) last_active_at: OffsetDateTime,
+    /// When this agent last requested work, `None` until it does. What `agents_seen_recently`
+    /// counts against its window.
+    pub(crate) last_work_request_at: Option<OffsetDateTime>,
     pub(crate) noise_key: x25519::PublicKey,
 
     /// The ed25519 identity this agent presents when opening a gateway client session.
@@ -810,12 +807,16 @@ fn epoch_records(
 
 #[cfg(test)]
 impl KnownAgents {
-    /// Backdates when the agent at `addresses` was last heard from, standing in for one that has
+    /// Backdates when the agent at `addresses` last requested work, standing in for one that has
     /// gone quiet.
-    pub(crate) async fn backdate_last_active(&self, addresses: AgentMixAddresses, ago: Duration) {
+    pub(crate) async fn backdate_last_work_request(
+        &self,
+        addresses: AgentMixAddresses,
+        ago: Duration,
+    ) {
         let mut guard = self.inner.lock().await;
         if let Some(agent) = guard.agents.get_mut(&addresses.v4) {
-            agent.last_active_at = OffsetDateTime::now_utc() - ago;
+            agent.last_work_request_at = Some(OffsetDateTime::now_utc() - ago);
         }
     }
 }
@@ -922,7 +923,7 @@ mod tests {
     // its old entry behind, and that entry must stop being counted rather than inflating the fleet
     // with every restart.
     #[tokio::test]
-    async fn only_agents_heard_from_within_the_window_are_counted() {
+    async fn only_agents_that_requested_work_within_the_window_are_counted() {
         let agents = KnownAgents::default();
         let abandoned = addresses(1789);
         let current = addresses(1790);
@@ -933,16 +934,35 @@ mod tests {
         agents
             .try_announce_agent(current, noise_key(2), identity(2))
             .await;
+
+        // announcing is not asking for work
+        assert_eq!(0, agents.seen_within(Duration::from_secs(60 * 60)).await);
+
+        agents.resolve_requesting_agent(abandoned).await.unwrap();
+        agents.resolve_requesting_agent(current).await.unwrap();
         agents
-            .backdate_last_active(abandoned, Duration::from_secs(30 * 60))
+            .backdate_last_work_request(abandoned, Duration::from_secs(30 * 60))
             .await;
 
         assert_eq!(2, agents.seen_within(Duration::from_secs(60 * 60)).await);
         assert_eq!(1, agents.seen_within(Duration::from_secs(15 * 60)).await);
+    }
 
-        // asking for work is what keeps an agent in the count
-        agents.resolve_requesting_agent(current).await.unwrap();
-        assert_eq!(1, agents.seen_within(Duration::from_secs(15 * 60)).await);
+    // a restart restores every agent ever authorised, so counting them before they ask for work
+    // would inflate the fleet for a whole window and then read as a loss
+    #[tokio::test]
+    async fn restored_agents_are_not_counted_until_they_request_work() {
+        let agent = addresses(1789);
+        let restored = KnownAgents::try_from(vec![
+            authorisation(agent.v4, noise_key(1), Some(identity(1))),
+            authorisation(agent.v6, noise_key(1), Some(identity(1))),
+        ])
+        .unwrap();
+
+        assert_eq!(0, restored.seen_within(Duration::from_secs(60 * 60)).await);
+
+        restored.resolve_requesting_agent(agent).await.unwrap();
+        assert_eq!(1, restored.seen_within(Duration::from_secs(60 * 60)).await);
     }
 
     // the entry belongs to the announced pair, not to the ipv4 address alone

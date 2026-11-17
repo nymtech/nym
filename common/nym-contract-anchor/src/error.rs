@@ -141,6 +141,10 @@ pub enum VerificationError {
     #[error("the recomputed digest does not match the trusted one")]
     DigestMismatch,
 
+    /// The served data repeats a record, which the committed set never does.
+    #[error("the served records repeat a record")]
+    DuplicateRecord,
+
     /// The served node-identity map does not hash to the trusted `node_identities_hash`.
     #[error("the served node-identity map does not hash to the trusted value")]
     NodeIdentitiesMismatch,

@@ -155,13 +155,15 @@ impl NymPerformanceContractStorage {
         epoch_id: EpochId,
         data: NodeSubmission,
     ) -> Result<(), NymPerformanceContractError> {
+        let node_id = data.node_id;
         let result =
             self.batch_submit_performance_results(deps, env, sender, epoch_id, vec![data])?;
 
         // the error reverts the transaction, so nothing the batch wrote persists
-        match result.non_existent_nodes.first() {
-            Some(&node_id) => Err(NymPerformanceContractError::NodeNotBonded { node_id }),
-            None => Ok(()),
+        if result.non_existent_nodes.is_empty() {
+            Ok(())
+        } else {
+            Err(NymPerformanceContractError::NodeNotBonded { node_id })
         }
     }
 

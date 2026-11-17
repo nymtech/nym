@@ -517,7 +517,7 @@ impl NetworkMonitorStorage {
         mixnet_epoch: EpochId,
     ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
         self.storage_manager
-            .get_mixnet_epoch_aggregates(i64::from(mixnet_epoch))
+            .get_mixnet_epoch_aggregates(mixnet_epoch as i64)
             .await
     }
 
@@ -528,7 +528,7 @@ impl NetworkMonitorStorage {
         node_id: NodeId,
     ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
         self.storage_manager
-            .get_mixnet_epoch_aggregates_for_node(i64::from(mixnet_epoch), node_id as i64)
+            .get_mixnet_epoch_aggregates_for_node(mixnet_epoch as i64, node_id as i64)
             .await
     }
 
@@ -590,7 +590,7 @@ impl NetworkMonitorStorage {
         mixnet_epoch: EpochId,
     ) -> anyhow::Result<Vec<MixnetEpochConfigScore>> {
         self.storage_manager
-            .get_mixnet_epoch_config_scores(i64::from(mixnet_epoch))
+            .get_mixnet_epoch_config_scores(mixnet_epoch as i64)
             .await
     }
 
@@ -601,7 +601,7 @@ impl NetworkMonitorStorage {
         node_id: NodeId,
     ) -> anyhow::Result<Option<MixnetEpochConfigScore>> {
         self.storage_manager
-            .get_mixnet_epoch_config_score_for_node(i64::from(mixnet_epoch), node_id as i64)
+            .get_mixnet_epoch_config_score_for_node(mixnet_epoch as i64, node_id as i64)
             .await
     }
 

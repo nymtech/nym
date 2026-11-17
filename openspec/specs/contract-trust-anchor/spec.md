@@ -100,7 +100,7 @@ The crate SHALL own the error variants that belong to anchoring and proving: pro
 
 A contract's record type SHALL expose the leaf its contract folds into the accumulator through one `DigestLeaf` trait in `nym-contracts-common`, implemented in the record type's own common crate with that contract's frozen encoding. The anchor crate SHALL provide, generic over any `DigestLeaf` record type:
 - recomputing the accumulator over a record set;
-- checking a record set against a trusted accumulator;
+- checking a record set against a trusted accumulator, rejecting a set that repeats a record;
 - checking attested data (`SnapshotData`) against a trusted snapshot: its height label against the requested height, its node-identity map against the snapshot's `node_identities_hash`, then its records against the snapshot's accumulator;
 - reading the mixnet bond set at a height as the `NodeId -> ed25519` identity map, with every page pinned to that height.
 
@@ -117,6 +117,10 @@ Every contract client SHALL use these rather than its own copies. Each check SHA
 #### Scenario: A tampered record set fails closed
 - **WHEN** a record set has a record added, withheld or altered relative to the set the trusted accumulator commits
 - **THEN** the check returns a digest-mismatch error
+
+#### Scenario: A record set that repeats a record fails closed
+- **WHEN** a record set contains the same record more than once
+- **THEN** the check returns a duplicate-record error, since the committed set holds every record once
 
 #### Scenario: Attested data labelled with another height is rejected
 - **WHEN** attested data recomputes to the trusted values for height `H` but is labelled with another height

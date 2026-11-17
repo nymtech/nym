@@ -23,6 +23,7 @@ use crate::config::{self, Config};
 use crate::error::ClientCoreError;
 use futures::Stream;
 use nym_bandwidth_controller::BandwidthTicketProvider;
+use nym_client_core_gateways_storage::GenerationId;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_sphinx::addressing::clients::Recipient;
@@ -323,8 +324,6 @@ where
             self.derivation_material,
         )
         .await?;
-        let encryption_keys = client_keys.encryption_keypair();
-        let identity_keys = client_keys.identity_keypair();
 
         let (_, credential_store, _) = self.client_store.into_runtime_stores();
 
@@ -364,6 +363,11 @@ where
         .await?;
 
         let gateway = choose_gateway(&topology_accessor, self.gateway)?;
+
+        // no stored registration to keep a generation in, so the fixed one; see `GenerationId::LP`
+        let gateway_keys = client_keys.gateway_keys(gateway, Some(GenerationId::LP));
+        let encryption_keys = gateway_keys.encryption_keypair();
+        let identity_keys = gateway_keys.identity_keypair();
         let self_address = Recipient::new(
             *identity_keys.public_key(),
             *encryption_keys.public_key(),

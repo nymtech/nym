@@ -107,6 +107,7 @@ impl GatewayKeyDerivation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::client::key_manager::ClientKeys;
     use nym_test_utils::helpers::deterministic_rng;
 
     // fixed bytes rather than a seeded generator, so the inputs cannot move under the known answer
@@ -185,5 +186,29 @@ mod tests {
             *derivation.expand::<32>(IDENTITY_KEY_LABEL),
             *derivation.expand::<32>(DIFFIE_HELLMAN_KEY_LABEL)
         );
+    }
+
+    #[test]
+    fn a_generation_resolves_to_the_derived_keys_and_the_root_ack_key() {
+        let mut rng = deterministic_rng();
+        let root = ClientKeys::generate_new(&mut rng);
+        let generation_id = GenerationId::new_random(&mut rng);
+
+        let keys = root.gateway_keys(public_key(2), Some(generation_id));
+        let derivation = GatewayKeyDerivation::new(
+            root.identity_keypair().private_key(),
+            public_key(2),
+            generation_id,
+        );
+
+        assert_eq!(
+            keys.identity_keypair().public_key(),
+            derivation.identity_keypair().public_key()
+        );
+        assert_eq!(
+            keys.encryption_keypair().public_key(),
+            derivation.diffie_hellman_keypair().public_key()
+        );
+        assert!(Arc::ptr_eq(&keys.ack_key(), &root.ack_key()));
     }
 }

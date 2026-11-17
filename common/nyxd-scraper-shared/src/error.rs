@@ -28,6 +28,9 @@ pub enum ScraperError {
         source: Box<tendermint_rpc::Error>,
     },
 
+    #[error("no rpc endpoints were provided")]
+    NoRpcEndpoints,
+
     #[error("failed to establish rpc connection to {url}: {source}")]
     HttpConnectionFailure {
         url: String,

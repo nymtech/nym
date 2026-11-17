@@ -10,7 +10,6 @@ use crate::{Any, MessageRegistry, ParsedTransactionDetails, default_message_regi
 use futures::future::join;
 use std::collections::BTreeMap;
 use std::future::Future;
-use std::sync::Arc;
 use tendermint::Block;
 use tendermint::abci::types::ExecTxResult;
 use tendermint_rpc::endpoint::{block, block_results, validators};
@@ -71,26 +70,46 @@ impl Default for RetrievalConfig {
 }
 
 #[derive(Clone)]
-pub struct RpcClient {
+struct RpcEndpoint {
+    url: Url,
+
     // right now I don't care about anything nym specific, so a simple http client is sufficient,
     // once this is inadequate, we can switch to a NyxdClient
-    inner: Arc<HttpClient>,
+    client: HttpClient,
+}
+
+#[derive(Clone)]
+pub struct RpcClient {
+    /// In order of preference: a query moves on to the next endpoint only once the previous one
+    /// has failed it. Never empty.
+    endpoints: Vec<RpcEndpoint>,
 
     // kinda like very limited cosmos sdk codec
     pub(crate) message_registry: MessageRegistry,
 }
 
 impl RpcClient {
-    pub fn new(url: &Url) -> Result<Self, ScraperError> {
-        let http_client = HttpClient::new(url.as_str()).map_err(|source| {
-            ScraperError::HttpConnectionFailure {
-                url: url.to_string(),
-                source: Box::new(source),
-            }
-        })?;
+    pub fn new(urls: &[Url]) -> Result<Self, ScraperError> {
+        if urls.is_empty() {
+            return Err(ScraperError::NoRpcEndpoints);
+        }
+
+        let mut endpoints = Vec::with_capacity(urls.len());
+        for url in urls {
+            let client = HttpClient::new(url.as_str()).map_err(|source| {
+                ScraperError::HttpConnectionFailure {
+                    url: url.to_string(),
+                    source: Box::new(source),
+                }
+            })?;
+            endpoints.push(RpcEndpoint {
+                url: url.clone(),
+                client,
+            });
+        }
 
         Ok(RpcClient {
-            inner: Arc::new(http_client),
+            endpoints,
             message_registry: default_message_registry(),
         })
     }
@@ -200,13 +219,21 @@ impl RpcClient {
     ) -> Result<block::Response, ScraperError> {
         debug!("getting basic block details");
 
-        self.inner
-            .block(height)
-            .await
-            .map_err(|source| ScraperError::BlockQueryFailure {
-                height,
-                source: Box::new(source),
-            })
+        // always replaced, as there is at least one endpoint to fail the query
+        let mut failure = ScraperError::NoRpcEndpoints;
+        for endpoint in self.endpoints.iter() {
+            match endpoint.client.block(height).await {
+                Ok(block) => return Ok(block),
+                Err(source) => {
+                    debug!("{} failed the query: {source}", endpoint.url);
+                    failure = ScraperError::BlockQueryFailure {
+                        height,
+                        source: Box::new(source),
+                    }
+                }
+            }
+        }
+        Err(failure)
     }
 
     #[instrument(skip(self))]
@@ -216,12 +243,20 @@ impl RpcClient {
     ) -> Result<block_results::Response, ScraperError> {
         debug!("getting block results");
 
-        self.inner.block_results(height).await.map_err(|source| {
-            ScraperError::BlockResultsQueryFailure {
-                height,
-                source: Box::new(source),
+        let mut failure = ScraperError::NoRpcEndpoints;
+        for endpoint in self.endpoints.iter() {
+            match endpoint.client.block_results(height).await {
+                Ok(results) => return Ok(results),
+                Err(source) => {
+                    debug!("{} failed the query: {source}", endpoint.url);
+                    failure = ScraperError::BlockResultsQueryFailure {
+                        height,
+                        source: Box::new(source),
+                    }
+                }
             }
-        })
+        }
+        Err(failure)
     }
 
     #[instrument(skip(self))]
@@ -250,27 +285,37 @@ impl RpcClient {
     pub(crate) async fn current_block_height(&self) -> Result<u64, ScraperError> {
         debug!("getting current block height");
 
-        let info =
-            self.inner
-                .abci_info()
-                .await
-                .map_err(|source| ScraperError::AbciInfoQueryFailure {
-                    source: Box::new(source),
-                })?;
-        Ok(info.last_block_height.value())
+        let mut failure = ScraperError::NoRpcEndpoints;
+        for endpoint in self.endpoints.iter() {
+            match endpoint.client.abci_info().await {
+                Ok(info) => return Ok(info.last_block_height.value()),
+                Err(source) => {
+                    debug!("{} failed the query: {source}", endpoint.url);
+                    failure = ScraperError::AbciInfoQueryFailure {
+                        source: Box::new(source),
+                    }
+                }
+            }
+        }
+        Err(failure)
     }
 
     pub(crate) async fn earliest_available_block_height(&self) -> Result<u64, ScraperError> {
         debug!("getting earliest available block height");
 
-        let status =
-            self.inner
-                .status()
-                .await
-                .map_err(|source| ScraperError::AbciInfoQueryFailure {
-                    source: Box::new(source),
-                })?;
-        Ok(status.sync_info.earliest_block_height.value())
+        let mut failure = ScraperError::NoRpcEndpoints;
+        for endpoint in self.endpoints.iter() {
+            match endpoint.client.status().await {
+                Ok(status) => return Ok(status.sync_info.earliest_block_height.value()),
+                Err(source) => {
+                    debug!("{} failed the query: {source}", endpoint.url);
+                    failure = ScraperError::AbciInfoQueryFailure {
+                        source: Box::new(source),
+                    }
+                }
+            }
+        }
+        Err(failure)
     }
 
     #[instrument(skip(self))]
@@ -280,13 +325,20 @@ impl RpcClient {
     ) -> Result<validators::Response, ScraperError> {
         debug!("getting validators set");
 
-        self.inner
-            .validators(height, Paging::All)
-            .await
-            .map_err(|source| ScraperError::ValidatorsQueryFailure {
-                height,
-                source: Box::new(source),
-            })
+        let mut failure = ScraperError::NoRpcEndpoints;
+        for endpoint in self.endpoints.iter() {
+            match endpoint.client.validators(height, Paging::All).await {
+                Ok(validators) => return Ok(validators),
+                Err(source) => {
+                    debug!("{} failed the query: {source}", endpoint.url);
+                    failure = ScraperError::ValidatorsQueryFailure {
+                        height,
+                        source: Box::new(source),
+                    }
+                }
+            }
+        }
+        Err(failure)
     }
 
     #[instrument(skip(self))]
@@ -330,7 +382,17 @@ mod tests {
     // nothing listens on this port, so a call that attempts any rpc query fails
     fn client_without_a_node() -> RpcClient {
         let url = "http://127.0.0.1:1".parse().expect("the url is valid");
-        RpcClient::new(&url).expect("building the client opens no connection")
+        RpcClient::new(&[url]).expect("building the client opens no connection")
+    }
+
+    // With no endpoint there is nothing to query. That has to surface when the client is built,
+    // not as a failure of the first block that needs fetching.
+    #[test]
+    fn a_client_is_not_built_without_an_endpoint() {
+        assert!(matches!(
+            RpcClient::new(&[]),
+            Err(ScraperError::NoRpcEndpoints)
+        ));
     }
 
     fn recorded_block() -> BlockToProcess {

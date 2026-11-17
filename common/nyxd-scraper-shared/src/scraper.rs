@@ -170,7 +170,7 @@ where
     pub async fn new(config: Config) -> Result<Self, ScraperError> {
         config.pruning_options.validate()?;
         let storage = S::initialise(&config.database_storage, &config.run_migrations).await?;
-        let rpc_client = RpcClient::new(&config.rpc_url)?;
+        let rpc_client = RpcClient::new(std::slice::from_ref(&config.rpc_url))?;
 
         Ok(NyxdScraper {
             config,

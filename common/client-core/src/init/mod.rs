@@ -5,7 +5,7 @@
 
 use crate::client::base_client::storage::helpers::{
     has_gateway_details, load_active_gateway_details, load_client_keys, load_gateway_details,
-    store_gateway_details, update_stored_published_data_gateway,
+    store_gateway_details, update_stored_gateway_keys, update_stored_published_data_gateway,
 };
 use crate::client::key_manager::ClientKeys;
 use crate::client::key_manager::gateway_keys::GatewayClientKeys;
@@ -162,6 +162,68 @@ where
     })
 }
 
+/// Registers again with a gateway that has a stored registration, legacy or derived, under the
+/// keys of a newly drawn generation id, dialling the listeners stored with the registration.
+async fn refresh_gateway_keys<K, D>(
+    key_store: &K,
+    details_store: &D,
+    gateway_id: Option<String>,
+    #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+) -> Result<InitialisationResult, ClientCoreError>
+where
+    K: KeyStore,
+    D: GatewaysDetailsStore,
+{
+    tracing::trace!("Refreshing gateway keys");
+
+    let registration = load_gateway_registration(details_store, gateway_id).await?;
+    let gateway_id = registration.gateway_id();
+    let GatewayDetails::Remote(details) = registration.details else {
+        return Err(ClientCoreError::CustomGatewayKeyRefresh {
+            gateway_id: gateway_id.to_base58_string(),
+        });
+    };
+
+    let client_keys = load_client_keys(key_store).await?;
+    let generation_id = GenerationId::new_random(&mut os_rng());
+    let gateway_keys = client_keys.gateway_keys(gateway_id, Some(generation_id));
+
+    let new_registration = helpers::register_with_gateway(
+        gateway_id,
+        details.published_data.listeners.clone(),
+        gateway_keys.identity_keypair(),
+        #[cfg(unix)]
+        connection_fd_callback,
+    )
+    .await?;
+
+    // replaced only once the new registration has succeeded, so a failed refresh leaves the old
+    // one usable
+    update_stored_gateway_keys(
+        details_store,
+        &gateway_id,
+        generation_id,
+        new_registration.shared_keys.clone(),
+    )
+    .await?;
+
+    let gateway_registration = GatewayRegistration {
+        details: GatewayDetails::new_remote(
+            gateway_id,
+            new_registration.shared_keys,
+            details.published_data,
+            generation_id,
+        ),
+        registration_timestamp: registration.registration_timestamp,
+    };
+
+    Ok(InitialisationResult {
+        gateway_registration,
+        gateway_keys,
+        authenticated_ephemeral_client: Some(new_registration.authenticated_ephemeral_client),
+    })
+}
+
 pub async fn refresh_gateway_published_data<D>(
     details_store: &D,
     registration: GatewayRegistration,
@@ -201,6 +263,24 @@ where
     Ok(())
 }
 
+/// Loads the registration with the given gateway, or with the active one when none is given.
+async fn load_gateway_registration<D>(
+    details_store: &D,
+    gateway_id: Option<String>,
+) -> Result<GatewayRegistration, ClientCoreError>
+where
+    D: GatewaysDetailsStore,
+{
+    if let Some(gateway_id) = gateway_id {
+        load_gateway_details(details_store, &gateway_id).await
+    } else {
+        load_active_gateway_details(details_store)
+            .await?
+            .registration
+            .ok_or(ClientCoreError::NoActiveGatewaySet)
+    }
+}
+
 async fn use_loaded_gateway_details<K, D>(
     key_store: &K,
     details_store: &D,
@@ -210,15 +290,7 @@ where
     K: KeyStore,
     D: GatewaysDetailsStore,
 {
-    let loaded_details = if let Some(gateway_id) = gateway_id {
-        load_gateway_details(details_store, &gateway_id).await?
-    } else {
-        load_active_gateway_details(details_store)
-            .await?
-            .registration
-            .ok_or(ClientCoreError::NoActiveGatewaySet)?
-    };
-
+    let loaded_details = load_gateway_registration(details_store, gateway_id).await?;
     let loaded_keys = load_client_keys(key_store).await?;
 
     // no need to persist anything as we got everything from the storage
@@ -254,6 +326,21 @@ where
         GatewaySetup::MustLoad { gateway_id } => {
             tracing::debug!("GatewaySetup::MustLoad with id: {gateway_id:?}");
             use_loaded_gateway_details(key_store, details_store, gateway_id).await
+        }
+        GatewaySetup::RefreshKeys {
+            gateway_id,
+            #[cfg(unix)]
+            connection_fd_callback,
+        } => {
+            tracing::debug!("GatewaySetup::RefreshKeys with id: {gateway_id:?}");
+            refresh_gateway_keys(
+                key_store,
+                details_store,
+                gateway_id,
+                #[cfg(unix)]
+                connection_fd_callback,
+            )
+            .await
         }
         GatewaySetup::New {
             specification,

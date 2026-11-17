@@ -3,7 +3,6 @@ name = "nym-network-monitors-contract-common"
 description = "Common library for the Nym Network Monitors contract"
 authors.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true

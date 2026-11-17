@@ -1,0 +1,20 @@
+### Optionally: Add entity and your share to `wallet-addresses.csv` [#reward-tracker-optionally-add-entity-and-your-share-to-wallet-addressescsv]
+
+- In the same file operators who want to separate the tracked nodes by an entity, can add this entity to the `tag` column
+- Same way an operator can define how many operators are sharing the rewards of that entity (ie in a case of DAO) in the column `share`
+
+- Csv example with `tag`s:
+```csv
+address, tag, members
+n1foofoofoo, personal, 1
+n1barbarbar, personal, 1
+n1bazbazbaz, mysquad, 5
+n1lollollol, mysquad, 5
+```
+- For operators having all nodes under one entity, the optional columns will be left empty. Example:
+```csv
+address, tag, members
+n1foofoofoo,,
+n1barbarbar,,
+n1bazbazbaz,,
+```

@@ -1,0 +1,4 @@
+[
+  { "name": "<ID>", "description": "A local node id", "aliases": ["<NODE_ID>"] },
+  { "name": "<PUBLIC_IP>", "description": "The public IPv4 address of the node" }
+]

@@ -52,22 +52,42 @@ pub struct PersistentStorage {
 impl PersistentStorage {
     /// Initialises `PersistentStorage` using the provided path.
     ///
+    /// With `key`, the database is encrypted with SQLCipher, and an existing plaintext database is
+    /// encrypted in place first. This fails with [`StorageError::EncryptionError`] if SQLite is not
+    /// built with SQLCipher, or if an existing encrypted database can't be opened with `key`.
+    /// SQLCipher has to be linked in place of SQLite, e.g. with the `bundled` feature of
+    /// `nym-sqlcipher`.
+    ///
     /// # Arguments
     ///
     /// * `database_path`: path to the database.
-    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+    /// * `key`: raw 256-bit SQLCipher key. It is used as is, without passphrase key derivation.
+    pub async fn new<P: AsRef<Path>>(
+        database_path: P,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
+    ) -> Result<Self, StorageError> {
+        let opts =
+            nym_sqlcipher::apply_key(Self::connect_options(database_path.as_ref()), key).await?;
+        Self::new_with_options(opts).await
+    }
+
+    fn connect_options<P: AsRef<Path>>(database_path: P) -> sqlx::sqlite::SqliteConnectOptions {
         debug!(
             "Attempting to connect to database {}",
             database_path.as_ref().display()
         );
-        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+        sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
-            .disable_statement_logging();
+            .disable_statement_logging()
+    }
 
+    async fn new_with_options(
+        opts: sqlx::sqlite::SqliteConnectOptions,
+    ) -> Result<Self, StorageError> {
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,
             Err(err) => {

@@ -5,58 +5,12 @@ schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-09-02"
 ---
+import Intro from '@snippets/nym/developers/rust/importing/intro.mdx'
+import FromGit from '@snippets/nym/developers/rust/importing/from-git.mdx'
+import FeatureFlags from '@snippets/nym/developers/rust/importing/feature-flags.mdx'
 
 # Installation
 
-import { Callout } from 'nextra/components';
-import { RUST_MSRV } from '../../../components/versions'
-
-```toml
-[dependencies]
-nym-sdk = "1.22.2"
-```
-
-**Minimum Rust version:** {RUST_MSRV}+
-
-### From Git
-
-You can also import directly from Git if you want unreleased changes:
-
-```toml
-# development branch (latest changes, may be unstable)
-nym-sdk = { git = "https://github.com/nymtech/nym", branch = "develop" }
-
-# latest stable release
-nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
-```
-
-## Feature flags
-
-Every feature is on by default, so the dependency line above gives you the full SDK.
-To compile only the parts you use, turn the defaults off and list the features you
-need:
-
-```toml
-[dependencies]
-nym-sdk = { version = "1.22.2", default-features = false, features = ["stream"] }
-```
-
-The core mixnet client (connecting, sending and receiving messages, `Recipient`) is
-always available and needs no feature.
-
-| Feature | Enables |
-|---------|---------|
-| `fs-storage` | On-disk persistent storage for keys, credentials, reply SURBs, and gateways. Pulls in the SQLite (`sqlx`) stack. |
-| `socks5` | SOCKS5 client mode and network-requester country discovery. |
-| `ipr` | IP packet router client and IP-over-mixnet stream. Implies `stream`. |
-| `credentials` | Paid ecash bandwidth credentials. |
-| `stream` | Bidirectional byte streams (`AsyncRead` + `AsyncWrite`) over the mixnet. |
-| `tcp-proxy` | TCP tunnelling over the mixnet. Implies `fs-storage` and `client-pool`. |
-| `client-pool` | Pre-warmed pool of ephemeral clients. |
-| `cli` | The `nym-proxy-server` and `nym-proxy-client` binaries. Implies `tcp-proxy`. |
-
-<Callout>
-The SQLite (`sqlx`) dependency tree comes only from on-disk storage. An ephemeral
-client that leaves `fs-storage`, `tcp-proxy`, and `credentials` disabled links none of
-it. This is the main reason to set `default-features = false`.
-</Callout>
+<Intro />
+<FromGit />
+<FeatureFlags />

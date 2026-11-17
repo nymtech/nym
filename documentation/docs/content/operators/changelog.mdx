@@ -4,19 +4,20 @@ description: "Complete changelog for Nym node releases, binary updates, SDK chan
 schemaType: "TechArticle"
 section: "Operators"
 lastUpdated: "2026-02-01"
+diataxis: reference
 ---
 
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
-import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { Steps } from 'nextra/components';
 import AbuseResponse from 'components/operators/templates/dmca_response.md';
 import OperatorIntroduction from 'components/operators/templates/provider_introduction.md';
 import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
-import NTMExplanation from 'components/operators/snippets/ntm-accordion-explanation.mdx';
+import NTMExplanation from 'components/operators/snippets/ntm-explanation.mdx';
+import AnsibleRolesByMode from 'components/operators/snippets/ansible-roles-by-node-mode.mdx';
 
 
 
@@ -28,7 +29,252 @@ This page displays a full list of all the changes during our release cycle from 
 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
-<VarInfo/>
+<VarInfo />
+
+## `v2026.22-istanbul`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.22-istanbul)
+- [`nym-node`](/operators/nodes/nym-node) version `1.44.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-11-11T09:57:47.006367313Z
+Build Version:      1.44.0
+Commit SHA:         1abb0cf1b92f135e71c84b738bcd19b97916a3eb
+Commit Date:        2026-11-11T10:54:26.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="info" emoji="ℹ️">
+**[NIP-15](https://governator.nym.com/proposal/prop-589d3e49-1a9c-4a67-85af-499a521cc1a1) passed & [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM): More services for NymVPN users are opened!**
+
+**Additionally [we upgraded Nym bridges](https://github.com/nymtech/nym/pull/7389).**
+
+**PLEASE RE-RUN NTM & BRIDGE CONFIGURATION ON YOUR SERVERS FOLLOWING [STEPS BELOW](#ntm-and-bridges-server-upgrade)!**
+</Callout>
+
+- [Ansible, `nym-node-cli.py` & NTM upgrades](https://github.com/nymtech/nym/pull/7406): Operators tools synchronized and hardened. 
+
+#### NTM and Bridges Server Upgrade
+
+<Callout>
+Full documentation for [NTM](/operators/nodes/nym-node/configuration#wireguard-exit-policy-configuration) and [QUIC bridge setup](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) provides more detailed explanation.
+</Callout>
+
+<div>
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
+    <MyTab>
+      <Steps>
+- Get the latest version of NTM & QUIC setup helper
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh -o quic_bridge_deployment.sh && \
+chmod +x quic_bridge_deployment.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration 
+```
+<br />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
+<br />
+
+- Run NTM on non-standard SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run QUIC bridge helper:
+```sh
+./quic_bridge_deployment.sh
+```
+      </Steps>
+    </MyTab>
+    <MyTab>
+      <Steps>
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- Update the Ansible version to the release revision before you run any playbook:
+```sh
+git pull origin develop
+```
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm,quic,firewall -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm,quic,firewall
+```
+
+This sheet explains how ansible roles manages the server routing configuration in relation to the chosen `--mode` of your `nym-node`.
+
+<AnsibleRolesByMode/ >
+<br />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
+      </Steps>
+    </MyTab>
+  </Tabs>
+</div>
+
+### Features
+
+- [[LP-DATA] Nym nodes: Alpha control and data experimental](https://github.com/nymtech/nym/pull/7386)
+
+- [Wire up console_error_panic_hook feature in nym-wasm-client-core](https://github.com/nymtech/nym/pull/7374)
+
+- [Accept key pair in NyxdCredentialFetcher](https://github.com/nymtech/nym/pull/7368)
+
+- [Add conformance to Eq for KeyPairUser and SecretKeyUser](https://github.com/nymtech/nym/pull/7380)
+
+### Bugfix
+
+- [Initiator-derived KKT mode](https://github.com/nymtech/nym/pull/7403)
+
+- [Improve nym-node shutdown speed](https://github.com/nymtech/nym/pull/7391)
+
+### Refactors & Maintenance
+
+- [Remove unused dependencies](https://github.com/nymtech/nym/pull/7373)
+
+- [Declare a [lints] table in every workspace crate](https://github.com/nymtech/nym/pull/7372)
+
+- [Remove redundant package.homepage](https://github.com/nymtech/nym/pull/7371)
+
+- [Fix clippy lints reported by newer toolchain](https://github.com/nymtech/nym/pull/7370)
+
+
+## `v2026.21-hanoi`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.21-hanoi)
+- [`nym-node`](/operators/nodes/nym-node) version `1.43.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-10-28T16:15:33.395437008Z
+Build Version:      1.43.0
+Commit SHA:         f92749c5f45bf1fdaacb824f9796bca2d641c6f9
+Commit Date:        2026-10-28T17:13:38.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="info">
+[**NIP-15 is out, please vote!**](https://governator.nym.com/proposal/prop-589d3e49-1a9c-4a67-85af-499a521cc1a1) Another upgrade of Nym exit policy opened for operators decision, this time expanding service port `8000` to support Railgun desktop application users. connecting through [NymVPN](https://nym.com).
+
+Read full proposal [forum post](https://forum.nym.com/t/nip-15-nym-exit-policy-update-opening-port-8000-for-railgun-app/2682) before you vote.
+</Callout>
+
+- [New Mixnode `stress_testing_score` troubleshooting guide](/operators/troubleshooting/nodes#fixing-a-low-mixnode-stress-test-score): Please check out if you run a `nym-node` in `--mode mixnode`. Select the *Mode `mixnode`* tab on the page.
+
+- [Updated Mixnode machine specs](/operators/nodes/preliminary-steps/vps-setup#mixnode): Please check out if you run a `nym-node` in `--mode mixnode`.
+
+<Callout type="warning" emoji="⚠️">
+If you [moved your `nym-node`](/operators/nodes/maintenance#moving-a-node) from one server to another, please re-do [routing configuration](/operators/nodes/nym-node/configuration#routing-configuration) by running [NTM](/operators/nodes/nym-node/configuration#new-node-download-network-tunnel-managersh) and [QUIC](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) helpers. 
+</Callout>
+
+#### Updated Delegations Program & Service Grant Program Rules
+
+We’ve updated the binary version requirements for both the Delegations Program and the Service Grant Program to ensure that participating nodes are kept up to date and that delegation and service grants go to well-maintained nodes.
+
+Under the updated rules, operators must run either the `Latest` binary version or the immediately preceding version. Nodes running older versions will no longer be eligible for either program.
+
+The consequences differ slightly between the two programs:
+
+- **Delegations Program:** Nodes that do not meet the version requirements will be disqualified, and their delegated stake will be withdrawn. Operators will not be notified individually. Operators can [re-apply](https://nym.com/network/DP) once their nodes are fixed and stable. 
+
+- **Service Grant Program:** Nodes that do not meet the version requirements will be removed from the program, and operators will be notified. Nodes removed for this reason will not be eligible to rejoin the program.
+
+These changes reflect the need to keep the network well-maintained while ensuring that available delegations and service grants are allocated to operators who keep their nodes up to date.
+
+<Callout>
+*Delegations Program:** [Applications to DP](https://nym.com/network/DP) are open continuously and Nym team re-delegates every two weeks at latest.
+
+**Service Grant Program:** Slots will be opened soon only for [residential IP nodes](/operators/residential-ip) or [CN2 nodes optimized for China](https://edgeone.ai/blog/details/what-is-cn2). In case of interest, send a direct message request on Matrix to [serinko](https://matrix.to/#/@serinko:nymtech.chat) - Nym Head of Network.
+</Callout>
+
+
+#### Network Upgrade
+
+Thank you to all our validators for successfully completing the network upgrade.
+
+This was primarily a maintenance release that also addresses several security vulnerabilities and reduces mixnet transaction costs by 20–40%.
+
+### Features
+
+- [Performance contract: multiple kinds](https://github.com/nymtech/nym/pull/7213)
+
+- [NMv3: config score calculation](https://github.com/nymtech/nym/pull/7188)
+
+- [NMv3: node score aggregation](https://github.com/nymtech/nym/pull/7181)
+
+- [NMv3: review nits: additional tests and updated docs](https://github.com/nymtech/nym/pull/7176)
+
+- [Use Geolocation contract within NS API](https://github.com/nymtech/nym/pull/7168)
+
+- [Attested geolocation retrieval](https://github.com/nymtech/nym/pull/7156)
+
+- [NMv3: Nym API integration](https://github.com/nymtech/nym/pull/7136)
+
+- [NMv3: gateway liveness probes](https://github.com/nymtech/nym/pull/7128)
+
+- [NMv3: mixnode liveness sending](https://github.com/nymtech/nym/pull/7115)
+
+- [NMv3: per kind submission](https://github.com/nymtech/nym/pull/7100)
+
+- [NMv3: per kind scheduling](https://github.com/nymtech/nym/pull/7095)
+
+- [NMv3: allow storing different test results](https://github.com/nymtech/nym/pull/7086)
+
+- [NMv3: announce agents' ed25519 identities to the contract](https://github.com/nymtech/nym/pull/7080)
+
+- [NMv3: unmetered ephemeral client sessions](https://github.com/nymtech/nym/pull/7078)
+
+- [NMv3: forwarding of final hop network monitor packets](https://github.com/nymtech/nym/pull/7063)
+
+- [Add network monitor agent ed25519 key to announced data](https://github.com/nymtech/nym/pull/7059)
+
+- [NMv3: liveness checks](https://github.com/nymtech/nym/pull/7058)
+
+### Bugfix
+
+- [Update trait function signature for domain fronting](https://github.com/nymtech/nym/pull/7221)
+
+- [Mixfetch connect retry DoH](https://github.com/nymtech/nym/pull/7151)
+
+### Refactors & Maintenance
+
+- [Remove already run mixnet contract migrations](https://github.com/nymtech/nym/pull/7220)
+
+- [Upgrade libcrux libraries and re-enable nonce control](https://github.com/nymtech/nym/pull/7214)
+
+- [Update validator rewarder](https://github.com/nymtech/nym/pull/7186)
+
+- [Fixing clippy lints and stuff](https://github.com/nymtech/nym/pull/7228)
+
 
 ## `v2026.20-glasgow`
 
@@ -50,7 +296,7 @@ cargo Profile:      release
 ### Operator & Developer Updates
 
 <Callout type="warning" emoji="⚠️">
-If you [moved your `nym-node`](/operators/nodes/maintenance#moving-a-node) from one server to another, please re-do [routing configuration](/operators/nodes/nym-node/configuration#routing-configuration) by running [NTM](/operators/nodes/nym-node/configuration#download-network-tunnel-managersh-make-executable-and-run-with---help-command) and [QUIC](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) helpers. 
+If you [moved your `nym-node`](/operators/nodes/maintenance#moving-a-node) from one server to another, please re-do [routing configuration](/operators/nodes/nym-node/configuration#routing-configuration) by running [NTM](/operators/nodes/nym-node/configuration#new-node-download-network-tunnel-managersh) and [QUIC](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) helpers. 
 </Callout>
 
 - **[Nym Documentation](https://nym.com/docs) has been upgrade to Nextra v4**, coming along with several UX and speed improvements. All changes can be previewed in detail in [\#7198](https://github.com/nymtech/nym/pull/7198) and [\#7227](https://github.com/nymtech/nym/pull/7227)
@@ -377,10 +623,7 @@ cargo Profile:      release
 #### NIP-14 Update
 
 <div>
-  <Tabs items={[
-    <>Manual steps</>,
-    <>Ansible</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
     <MyTab>
       <Steps>
 - Get the latest version of NTM
@@ -402,7 +645,9 @@ HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configurati
 # HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
     <MyTab>
@@ -421,7 +666,9 @@ ansible-playbook deploy.yml -t ntm -l node1
 ansible-playbook deploy.yml -t ntm
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
   </Tabs>
@@ -484,7 +731,7 @@ In this release, we bring several news and updates. First of all, **we would lik
 
 - **Performance measurements update:** Improvement of DNS resolution of hostnames within the Network Monitor should lead to performance measurement (`routing_score`) precision
 
-- [**CMD Reward Tracker**](/operators/tools#cmd-reward-tracker): Now faster and updated ([PR \#6959](https://github.com/nymtech/nym/pull/6959))
+- [**CMD Reward Tracker**](/operators/tools#node-rewards-tracker): Now faster and updated ([PR \#6959](https://github.com/nymtech/nym/pull/6959))
 
 - [**Nym Node CLI**](/operators/tools#nym-node-cli): Single node auto-install tool is updated and fully functional ([PR \#6964](https://github.com/nymtech/nym/pull/6964))
 
@@ -493,10 +740,7 @@ In this release, we bring several news and updates. First of all, **we would lik
 - **[NIP-13](https://governator.nym.com/proposal/prop-909ddfc2-355f-430b-a9e4-16c693cbffdb) passed & [NTM updated](https://github.com/nymtech/nym/pull/6959): More services for NymVPN users are opened!** Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
 
 <div>
-  <Tabs items={[
-    <>Manual steps</>,
-    <>Ansible</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
     <MyTab>
       <Steps>
 - Get the latest version of NTM
@@ -518,7 +762,9 @@ HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configurati
 # HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
     <MyTab>
@@ -537,7 +783,9 @@ ansible-playbook deploy.yml -t ntm -l node1
 ansible-playbook deploy.yml -t ntm
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
   </Tabs>
@@ -628,10 +876,7 @@ cargo Profile:      release
 - [**NIP-12 - NTM updated: More services for NymVPN users are opened!**](https://github.com/nymtech/nym-websites/pull/344) Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
 
 <div>
-  <Tabs items={[
-    <>Manual steps</>,
-    <>Ansible</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
     <MyTab>
       <Steps>
 - Get the latest version of NTM
@@ -653,7 +898,9 @@ HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configurati
 # HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
     <MyTab>
@@ -672,7 +919,9 @@ ansible-playbook deploy.yml -t ntm -l node1
 ansible-playbook deploy.yml -t ntm
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
   </Tabs>
@@ -780,10 +1029,7 @@ cargo Profile:      release
 - [**NIP-11 - NTM updated: Telegram voice and video call works now!**](https://github.com/nymtech/nym/pull/6807) Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
 
 <div>
-  <Tabs items={[
-    <>Manual steps</>,
-    <>Ansible</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
     <MyTab>
       <Steps>
 - Get the latest version of NTM
@@ -805,7 +1051,9 @@ HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configurati
 # HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
     <MyTab>
@@ -824,7 +1072,9 @@ ansible-playbook deploy.yml -t ntm -l node1
 ansible-playbook deploy.yml -t ntm
 ```
 
-        <NTMExplanation />
+<AccordionTemplate name="What does NTM do?">
+<NTMExplanation />
+</AccordionTemplate>
       </Steps>
     </MyTab>
   </Tabs>
@@ -1021,7 +1271,7 @@ chmod +x network-tunnel-manager.sh
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 ### Features
 
@@ -1124,7 +1374,7 @@ ufw disable
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 Congratulation, your port configuration is up to date, including LP ports.
 
@@ -1213,7 +1463,7 @@ chmod +x network-tunnel-manager.sh
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 #### Lewes Protocol (LP)
 
@@ -1376,7 +1626,7 @@ service nym-node status
 # or
 journalctl -u nym-node -f --all
 ```
-</ Steps>
+</Steps>
 
 #### Update Nym exit policy
 
@@ -1397,7 +1647,7 @@ chmod +x network-tunnel-manager.sh
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 ### Features
 
@@ -1489,7 +1739,7 @@ chmod +x network-tunnel-manager.sh
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 **Node Orchestration**
 
@@ -2171,7 +2421,7 @@ With this platform upgrade we are releasing several tools to improve operator ex
 
 - **New program for `nym-node` automated installation**: [`nym-node-cli.py`](tools#nym-node-cli)
 
-- **New node reward tracker**: [`node_rewards_tracker.py`](tools#cmd-reward-tracker)
+- **New node reward tracker**: [`node_rewards_tracker.py`](tools#node-rewards-tracker)
 
 - **New server ping testing diagnostic tool**: [`test-nodes-pings.sh`](tools#node-ping-tester)
 
@@ -2679,7 +2929,7 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
-- [**Reward calculator**](tokenomics/mixnet-rewards#rewards-logic--calculation): A quick app to calculate rewards for any node included in the Mixnet active set
+- [**Reward calculator**](tokenomics/mixnet-rewards#rewards-logic--overview): A quick app to calculate rewards for any node included in the Mixnet active set
 - **Backup your nodes: Stark Industries Solutions and its subsidy PQ.Hosting were added to EU's sanction list**. Everyone running a node on PQ or Stark in Europe should get additional service free of charge and back up their node there.
 - **We recommend operators using Stark Industries Solutions and PQ.Hosting to start looking for alternatives.** Here are some useful pages:
   - [Backup a node](nodes/maintenance#backup-a-node)
@@ -2773,7 +3023,7 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
-- [Reward page updated](tokenomics/mixnet-rewards#rewards-logic--calculation) with [detailed explanation of rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
+- [Reward page updated](tokenomics/mixnet-rewards#rewards-logic--overview) with [detailed explanation of rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
 - [Nym Explorer v2 upgraded](https://nym.com/explorer) with new search, interactive map and advanced filters
 
 ### Features
@@ -2810,7 +3060,7 @@ cargo Profile:      release
 
 - [Tokenomics page](/operators/tokenomics) updated
 - [Node operators rewards page](/operators/tokenomics/mixnet-rewards) updated with new parts added:
-    - [Node performance calculation](tokenomics/mixnet-rewards#node-performance-calculation)
+    - [Node performance calculation](tokenomics/mixnet-rewards#mixnet-node-performance-calculation)
     - [Stake saturation calculation](tokenomics/mixnet-rewards#stake-saturation)
     - [Rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
     - [Rewards distribution](tokenomics/mixnet-rewards#rewards-distribution)
@@ -3761,10 +4011,7 @@ As we finalising last details of *"Project Smoosh"*, where one binary - `nym-nod
 These are minimum requirements to become a part of SGPv2. We aim to have nodes on dedicated servers, with exceptions for much stronger VPS to meet the needed criteria while sharing server with other users.
 
 <div>
-  <Tabs items={[
-    <><code>nym-node</code> - dedicated server</>,
-    <><code>nym-node</code> - VPS</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<><code>nym-node</code> - dedicated server</>, <><code>nym-node</code> - VPS</>,]} defaultIndex="0">
     <MyTab>
 #### `nym-node` - dedicated server
 
@@ -4969,17 +5216,17 @@ Confirm that the deployment workflows work through manual testing
 
 - Go to Bonding and you will be prompted with such message:
 
-![](/images/operators/wallet-screenshots/migrate_nym-node.png)
+![Nym Wallet prompt to migrate a legacy node to a nym-node](/images/operators/wallet-screenshots/migrate_nym-node.png)
 
 - In case you for some reason didn't see the prompt or you closed it - you can click in the upper right corner of the same window on this button:
 
-![](/images/operators/wallet-screenshots/migrate_nym-node2.png)
+![Nym Wallet bonding page with the migrate button in the upper right corner](/images/operators/wallet-screenshots/migrate_nym-node2.png)
 
 - Confirm the transaction
 
 ###### Welcome to new episode of `nym-node`!
 
-</ Steps>
+</Steps>
 </AccordionTemplate>
 
 - **Older versions will not allow bonding new nodes!**
@@ -6826,7 +7073,7 @@ warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ig
 - [Sandbox testnet](sandbox) guide: teaching Nym node operators how to run their nodes in Nym Sandbox testnet environment.
 - [Terms & Conditions flag](nodes/nym-node/setup#terms--conditions)
 - Node API Check CLI
-- [Pruning VPS `syslog` scripts](troubleshooting/vps-isp#pruning-logs)
+- [Pruning VPS `syslog` scripts](troubleshooting/vps-isp#system-hygiene)
 - [Black-xit: Exiting the blacklist](troubleshooting/nodes#my-gateway-is-blacklisted)
 
 ---

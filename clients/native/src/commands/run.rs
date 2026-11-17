@@ -8,6 +8,7 @@ use crate::{
 };
 use clap::Args;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
 use std::error::Error;
 use std::net::IpAddr;
@@ -19,6 +20,9 @@ pub(crate) struct Run {
 
     #[command(flatten)]
     key_passphrase: KeyPassphraseArgs,
+
+    #[command(flatten)]
+    database_key: DatabaseKeyArgs,
 
     /// Whether to not start the websocket
     #[clap(long)]
@@ -60,6 +64,7 @@ pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync
         config,
         args.common_args.custom_mixnet,
         args.key_passphrase.key_passphrase,
+        args.database_key.database_key,
     )
     .run_socket_forever()
     .await

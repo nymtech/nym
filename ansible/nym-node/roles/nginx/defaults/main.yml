@@ -1,0 +1,7 @@
+# nginx templates. A file with the same name in <playbooks>/templates/ is used instead of
+# the role's own (e.g. a custom landing page). Or set one of these variables to any path.
+nginx_template_dir: "{{ playbook_dir }}/templates"
+nginx_landing_template: "{{ (nginx_template_dir ~ '/landing.html.j2') if (nginx_template_dir ~ '/landing.html.j2') is file else 'landing.html.j2' }}"
+nginx_site_template: "{{ (nginx_template_dir ~ '/nginx-site.conf.j2') if (nginx_template_dir ~ '/nginx-site.conf.j2') is file else 'nginx-site.conf.j2' }}"
+nginx_site_ssl_template: "{{ (nginx_template_dir ~ '/nginx-site-ssl.conf.j2') if (nginx_template_dir ~ '/nginx-site-ssl.conf.j2') is file else 'nginx-site-ssl.conf.j2' }}"
+nginx_wss_template: "{{ (nginx_template_dir ~ '/wss-config.conf.j2') if (nginx_template_dir ~ '/wss-config.conf.j2') is file else 'wss-config.conf.j2' }}"

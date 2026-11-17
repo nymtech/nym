@@ -12,3 +12,5 @@ tokio = { workspace = true, features = ["full"] }
 anyhow = { workspace = true }
 hex = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+
+[lints]

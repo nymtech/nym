@@ -6,19 +6,21 @@ use crate::client::base_client::non_wasm_helpers::setup_fs_gateways_storage;
 use crate::client::base_client::storage::helpers::set_active_gateway;
 use nym_crypto::asymmetric::ed25519;
 
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[derive(Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct CommonClientSwitchGatewaysArgs {
     /// Id of client we want to list gateways for.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub id: String,
 
     /// Id of the gateway we want to switch to.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub gateway_id: ed25519::PublicKey,
 }
 
-pub async fn switch_gateway<C, A>(args: A) -> Result<(), C::Error>
+pub async fn switch_gateway<C, A>(
+    args: A,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
+) -> Result<(), C::Error>
 where
     A: AsRef<CommonClientSwitchGatewaysArgs>,
     C: CliClient,
@@ -29,7 +31,8 @@ where
     let config = C::try_load_current_config(id).await?;
     let paths = config.common_paths();
 
-    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    let details_store =
+        setup_fs_gateways_storage(&paths.gateway_registrations, database_key).await?;
 
     set_active_gateway(&details_store, &common_args.gateway_id.to_base58_string()).await?;
 

@@ -1,0 +1,21 @@
+---
+diataxis: how-to
+---
+
+import { Steps } from 'nextra/components';
+
+# Upgrade a node
+
+<Steps>
+
+### Stop the node [#stop-the-node]
+
+```sh copy
+systemctl stop nym-node <ID>
+```
+
+### Start the node [#start-the-node]
+
+Run `nym-node run --id <ID> --public-ips <PUBLIC_IP>`.
+
+</Steps>

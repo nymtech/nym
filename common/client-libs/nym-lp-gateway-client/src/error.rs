@@ -8,6 +8,7 @@ use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
 use nym_lp_data::packet::MalformedLpPacketError;
 use nym_lp_data::packet::frame::LpFrameKind;
+use nym_registration_common::LpRegistrationFrameError;
 use thiserror::Error;
 
 /// Errors that can occur during LP client operations.
@@ -26,6 +27,17 @@ pub enum LpClientError {
 
     #[error("the client has not opened a connection to the exit")]
     NotConnected,
+
+    #[error("the node publishes no IP address to reach it by")]
+    NoIpPublished,
+
+    #[error("a node built from {build_version} speaks no version of LP")]
+    NoLpForBuildVersion { build_version: String },
+
+    #[error(
+        "the gateway speaks LP protocol version {advertised}, which this build no longer supports"
+    )]
+    UnsupportedProtocolVersion { advertised: u8 },
 
     #[error("the KKT/PSQ handshake does not appear to have been completed")]
     IncompleteHandshake,
@@ -77,6 +89,22 @@ pub enum LpClientError {
 
     #[error("{0}")]
     Other(String),
+}
+
+impl From<LpRegistrationFrameError> for LpClientError {
+    fn from(err: LpRegistrationFrameError) -> Self {
+        match err {
+            LpRegistrationFrameError::Serialisation(e) => {
+                LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
+            }
+            LpRegistrationFrameError::UnexpectedFrameKind(typ) => {
+                LpClientError::UnexpectedLpPayload { typ }
+            }
+            LpRegistrationFrameError::Deserialisation(source) => {
+                LpClientError::MalformedRegistrationData { source }
+            }
+        }
+    }
 }
 
 impl LpClientError {

@@ -1,0 +1,11 @@
+## Prove the traffic went through the mixnet [#prove-the-traffic-went-through-the-mixnet]
+
+Routing code that fails to route raises no error. Add a check that does. [Fail-open or fail-closed](snippet:nym/developers/integrating/decide-fail-open-or-fail-closed-explicitly) shows one way traffic falls back to the clearnet with no error. Three checks exist, and all three are platform-specific:
+
+| Check | What it does | What it proves |
+|---|---|---|
+| **Detection** | Traps direct requests to a routed host and reports them as bugs | Your routing code ran |
+| **Positive proof** | Compares the source address that one echo service sees over the tunnel and over the clearnet | A request went through the mixnet. Only this check proves it. |
+| **Enforcement** | Removes the direct path at the platform level | Bypasses stop, within what the platform controls |
+
+[Routing a browser or WebView app](snippet:nym/developers/browser-routing/intro) implements them for the web runtime.

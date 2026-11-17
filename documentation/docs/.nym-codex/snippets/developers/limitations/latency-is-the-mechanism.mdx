@@ -1,0 +1,5 @@
+## Latency is the mechanism [#latency-is-the-mechanism]
+
+Each mix node holds a packet for an average of 15 ms (`DEFAULT_AVERAGE_PACKET_DELAY`) before forwarding it, and the path is five hops. Mixing and reordering break the timing link between a packet that enters the network and a packet that leaves it. If you remove the delay, you remove that protection, so there is nothing to tune.
+
+A request passes through three mix nodes, and its reply passes through three more. One round trip thus has six mix delays (about 90 ms on average), the time on each network link, and a wait for a free slot in the send stream. A new connection also needs a DNS lookup and TCP and TLS handshakes, and each of them needs at least one more round trip. The first request also waits for the client to connect to its gateway. For these reasons, interactive workloads do not fit.

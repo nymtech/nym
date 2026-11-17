@@ -1,0 +1,127 @@
+// Standalone lint (stage 3, task 4b.1): a snippet must read alone, with no page
+// around it, because a second site or the index can show it anywhere.
+//
+//   node lib/snippets/standalone.mts [--root <repo root>] [--list]
+//
+// Two warnings:
+// - a body that refers to text around it ("as described above", "the table
+//   below", "the previous section", "this page");
+// - a title that is a template word with no subject ("Code", "Used by").
+// Each is a warning with a count until stage 3 ends (task 4b.4).
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseFrontmatter, fenceTracker, HEADING_ANCHOR } from '../retrieval/mdx.mjs';
+import { openRepo } from './repo.mts';
+
+// Phrases that only make sense with the surrounding page. Each is narrow on
+// purpose: "below 10 ms" or "above the threshold" are not references.
+const NOUNS = '(?:sections?|tables?|lists?|examples?|diagrams?|figures?|code|snippets?|commands?|overrides?|steps?|warnings?|consequences?|options?|fields?)';
+const REFERENCES = [
+  /\bas (?:described|noted|shown|mentioned|discussed|explained|listed|defined) (?:above|below|earlier|previously|before)\b/i,
+  /\b(?:the|this) (?:previous|next|following|preceding|last) (?:section|paragraph|table|list|example|diagram|step|page|chapter)\b/i,
+  new RegExp(`\\b${NOUNS} (?:above|below)\\b(?! (?:the|a|an|\\d))`, 'i'),
+  /\beverything (?:above|below)\b/i,
+  /\b(?:above|below)[:,.)|]/i,
+  /\bon this page\b|\bthis (?:page|document|section)\b/i,
+  /(?:^|[.!?]\s+)(?:above|below) (?:is|are)\b/i,
+  /\bin (?:later|earlier|previous|following|the next) sections?\b/i,
+];
+
+// Snippets whose references are another author's own words, kept as written.
+// Each entry is a path under the snippets directory, and the reason.
+const EXCEPTIONS: ReadonlyMap<string, string> = new Map([
+  ['operators/community-counsel/jurisdictions/swiss/telecoms-law.mdx', 'the counsel\'s legal opinion'],
+  ['operators/community-counsel/jurisdictions/swiss/telecoms-law-1.mdx', 'the counsel\'s legal opinion'],
+  ['operators/community-counsel/jurisdictions/swiss/telecoms-surveillance-law.mdx', 'the counsel\'s legal opinion'],
+  ['operators/community-counsel/jurisdictions/swiss/telecoms-surveillance-law-1.mdx', 'the counsel\'s legal opinion'],
+]);
+
+// A snippet that holds the thing it points at reads alone: "the table below"
+// with the table in the same file. Such lines start a block a reference names.
+// A component tag ("<Output ...", "<Steps>") is a block too: it renders content in the same snippet.
+const BLOCK = /^\s*(?:\||`{3,}|~{3,}|<[A-Z]|[-*] |\d+\. )/;
+
+// Titles of the page templates: a word that names a kind of section, not a subject.
+const TEMPLATE_TITLES = new Set([
+  'code', 'technical details', 'used by', 'why it exists', 'status', 'overview',
+  'introduction', 'details', 'notes', 'summary', 'example', 'examples', 'usage',
+  'configuration', 'see also', 'further reading', 'references', 'documents in this section',
+  'in this section', 'next steps', 'background', 'how it works',
+]);
+
+export interface StandaloneFault {
+  line: number;
+  kind: 'title' | 'reference';
+  text: string;
+}
+
+/** The standalone faults of one snippet file. */
+export function standaloneFaults(raw: string): StandaloneFault[] {
+  const { content }: { content: string } = parseFrontmatter(raw);
+  const offset = raw.split('\n').length - content.split('\n').length;
+  const faults: StandaloneFault[] = [];
+  const fence = fenceTracker();
+  const lines = content.split('\n');
+  lines.forEach((line, i) => {
+    if (fence(line)) return;
+    const heading = line.match(/^#{1,6}\s+(.*)$/)?.[1];
+    if (heading !== undefined) {
+      const title = heading.replace(HEADING_ANCHOR, '').replace(/[`*_]/g, '').trim();
+      if (TEMPLATE_TITLES.has(title.toLowerCase())) faults.push({ line: i + 1 + offset, kind: 'title', text: title });
+      return;
+    }
+    // Inline code is example text, not prose that refers to the page.
+    const prose = line.replace(/`[^`]*`/g, '');
+    for (const pattern of REFERENCES) {
+      const m = prose.match(pattern);
+      if (!m) continue;
+      const below = /below|following/i.test(m[0]);
+      const above = /above/i.test(m[0]);
+      const later = lines.slice(i + 1).some((l) => BLOCK.test(l));
+      const earlier = lines.slice(0, i).some((l) => BLOCK.test(l));
+      if ((below && later) || (above && earlier)) break;
+      faults.push({ line: i + 1 + offset, kind: 'reference', text: m[0] });
+      break;
+    }
+  });
+  return faults;
+}
+
+/** Each .mdx snippet under a directory, with its faults. An excepted snippet has no faults and names its reason. */
+export function lintSnippets(dir: string): { file: string; faults: StandaloneFault[]; excepted?: string }[] {
+  const out: { file: string; faults: StandaloneFault[]; excepted?: string }[] = [];
+  const walk = (d: string): void => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) walk(full);
+      else if (e.name.endsWith('.mdx')) {
+        const excepted = EXCEPTIONS.get(path.relative(dir, full));
+        out.push(excepted ? { file: full, faults: [], excepted } : { file: full, faults: standaloneFaults(fs.readFileSync(full, 'utf-8')) });
+      }
+    }
+  };
+  if (fs.existsSync(dir)) walk(dir);
+  return out;
+}
+
+function main(argv: string[]): void {
+  const at = (name: string): string | null => { const i = argv.indexOf(`--${name}`); return i === -1 ? null : argv[i + 1] ?? null; };
+  const rootArg = at('root');
+  const repo = openRepo(rootArg ? path.resolve(rootArg) : undefined);
+  const results = lintSnippets(repo.snippets);
+  const with_ = (kind: StandaloneFault['kind']) => results.filter((r) => r.faults.some((f) => f.kind === kind)).length;
+  if (argv.includes('--list')) {
+    for (const r of results) for (const f of r.faults) console.log(`warn  ${path.relative(repo.root, r.file)}:${f.line}  ${f.kind}  ${f.text}`);
+  }
+  const clean = results.filter((r) => r.faults.length === 0).length;
+  console.log(`${results.length} prose snippets: ${clean} with no standalone fault (${results.length ? Math.round((100 * clean) / results.length) : 0}%)`);
+  console.log(`  refer to text around them: ${with_('reference')}`);
+  console.log(`  template title with no subject: ${with_('title')}`);
+  console.log(`  excepted (another author's words): ${results.filter((r) => r.excepted).length}`);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main(process.argv.slice(2));
+}

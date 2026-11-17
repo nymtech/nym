@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -22,8 +21,16 @@ semver = { workspace = true }
 blake3 = { workspace = true, optional = true }
 libcrux-sha3 = { workspace = true, optional = true }
 
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_with = { workspace = true, features = ["hex"], optional = true }
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
 [features]
 digests = ["blake3", "libcrux-sha3"]
+serde = ["dep:serde", "serde_with"]
 
 [lints]
 workspace = true

@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -16,6 +15,7 @@ publish = true
 workspace = true
 
 [dependencies]
+async-trait.workspace = true
 bincode.workspace = true
 bytes.workspace = true
 futures.workspace = true
@@ -40,6 +40,7 @@ nym-lp-gateway-client = { workspace = true }
 nym-lp-data.workspace = true
 nym-registration-common = { workspace = true }
 nym-sdk = { workspace = true }
+nym-sqlcipher = { workspace = true }
 nym-wireguard-types = { workspace = true }
 
 [dev-dependencies]

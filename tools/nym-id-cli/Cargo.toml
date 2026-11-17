@@ -5,7 +5,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 publish = false
 
@@ -19,5 +18,9 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing.workspace = true
 
 nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
-nym-credential-storage = { workspace = true }
+nym-credential-storage = { workspace = true, features = ["persistent-storage"] }
+nym-client-core = { workspace = true, features = ["cli"] }
 nym-id = { workspace = true }
+
+[lints]
+workspace = true

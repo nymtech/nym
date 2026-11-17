@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -16,12 +15,15 @@ publish = true
 
 [dependencies]
 bytes.workspace = true
+dashmap.workspace = true
 num_enum.workspace = true
 semver.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+rand.workspace = true
 
 nym-common.workspace = true
+nym-sphinx-params.workspace = true
 
 
 [lints]

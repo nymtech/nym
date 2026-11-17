@@ -6,11 +6,23 @@ use crate::error::Socks5ClientError;
 use nym_client_core::cli_helpers::client_import_master_verification_key::{
     import_master_verification_key, CommonClientImportMasterVerificationKeyArgs,
 };
+use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 
-pub(crate) async fn execute(
-    args: CommonClientImportMasterVerificationKeyArgs,
-) -> Result<(), Socks5ClientError> {
-    import_master_verification_key::<CliSocks5Client, _>(args).await?;
+#[derive(clap::Args)]
+pub(crate) struct Args {
+    #[command(flatten)]
+    common_args: CommonClientImportMasterVerificationKeyArgs,
+
+    #[command(flatten)]
+    database_key: DatabaseKeyArgs,
+}
+
+pub(crate) async fn execute(args: Args) -> Result<(), Socks5ClientError> {
+    import_master_verification_key::<CliSocks5Client, _>(
+        args.common_args,
+        args.database_key.database_key.as_ref(),
+    )
+    .await?;
     println!("successfully imported master verification key!");
     Ok(())
 }

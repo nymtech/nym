@@ -5,8 +5,13 @@
 - name: Configure Nym node
   import_tasks: config.yml
 
-- name: Configure firewall for Nym
+# ufw is for nodes NOT managed by the Network Tunnel Manager (NTM): mixnodes and
+# non-WireGuard entry gateways. Exit gateways and WireGuard gateways run NTM's
+# complete_networking_configuration, which owns iptables - layering ufw there clashes
+- name: Configure firewall (ufw) for mixnodes and non-WireGuard entry gateways
   import_tasks: firewall.yml
+  when: mode == 'mixnode' or (mode == 'entry-gateway' and not (wireguard_enabled | default(false) | bool))
+  tags: [firewall]
 
 - name: Configure and start Nym service
   import_tasks: service.yml

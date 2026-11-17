@@ -1,0 +1,9 @@
+## What Nym does not protect [#what-the-transport-never-does]
+
+Nym protects network-level metadata. It does not make an application private.
+
+- **Application-layer identity.** Logins, session cookies, API tokens, account
+  identifiers and the contents of a request reach the destination exactly as you
+  sent them. See [the two-layer model](/network/threat-model/two-layer-model).
+- **Request patterns.** The destination sees what you ask for and when you ask for it, whatever the transport. Your application closes that vector with [baseline hygiene](/developers/swizzle).
+- **A fixed exit gateway links your requests.** Requests through one exit gateway stay linkable to each other at the destination. Rotate the exit gateway per request to restore [request unlinkability](/network/threat-model/properties).

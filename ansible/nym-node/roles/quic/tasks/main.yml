@@ -1,18 +1,32 @@
+- name: Ensure install directory exists
+  file:
+    path: "{{ nym_install_dir }}"
+    state: directory
+    mode: "0755"
+  tags: quic
+
 - name: Download quic_bridge_deployment.sh
   command:
-    cmd: "curl -fsSL {{ quic_bridge_deployment_url }} -o /root/nym-binaries/quic_bridge_deployment.sh"
+    argv:
+      - curl
+      - -fsSL
+      - "{{ quic_bridge_deployment_url }}"
+      - -o
+      - "{{ nym_install_dir }}/quic_bridge_deployment.sh"
   tags: quic
 
 - name: Set quic_bridge_deployment permissions
   file:
-    path: /root/nym-binaries/quic_bridge_deployment.sh
+    path: "{{ nym_install_dir }}/quic_bridge_deployment.sh"
     mode: "0755"
   tags: quic
 
-- name: Configure tunnel manager
+- name: Run quic_bridge_deployment.sh
   become: true
   command:
-    cmd: "/root/nym-binaries/quic_bridge_deployment.sh {{ item }}"
+    argv:
+      - "{{ nym_install_dir }}/quic_bridge_deployment.sh"
+      - "{{ item }}"
   environment:
     NONINTERACTIVE: "1"
   loop:

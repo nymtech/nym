@@ -1,0 +1,11 @@
+---
+title: "Routing the Railgun SDK through the mixnet"
+---
+
+**Nym** hides the network layer: every Ethereum RPC
+call goes through the mixnet via [`mixFetch`](/developers/mix-fetch), so the RPC
+node and your ISP cannot link you to the query, and **Railgun** hides the
+application layer, as shielded notes break the on-chain link between sender,
+receiver, and amount. The Railgun demo puts the RPC traffic of the whole
+Railgun SDK behind the mixnet. Railgun keeps its own demo of a Railgun wallet over
+Nym: [`nym-demo` on GitLab](https://gitlab.com/railgun-protocol/reloaded/nym-demo).

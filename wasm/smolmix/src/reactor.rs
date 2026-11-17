@@ -21,12 +21,21 @@ use tokio::sync::Notify;
 use wasmtimer::std::Instant as MonotonicInstant;
 
 use crate::device::WasmDevice;
-use crate::state::{State, TaskName};
+use crate::state::{FailureReason, State, TaskName};
 
 /// Maximum idle sleep when smoltcp has no pending work. Bounds the latency of
 /// TCP retransmit and keepalive timers if `poll_delay` ever returns `None`; on
 /// an active connection the wake source is the bridge or a socket write.
 const MAX_IDLE: Duration = Duration::from_secs(60);
+
+/// How long the newest of at least two destinations may go unanswered, while
+/// nothing has ever come back through the tunnel, before the reactor fails
+/// the tunnel with [`FailureReason::ExitSilent`]. Some exits complete the IPR
+/// handshake and then forward no IP traffic, so every connection stays in
+/// SYN-SENT for the life of the tunnel. Through a working exit, the first DoH
+/// resolver or destination that is reachable at all answers within seconds.
+pub(crate) const SILENT_EXIT_LIMIT: smoltcp::time::Duration =
+    smoltcp::time::Duration::from_secs(60);
 
 /// Shared smoltcp network stack, accessed by the reactor, bridge, and sockets.
 ///
@@ -142,7 +151,7 @@ pub fn start_reactor(
         async move {
             loop {
                 // Poll smoltcp; built-in socket wakers fire on any state change.
-                let delay = stack.with(|s| {
+                let (delay, exit_silent) = stack.with(|s| {
                     let now = smoltcp_now();
                     let SmoltcpStackInner {
                         iface,
@@ -164,8 +173,28 @@ pub fn start_reactor(
                         }
                     });
 
-                    iface.poll_delay(now, sockets)
+                    let delay = iface.poll_delay(now, sockets);
+                    match device.unanswered_for(now) {
+                        Some(silence) if silence >= SILENT_EXIT_LIMIT => (delay, true),
+                        // Wake for the limit even if no socket has work by then.
+                        Some(silence) => {
+                            let until_limit = SILENT_EXIT_LIMIT - silence;
+                            (
+                                Some(delay.map_or(until_limit, |d| d.min(until_limit))),
+                                false,
+                            )
+                        }
+                        None => (delay, false),
+                    }
                 });
+
+                if exit_silent {
+                    nym_wasm_utils::console_error!(
+                        "[smolmix] no packet has come back through the exit; failing the tunnel"
+                    );
+                    state.fail(FailureReason::ExitSilent);
+                    break;
+                }
 
                 // Translate smoltcp's deadline into a wait. A zero delay means
                 // "poll again immediately"; yield to the JS event loop via

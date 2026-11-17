@@ -6,7 +6,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -34,6 +33,10 @@ workspace = true
 features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"]
 optional = true
 
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-sqlcipher]
+workspace = true
+optional = true
+
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
@@ -45,4 +48,7 @@ sqlx = { workspace = true, features = [
 ] }
 
 [features]
-fs-surb-storage = ["sqlx", "nym-crypto", "nym-crypto/hashing"]
+fs-surb-storage = ["sqlx", "nym-crypto", "nym-crypto/hashing", "dep:nym-sqlcipher"]
+
+[lints]
+workspace = true

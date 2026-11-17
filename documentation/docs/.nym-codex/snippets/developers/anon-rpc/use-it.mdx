@@ -1,0 +1,14 @@
+## Use it [#use-it]
+
+Pass Nym's specifier address to the anon-rpc harness (the [EF repo](https://github.com/ethereum/anon-rpc) covers harness setup):
+
+```js
+const worker = new AnonRpcWorker({
+  address: '0x3aCD9742C68F6d993066Ae25533e09b9e1f60eD0', // Nym worker, Ethereum mainnet
+  preExisting: { rpcProvider },
+})
+await worker.ready
+const res = await worker.fetch(rpcUrl, { method: 'POST', body })
+```
+
+You do not need to configure the worker: it finds an exit gateway and its DNS resolvers, so `config` is `{}`.

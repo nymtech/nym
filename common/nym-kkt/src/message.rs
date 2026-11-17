@@ -53,6 +53,30 @@ impl KKTRequest {
             encrypted_frame: b[x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN..].to_vec(),
         })
     }
+
+    /// Size of the cleartext prefix: the initiator's ephemeral key and the masked version.
+    pub const PLAINTEXT_SIZE: usize = KKTRequestPlaintext::SIZE;
+
+    /// Unmask the outer protocol version from the cleartext prefix alone, before the frame is read.
+    pub fn peek_outer_protocol_version(
+        plaintext: &[u8],
+        responder_pubkey: &DHPublicKey,
+        supported_versions: &[u8],
+    ) -> Result<u8, KKTError> {
+        let plaintext = KKTRequestPlaintext::try_from_bytes(plaintext)?;
+        let mask = plaintext.version_mask(responder_pubkey);
+        Ok(plaintext
+            .masked_version_bytes
+            .unmask_check_version(&mask, supported_versions)?)
+    }
+
+    /// Assemble a request from its cleartext prefix and the separately read encrypted frame.
+    pub fn from_parts(plaintext: &[u8], encrypted_frame: Vec<u8>) -> Result<Self, KKTError> {
+        Ok(KKTRequest {
+            plaintext: KKTRequestPlaintext::try_from_bytes(plaintext)?,
+            encrypted_frame,
+        })
+    }
 }
 
 pub(crate) struct KKTRequestPlaintext {
@@ -266,4 +290,46 @@ pub struct ProcessedKKTResponse {
 
     /// Optional response payload (Could be empty. Contents are unrelated to current KKT execution).
     pub response_payload: Vec<u8>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::key_utils::generate_lp_keypair_x25519;
+    use nym_test_utils::helpers::deterministic_rng;
+
+    #[test]
+    fn peek_returns_the_version_the_initiator_masked() {
+        let mut rng = deterministic_rng();
+        let initiator = generate_lp_keypair_x25519(&mut rng);
+        let responder = generate_lp_keypair_x25519(&mut rng);
+        let plaintext = KKTRequestPlaintext::new(initiator.pk, &responder.pk, 7).to_bytes();
+
+        assert_eq!(
+            7,
+            KKTRequest::peek_outer_protocol_version(&plaintext, &responder.pk, &[1, 7]).unwrap()
+        );
+        assert!(KKTRequest::peek_outer_protocol_version(&plaintext, &responder.pk, &[1]).is_err());
+    }
+
+    #[test]
+    fn from_parts_round_trips_into_bytes() {
+        let mut rng = deterministic_rng();
+        let initiator = generate_lp_keypair_x25519(&mut rng);
+        let responder = generate_lp_keypair_x25519(&mut rng);
+        let request = KKTRequest {
+            plaintext: KKTRequestPlaintext::new(initiator.pk, &responder.pk, 1),
+            encrypted_frame: vec![1, 2, 3, 4],
+        };
+        let bytes = request.into_bytes();
+        let (plaintext, frame) = bytes.split_at(KKTRequest::PLAINTEXT_SIZE);
+
+        let rebuilt = KKTRequest::from_parts(plaintext, frame.to_vec()).unwrap();
+        assert_eq!(bytes, rebuilt.into_bytes());
+    }
+
+    #[test]
+    fn from_parts_rejects_a_short_plaintext() {
+        assert!(KKTRequest::from_parts(&[0u8; KKTRequest::PLAINTEXT_SIZE - 1], vec![]).is_err());
+    }
 }

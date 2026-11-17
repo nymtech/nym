@@ -2,3 +2,8 @@
 - name: Reload systemd
   systemd:
     daemon_reload: yes
+
+- name: Restart nym-node
+  systemd:
+    name: nym-node
+    state: restarted

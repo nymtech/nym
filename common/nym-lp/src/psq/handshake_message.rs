@@ -5,34 +5,56 @@ use crate::psq::{PSQ_MSG2_SIZE, psq_msg1_size};
 use crate::transport::{LpTransportError, traits::HandshakeMessage};
 use nym_kkt::context::KKTMode;
 use nym_kkt_ciphersuite::KEM;
+use nym_lp_data::packet::version;
 use std::ops::Deref;
 
-pub struct KKTRequest(nym_kkt::message::KKTRequest);
+/// Size of the little-endian `u32` frame length a version 2 request carries after its cleartext prefix.
+pub(crate) const FRAME_LENGTH_PREFIX_SIZE: usize = 4;
 
-impl From<nym_kkt::message::KKTRequest> for KKTRequest {
-    fn from(request: nym_kkt::message::KKTRequest) -> Self {
-        KKTRequest(request)
+pub struct KKTRequest {
+    inner: nym_kkt::message::KKTRequest,
+    protocol_version: u8,
+}
+
+impl KKTRequest {
+    pub fn new(inner: nym_kkt::message::KKTRequest, protocol_version: u8) -> Self {
+        KKTRequest {
+            inner,
+            protocol_version,
+        }
     }
 }
 
 impl From<KKTRequest> for nym_kkt::message::KKTRequest {
     fn from(request: KKTRequest) -> Self {
-        request.0
+        request.inner
     }
 }
 
 impl HandshakeMessage for KKTRequest {
     fn into_bytes(self) -> Vec<u8> {
-        self.0.into_bytes()
+        let mut bytes = self.inner.into_bytes();
+        if self.protocol_version < version::V2 {
+            return bytes;
+        }
+
+        // version 2: the encrypted frame is preceded by its length
+        let frame = bytes.split_off(nym_kkt::message::KKTRequest::PLAINTEXT_SIZE);
+        bytes.extend_from_slice(&(frame.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(&frame);
+        bytes
     }
 
+    /// Decodes the version 1 layout; the responder reads version 2 in two stages instead.
     fn try_from_bytes(bytes: Vec<u8>) -> Result<Self, LpTransportError> {
-        Ok(KKTRequest(
+        Ok(KKTRequest::new(
             nym_kkt::message::KKTRequest::try_from_bytes(&bytes)
                 .map_err(|err| LpTransportError::MalformedPacket(err.to_string()))?,
+            version::V1,
         ))
     }
 
+    /// Size of the version 1 layout; the responder reads version 2 in two stages instead.
     fn expected_size(mode: KKTMode, expected_kem: KEM, payload_size: usize) -> usize {
         nym_kkt::message::KKTRequest::size_excluding_payload(mode, expected_kem) + payload_size
     }
@@ -141,5 +163,39 @@ impl HandshakeMessage for PSQMsg2 {
 
     fn response_size(&self, _: KEM) -> Option<usize> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PLAINTEXT_SIZE: usize = nym_kkt::message::KKTRequest::PLAINTEXT_SIZE;
+
+    fn request_with_frame(frame: Vec<u8>) -> nym_kkt::message::KKTRequest {
+        nym_kkt::message::KKTRequest::from_parts(&[7u8; PLAINTEXT_SIZE], frame).unwrap()
+    }
+
+    #[test]
+    fn a_v1_request_is_the_prefix_and_the_frame() {
+        let bytes = KKTRequest::new(request_with_frame(vec![1, 2, 3]), version::V1).into_bytes();
+
+        assert_eq!(&bytes[..PLAINTEXT_SIZE], &[7u8; PLAINTEXT_SIZE]);
+        assert_eq!(&bytes[PLAINTEXT_SIZE..], &[1, 2, 3]);
+    }
+
+    #[test]
+    fn a_v2_request_carries_the_frame_length_after_the_prefix() {
+        let bytes = KKTRequest::new(request_with_frame(vec![1, 2, 3]), version::V2).into_bytes();
+
+        assert_eq!(&bytes[..PLAINTEXT_SIZE], &[7u8; PLAINTEXT_SIZE]);
+        assert_eq!(
+            &bytes[PLAINTEXT_SIZE..PLAINTEXT_SIZE + FRAME_LENGTH_PREFIX_SIZE],
+            &3u32.to_le_bytes()
+        );
+        assert_eq!(
+            &bytes[PLAINTEXT_SIZE + FRAME_LENGTH_PREFIX_SIZE..],
+            &[1, 2, 3]
+        );
     }
 }

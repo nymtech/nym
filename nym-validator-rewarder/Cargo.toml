@@ -1,11 +1,10 @@
 [package]
 name = "nym-validator-rewarder"
-version = "0.3.0"
+version = "0.3.1"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 publish = false
 
@@ -39,7 +38,6 @@ nym-ecash-time = { workspace = true }
 nym-contracts-common = { workspace = true }
 nym-compact-ecash = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
-nym-credentials = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }

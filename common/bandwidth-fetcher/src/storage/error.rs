@@ -3,7 +3,7 @@
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("sqlx error")]
+    #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
 
     #[error("migrate error")]
@@ -14,6 +14,9 @@ pub enum StorageError {
 
     #[error("failed to remove pending credential request storage")]
     RemoveStorage(#[from] std::io::Error),
+
+    #[error("failed to set up database encryption: {0}")]
+    Encryption(#[from] nym_sqlcipher::SqlCipherError),
 }
 
 impl StorageError {

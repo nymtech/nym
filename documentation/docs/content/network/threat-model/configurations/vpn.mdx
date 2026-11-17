@@ -5,12 +5,8 @@ schemaType: "TechArticle"
 section: "Network"
 lastUpdated: "2026-07-29"
 ---
-
-import { GenericScenarioView } from 'components/threat-model/GenericScenarioView'
-import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
-
-export const scenario = requireGenericScenario('vpn')
+import Intro from '@snippets/nym/network/threat-model/configurations/vpn/intro.mdx'
 
 # Centralised VPN
 
-<GenericScenarioView scenario={scenario} />
+<Intro />

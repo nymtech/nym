@@ -117,6 +117,21 @@ where
         })
 }
 
+pub async fn remove_gateway_details<D>(
+    details_store: &D,
+    gateway_id: &str,
+) -> Result<(), ClientCoreError>
+where
+    D: GatewaysDetailsStore,
+{
+    details_store
+        .remove_gateway_details(gateway_id)
+        .await
+        .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
+            source: Box::new(source),
+        })
+}
+
 pub async fn load_active_gateway_details<D>(
     details_store: &D,
 ) -> Result<ActiveGateway, ClientCoreError>

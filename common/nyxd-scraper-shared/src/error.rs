@@ -62,11 +62,13 @@ pub enum ScraperError {
         source: Box<tendermint_rpc::Error>,
     },
 
-    #[error("could not obtain tx results for tx: {hash}: {source}")]
-    TxResultsQueryFailure {
-        hash: Hash,
-        #[source]
-        source: Box<tendermint_rpc::Error>,
+    #[error(
+        "block at height {height} holds {transactions} transaction(s) but came with {results} transaction result(s)"
+    )]
+    TxResultsCountMismatch {
+        height: u32,
+        transactions: usize,
+        results: usize,
     },
 
     #[error("could not obtain current abci info: {source}")]

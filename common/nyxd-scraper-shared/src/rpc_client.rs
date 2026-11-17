@@ -7,15 +7,14 @@ use crate::block_processor::types::{
 use crate::error::ScraperError;
 use crate::helpers::tx_hash;
 use crate::{Any, MessageRegistry, ParsedTransactionDetails, default_message_registry};
-use futures::StreamExt;
-use futures::future::join3;
+use futures::future::join;
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::sync::Arc;
-use tendermint::{Block, Hash};
-use tendermint_rpc::endpoint::{block, block_results, tx, validators};
+use tendermint::Block;
+use tendermint::abci::types::ExecTxResult;
+use tendermint_rpc::endpoint::{block, block_results, validators};
 use tendermint_rpc::{Client, HttpClient, Paging};
-use tokio::sync::Mutex;
 use tracing::{debug, instrument, warn};
 use url::Url;
 
@@ -43,7 +42,10 @@ where
             }
         }
 
-        tokio::time::sleep(std::time::Duration::from_millis(300 * (i as u64 + 1))).await;
+        // only wait if another attempt follows
+        if i + 1 < max_attempts {
+            tokio::time::sleep(std::time::Duration::from_millis(300 * (i as u64 + 1))).await;
+        }
     }
 
     // SAFETY: max_attempts >= 1, so we only reach here after at least one recorded failure
@@ -103,25 +105,31 @@ impl RpcClient {
         }
     }
 
+    /// Pair each tx of the block with its execution result, which come in the same order.
     fn parse_transactions(
         &self,
-        raw_transactions: Vec<tx::Response>,
         block: &Block,
+        tx_results: Vec<ExecTxResult>,
     ) -> Result<Vec<ParsedTransactionResponse>, ScraperError> {
-        let mut transactions = Vec::with_capacity(raw_transactions.len());
-        for raw_tx in raw_transactions {
-            let mut decoded_messages = BTreeMap::new();
-            let tx = cosmrs::Tx::from_bytes(&raw_tx.tx).map_err(|source| {
-                ScraperError::TxParseFailure {
-                    hash: raw_tx.hash,
-                    source,
-                }
-            })?;
+        if tx_results.len() != block.data.len() {
+            return Err(ScraperError::TxResultsCountMismatch {
+                height: block.header.height.value() as u32,
+                transactions: block.data.len(),
+                results: tx_results.len(),
+            });
+        }
 
-            for (index, msg) in tx.body.messages.iter().enumerate() {
+        let mut transactions = Vec::with_capacity(tx_results.len());
+        for (index, (raw_tx, tx_result)) in block.data.iter().zip(tx_results).enumerate() {
+            let hash = tx_hash(raw_tx);
+            let tx = cosmrs::Tx::from_bytes(raw_tx)
+                .map_err(|source| ScraperError::TxParseFailure { hash, source })?;
+
+            let mut decoded_messages = BTreeMap::new();
+            for (msg_index, msg) in tx.body.messages.iter().enumerate() {
                 if let Some(decoded_content) = self.decode_or_skip(msg) {
                     decoded_messages.insert(
-                        index,
+                        msg_index,
                         DecodedMessage {
                             type_url: msg.type_url.clone(),
                             decoded_content,
@@ -132,11 +140,11 @@ impl RpcClient {
 
             transactions.push(ParsedTransactionResponse {
                 tx_details: ParsedTransactionDetails {
-                    hash: raw_tx.hash,
-                    index: raw_tx.index,
-                    tx_result: raw_tx.tx_result,
+                    hash,
+                    index: index as u32,
+                    tx_result,
                     tx,
-                    proof: raw_tx.proof,
+                    proof: None,
                     block: block.clone(),
                 },
                 decoded_messages,
@@ -154,28 +162,38 @@ impl RpcClient {
         debug!("getting complete block details");
         let height = block.height;
 
+        // tx results a block did not arrive with are all in its block results: one query, not one per tx
+        let fetch_block_results =
+            config.get_block_results || (config.get_transactions && block.lacks_tx_results());
+
         // make all the http requests run concurrently
-        let (results, validators, raw_transactions) = join3(
-            self.maybe_get_block_results(height, config.get_block_results),
+        let (results, validators) = join(
+            self.maybe_get_block_results(height, fetch_block_results),
             self.maybe_get_validators_details(height, config.get_validators),
-            self.maybe_get_transaction_results(&block.block.data, config.get_transactions),
         )
         .await;
+        let results = results?;
 
-        let transactions = match raw_transactions? {
-            Some(raw) => Some(self.parse_transactions(raw, &block.block)?),
-            None => None,
+        let tx_results = block
+            .tx_results
+            .or_else(|| results.as_ref()?.txs_results.clone())
+            .unwrap_or_default();
+
+        let transactions = if config.get_transactions {
+            Some(self.parse_transactions(&block.block, tx_results)?)
+        } else {
+            None
         };
 
         Ok(FullBlockInformation {
             block: block.block,
-            results: results?,
+            results: results.filter(|_| config.get_block_results),
             validators: validators?,
             transactions,
         })
     }
 
-    #[instrument(skip(self), err(Display))]
+    #[instrument(skip(self))]
     pub async fn get_basic_block_details(
         &self,
         height: u32,
@@ -191,7 +209,7 @@ impl RpcClient {
             })
     }
 
-    #[instrument(skip(self), err(Display))]
+    #[instrument(skip(self))]
     pub async fn get_block_results(
         &self,
         height: u32,
@@ -206,7 +224,7 @@ impl RpcClient {
         })
     }
 
-    #[instrument(skip(self), err(Display))]
+    #[instrument(skip(self))]
     async fn get_block_results_with_retries(
         &self,
         height: u32,
@@ -255,70 +273,6 @@ impl RpcClient {
         Ok(status.sync_info.earliest_block_height.value())
     }
 
-    async fn get_transaction_results(
-        &self,
-        raw: &[Vec<u8>],
-    ) -> Result<Vec<tx::Response>, ScraperError> {
-        let ordered_results = Arc::new(Mutex::new(BTreeMap::new()));
-
-        // "Data is just a wrapper for a list of transactions, where transactions are arbitrary byte arrays"
-        // source: https://github.com/tendermint/spec/blob/d46cd7f573a2c6a2399fcab2cde981330aa63f37/spec/core/data_structures.md#data
-        futures::stream::iter(
-            raw.iter()
-                .map(tx_hash)
-                .enumerate()
-                .zip(std::iter::repeat(ordered_results.clone())),
-        )
-        .for_each_concurrent(4, |((id, tx_hash), ordered_results)| async move {
-            let res = self
-                .get_transaction_result_with_retries(tx_hash, MAX_QUERY_ATTEMPTS)
-                .await;
-            ordered_results.lock().await.insert(id, res);
-        })
-        .await;
-
-        // safety: the futures have completed so we MUST have the only arc reference
-        #[allow(clippy::unwrap_used)]
-        let inner = Arc::into_inner(ordered_results).unwrap().into_inner();
-
-        // BTreeMap is ordered by its keys so we're guaranteed to get txs in correct order
-        inner.into_values().collect()
-    }
-
-    async fn maybe_get_transaction_results(
-        &self,
-        raw: &[Vec<u8>],
-        retrieve: bool,
-    ) -> Result<Option<Vec<tx::Response>>, ScraperError> {
-        if retrieve {
-            self.get_transaction_results(raw).await.map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-
-    #[instrument(skip(self, tx_hash), fields(tx_hash = %tx_hash), err(Display))]
-    async fn get_transaction_result(&self, tx_hash: Hash) -> Result<tx::Response, ScraperError> {
-        debug!("getting tx results");
-
-        self.inner
-            .tx(tx_hash, false)
-            .await
-            .map_err(|source| ScraperError::TxResultsQueryFailure {
-                hash: tx_hash,
-                source: Box::new(source),
-            })
-    }
-
-    #[instrument(skip(self, tx_hash), fields(tx_hash = %tx_hash), err(Display))]
-    async fn get_transaction_result_with_retries(
-        &self,
-        tx_hash: Hash,
-        max_attempts: usize,
-    ) -> Result<tx::Response, ScraperError> {
-        query_with_retries(max_attempts, || self.get_transaction_result(tx_hash)).await
-    }
-
     #[instrument(skip(self))]
     pub async fn get_validators_details(
         &self,
@@ -335,7 +289,7 @@ impl RpcClient {
             })
     }
 
-    #[instrument(skip(self), err(Display))]
+    #[instrument(skip(self))]
     async fn get_validators_details_with_retries(
         &self,
         height: u32,
@@ -356,5 +310,80 @@ impl RpcClient {
         } else {
             Ok(None)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::block_processor::types::test_helpers::{
+        NEW_BLOCK_MESSAGE, TX_GAS_USED, TX_HASH, parse_new_block_message,
+    };
+    use std::time::Duration;
+
+    const TRANSACTIONS_ONLY: RetrievalConfig = RetrievalConfig {
+        get_validators: false,
+        get_transactions: true,
+        get_block_results: false,
+    };
+
+    // nothing listens on this port, so a call that attempts any rpc query fails
+    fn client_without_a_node() -> RpcClient {
+        let url = "http://127.0.0.1:1".parse().expect("the url is valid");
+        RpcClient::new(&url).expect("building the client opens no connection")
+    }
+
+    fn recorded_block() -> BlockToProcess {
+        BlockToProcess::try_from(parse_new_block_message(NEW_BLOCK_MESSAGE))
+            .expect("the recorded event must convert")
+    }
+
+    // A live block carries everything its transactions need. Looking any of it up again brings
+    // back the race against the node's tx indexer, and a query from every node for every tx.
+    #[tokio::test]
+    async fn a_block_that_arrived_with_its_tx_results_needs_no_rpc_query() {
+        let details = client_without_a_node()
+            .try_get_full_details(recorded_block(), TRANSACTIONS_ONLY)
+            .await
+            .expect("an rpc query was attempted");
+
+        let transactions = details.transactions.expect("transactions were asked for");
+        assert_eq!(1, transactions.len());
+
+        let tx = &transactions[0].tx_details;
+        assert_eq!(TX_HASH, tx.hash.to_string());
+        assert_eq!(0, tx.index);
+        assert_eq!(TX_GAS_USED, tx.tx_result.gas_used);
+    }
+
+    // Txs paired against too few results would silently vanish from the block. It has to be an
+    // error instead, so that the block is retried.
+    #[test]
+    fn a_block_is_not_paired_with_fewer_results_than_it_has_txs() {
+        let block = recorded_block();
+
+        let res = client_without_a_node().parse_transactions(&block.block, Vec::new());
+
+        assert!(matches!(
+            res,
+            Err(ScraperError::TxResultsCountMismatch {
+                transactions: 1,
+                results: 0,
+                ..
+            })
+        ));
+    }
+
+    // A failed query is reported once its last attempt has failed: there is nothing left to wait for.
+    #[tokio::test(start_paused = true)]
+    async fn the_last_failed_attempt_is_not_followed_by_a_wait() {
+        let started = tokio::time::Instant::now();
+
+        let res: Result<(), ScraperError> =
+            query_with_retries(3, || async { Err(ScraperError::NoModulesConfigured) }).await;
+
+        assert!(res.is_err());
+        // the waits between three attempts: 300ms, then 600ms
+        assert_eq!(Duration::from_millis(900), started.elapsed());
     }
 }

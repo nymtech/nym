@@ -78,14 +78,14 @@ importers:
         specifier: '>=1.2.4-rc.2 || ^1'
         version: 1.4.1
       '@nymproject/mix-dns':
-        specifier: ^0.2.1
-        version: 0.2.1
+        specifier: ^0.3.2
+        version: 0.3.2
       '@nymproject/mix-fetch':
-        specifier: ^2.1.1
-        version: 2.1.1
+        specifier: ^3.0.2
+        version: 3.0.2
       '@nymproject/mix-tunnel':
-        specifier: ^0.2.1
-        version: 0.2.1
+        specifier: ^0.3.2
+        version: 0.3.2
       '@nymproject/mix-websocket':
         specifier: ^0.2.1
         version: 0.2.1
@@ -1434,14 +1434,17 @@ packages:
   '@nymproject/contract-clients@1.4.1':
     resolution: {integrity: sha512-HuJZ4Hv+Rl6ZZEtCHKgurNLJapM+QQRJlGkevFH2a4UdqUqF9omUkUi3AVes4679dPoSFgvA7plyVSDBdbgV6w==}
 
-  '@nymproject/mix-dns@0.2.1':
-    resolution: {integrity: sha512-9vQBg2DdqLJJkLpUn3xIdBrksqE2V/ZtAm7zj9EqVVYKq/yfH2t/59kUdiQHwnLaIYT72TQ5/6RiaOnd0ss8Vw==}
+  '@nymproject/mix-dns@0.3.2':
+    resolution: {integrity: sha512-i0ve3IY78u4+EcJkjOqEKlr0mWMht2nlUdSkdZwRdR1oqI2g6LXdVvRljhYP7wzYa5NzOtlMfThZNTubj9AalQ==}
 
-  '@nymproject/mix-fetch@2.1.1':
-    resolution: {integrity: sha512-V8bKBn7khZqgyGW4qS3p/b1bb84vLV5l5aycnuAlZprfvpeRqh0DIypjF2K1HbZI5qqY3kn5T4LsDEjACz5SIA==}
+  '@nymproject/mix-fetch@3.0.2':
+    resolution: {integrity: sha512-ou0bvMM8LE+1+PxVKZ2llduj+3nYxZaVYABZGoB1Qns4i6F6QOq5tBmQw40PNUj/5KawOBo4yInOC/7SzUvB1w==}
 
   '@nymproject/mix-tunnel@0.2.1':
     resolution: {integrity: sha512-kX1tDFvqNH+vhxEtg/DIGZZiEl7YM+AmRY4bFXH5y3FIZY2GUYQ/0PDmvOuW6qUIY2kn97PwBPxzqgLL7NGGMA==}
+
+  '@nymproject/mix-tunnel@0.3.2':
+    resolution: {integrity: sha512-wMDNK4ucjU6LUoI5LDOU+j+8T7cU6xuCKcbBWqUo2t6GrRjH9J3lEgzC2lpOxaiPoaA13yk1guEBofYJvDv+EA==}
 
   '@nymproject/mix-websocket@0.2.1':
     resolution: {integrity: sha512-KzK6hW05d86EfBybRhlX4eL9LBD+QkyrHTmJ49cC2uquAJXksf1+dT0HEUmSczwVyoYUxDcw9+8E4B+PFDH+hg==}
@@ -8144,15 +8147,17 @@ snapshots:
 
   '@nymproject/contract-clients@1.4.1': {}
 
-  '@nymproject/mix-dns@0.2.1':
+  '@nymproject/mix-dns@0.3.2':
     dependencies:
-      '@nymproject/mix-tunnel': 0.2.1
+      '@nymproject/mix-tunnel': 0.3.2
 
-  '@nymproject/mix-fetch@2.1.1':
+  '@nymproject/mix-fetch@3.0.2':
     dependencies:
-      '@nymproject/mix-tunnel': 0.2.1
+      '@nymproject/mix-tunnel': 0.3.2
 
   '@nymproject/mix-tunnel@0.2.1': {}
+
+  '@nymproject/mix-tunnel@0.3.2': {}
 
   '@nymproject/mix-websocket@0.2.1':
     dependencies:

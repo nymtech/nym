@@ -4,7 +4,7 @@
 pub use builder::RegistrationClientBuilder;
 pub use builder::config::{
     BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
-    NymNodeWithKeys as RegistrationNymNode,
+    NymNodeWithKeys as RegistrationNymNode, reset_client_identity,
 };
 pub use clients::lp::{LpDvpnRegistrationClient, NestedLpDvpnRegistrationClient};
 pub use config::RegistrationMode;

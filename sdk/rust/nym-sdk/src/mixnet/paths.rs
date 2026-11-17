@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{Error, Result};
+use nym_client_core::client::base_client::storage::helpers::{
+    get_all_registered_identities, remove_gateway_details,
+};
 use nym_client_core::client::base_client::storage::OnDiskGatewaysDetails;
 use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::{KeySecret, OnDiskKeys};
@@ -15,6 +18,7 @@ use nym_client_core::config::disk_persistence::{
     DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME, DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME,
     DEFAULT_REPLY_SURB_DB_FILENAME,
 };
+use nym_client_core::init::generate_new_client_keys;
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use std::path::{Path, PathBuf};
 
@@ -184,6 +188,38 @@ impl StoragePaths {
         .await?)
     }
 
+    /// Gives the client a new identity: new random root keys, no gateway registrations and no
+    /// reply SURBs or reply keys. It contacts no gateway and leaves the credential store unopened,
+    /// so ticketbooks are kept. No client may be using these paths while it runs.
+    pub async fn reset_client_identity(&self) -> Result<()> {
+        // the keys go last, so a reset cut short leaves registrations under the keys they were
+        // made with, or none, and running it again finishes it
+        let details_store = self.on_disk_gateway_details_storage().await?;
+        for gateway_id in get_all_registered_identities(&details_store).await? {
+            remove_gateway_details(&details_store, &gateway_id.to_base58_string()).await?;
+        }
+
+        // loaded directly: the usual setup would create a missing store with default thresholds,
+        // which the client would then keep
+        if self.reply_surb_database_path.exists() {
+            let reply_store =
+                fs_backend::Backend::try_load(&self.reply_surb_database_path, self.database_key())
+                    .await
+                    .map_err(|source| Error::ReplyStorageError {
+                        source: Box::new(source),
+                    })?;
+            let deleted = reply_store.delete_all_reply_data().await;
+            reply_store.shutdown().await;
+            deleted.map_err(|source| Error::ReplyStorageError {
+                source: Box::new(source),
+            })?;
+        }
+
+        let mut rng = nym_crypto::rng::os_rng();
+        generate_new_client_keys(&mut rng, &self.on_disk_key_storage_spec()).await?;
+        Ok(())
+    }
+
     pub fn credential_database_paths(&self) -> Vec<PathBuf> {
         Self::with_sqlite_journal_paths(&self.credential_database_path)
     }
@@ -259,9 +295,17 @@ impl From<CommonClientPaths> for StoragePaths {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_client_core::client::base_client::storage::gateways_storage::{
+        GatewayDetails, GatewaysDetailsStore,
+    };
     use nym_client_core::client::key_manager::persistence::{KeyStore, Passphrase, RawKey};
     use nym_client_core::client::key_manager::ClientKeys;
-    use nym_test_utils::helpers::deterministic_rng;
+    use nym_client_core::client::replies::reply_storage::{
+        CombinedReplyStorage, ReplyStorageBackend,
+    };
+    use nym_sphinx::anonymous_replies::SurbEncryptionKey;
+    use nym_test_utils::helpers::{deterministic_rng, dummy_ed25519_keypair};
+    use time::OffsetDateTime;
 
     #[tokio::test]
     async fn key_passphrase_reaches_the_key_store() {
@@ -320,5 +364,72 @@ mod tests {
             .unwrap();
 
         assert!(!nym_pemstore::is_encrypted(&paths.private_identity).unwrap());
+    }
+
+    #[tokio::test]
+    async fn reset_client_identity_replaces_the_root_and_clears_registrations_and_replies() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = StoragePaths::new_from_dir(dir.path()).unwrap();
+        let mut rng = deterministic_rng();
+
+        let key_store = paths.on_disk_key_storage_spec();
+        let old_keys = ClientKeys::generate_new(&mut rng);
+        key_store.store_keys(&old_keys).await.unwrap();
+
+        let gateway_id = *dummy_ed25519_keypair(1).public_key();
+        let details_store = paths.on_disk_gateway_details_storage().await.unwrap();
+        details_store
+            .store_gateway_details(&GatewayDetails::new_custom(gateway_id, None).into())
+            .await
+            .unwrap();
+        details_store
+            .set_active_gateway(&gateway_id.to_base58_string())
+            .await
+            .unwrap();
+
+        let replies = CombinedReplyStorage::new(10, 100);
+        replies
+            .key_storage_ref()
+            .insert_multiple(vec![SurbEncryptionKey::new(&mut rng)]);
+        let mut reply_store = paths.default_persistent_fs_reply_backend().await.unwrap();
+        reply_store.flush_surb_storage(&replies).await.unwrap();
+        reply_store.stop_storage_session().await.unwrap();
+        assert_eq!(stored_reply_data(&paths).await, (1, 0));
+
+        paths.reset_client_identity().await.unwrap();
+
+        let new_keys = key_store.load_keys().await.unwrap();
+        assert_ne!(
+            new_keys.identity_keypair().public_key(),
+            old_keys.identity_keypair().public_key()
+        );
+        assert!(details_store
+            .all_gateways_identities()
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(details_store
+            .active_gateway()
+            .await
+            .unwrap()
+            .registration
+            .is_none());
+        assert_eq!(stored_reply_data(&paths).await, (0, 0));
+    }
+
+    /// The numbers of stored reply keys and of senders with stored reply SURBs.
+    async fn stored_reply_data(paths: &StoragePaths) -> (usize, usize) {
+        let reply_store = fs_backend::Backend::try_load(&paths.reply_surb_database_path, None)
+            .await
+            .unwrap();
+        let stored = reply_store
+            .load_surb_storage(OffsetDateTime::UNIX_EPOCH)
+            .await
+            .unwrap();
+        reply_store.shutdown().await;
+        (
+            stored.key_storage_ref().as_raw_iter().count(),
+            stored.surbs_storage_ref().as_raw_iter().count(),
+        )
     }
 }

@@ -182,14 +182,15 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
             }
         }
 
-        // just try remove it from all tables even if it doesn't actually exist
-        self.manager.remove_registered_gateway(gateway_id).await?;
+        // just try remove it from all tables even if it doesn't actually exist; the details rows
+        // reference the registered one, so they go first
         self.manager
             .remove_remote_gateway_details(gateway_id)
             .await?;
         self.manager
             .remove_custom_gateway_details(gateway_id)
             .await?;
+        self.manager.remove_registered_gateway(gateway_id).await?;
         Ok(())
     }
 }
@@ -275,5 +276,19 @@ mod tests {
         assert_eq!(active.gateway_id(), gateway_id);
         assert_eq!(active.details.generation_id(), Some(generation_id));
         assert_eq!(active.details.shared_key(), Some(&*shared_key(2)));
+    }
+
+    #[tokio::test]
+    async fn removing_the_active_gateway_leaves_no_registration() {
+        let store = in_memory_store().await;
+        let registration = remote_registration(1, None);
+        let gateway_id = registration.gateway_id().to_base58_string();
+        store.store_gateway_details(&registration).await.unwrap();
+        store.set_active_gateway(&gateway_id).await.unwrap();
+
+        store.remove_gateway_details(&gateway_id).await.unwrap();
+
+        assert!(!store.has_gateway_details(&gateway_id).await.unwrap());
+        assert!(store.active_gateway().await.unwrap().registration.is_none());
     }
 }

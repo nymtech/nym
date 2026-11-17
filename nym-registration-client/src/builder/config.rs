@@ -13,7 +13,11 @@ use nym_sdk::{
 
 #[cfg(unix)]
 use std::os::fd::RawFd;
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 use time::Duration as TimeDuration;
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
@@ -183,6 +187,28 @@ impl BuilderConfig {
             .inspect_err(|e| tracing::debug!("failed to connect reg client for {}: {e}", identity))
             .map_err(|err| RegistrationClientError::ConnectToMixnet(Box::new(err)))
     }
+}
+
+/// Gives the mixnet client stored under `data_path` a new identity: new root keys, no gateway
+/// registrations and no stored replies. Its ticketbooks are kept. No client built from
+/// `data_path` may be running.
+pub async fn reset_client_identity(
+    data_path: &Path,
+    database_key: Option<nym_sqlcipher::DatabaseKey>,
+) -> Result<(), RegistrationClientError> {
+    mixnet_client_storage_paths(data_path, database_key)?
+        .reset_client_identity()
+        .await
+        .map_err(|err| RegistrationClientError::ResetClientIdentity(Box::new(err)))
+}
+
+fn mixnet_client_storage_paths(
+    data_path: &Path,
+    database_key: Option<nym_sqlcipher::DatabaseKey>,
+) -> Result<StoragePaths, RegistrationClientError> {
+    Ok(StoragePaths::new_from_dir(data_path)
+        .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?
+        .with_database_key(database_key))
 }
 
 fn two_hop_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig {

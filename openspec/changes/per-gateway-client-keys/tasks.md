@@ -36,9 +36,9 @@
 
 ## 5. Full reset
 
-- [ ] 5.1 Add `reset_client_identity` to the SDK, available on a client that is not connected and working from `StoragePaths` with its database key: generate and store new random root keys, remove every stored gateway registration, and clear the reply store's reply SURBs and reply keys with its existing delete operations, without contacting a gateway and without opening or modifying the credential store
-- [ ] 5.2 Surface the reset through `nym-registration-client`
-- [ ] 5.3 Test the reset: the root identity key differs afterwards, no registration is left and the reply store holds no reply SURBs or reply keys
+- [x] 5.1 Add `reset_client_identity` to the SDK, available on a client that is not connected and working from `StoragePaths` with its database key: generate and store new random root keys, remove every stored gateway registration, and clear the reply store's reply SURBs and reply keys with its existing delete operations, without contacting a gateway and without opening or modifying the credential store (a method on `StoragePaths`; registrations go first and the keys last, so an interrupted reset leaves usable state and can be run again; the reply store is loaded directly and only when its database exists, since the usual setup would create it with default thresholds; the on-disk `remove_gateway_details` now deletes the details rows before the registered row they reference)
+- [x] 5.2 Surface the reset through `nym-registration-client` (a free `reset_client_identity(data_path, database_key)` using the same storage layout as the mixnet client it builds)
+- [x] 5.3 Test the reset: the root identity key differs afterwards, no registration is left and the reply store holds no reply SURBs or reply keys (the SDK test stores a reply key through the backend trait; a unit test of the reply store's `delete_all_reply_data` covers reply SURBs with raw rows)
 
 ## 6. SDK surface
 

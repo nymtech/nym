@@ -63,6 +63,11 @@ pub struct BuilderConfig {
     pub mixnet_client_config: MixnetClientConfig,
     #[builder(default = MIXNET_CLIENT_STARTUP_TIMEOUT)]
     pub mixnet_client_startup_timeout: Duration,
+    /// Register the mixnet client again with the entry gateway under a new identity, instead of
+    /// loading its stored registration. Not used on the LP registration path, which builds no
+    /// mixnet client.
+    #[builder(default)]
+    pub refresh_gateway_keys: bool,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     pub network_env: NymNetworkDetails,
@@ -155,6 +160,7 @@ impl BuilderConfig {
         let builder = builder
             .with_user_agent(self.user_agent)
             .request_gateway(identity.clone())
+            .refresh_gateway_keys(self.refresh_gateway_keys)
             .network_details(self.network_env)
             .debug_config(debug_config)
             .credentials_mode(true)

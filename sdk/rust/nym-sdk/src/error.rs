@@ -63,6 +63,9 @@ pub enum Error {
     #[error("socks5 mode is not available over LP")]
     Socks5OverLp,
 
+    #[error("refreshing gateway keys is not available over LP")]
+    RefreshOverLp,
+
     #[error("{0} cannot be sent over LP")]
     UnsupportedOverLp(&'static str),
 

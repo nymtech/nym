@@ -30,9 +30,9 @@
 - [x] 4.1 Add a refresh path to `common/client-core/src/init` beside `setup_new_gateway`, selected by a new `GatewaySetup::RefreshKeys` variant: for a gateway that already has a stored registration, legacy or derived, draw a new generation id with `os_rng()`, register under the keys derived from it over the listeners stored with the registration, and only then replace the stored registration through the new store operation; a custom registration is refused with an error
 - [x] 4.2 When the registration of a refresh fails, return an error from the connect and leave the stored registration untouched, with no fallback to it
 - [x] 4.3 Add the one-shot `refresh_gateway_keys` flag to the SDK's `MixnetClientBuilder`, and in `setup_gateway` take the refresh path where the stored registration for the chosen gateway would otherwise be loaded; with no stored registration the flag changes nothing
-- [ ] 4.4 Fail a connect over LP (`connect_to_lp`) when `refresh_gateway_keys` is set, before any gateway is dialled
-- [ ] 4.5 Surface the flag through the `nym-registration-client` builder
-- [ ] 4.6 Test that a connect over LP with the flag set fails before any gateway is dialled
+- [x] 4.4 Fail a connect over LP (`connect_to_lp`) when `refresh_gateway_keys` is set, before any gateway is dialled
+- [x] 4.5 Surface the flag through the `nym-registration-client` builder (a defaulted `BuilderConfig` field passed to the mixnet client it connects; the LP registration path builds no mixnet client and does not use it)
+- [x] 4.6 Test that a connect over LP with the flag set fails before any gateway is dialled
 
 ## 5. Full reset
 

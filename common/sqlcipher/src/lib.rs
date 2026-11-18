@@ -67,6 +67,26 @@ impl DatabaseKey {
 #[error("the database key must be exactly {KEY_LEN} bytes encoded as {} hex characters", KEY_LEN * 2)]
 pub struct InvalidHexKey;
 
+/// Copies the key straight into the shared allocation. Fails unless it's exactly [`KEY_LEN`]
+/// bytes. The caller stays responsible for wiping its own buffer.
+impl TryFrom<&[u8]> for DatabaseKey {
+    type Error = InvalidKeyLength;
+
+    fn try_from(key: &[u8]) -> Result<Self, Self::Error> {
+        if key.len() != KEY_LEN {
+            return Err(InvalidKeyLength { len: key.len() });
+        }
+        Ok(DatabaseKey::from_fn(|buf| buf.copy_from_slice(key)))
+    }
+}
+
+/// Returned by `DatabaseKey::try_from(&[u8])` when the input isn't exactly [`KEY_LEN`] bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("the database key must be exactly {KEY_LEN} bytes, got {len}")]
+pub struct InvalidKeyLength {
+    pub len: usize,
+}
+
 /// Parses the hex encoding, see [`DatabaseKey::from_hex`].
 impl std::str::FromStr for DatabaseKey {
     type Err = InvalidHexKey;
@@ -413,6 +433,19 @@ mod tests {
 
     fn other_key() -> DatabaseKey {
         DatabaseKey::from_bytes(&[0x24; KEY_LEN])
+    }
+
+    #[test]
+    fn database_key_from_slice_checks_the_length() {
+        let key = DatabaseKey::try_from(&[0x42; KEY_LEN][..]).unwrap();
+
+        assert_eq!(key.as_bytes(), &[0x42; KEY_LEN]);
+        assert_eq!(
+            DatabaseKey::try_from(&[0x42; KEY_LEN - 1][..]).unwrap_err(),
+            InvalidKeyLength { len: KEY_LEN - 1 }
+        );
+        assert!(DatabaseKey::try_from(&[0x42; KEY_LEN + 1][..]).is_err());
+        assert!(DatabaseKey::try_from(&[][..]).is_err());
     }
 
     #[test]

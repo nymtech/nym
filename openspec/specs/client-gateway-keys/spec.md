@@ -105,7 +105,7 @@ Sessions with gateways other than the client's home gateway are not covered by t
 
 ### Requirement: Keys at a gateway are refreshed only on explicit request
 
-An application SHALL be able to request a key refresh when it connects, through the `refresh_gateway_keys` flag. When the flag is set and a registration exists for the gateway being connected to, the client SHALL draw a new random generation id, perform a new registration handshake with that gateway under the identity derived from it, and replace the stored registration, including its shared key and generation id. The flag SHALL apply to that one connect only. Without the flag the client MUST NOT refresh.
+An application SHALL be able to request a key refresh when it connects, through the `refresh_gateway_keys` flag. When the flag is set and a remote registration exists for the gateway being connected to, the client SHALL draw a new random generation id, perform a new registration handshake with that gateway under the identity derived from it, and replace the stored registration, including its shared key and generation id. The flag SHALL apply to that one connect only. Without the flag the client MUST NOT refresh.
 
 Refreshing a remote registration that carries no generation id SHALL move it to derived keys under a newly drawn generation id. A custom registration SHALL NOT be refreshed: the request SHALL fail with an error and leave it unchanged. When no registration exists for that gateway the flag SHALL have no effect beyond the ordinary first registration.
 
@@ -128,7 +128,7 @@ The flag SHALL be settable on the SDK's mixnet client builder and through `nym-r
 - **THEN** the second connect authenticates with the registration made by the first and does not refresh
 
 #### Scenario: A legacy registration is refreshed onto derived keys
-- **WHEN** an application connects with the flag to a gateway whose stored registration carries no generation id
+- **WHEN** an application connects with the flag to a gateway whose stored remote registration carries no generation id
 - **THEN** the client registers under an identity derived from a newly drawn generation id, which differs from its root identity
 
 #### Scenario: A failed refresh leaves the old registration in place

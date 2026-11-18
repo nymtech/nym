@@ -88,9 +88,10 @@ The producers and the route connect with `node-postgres`, which treats `sslmode=
 
 | Secret | Value | Where |
 |---|---|---|
-| `RETRIEVAL_STORE_WRITE_URL` | The writer string | GitHub Actions secret in `nymtech/nym`, and later in `nymtech/nym-vpn-client` |
+| `RETRIEVAL_STORE_WRITE_URL` | The writer string | GitHub Actions secret in `nymtech/nym` and in `nymtech/nym-vpn-client` |
 | `RETRIEVAL_STORE_READ_URL` | The reader string | Vercel environment variable of the docs project, for Production and Preview |
-| `RETRIEVAL_STORE_ENABLED` | `1` | GitHub Actions repository variable (not a secret) in `nymtech/nym`. The `cd-retrieval-store` workflow writes the store only while it is `1`; set it to `0` to stop writes without deleting the secret |
+| `RETRIEVAL_STORE_ENABLED` | `1` | GitHub Actions repository variable (not a secret) in `nymtech/nym` and in `nymtech/nym-vpn-client`. The `cd-retrieval-store` workflow of each repository writes the store only while it is `1`; set it to `0` to stop writes without deleting the secret |
+| `VOYAGE_API_KEY` | The Voyage API key | GitHub Actions secret in `nymtech/nym-vpn-client`. `nymtech/nym` has it already, for its docs builds |
 
 The writer uses the direct address. A write run is one long transaction on one `pg.Client` (the package rejects a `pg.Pool`), and it needs no pooling. The reader uses the pooled address, because the route's function instances each hold a connection, and the pooler shares them.
 

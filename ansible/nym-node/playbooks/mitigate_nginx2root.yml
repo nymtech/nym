@@ -337,7 +337,7 @@
           ansible.builtin.shell: |
             set -o pipefail
             out=$(nginx -T 2>&1) || { echo "error: nginx -T failed"; exit 0; }
-            if printf '%s' "$out" | sed 's/#.*//' | grep -zE "$N2R_PATTERN" >/dev/null; then
+            if printf '%s' "$out" | sed -E 's/(^|[[:space:]])#.*//' | grep -zE "$N2R_PATTERN" >/dev/null; then
               echo enabled
             else
               echo off
@@ -358,7 +358,8 @@
         - name: Check which TLS listeners negotiate HTTP/2
           ansible.builtin.shell: |
             set -o pipefail
-            tls_ports=" $(nginx -T 2>/dev/null | sed 's/#.*//' | tr ';{}' '\n\n\n' \
+            # lines joined first, so a listen directive split over lines is one record
+            tls_ports=" $(nginx -T 2>/dev/null | sed -E 's/(^|[[:space:]])#.*//' | tr '\n' ' ' | tr ';{}' '\n\n\n' \
               | awk '$1=="listen" && / ssl( |$)/ && $2 !~ /^unix:/ {n=split($2,p,":"); if (p[n] ~ /^[0-9]+$/) print p[n]}' \
               | sort -u | tr '\n' ' ') "
             probe() {

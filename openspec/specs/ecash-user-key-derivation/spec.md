@@ -69,7 +69,7 @@ Every ticketbook held in a credential store written by an earlier version SHALL 
 
 Spending a ticket MUST use only the ecash secret stored in its ticketbook and the published signing data. It MUST NOT require the mnemonic, a mixnet client key or the bandwidth fetcher. This change MUST NOT alter the credential store schema or the serialised form of an issued ticketbook, and an upgrade MUST NOT delete, invalidate or re-issue a stored ticketbook. A partially spent ticketbook SHALL keep its count of spent tickets.
 
-A pending deposit recorded by an earlier version SHALL be completable after the upgrade with the keypair stored in its pending record, whatever key the fetcher is constructed with.
+A pending deposit recorded by an earlier version that has not expired SHALL be completable after the upgrade with the keypair stored in its pending record, whatever key the fetcher is constructed with.
 
 A change of key source SHALL affect only ticketbooks issued after it. Ticketbooks issued under different ecash keys SHALL be able to sit in one credential store and SHALL all be spendable.
 

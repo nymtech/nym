@@ -15,11 +15,11 @@ const ECASH_USER_KEY_LABEL: &[u8] = b"nym-ecash-user-key-from-mnemonic-v1";
 /// It comes from the paying account and not from any mixnet client key, so refreshing or
 /// resetting the client's keys leaves it unchanged.
 pub fn ecash_keypair_from_mnemonic(mnemonic: &bip39::Mnemonic) -> KeyPairUser {
-    let entropy = Zeroizing::new(mnemonic.to_entropy());
+    let entropy = Zeroizing::new(mnemonic.to_entropy_array());
 
     let mut hasher = Sha256::new();
     hasher.update(ECASH_USER_KEY_LABEL);
-    hasher.update(entropy.as_slice());
+    hasher.update(&entropy.0[..entropy.1]);
     let seed: Zeroizing<[u8; 32]> = Zeroizing::new(hasher.finalize().into());
 
     KeyPairUser::new_seeded(seed.as_slice())

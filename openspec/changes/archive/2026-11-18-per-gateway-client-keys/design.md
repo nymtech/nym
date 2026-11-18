@@ -37,7 +37,7 @@ The full investigation, with line references and the reasoning behind each decis
 - Unlinking registrations made before this change. Gateways that already know a client's identity keep knowing it until the client refreshes or resets.
 - Carrying bandwidth across a refresh or a reset. Reusing a leftover balance means proving to the gateway that it is the same account, which is the link a refresh removes.
 - An automatic refresh policy. The change provides the trigger only.
-- A refresh or reset command for the command-line clients or the wasm client.
+- A refresh or reset for the wasm client.
 - Gateway-side clean-up of abandoned client records.
 - Making an ecash blacklist robust. The ecash key in an issuance request is the requester's free choice under any seed scheme.
 - Moving nym-vpn-client onto the shared ecash helper. It supplies its own ecash keypair.
@@ -127,7 +127,7 @@ The replacement is one new operation on `GatewaysDetailsStore`, in the manner of
 - A legacy registration moves to derived keys under a newly drawn generation id.
 - If the new registration fails, the connect fails. The client is never quietly connected under the identity the application asked to leave. The old registration stays stored for a later connect without the flag.
 - The client never connects as its old identity during a refresh. Forget-me for the old identity therefore has to be sent when the previous session disconnects, which the SDK already supports.
-- The flag is exposed by the SDK and by `nym-registration-client`, which builds the mixnet client nym-vpn-client uses. The command-line clients and the wasm client do not expose it. Over LP the flag fails the connect (Decision 16).
+- The flag is exposed by the SDK and by `nym-registration-client`, which builds the mixnet client nym-vpn-client uses. The native and socks5 clients offer the same refresh as their `refresh-gateway-keys` command, which refreshes without starting the client; the wasm client does not expose it. Over LP the flag fails the connect (Decision 16).
 
 Why at connect: it is the least linkable moment, since no connection as the old identity precedes it, and the cheapest, since a client whose balance is low would spend a ticket there anyway.
 
@@ -135,7 +135,7 @@ Alternatives considered: refreshing automatically at every connect, which costs 
 
 ### Decision 8: A full reset replaces the root keys
 
-`reset_client_identity` generates new random root keys, removes every gateway registration and clears the reply store, and leaves the credential store alone. It is available on a client that is not connected, it contacts no gateway, and it is exposed by the SDK and by `nym-registration-client` only. For on-disk storage it works from `StoragePaths`, which already holds the database key the registration and reply stores are opened with. The reply store's files are deleted without opening it, so a store that cannot be loaded cannot fail the reset, and the client's next start creates a fresh one from its own reply SURB configuration. A wrong database key is still caught by the registrations store, which is opened with the same key before anything is removed.
+`reset_client_identity` generates new random root keys, removes every gateway registration and clears the reply store, and leaves the credential store alone. It is available on a client that is not connected, it contacts no gateway, and it is exposed by the SDK, by `nym-registration-client` and as the `reset-client-identity` command of the native and socks5 clients. For on-disk storage it works from `StoragePaths`, which already holds the database key the registration and reply stores are opened with. The reply store's files are deleted without opening it, so a store that cannot be loaded cannot fail the reset, and the client's next start creates a fresh one from its own reply SURB configuration. A wrong database key is still caught by the registrations store, which is opened with the same key before anything is removed.
 
 Why replace the root: removing the registrations alone would give a fresh identity at every gateway with a stored registration, since each new registration draws a random generation id, but not to an LP client, which derives at the zero id from the root at every start. A new root covers both and needs no bookkeeping.
 
@@ -190,7 +190,7 @@ The requirement that every existing ticketbook stays spendable is met by leaving
 
 The implementation therefore has to keep four things true: no change to the credential store schema or the serialised ticketbook; a spend path independent of client keys and mnemonic; `new_with_keypair` using its keypair unchanged; and no automatic deletion, refresh or re-registration of an existing registration.
 
-These are checked from the finished diff, and demonstrated end to end by the QA pass. No new test is added for the ticketbook's serialised form, which this change does not touch.
+These are checked from the finished diff, and are to be demonstrated end to end by the QA pass after merge. No new test is added for the ticketbook's serialised form, which this change does not touch.
 
 ### Decision 15: The derivation material option is removed
 
@@ -254,4 +254,3 @@ These need a real gateway and funded accounts, so they belong to the QA pass aga
 ## Open Questions
 
 None remain. What a recovery-only fetcher is constructed with is settled in Decision 12.
-- How `refresh_gateway_keys` and `reset_client_identity` are surfaced through `nym-registration-client`.

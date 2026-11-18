@@ -103,7 +103,7 @@ Sessions with gateways other than the client's home gateway are not covered by t
 - **WHEN** an application sets the refresh flag and connects over LP
 - **THEN** the connect fails with an error before any gateway is dialled
 
-### Requirement: Keys at a gateway are refreshed only by an explicit flag on connect
+### Requirement: Keys at a gateway are refreshed only on explicit request
 
 An application SHALL be able to request a key refresh when it connects, through the `refresh_gateway_keys` flag. When the flag is set and a registration exists for the gateway being connected to, the client SHALL draw a new random generation id, perform a new registration handshake with that gateway under the identity derived from it, and replace the stored registration, including its shared key and generation id. The flag SHALL apply to that one connect only. Without the flag the client MUST NOT refresh.
 
@@ -189,7 +189,7 @@ The registration handshake, the authentication request and the data a gateway st
 
 ### Requirement: The client statistics id follows the identity in the client's address
 
-The id a client reports in its optional statistics report SHALL keep being derived from the identity public key in its current address. It is therefore distinct per gateway and changes with a refresh. It MUST NOT be derived from the root keys.
+The id a client reports in its optional statistics report SHALL keep being derived from the identity public key in its current address. It is therefore distinct per gateway and changes with a refresh. For a derived registration it MUST NOT be derived from the root keys; a legacy or custom registration keeps the root identity in its address, and so in this id.
 
 #### Scenario: The statistics id changes with the gateway
 - **WHEN** a client reports statistics while registered with gateway A and later while registered with gateway B under derived keys

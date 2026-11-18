@@ -107,7 +107,7 @@ Sessions with gateways other than the client's home gateway are not covered by t
 
 An application SHALL be able to request a key refresh when it connects, through the `refresh_gateway_keys` flag. When the flag is set and a registration exists for the gateway being connected to, the client SHALL draw a new random generation id, perform a new registration handshake with that gateway under the identity derived from it, and replace the stored registration, including its shared key and generation id. The flag SHALL apply to that one connect only. Without the flag the client MUST NOT refresh.
 
-Refreshing a registration that carries no generation id SHALL move it to derived keys under a newly drawn generation id. When no registration exists for that gateway the flag SHALL have no effect beyond the ordinary first registration.
+Refreshing a remote registration that carries no generation id SHALL move it to derived keys under a newly drawn generation id. A custom registration SHALL NOT be refreshed: the request SHALL fail with an error and leave it unchanged. When no registration exists for that gateway the flag SHALL have no effect beyond the ordinary first registration.
 
 The stored registration MUST be replaced only after the new registration has succeeded. If it fails, the stored registration SHALL be left as it was and the connect SHALL fail with an error: the client MUST NOT fall back to the stored registration for that connect. The replacement SHALL be a single store operation, so that an interruption cannot leave the gateway without a stored registration or with a mix of old and new values.
 

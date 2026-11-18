@@ -68,8 +68,10 @@ pub struct BuilderConfig {
     #[builder(default = MIXNET_CLIENT_STARTUP_TIMEOUT)]
     pub mixnet_client_startup_timeout: Duration,
     /// Register the mixnet client again with the entry gateway under a new identity, instead of
-    /// loading its stored registration. Not used on the LP registration path, which builds no
-    /// mixnet client.
+    /// loading its stored registration. The new registration is stored before the client
+    /// authenticates with it, so a connect that fails after that point still leaves the client
+    /// on the new identity, and a retry with the flag set registers yet another one. Not used on
+    /// the LP registration path, which builds no mixnet client.
     #[builder(default)]
     pub refresh_gateway_keys: bool,
     pub user_agent: UserAgent,
@@ -134,10 +136,11 @@ impl BuilderConfig {
             self.data_path.display()
         );
 
-        let storage_paths = StoragePaths::new_from_dir(&self.data_path)
-            .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?
-            .with_database_key(self.database_key.clone())
-            .with_key_passphrase(self.key_passphrase.clone());
+        let storage_paths = mixnet_client_storage_paths(
+            &self.data_path,
+            self.database_key.clone(),
+            self.key_passphrase.clone(),
+        )?;
 
         let mixnet_client_storage = storage_paths
             .initialise_persistent_storage(&self.mixnet_client_debug_config())
@@ -191,12 +194,14 @@ impl BuilderConfig {
 
 /// Gives the mixnet client stored under `data_path` a new identity: new root keys, no gateway
 /// registrations and no stored replies. Its ticketbooks are kept. No client built from
-/// `data_path` may be running.
+/// `data_path` may be running. `database_key` and `key_passphrase` are the client's own, as set
+/// on [`BuilderConfig`].
 pub async fn reset_client_identity(
     data_path: &Path,
     database_key: Option<nym_sqlcipher::DatabaseKey>,
+    key_passphrase: Option<Passphrase>,
 ) -> Result<(), RegistrationClientError> {
-    mixnet_client_storage_paths(data_path, database_key)?
+    mixnet_client_storage_paths(data_path, database_key, key_passphrase)?
         .reset_client_identity()
         .await
         .map_err(|err| RegistrationClientError::ResetClientIdentity(Box::new(err)))
@@ -205,10 +210,12 @@ pub async fn reset_client_identity(
 fn mixnet_client_storage_paths(
     data_path: &Path,
     database_key: Option<nym_sqlcipher::DatabaseKey>,
+    key_passphrase: Option<Passphrase>,
 ) -> Result<StoragePaths, RegistrationClientError> {
     Ok(StoragePaths::new_from_dir(data_path)
         .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?
-        .with_database_key(database_key))
+        .with_database_key(database_key)
+        .with_key_passphrase(key_passphrase))
 }
 
 fn two_hop_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig {

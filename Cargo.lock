@@ -8749,7 +8749,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "2.0.3-rc1"
+version = "2.0.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -8770,7 +8770,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.6.6-rc1"
+version = "4.6.6"
 dependencies = [
  "ammonia",
  "anyhow",

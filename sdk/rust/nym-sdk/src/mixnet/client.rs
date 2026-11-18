@@ -267,7 +267,10 @@ where
     ///
     /// Off by default; with no stored registration for the gateway it changes nothing. The old
     /// identity's bandwidth is forfeited and the client's address changes. If the new registration
-    /// fails, the connect fails and the old registration stays stored. The gateway drops the old
+    /// fails, the connect fails and the old registration stays stored. Once it succeeds it is
+    /// stored before the client authenticates with it, so a connect that fails after that point,
+    /// for instance for lack of bandwidth, still leaves the client on the new identity, and a
+    /// retry with the flag set registers yet another one. The gateway drops the old
     /// identity only if the previous session disconnected with
     /// [`with_forget_me`](Self::with_forget_me) set. Over LP the connect fails, as an LP client
     /// stores no registration to keep the new identity in.

@@ -63,7 +63,7 @@ impl GatewayKeyDerivation {
 
     /// The identity keypair the client presents to the gateway.
     pub(super) fn identity_keypair(&self) -> ed25519::KeyPair {
-        let secret = self.expand::<{ ed25519::SECRET_KEY_LENGTH }>(IDENTITY_KEY_LABEL);
+        let secret = self.expand(IDENTITY_KEY_LABEL);
 
         // SAFETY: the secret has exactly the length `from_bytes` requires
         #[allow(clippy::expect_used)]
@@ -74,7 +74,7 @@ impl GatewayKeyDerivation {
 
     /// The x25519 keypair in the client's address at the gateway.
     pub(super) fn diffie_hellman_keypair(&self) -> x25519::KeyPair {
-        let secret = self.expand::<{ x25519::PRIVATE_KEY_SIZE }>(DIFFIE_HELLMAN_KEY_LABEL);
+        let secret = self.expand(DIFFIE_HELLMAN_KEY_LABEL);
 
         // SAFETY: the secret has exactly the length `from_bytes` requires
         #[allow(clippy::expect_used)]
@@ -83,7 +83,8 @@ impl GatewayKeyDerivation {
         private_key.into()
     }
 
-    fn expand<const N: usize>(&self, label: &[u8]) -> Zeroizing<[u8; N]> {
+    /// 32 bytes: the size of both an ed25519 and an x25519 private key.
+    fn expand(&self, label: &[u8]) -> Zeroizing<[u8; 32]> {
         // SAFETY: the pseudorandom key is a full BLAKE3 output, the length `from_prk` requires
         #[allow(clippy::expect_used)]
         let hkdf = SimpleHkdf::<blake3::Hasher>::from_prk(self.pseudorandom_key.as_slice())
@@ -95,7 +96,7 @@ impl GatewayKeyDerivation {
         ]
         .concat();
 
-        let mut secret = Zeroizing::new([0; N]);
+        let mut secret = Zeroizing::new([0; 32]);
         // SAFETY: a single key is far below HKDF's limit of 255 hash outputs
         #[allow(clippy::expect_used)]
         hkdf.expand(&info, secret.as_mut_slice())
@@ -183,8 +184,8 @@ mod tests {
             GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::LP);
 
         assert_ne!(
-            *derivation.expand::<32>(IDENTITY_KEY_LABEL),
-            *derivation.expand::<32>(DIFFIE_HELLMAN_KEY_LABEL)
+            *derivation.expand(IDENTITY_KEY_LABEL),
+            *derivation.expand(DIFFIE_HELLMAN_KEY_LABEL)
         );
     }
 

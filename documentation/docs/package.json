@@ -52,7 +52,7 @@
     "@nymproject/mix-fetch": "^3.0.2",
     "@nymproject/mix-tunnel": "^0.3.2",
     "@nymproject/mix-websocket": "^0.3.2",
-    "@nymproject/retrieval-indexer": "github:nymtech/retrieval-indexer#v0.1.3",
+    "@nymproject/retrieval-indexer": "github:nymtech/retrieval-indexer#v0.2.1",
     "@nymproject/sdk-full-fat": ">=1.5.1-rc.0 || ^1.4.1",
     "@redocly/cli": "^1.25.15",
     "@types/mdx": "^2.0.13",

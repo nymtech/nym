@@ -90,8 +90,8 @@ importers:
         specifier: ^0.3.2
         version: 0.3.2
       '@nymproject/retrieval-indexer':
-        specifier: github:nymtech/retrieval-indexer#v0.1.3
-        version: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/5601efb2053004c33edde4199edf40be47753c2f
+        specifier: github:nymtech/retrieval-indexer#v0.2.1
+        version: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/85570087944706d0d95f51a48594b88922909906
       '@nymproject/sdk-full-fat':
         specifier: '>=1.5.1-rc.0 || ^1.4.1'
         version: 1.4.1
@@ -1455,9 +1455,9 @@ packages:
   '@nymproject/mix-websocket@0.3.2':
     resolution: {integrity: sha512-UfX4t87Y/BA/rRLDwWGYbR4QOcs3fz57u49emSWcDGcgguV6h02qi3t5dRs0jwHDuhAGsNeQnCweBaA+u4n5Ag==}
 
-  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/5601efb2053004c33edde4199edf40be47753c2f':
-    resolution: {gitHosted: true, tarball: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/5601efb2053004c33edde4199edf40be47753c2f}
-    version: 0.1.3
+  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/85570087944706d0d95f51a48594b88922909906':
+    resolution: {gitHosted: true, integrity: sha512-hnx2FGb/zcyU5esAbWqlXGlT04GVFUq2n27HMTvX0C3lv2YhtH6Bpw4DS5NADfdDGPPnCRmC1CKpaNEpf04++A==, tarball: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/85570087944706d0d95f51a48594b88922909906}
+    version: 0.2.1
     engines: {node: '>=20'}
 
   '@nymproject/sdk-full-fat@1.4.1':
@@ -8266,7 +8266,7 @@ snapshots:
     dependencies:
       '@nymproject/mix-tunnel': 0.3.2
 
-  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/5601efb2053004c33edde4199edf40be47753c2f':
+  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/85570087944706d0d95f51a48594b88922909906':
     dependencies:
       github-slugger: 2.0.0
       gray-matter: 4.0.3

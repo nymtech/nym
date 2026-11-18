@@ -90,6 +90,7 @@ The producers and the route connect with `node-postgres`, which treats `sslmode=
 |---|---|---|
 | `RETRIEVAL_STORE_WRITE_URL` | The writer string | GitHub Actions secret in `nymtech/nym`, and later in `nymtech/nym-vpn-client` |
 | `RETRIEVAL_STORE_READ_URL` | The reader string | Vercel environment variable of the docs project, for Production and Preview |
+| `RETRIEVAL_STORE_ENABLED` | `1` | GitHub Actions repository variable (not a secret) in `nymtech/nym`. The `cd-retrieval-store` workflow writes the store only while it is `1`; set it to `0` to stop writes without deleting the secret |
 
 The writer uses the direct address. A write run is one long transaction on one `pg.Client` (the package rejects a `pg.Pool`), and it needs no pooling. The reader uses the pooled address, because the route's function instances each hold a connection, and the pooler shares them.
 
@@ -126,4 +127,4 @@ Vercel applies a new environment variable only to new deployments. Redeploy, or 
 
 ## Next
 
-The store is ready for task 5.0, the parity check between the package and the live route. Task 5.1 then adds the write step to the nym docs CI. That job runs on pushes to develop only, needs `RETRIEVAL_STORE_WRITE_URL` and `VOYAGE_API_KEY`, and needs a `concurrency` group, so that two runs never write at once.
+The store is ready for task 5.0, the parity check between the package and the live route. The `cd-retrieval-store` workflow (task 5.1) writes the nym shards on each push to develop once `RETRIEVAL_STORE_ENABLED` is `1`. It uses the `RETRIEVAL_STORE_WRITE_URL` secret and the existing `VOYAGE_API_KEY` secret, and its `concurrency` group keeps two runs from writing at once.

@@ -62,6 +62,7 @@ pub(crate) fn build_app_state(
         contract_snapshots: ContractSnapshots {
             directory: AttestedSnapshotsState::new(SharedCache::new(), 0),
             performance: AttestedSnapshotsState::new(SharedCache::new(), 0),
+            geolocation: AttestedSnapshotsState::new(SharedCache::new(), 0),
         },
         storage,
         described_nodes_cache: SharedCache::<DescribedNodes>::new(),

@@ -53,7 +53,7 @@ In nym-api, `N` SHALL be `[directory.debug].retention_count` and `settle_lag` SH
 
 Before signing a snapshot for height `H`, a producer SHALL fetch and verify the whole directory at `H` through a `TrustAnchor`-backed retrieval, and SHALL sign only the `app_hash`, digest `accumulator`, and node-identity hash that verification established. The source anchor SHALL be configurable (defaulting to a proven-RPC anchor against the producer's own chain connection, and permitting a light-client anchor), and SHALL NOT be an attested anchor (which would make the producer trust another attestation to make its own). When the light-client source anchor is selected, the producer SHALL obtain its seed checkpoint from the checkpoint-bootstrap layer rather than from an unimplemented path, and SHALL persist the anchor's light-client-verified head so a restart within the trusting period reseeds from that head without needing a fresh checkpoint.
 
-In nym-api the source anchor's chain part SHALL be one chain anchor shared by every contract the producer attests (the directory, performance), selected by `[directory.debug].trusted_rpc_node`, with each contract's digest proven against it; it owns the persisted light-client head and the chain id every snapshot signs. A light-client mode therefore verifies each header once for all contracts, and its head has a single writer.
+In nym-api the source anchor's chain part SHALL be one chain anchor shared by every contract the producer attests, selected by `[directory.debug].trusted_rpc_node`, with each contract's digest proven against it; it owns the persisted light-client head and the chain id every snapshot signs. A light-client mode therefore verifies each header once for all contracts, and its head has a single writer.
 
 #### Scenario: A directory that fails verification is not attested
 
@@ -77,8 +77,8 @@ In nym-api the source anchor's chain part SHALL be one chain anchor shared by ev
 
 #### Scenario: Attested contracts share one chain anchor
 
-- **WHEN** a nym-api produces directory and performance snapshots at the same cadence height `H`
-- **THEN** both are verified against the `app_hash` the one shared chain anchor trusts at `H`, and both sign the same chain id
+- **WHEN** a nym-api produces snapshots of two or more of its attested contracts at the same cadence height `H`
+- **THEN** every one of them is verified against the `app_hash` the one shared chain anchor trusts at `H`, and every one signs the same chain id
 
 ### Requirement: Canonical, replay-resistant attestation payloads
 
@@ -133,7 +133,7 @@ The producer core SHALL be signer-agnostic: it signs with whatever ed25519 ident
 
 A producer SHALL be able to serve the whole verified contract record set (entries and the node-identity mapping) at a retained cadence height, so a client with no chain RPC connection can retrieve and verify it against that height's quorum-attested `accumulator` and `node_identities_hash`. This serving path SHALL use the values already committed by `DigestSnapshot` and SHALL NOT require the generic subset mechanism. The transfer payload SHALL be generic over the record type, so one type serves directory records and geolocation records rather than one struct per domain.
 
-The node-identity mapping is the mixnet bond set at the height, the same for every contract attested there. The directory tree's node-identity route SHALL therefore serve it for every contract the producer attests at that height; the performance tree serves none of its own.
+The node-identity mapping is the mixnet bond set at the height, the same for every contract attested there. The directory tree's node-identity route SHALL therefore serve it for every contract the producer attests at that height; no other attested contract's tree serves one of its own.
 
 #### Scenario: No-RPC client pulls and verifies the full directory
 
@@ -147,8 +147,8 @@ The node-identity mapping is the mixnet bond set at the height, the same for eve
 
 #### Scenario: One identity map serves every contract at a height
 
-- **WHEN** a producer has signed a directory snapshot and a performance snapshot at the same cadence height `H`
-- **THEN** both carry the same `node_identities_hash`, and the map served by the directory tree's node-identity route at `H` verifies against either
+- **WHEN** a producer has signed snapshots of every contract it attests at the same cadence height `H`
+- **THEN** all of them carry the same `node_identities_hash`, and the map served by the directory tree's node-identity route at `H` verifies against each
 
 ### Requirement: HTTP exposure of produced attestations
 

@@ -54,9 +54,9 @@ async fn latest_performance_snapshot(
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
     let snapshot = state
         .contract_snapshots
-        .performance
-        .latest_snapshot()
+        .latest_performance()
         .await
+        .map(|snapshot| snapshot.digest_snapshot().clone())
         .ok_or_else(|| {
             AxumErrorResponse::service_unavailable("no performance snapshots available")
         })?;
@@ -88,9 +88,9 @@ async fn performance_snapshot_by_height(
     let height = snapshot_height(height)?;
     let snapshot = state
         .contract_snapshots
-        .performance
-        .snapshot_at(height)
+        .performance_at(height)
         .await
+        .map(|snapshot| snapshot.digest_snapshot().clone())
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
                 "could not find performance snapshot for height {height}",
@@ -125,9 +125,9 @@ async fn performance_entries_records(
     let page = pagination.page.unwrap_or_default();
     let entries = state
         .contract_snapshots
-        .performance
-        .paged_entries_at(height, page, pagination.per_page)
+        .performance_at(height)
         .await
+        .map(|snapshot| snapshot.paged_records(page, pagination.per_page))
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
                 "could not find performance entries for height {height}",

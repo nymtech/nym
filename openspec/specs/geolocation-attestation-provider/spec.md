@@ -2,8 +2,7 @@
 
 ## Purpose
 
-Defines nym-api's producer of attested geolocation snapshots: on every nym-api, at the directory's cadence and retained window, it verifies the geolocation contract's whole committed set, the location entries and the whitelisted agents alike, through `nym-geolocation-client` under the chain anchor it shares across its attested contracts, signs a `DigestSnapshot` for it and serves it with the records exactly as committed under `/v1/geolocation`, so that a client without a chain connection can verify every node's geolocation entries, and which of them were authorised, against a quorum of producers. Nothing is held beside the records, since every geolocation payload is inside the digest, and it persists what it retains across restarts.
-
+Defines nym-api's producer of attested geolocation snapshots: on every nym-api, at the directory's cadence and retained window, it verifies the geolocation contract's whole committed set, the location entries and the whitelisted agents alike, through the shared whole-set read, together with every other contract it attests at that height, under the chain anchor it shares across them, signs a `DigestSnapshot` for it and serves it with the records exactly as committed under `/v1/geolocation`, so that a client without a chain connection can verify every node's geolocation entries, and which of them were authorised, against a quorum of producers. Nothing is held beside the records, since every geolocation payload is inside the digest, and it persists what it retains across restarts.
 ## Requirements
 ### Requirement: Every nym-api produces attested geolocation snapshots
 
@@ -19,11 +18,11 @@ nym-api SHALL produce signed snapshots of the geolocation contract's committed s
 
 ### Requirement: Geolocation snapshots follow the directory's cadence and retained window
 
-The producer SHALL take geolocation snapshots at the cadence heights of the directory contract's snapshot interval, and SHALL retain and promote them with the same retention count, settle lag and polling interval as the directory and performance snapshots, read from `[directory.debug]`, so that every retained height serves every attested contract, as `directory-attestation-provider` requires. During startup it SHALL try to produce the newest `retention_count` cadence heights strictly below the chain tip, oldest first, logging and skipping any it cannot, and at each poll it SHALL produce the newest cadence height strictly below the chain tip unless it already holds it. The latest snapshot SHALL be the newest retained one at least `settle_lag` blocks behind the tip last polled.
+The producer SHALL take geolocation snapshots at the cadence heights of the directory contract's snapshot interval, and SHALL retain and promote them with the same retention count, settle lag and polling interval as the directory and performance snapshots, read from `[directory.debug]`, so that every retained height serves every attested contract, as `directory-attestation-provider` requires. Geolocation snapshots SHALL be produced together with every other attested contract's, as `directory-attestation-provider` requires: during startup the newest `retention_count` cadence heights strictly below the chain tip are tried, oldest first, logging and skipping any that cannot be produced for every contract, and at each poll the newest cadence height strictly below the chain tip is produced unless it is already retained. The latest snapshot SHALL be the newest retained one at least `settle_lag` blocks behind the tip last polled.
 
 #### Scenario: Every attested contract is retained at the same heights
 - **WHEN** a nym-api has produced directory, performance and geolocation snapshots over several cadence heights
-- **THEN** it retains the same heights for all three, apart from a height one of them failed to produce, so a consumer holding a directory snapshot at a retained height can request geolocation at that height
+- **THEN** it retains the same heights for all three, a height any of them failed to produce being retained for none, so a consumer holding a directory snapshot at a retained height can request geolocation at that height
 
 #### Scenario: A height that cannot be served is skipped at startup
 - **WHEN** the producer cannot retrieve one of the newest `retention_count` cadence heights at startup
@@ -35,11 +34,11 @@ The producer SHALL take geolocation snapshots at the cadence heights of the dire
 
 ### Requirement: The producer signs only what it verified
 
-Before signing a geolocation snapshot for height H, the producer SHALL retrieve and verify the geolocation contract's whole committed set, the location entries and the whitelisted-agent entries alike, and the mixnet bond set at H through `nym-geolocation-client`'s raw verified read, under the chain anchor nym-api shares across its attested contracts, with the geolocation contract's digest proven under its digest key. It SHALL sign a `DigestSnapshot` naming the geolocation contract and carrying the app hash that anchor trusts for H, the accumulator the verification established, and the hash of the bond set at H, and SHALL retain the records exactly as served together with the bond set. Nothing SHALL be read or held beside the records: every geolocation payload is inside the digest. When verification fails, it MUST NOT sign or retain anything for H, and MUST log the failure; the next poll tries the newest cadence height again. A contract that holds no entry SHALL be attested as the empty set its absent digest commits.
+Before signing a geolocation snapshot for height H, the producer SHALL retrieve and verify the geolocation contract's whole committed set, the location entries and the whitelisted-agent entries alike, through the shared whole-set read under the geolocation contract's anchor, with the mixnet bond set at H read once for every attested contract and supplied to it as the node-identity map, under the chain anchor nym-api shares across its attested contracts, with the geolocation contract's digest proven under its digest key. It SHALL sign a `DigestSnapshot` naming the geolocation contract and carrying the app hash that anchor trusts for H, the accumulator the verification established, and the hash of the bond set at H, and SHALL retain the records exactly as served together with the bond set. Nothing SHALL be read or held beside the records: every geolocation payload is inside the digest. When verification fails, it MUST NOT sign or retain anything for H, for this or any other attested contract, and MUST log the failure; the next poll tries the newest cadence height again. A contract that holds no entry SHALL be attested as the empty set its absent digest commits.
 
 #### Scenario: A set that fails verification is not attested
 - **WHEN** the records read at H do not recompute to the digest the anchor trusts for H
-- **THEN** no snapshot is signed or retained for H, and the failure is logged
+- **THEN** no snapshot is signed or retained for H, of this or any other attested contract, and the failure is logged
 
 #### Scenario: An empty contract is attested as empty
 - **WHEN** the geolocation contract holds no entry at H
@@ -75,13 +74,13 @@ nym-api SHALL serve its geolocation snapshots under `/v1/geolocation`, mirroring
 
 ### Requirement: The geolocation snapshot cache persists across restarts
 
-The producer SHALL persist its retained snapshots to a file of its own, separate from the directory's and the performance one, and SHALL load it at startup. A file that fails to load SHALL be treated as an empty cache, which the startup production refills. Retained heights that are no longer among the newest `retention_count` cadence heights at startup SHALL be dropped.
+The producer SHALL persist its retained snapshots in the one file every attested contract's snapshots share (`directory-attestation-provider`), and SHALL load it at startup. A file that fails to load SHALL be treated as an empty cache, which the startup production refills. Retained heights that are no longer among the newest `retention_count` cadence heights at startup SHALL be dropped.
 
 #### Scenario: A restart keeps the retained snapshots
 - **WHEN** nym-api restarts within one cadence interval of its last snapshot
 - **THEN** it serves the retained snapshots from the loaded file, together with what the startup production adds
 
 #### Scenario: An unreadable file starts empty
-- **WHEN** the persisted geolocation snapshot file cannot be decoded
-- **THEN** nym-api starts from an empty geolocation snapshot cache and refills it at startup
+- **WHEN** the persisted snapshot file cannot be decoded
+- **THEN** nym-api starts from an empty snapshot cache and refills it at startup
 

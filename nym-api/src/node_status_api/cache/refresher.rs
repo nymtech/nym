@@ -4,13 +4,12 @@
 use super::NodeStatusCache;
 use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
 use crate::node_describe_cache::cache::DescribedNodes;
-use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::node_performance::provider::{
     NodesLivenessScores, NodesRoutingScores, NodesStressTestingScores,
 };
 use crate::node_status_api::cache::config_score::calculate_config_score;
-use crate::support::attested_snapshots::state::AttestedSnapshotsState;
+use crate::support::attested_snapshots::state::ContractSnapshots;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::{RefreshRequester, FIRST_BUILD_RETRY_INTERVAL};
 use crate::support::caching::CacheNotificationWatcher;
@@ -190,7 +189,7 @@ pub struct NodeStatusCacheRefresher {
     described_cache: SharedCache<DescribedNodes>,
 
     /// Contract mode's source of the annotations.
-    performance_snapshots: AttestedSnapshotsState<PerformanceSnapshotSource>,
+    contract_snapshots: ContractSnapshots,
 
     /// channel notifying us when mixnet cache has been refreshed,
     /// so that this cache could also be recreated
@@ -218,7 +217,7 @@ impl NodeStatusCacheRefresher {
         chain_client: &Client,
         contract_cache: MixnetContractCache,
         described_cache: SharedCache<DescribedNodes>,
-        performance_snapshots: AttestedSnapshotsState<PerformanceSnapshotSource>,
+        contract_snapshots: ContractSnapshots,
         contract_cache_listener: CacheNotificationWatcher,
         describe_cache_listener: CacheNotificationWatcher,
         performance_provider: LegacyStoragePerformanceProvider,
@@ -234,7 +233,7 @@ impl NodeStatusCacheRefresher {
             chain_capabilities: ChainCapabilitiesCache::default(),
             mixnet_contract_cache: contract_cache,
             described_cache,
-            performance_snapshots,
+            contract_snapshots,
             mixnet_contract_cache_listener: contract_cache_listener,
             describe_cache_listener,
             refresh_requester: Default::default(),
@@ -293,7 +292,7 @@ impl NodeStatusCacheRefresher {
     async fn caches_available(&self) -> bool {
         let contract_cache = self.mixnet_contract_cache.inner().get().await.is_ok();
         let annotation_source = if self.config.use_performance_contract_data {
-            self.performance_snapshots.latest_entry().await.is_some()
+            self.contract_snapshots.latest_entry().await.is_some()
         } else {
             self.described_cache.get().await.is_ok()
         };
@@ -636,7 +635,7 @@ impl NodeStatusCacheRefresher {
     ) -> Result<HashMap<NodeId, NodeAnnotationV2>, NodeStatusCacheError> {
         let rewarded_set = self.mixnet_contract_cache.rewarded_set_owned().await?;
         let entry = self
-            .performance_snapshots
+            .contract_snapshots
             .latest_entry()
             .await
             .ok_or(NodeStatusCacheError::NoSettledPerformanceSnapshot)?;

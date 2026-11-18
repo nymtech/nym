@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub(crate) mod auxiliary;
-pub(crate) mod entry;
 pub(crate) mod handlers;
-pub(crate) mod source;
+pub(crate) mod routing_view;
 #[cfg(test)]
 pub(crate) mod test_helpers;

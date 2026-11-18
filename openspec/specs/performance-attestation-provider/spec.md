@@ -2,8 +2,7 @@
 
 ## Purpose
 
-Defines nym-api's producer of attested performance snapshots: on every nym-api, at the directory's cadence and retained window, it verifies the performance contract's committed set through `nym-performance-client` under the chain anchor it shares across its attested contracts, signs a `DigestSnapshot` for it and serves it under `/v1/performance`, so that a client without a chain connection can verify each node's committed score against a quorum of producers. Beside each snapshot it holds the unproven per-node medians and the weights in force, served only on the per-node performance and weights routes, and it persists what it retains across restarts.
-
+Defines nym-api's producer of attested performance snapshots: on every nym-api, at the directory's cadence and retained window, it verifies the performance contract's committed set through the shared whole-set read, together with every other contract it attests at that height, under the chain anchor it shares across them, signs a `DigestSnapshot` for it and serves it under `/v1/performance`, so that a client without a chain connection can verify each node's committed score against a quorum of producers. Beside each snapshot it holds the unproven per-node medians and the weights in force, served only on the per-node performance and weights routes, and it persists what it retains across restarts.
 ## Requirements
 ### Requirement: Every nym-api produces attested performance snapshots
 
@@ -19,11 +18,11 @@ nym-api SHALL produce signed snapshots of the performance contract's committed s
 
 ### Requirement: Performance snapshots follow the directory's cadence and retained window
 
-The producer SHALL take performance snapshots at the cadence heights of the directory contract's snapshot interval, and SHALL retain and promote them with the same retention count, settle lag and polling interval as the directory snapshots, read from `[directory.debug]`, so that every retained height serves both contracts, as `directory-attestation-provider` requires of every attested contract. During startup it SHALL try to produce the newest `retention_count` cadence heights strictly below the chain tip, oldest first, logging and skipping any it cannot, and at each poll it SHALL produce the newest cadence height strictly below the chain tip unless it already holds it. The latest snapshot SHALL be the newest retained one at least `settle_lag` blocks behind the tip last polled.
+The producer SHALL take performance snapshots at the cadence heights of the directory contract's snapshot interval, and SHALL retain and promote them with the same retention count, settle lag and polling interval as the directory snapshots, read from `[directory.debug]`, so that every retained height serves both contracts, as `directory-attestation-provider` requires of every attested contract. Performance snapshots SHALL be produced together with every other attested contract's, as `directory-attestation-provider` requires: during startup the newest `retention_count` cadence heights strictly below the chain tip are tried, oldest first, logging and skipping any that cannot be produced for every contract, and at each poll the newest cadence height strictly below the chain tip is produced unless it is already retained. The latest snapshot SHALL be the newest retained one at least `settle_lag` blocks behind the tip last polled.
 
 #### Scenario: Both contracts are retained at the same heights
 - **WHEN** a nym-api has produced directory and performance snapshots over several cadence heights
-- **THEN** it retains the same heights for both, apart from a height one of them failed to produce, so a consumer holding a directory snapshot at a retained height can request performance at that height
+- **THEN** it retains the same heights for both, a height either of them failed to produce being retained for neither, so a consumer holding a directory snapshot at a retained height can request performance at that height
 
 #### Scenario: A height that cannot be served is skipped at startup
 - **WHEN** the producer cannot retrieve one of the newest `retention_count` cadence heights at startup
@@ -35,11 +34,11 @@ The producer SHALL take performance snapshots at the cadence heights of the dire
 
 ### Requirement: The producer signs only what it verified
 
-Before signing a performance snapshot for height H, the producer SHALL retrieve and verify the performance contract's whole committed set and the mixnet bond set at H through `nym-performance-client`'s verified read, under the chain anchor nym-api shares across its attested contracts (a proven read through the RPC node when `[directory.debug].trusted_rpc_node` is set, a light client otherwise), with the performance contract's digest proven under its digest key. It SHALL sign a `DigestSnapshot` naming the performance contract and carrying the app hash that anchor trusts for H, the accumulator the verification established, and the hash of the bond set at H, and SHALL retain the entries exactly as served together with the bond set. When verification fails, it MUST NOT sign or retain anything for H, and MUST log the failure; the next poll tries the newest cadence height again. A contract that has received no submission SHALL be attested as the empty set its absent digest commits.
+Before signing a performance snapshot for height H, the producer SHALL retrieve and verify the performance contract's whole committed set through the shared whole-set read under the performance contract's anchor, with the mixnet bond set at H read once for every attested contract and supplied to it as the node-identity map, under the chain anchor nym-api shares across its attested contracts (a proven read through the RPC node when `[directory.debug].trusted_rpc_node` is set, a light client otherwise), with the performance contract's digest proven under its digest key. It SHALL sign a `DigestSnapshot` naming the performance contract and carrying the app hash that anchor trusts for H, the accumulator the verification established, and the hash of the bond set at H, and SHALL retain the entries exactly as served together with the bond set. When verification fails, it MUST NOT sign or retain anything for H, for this or any other attested contract, and MUST log the failure; the next poll tries the newest cadence height again. A contract that has received no submission SHALL be attested as the empty set its absent digest commits.
 
 #### Scenario: A set that fails verification is not attested
 - **WHEN** the entries read at H do not recompute to the digest the anchor trusts for H
-- **THEN** no snapshot is signed or retained for H, and the failure is logged
+- **THEN** no snapshot is signed or retained for H, of this or any other attested contract, and the failure is logged
 
 #### Scenario: An empty contract is attested as empty
 - **WHEN** the performance contract has received no submission at H
@@ -143,7 +142,7 @@ nym-api SHALL serve `GET /v3/nym-nodes/performance-weights`: the weights in forc
 
 ### Requirement: The performance snapshot cache persists across restarts
 
-The producer SHALL persist its retained snapshots, with what is held beside them and the last submission it recorded, to a file of its own, separate from the directory's, and SHALL load it at startup. The recorded submission SHALL be persisted as a key of its block height, epoch, sender and last node, which identifies a submission. A file that fails to load SHALL be treated as an empty cache, which the startup production refills, its first snapshot paging both epochs. Retained heights that are no longer among the newest `retention_count` cadence heights at startup SHALL be dropped.
+The producer SHALL persist its retained snapshots, with what is held beside them and the last submission it recorded, in the one file every attested contract's snapshots share (`directory-attestation-provider`), and SHALL load it at startup. The recorded submission SHALL be persisted as a key of its block height, epoch, sender and last node, which identifies a submission. A file that fails to load SHALL be treated as an empty cache, which the startup production refills, its first snapshot paging both epochs. Retained heights that are no longer among the newest `retention_count` cadence heights at startup SHALL be dropped.
 
 #### Scenario: A restart keeps the retained snapshots
 - **WHEN** nym-api restarts within one cadence interval of its last snapshot
@@ -154,6 +153,6 @@ The producer SHALL persist its retained snapshots, with what is held beside them
 - **THEN** its next snapshot reuses the persisted medians without paging any epoch
 
 #### Scenario: An unreadable file starts empty
-- **WHEN** the persisted performance snapshot file cannot be decoded
-- **THEN** nym-api starts from an empty performance snapshot cache and refills it at startup
+- **WHEN** the persisted snapshot file cannot be decoded
+- **THEN** nym-api starts from an empty snapshot cache and refills it at startup
 

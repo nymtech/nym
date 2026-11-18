@@ -1,50 +1,48 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_performance::attestation::source::PerformanceSnapshotSource;
-use crate::support::attested_snapshots::data::RetainedEntry;
+use crate::support::attested_snapshots::data::{AttestedSnapshot, RetainedHeight};
 use nym_api_requests::models::performance::{DetailedNodePerformanceV3, NodePerformanceResponseV3};
 use nym_performance_contract_common::{LatestPerformance, NodeId};
 
-// the routing view of a retained performance snapshot: bonded nodes only
-impl RetainedEntry<PerformanceSnapshotSource> {
+// the routing view of a performance snapshot: bonded nodes only
+impl AttestedSnapshot<LatestPerformance> {
     /// Every bonded node's committed entry, in node order.
     pub(crate) fn bonded_entries(&self) -> impl Iterator<Item = &LatestPerformance> + '_ {
-        let snapshot = self.snapshot();
-        snapshot
-            .records()
+        self.records()
             .iter()
-            .filter(|committed| snapshot.node_identities().contains_key(&committed.node_id))
+            .filter(|committed| self.node_identities().contains_key(&committed.node_id))
     }
 
     /// `node_id`'s committed entry, if it is bonded.
     pub(crate) fn bonded_entry(&self, node_id: NodeId) -> Option<&LatestPerformance> {
-        let snapshot = self.snapshot();
-        if !snapshot.node_identities().contains_key(&node_id) {
+        if !self.node_identities().contains_key(&node_id) {
             return None;
         }
 
-        // the records are in node order, as the source collects them from the verified map
-        let records = snapshot.records();
+        // the records are in node order, as the producer sorts them
+        let records = self.records();
         let index = records
             .binary_search_by_key(&node_id, |record| record.node_id)
             .ok()?;
         records.get(index)
     }
+}
 
+impl RetainedHeight {
     /// `node_id`'s committed entry, with the medians held for its epoch.
     pub(crate) fn node_performance(&self, node_id: NodeId) -> NodePerformanceResponseV3 {
-        let auxiliary = self.auxiliary();
+        let auxiliary = &self.performance_auxiliary;
         NodePerformanceResponseV3 {
             node_id,
-            performance: self
-                .bonded_entry(node_id)
-                .map(|committed| DetailedNodePerformanceV3 {
+            performance: self.performance.bonded_entry(node_id).map(|committed| {
+                DetailedNodePerformanceV3 {
                     performance_score: committed.score,
                     source_epoch: committed.epoch_id,
                     computed_at: auxiliary.block_time(),
                     medians: auxiliary.node_medians(committed.epoch_id, node_id),
-                }),
+                }
+            }),
         }
     }
 }
@@ -64,7 +62,7 @@ mod tests {
 
     /// A snapshot at 1000 holding `records`, with 7 and 8 bonded and node 7's medians held at
     /// 99 and 100.
-    fn entry(records: Vec<LatestPerformance>) -> RetainedEntry<PerformanceSnapshotSource> {
+    fn entry(records: Vec<LatestPerformance>) -> RetainedHeight {
         let medians = BTreeMap::from([
             (99, BTreeMap::from([(7, measured())])),
             (100, BTreeMap::from([(7, measured())])),
@@ -125,8 +123,9 @@ mod tests {
             committed(9, 100, Some(60)),
         ]);
 
-        assert!(entry.bonded_entry(9).is_none());
+        assert!(entry.performance.bonded_entry(9).is_none());
         let bonded = entry
+            .performance
             .bonded_entries()
             .map(|committed| committed.node_id)
             .collect::<Vec<_>>();

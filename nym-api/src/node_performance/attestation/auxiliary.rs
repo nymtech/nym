@@ -12,7 +12,7 @@ use time::OffsetDateTime;
 
 /// What the annotations need beside a performance snapshot that the digest does not commit,
 /// read at the snapshot's height and unproven.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct PerformanceAuxiliary {
     /// The weights in force at the snapshot height.
     weights: EpochWeights,
@@ -157,25 +157,39 @@ impl PerformanceAuxiliary {
             last_submission: None,
         }
     }
+
+    /// A value with every field and every `Option` set, the recorded submission included.
+    pub(crate) fn populated_for_tests(block_time: OffsetDateTime) -> Self {
+        use crate::node_performance::attestation::test_helpers::{kind_medians, weights};
+
+        PerformanceAuxiliary {
+            weights: weights(),
+            block_time,
+            medians: BTreeMap::from([(
+                100,
+                BTreeMap::from([(1, kind_medians(Some(90), Some(80), Some(100)))]),
+            )]),
+            last_submission: Some(SubmissionKey {
+                block_height: 999,
+                epoch_id: 100,
+                sender: Addr::unchecked("network-monitor"),
+                last_node_id: 1,
+            }),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node_performance::attestation::source::PerformanceSnapshotSource;
     use crate::node_performance::attestation::test_helpers::{block_time, percent, weights};
-    use crate::support::attested_snapshots::data::{
-        AttestedSnapshot, AttestedSnapshotsCacheData, RetainedEntry,
-    };
     use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
     use async_trait::async_trait;
     use cosmwasm_std::Timestamp;
-    use nym_contract_attestation::source::mock::mock_digest_snapshot;
     use nym_performance_contract_common::{
         LastSubmittedData, LatestPerformance, Measurements, NodePerformance, NodeSubmission,
         WeightsResponse,
     };
-    use nym_test_utils::helpers::dummy_ed25519_keypair;
     use std::sync::Mutex;
 
     const HEIGHT: u32 = 1000;
@@ -479,35 +493,5 @@ mod tests {
         let mut contract = contract();
         contract.weights = None;
         assert!(fails(contract).await);
-    }
-
-    // The cache is persisted with bincode; a populated value, every `Option` set, must survive it.
-    #[tokio::test]
-    async fn a_populated_performance_cache_round_trips_through_the_on_disk_format(
-    ) -> anyhow::Result<()> {
-        let aux = read(&contract(), Some(100), None).await;
-        let record = LatestPerformance {
-            node_id: 1,
-            epoch_id: 100,
-            score: Some(percent(87)),
-        };
-        let snapshot = AttestedSnapshot::new(
-            mock_digest_snapshot(Height::from(HEIGHT)).signed(&dummy_ed25519_keypair(1)),
-            vec![record.clone()],
-            BTreeMap::from([(1, *dummy_ed25519_keypair(2).public_key())]),
-        );
-
-        let mut cache = AttestedSnapshotsCacheData::<PerformanceSnapshotSource>::default();
-        cache.insert_entry(RetainedEntry::new(snapshot, aux.clone()));
-
-        let restored = round_trip_through_disk_cache(cache)?;
-        let entry = restored.get_entry(Height::from(HEIGHT)).unwrap();
-        assert_eq!(entry.snapshot().records(), [record]);
-        assert_eq!(entry.snapshot().node_identities().len(), 1);
-        assert_eq!(entry.auxiliary().medians, aux.medians);
-        assert_eq!(entry.auxiliary().weights, aux.weights);
-        assert_eq!(entry.auxiliary().block_time, aux.block_time);
-        assert_eq!(entry.auxiliary().last_submission, aux.last_submission);
-        Ok(())
     }
 }

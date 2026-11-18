@@ -29,6 +29,11 @@ impl<A, C> ContractAnchor<A, C> {
             digest_key,
         }
     }
+
+    /// The address of the contract whose digest this anchor proves.
+    pub fn contract(&self) -> &AccountId {
+        &self.contract
+    }
 }
 
 #[async_trait]

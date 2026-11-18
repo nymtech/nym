@@ -40,12 +40,8 @@ impl Default for RefreshRequester {
 }
 
 /// Explanation on generics:
-/// the internal SharedCache<T> can be updated in two ways
-/// by default CacheItemProvider will just provide a T and the internal values will be swapped
-/// however, an alternative is to make it provide another value of type S with an explicit update closure
-/// this way the cache will be updated with a custom method mutating the existing value
-/// the reason for this is to allow partial updates of maps, where we might not want to retrieve
-/// the entire value, and we might want to just insert a new entry
+/// the CacheItemProvider provides a value of type S, which is converted into T and swapped in for
+/// the internal SharedCache<T>'s value
 pub struct CacheRefresher<T, E, S = T> {
     name: String,
 
@@ -54,10 +50,6 @@ pub struct CacheRefresher<T, E, S = T> {
     on_disk_file: Option<PathBuf>,
     refreshing_interval: Duration,
     refresh_notification_sender: watch::Sender<CacheNotification>,
-
-    // it's not really THAT complex... it's just a boxed function
-    #[allow(clippy::type_complexity)]
-    update_fn: Option<Box<dyn Fn(&mut T, S) + Send + Sync>>,
 
     // TODO: the Send + Sync bounds are only required for the `start` method. could we maybe make it less restrictive?
     provider: Box<dyn CacheItemProvider<Error = E, Item = S> + Send + Sync>,
@@ -78,8 +70,7 @@ pub(crate) trait CacheItemProvider {
 // Generics explanation:
 // T: the actual type held in the cache
 // E: Error type associated with refresh failure
-// S: data type retrieved during update operation. it must be convertible into T
-// (so that initial state could be established or when no `custom_fn` is set)
+// S: data type retrieved during update operation, converted into T
 impl<T, E, S> CacheRefresher<T, E, S>
 where
     E: std::error::Error,
@@ -97,7 +88,6 @@ where
             on_disk_file: None,
             refreshing_interval,
             refresh_notification_sender,
-            update_fn: None,
             provider: item_provider,
             shared_cache: SharedCache::new(),
             refresh_requester: Default::default(),
@@ -122,22 +112,10 @@ where
             on_disk_file: None,
             refreshing_interval,
             refresh_notification_sender,
-            update_fn: None,
             provider: item_provider,
             shared_cache,
             refresh_requester: Default::default(),
         }
-    }
-
-    /// Rather than performing default behaviour of overwriting all existing values in the cache,
-    /// provide a custom update function that will define the update behaviour.
-    #[must_use]
-    pub(crate) fn with_update_fn(
-        mut self,
-        update_fn: impl Fn(&mut T, S) + Send + Sync + 'static,
-    ) -> Self {
-        self.update_fn = Some(Box::new(update_fn));
-        self
     }
 
     #[must_use]
@@ -163,32 +141,6 @@ where
     #[allow(dead_code)]
     pub(crate) fn get_shared_cache(&self) -> SharedCache<T> {
         self.shared_cache.clone()
-    }
-
-    async fn update_cache(&self, mut update: S, update_fn: impl Fn(&mut T, S)) {
-        let mut failures = 0;
-
-        loop {
-            match self
-                .shared_cache
-                .try_update_value(update, &update_fn, &self.name)
-                .await
-            {
-                Ok(_) => break,
-                Err(returned) => {
-                    failures += 1;
-                    update = returned
-                }
-            };
-            if failures % 10 == 0 {
-                warn!(
-                    "failed to obtain write permit for {} cache {failures} times in a row!",
-                    self.name
-                );
-            }
-
-            tokio::time::sleep(Duration::from_secs_f32(0.5)).await
-        }
     }
 
     async fn overwrite_cache(&self, mut updated_items: T) {
@@ -243,12 +195,7 @@ where
             }
         };
 
-        if let Some(update_fn) = self.update_fn.as_ref() {
-            self.update_cache(updated_items, update_fn).await;
-        } else {
-            self.overwrite_cache(updated_items.into()).await;
-        }
-
+        self.overwrite_cache(updated_items.into()).await;
         self.try_flush_to_disk().await;
 
         if !self.refresh_notification_sender.is_closed()

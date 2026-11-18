@@ -156,6 +156,20 @@
   when: le_cert_after.stat.exists
   notify: Restart nginx
 
+# older docs/script setups named the WSS vhost wss-config-nym; next to
+# nym-wss-config it is a second 9001 server for the same name. Removed only
+# when the cert exists, i.e. when nym-wss-config is deployed below, so a node
+# never ends up without WSS.
+- name: Remove legacy WSS vhost from older docs/script setups
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/nginx/sites-enabled/wss-config-nym
+    - /etc/nginx/sites-available/wss-config-nym
+  when: le_cert_after.stat.exists
+  notify: Restart nginx
+
 - name: Deploy WSS vhost
   template:
     src: "{{ nginx_wss_template }}"
@@ -179,3 +193,4 @@
 
 - name: Flush handlers (apply restart after successful tests)
   meta: flush_handlers
+  

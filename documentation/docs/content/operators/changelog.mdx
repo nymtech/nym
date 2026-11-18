@@ -19,6 +19,7 @@ import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deplo
 import NTMExplanation from 'components/operators/snippets/ntm-explanation.mdx';
 import AnsibleRolesByMode from 'components/operators/snippets/ansible-roles-by-node-mode.mdx';
 import CVENginx2ManualFix from 'components/operators/snippets/cve-nginx2root-fix-manual.mdx';
+import CVENginx2AnsibleFix from 'components/operators/snippets/ansible-cve-nginx2root-fix.mdx';
 
 
 
@@ -44,9 +45,7 @@ Disabling HTTP/2 closes both. You lose nothing: WSS runs over HTTP/1.1 anyway.
 <CVENginx2ManualFix />
     </MyTab>
     <MyTab>
-
-Ansible steps are coming shortly. Until then, use the manual steps.
-
+< CVENginx2AnsibleFix />
     </MyTab>
   </Tabs>
 </div>

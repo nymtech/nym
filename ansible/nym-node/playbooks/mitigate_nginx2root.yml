@@ -1,0 +1,402 @@
+---
+# Mitigation for nginx2root: nginx CVE-2026-123007 and CVE-2026-123633, and the
+# SCTP kernel privilege escalation they can be chained with.
+# https://xint.io/blog/nginx2root-remote-code-execution
+#
+# Gateways set up by our docs, Ansible or setup-nginx-proxy-wss.sh enable HTTP/2
+# on 443 and 9001, which exposes both CVEs. Turning HTTP/2 off closes them and
+# costs nothing: WSS runs over HTTP/1.1. The other three nginx2root CVEs need
+# HTTP/3, a resolver + mirror setup or the mail proxy, none of which we deploy.
+#
+# Per host:
+#   all nodes  block the SCTP kernel module (/etc/modprobe.d/nym-disable-sctp.conf)
+#              and unload it if it is loaded
+#   gateways   remove HTTP/2 from every config file nginx loads, remove the legacy
+#              wss-config-nym vhost when nym-wss-config exists, validate, restart,
+#              then verify HTTP/2 is off and WSS still upgrades
+#   optional   upgrade nginx and report whether the package carries the fix
+#
+# Upstream fixed all five in nginx 1.30.7 and 1.31.9 (18 Nov 2026). Debian and
+# Ubuntu had not shipped backports yet, so on distro packages HTTP/2 off is the
+# protection until they do. Re-run this playbook after they land: the upgrade
+# step installs the fix and the report confirms it from the package changelog.
+#
+# Hosts without nginx (mixnodes) only get the SCTP block. Originals are copied to
+# /root/nginx-h2-backup/ before any change. If `nginx -t` fails after editing, the
+# originals are restored and nginx is not restarted. Safe to re-run.
+#
+#   ansible-playbook mitigate_nginx2root.yml --check --diff         # preview
+#   ansible-playbook mitigate_nginx2root.yml                        # apply
+#   ansible-playbook mitigate_nginx2root.yml -e maintenance_serial=4
+#   ansible-playbook mitigate_nginx2root.yml -e nginx2root_upgrade=false
+#
+# Leave HTTP/2 off after the fixed nginx is installed - gateways don't need it.
+#
+# Uses ansible.builtin modules only, no collections required.
+
+# Runs once on the controller, before any host is touched: custom templates in
+# playbooks/templates/ that still enable HTTP/2 would put it back on the next
+# deploy.yml run.
+- name: Check custom nginx templates on the controller
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Check for a custom templates directory
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/templates"
+      register: n2r_tpl_dir
+
+    - name: Find custom templates that enable HTTP/2
+      when: n2r_tpl_dir.stat.isdir | default(false)
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/templates"
+        patterns: ["*.j2"]
+        contains: '^\s*(listen[^;#]*\shttp2[\s;]|http2\s+on\s*;)'
+      register: n2r_custom_tpl
+
+    - name: Warn about custom templates that re-enable HTTP/2
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: custom template(s) still enable HTTP/2 and would put it back
+          on the next deploy.yml run: {{ n2r_custom_tpl.files | map(attribute='path') | join(', ') }}.
+          Remove `http2` from their listen lines.
+      when: n2r_custom_tpl.matched | default(0) > 0
+
+- name: Mitigate nginx2root
+  hosts: all
+  become: true
+  gather_facts: true
+  gather_subset: [min]
+
+  # nginx restarts drop WSS connections for a few seconds, so batch the run.
+  # `serial` is a play keyword: set it with -e maintenance_serial=N.
+  serial: "{{ maintenance_serial | default('25%') }}"
+
+  module_defaults:
+    ansible.builtin.apt:
+      lock_timeout: 300
+
+  tasks:
+    - name: Verify OS is Debian family
+      ansible.builtin.assert:
+        that: ansible_facts['os_family'] == 'Debian'
+        fail_msg: "Debian-family distros only (Debian, Ubuntu). Apply the manual steps instead."
+        quiet: true
+
+    # ------------------------------------------------------------------ SCTP --
+
+    - name: Block the SCTP kernel module
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/nym-disable-sctp.conf
+        content: "install sctp /bin/false\n"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Check whether SCTP is loaded
+      ansible.builtin.stat:
+        path: /sys/module/sctp
+      register: n2r_sctp_mod
+
+    - name: Unload SCTP
+      ansible.builtin.command: modprobe -r sctp
+      register: n2r_sctp_unload
+      changed_when: n2r_sctp_unload.rc == 0
+      failed_when: false
+      when: n2r_sctp_mod.stat.exists
+
+    # dry run: prints the install rule instead of loading anything
+    - name: Verify the SCTP block
+      ansible.builtin.command: modprobe -n -v sctp
+      register: n2r_sctp_dry
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    # ----------------------------------------------------------------- nginx --
+
+    - name: Check whether nginx is installed
+      ansible.builtin.stat:
+        path: /usr/sbin/nginx
+      register: n2r_nginx_bin
+
+    - name: Mitigate nginx
+      when: n2r_nginx_bin.stat.exists
+      block:
+        - name: Read the loaded nginx configuration
+          ansible.builtin.command: nginx -T
+          register: n2r_nginx_dump
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+        - name: Stop if the nginx configuration is already broken
+          ansible.builtin.assert:
+            that: n2r_nginx_dump.rc == 0
+            fail_msg: >-
+              `nginx -T` fails on this host before anything was changed, so it
+              was left untouched. Fix the configuration, then re-run.
+              {{ n2r_nginx_dump.stderr | default('') }}
+            quiet: true
+
+        # every file nginx actually loads, symlinks resolved, so a vhost in
+        # sites-enabled is edited in sites-available and the symlink survives
+        - name: Resolve the loaded config files
+          ansible.builtin.command:
+            argv: "{{ ['readlink', '-f', '--'] + (n2r_nginx_dump.stdout | regex_findall('(?m)^# configuration file (.+):$') | unique) }}"
+          register: n2r_files
+          changed_when: false
+          check_mode: false
+
+        - name: Find files that enable HTTP/2
+          ansible.builtin.command:
+            argv: "{{ ['grep', '-lE', '--', n2r_h2_pattern] + (n2r_files.stdout_lines | unique) }}"
+          vars:
+            n2r_h2_pattern: '^[[:space:]]*(listen[^;#]*[[:space:]]http2([[:space:]]|;)|http2[[:space:]]+on[[:space:]]*;)'
+          register: n2r_h2_grep
+          changed_when: false
+          failed_when: n2r_h2_grep.rc not in [0, 1]
+          check_mode: false
+
+        - name: Check for the legacy WSS vhost
+          ansible.builtin.stat:
+            path: "{{ item }}"
+          loop:
+            - /etc/nginx/sites-enabled/nym-wss-config
+            - /etc/nginx/sites-enabled/wss-config-nym
+            - /etc/nginx/sites-available/wss-config-nym
+          register: n2r_wss
+
+        - name: Work out what to change
+          ansible.builtin.set_fact:
+            n2r_h2_files: "{{ n2r_h2_grep.stdout_lines }}"
+            # remove the docs-era vhost only when the Ansible one replaces it,
+            # so a docs-only node never loses WSS
+            n2r_legacy_remove: >-
+              {{ n2r_wss.results[0].stat.exists
+                 and (n2r_wss.results[1].stat.exists or n2r_wss.results[2].stat.exists) }}
+
+        - name: Create the backup directory
+          ansible.builtin.file:
+            path: "{{ nginx2root_backup_dir | default('/root/nginx-h2-backup') }}"
+            state: directory
+            mode: "0700"
+          when: n2r_h2_files | length > 0 or n2r_legacy_remove | bool
+
+        # force: false keeps the first original if the play is re-run
+        - name: Back up files before changing them
+          ansible.builtin.copy:
+            src: "{{ item }}"
+            dest: "{{ nginx2root_backup_dir | default('/root/nginx-h2-backup') }}/{{ item | replace('/', '_') }}"
+            remote_src: true
+            force: false
+            mode: preserve
+          when: not ansible_check_mode
+          loop: >-
+            {{ (n2r_h2_files
+                + (['/etc/nginx/sites-available/wss-config-nym']
+                   if (n2r_legacy_remove | bool and n2r_wss.results[2].stat.exists) else []))
+               | unique }}
+
+        - name: Disable HTTP/2, validate, restore on failure
+          block:
+            - name: Remove http2 from listen directives
+              ansible.builtin.replace:
+                path: "{{ item }}"
+                regexp: '^([ \t]*listen\b[^;#\n]*?)[ \t]+http2\b([^;#\n]*;)'
+                replace: '\1\2'
+              loop: "{{ n2r_h2_files }}"
+              register: n2r_edit_listen
+
+            - name: Remove http2 on directives
+              ansible.builtin.replace:
+                path: "{{ item }}"
+                regexp: '^[ \t]*http2[ \t]+on[ \t]*;[^\n]*\n'
+                replace: ''
+              loop: "{{ n2r_h2_files }}"
+              register: n2r_edit_on
+
+            - name: Remove the legacy WSS vhost
+              ansible.builtin.file:
+                path: "{{ item }}"
+                state: absent
+              loop:
+                - /etc/nginx/sites-enabled/wss-config-nym
+                - /etc/nginx/sites-available/wss-config-nym
+              register: n2r_legacy
+              when: n2r_legacy_remove | bool
+
+            - name: Validate the nginx configuration
+              ansible.builtin.command: nginx -t
+              changed_when: false
+              when: not ansible_check_mode
+
+          rescue:
+            - name: Restore the original files
+              ansible.builtin.copy:
+                src: "{{ nginx2root_backup_dir | default('/root/nginx-h2-backup') }}/{{ item | replace('/', '_') }}"
+                dest: "{{ item }}"
+                remote_src: true
+                mode: preserve
+              loop: >-
+                {{ (n2r_h2_files
+                    + (['/etc/nginx/sites-available/wss-config-nym']
+                       if (n2r_legacy_remove | bool and n2r_wss.results[2].stat.exists) else []))
+                   | unique }}
+
+            - name: Restore the legacy WSS symlink
+              ansible.builtin.file:
+                src: /etc/nginx/sites-available/wss-config-nym
+                dest: /etc/nginx/sites-enabled/wss-config-nym
+                state: link
+              when: n2r_legacy_remove | bool and n2r_wss.results[1].stat.exists
+
+            - name: Stop - nginx rejected the edited configuration
+              ansible.builtin.fail:
+                msg: >-
+                  `nginx -t` failed after the edit. The originals were restored
+                  and nginx was not restarted, so the node is as it was before.
+                  Check the config by hand and apply the manual steps.
+
+        - name: Restart nginx
+          ansible.builtin.service:
+            name: nginx
+            state: restarted
+          when: >-
+            ((n2r_edit_listen | default({})) is changed
+             or (n2r_edit_on | default({})) is changed
+             or (n2r_legacy | default({})) is changed)
+            and not ansible_check_mode
+
+        - name: Check which ports still negotiate HTTP/2
+          ansible.builtin.shell: |
+            set -o pipefail
+            for p in $(ss -ltnpH | grep '"nginx"' | grep -oP ':\K[0-9]+(?=\s)' | sort -un); do
+              r=$(openssl s_client -connect 127.0.0.1:"$p" -alpn h2 </dev/null 2>&1 \
+                  | grep -aoE 'ALPN protocol: h2|No ALPN negotiated')
+              echo "$p ${r:-no-tls}"
+            done
+          args:
+            executable: /bin/bash
+          register: n2r_alpn
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+        - name: Check that WSS still upgrades
+          ansible.builtin.command:
+            argv:
+              - curl
+              - -sk
+              - --http1.1
+              - --max-time
+              - "5"
+              - --resolve
+              - "{{ hostname }}:{{ wss_port | default(9001) }}:127.0.0.1"
+              - -o
+              - /dev/null
+              - -w
+              - "%{http_code}"
+              - -H
+              - "Connection: Upgrade"
+              - -H
+              - "Upgrade: websocket"
+              - -H
+              - "Sec-WebSocket-Version: 13"
+              - -H
+              - "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+              - "https://{{ hostname }}:{{ wss_port | default(9001) }}/"
+          register: n2r_wss_check
+          changed_when: false
+          failed_when: false
+          check_mode: false
+          when: hostname | default('') | length > 0
+
+        # ---------------------------------------------------- package update --
+
+        - name: Upgrade nginx if a newer package is available
+          ansible.builtin.apt:
+            name: [nginx, nginx-common]
+            state: latest
+            only_upgrade: true
+            update_cache: true
+          register: n2r_apt
+          when: nginx2root_upgrade | default(true) | bool
+
+        - name: Restart nginx onto the new binary
+          ansible.builtin.service:
+            name: nginx
+            state: restarted
+          when: n2r_apt is changed and not ansible_check_mode
+
+        - name: Read the installed nginx package version
+          ansible.builtin.command: dpkg-query -W -f=${Version} nginx
+          register: n2r_pkg
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+        # distro packages list backported CVEs in changelog.Debian.gz,
+        # nginx.org packages in the upstream changelog.gz
+        - name: Check whether the package carries the fix
+          ansible.builtin.shell: |
+            set -o pipefail
+            zgrep -hsc CVE-2026-123007 /usr/share/doc/nginx/changelog*.gz | awk '{s+=$1} END {print s+0}'
+          register: n2r_fixed
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+    # ---------------------------------------------------------------- report --
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "{{ n2r_head + (n2r_nginx_lines if n2r_nginx_bin.stat.exists else []) }}"
+      vars:
+        n2r_listeners: "{{ n2r_alpn.stdout_lines | default([]) }}"
+        n2r_h2_ports: "{{ n2r_listeners | select('search', 'ALPN protocol: h2') | list }}"
+        n2r_wss_code: "{{ n2r_wss_check.stdout | default('') }}"
+        n2r_fix_in: "{{ (n2r_fixed.stdout | default('0')) | int > 0 }}"
+        n2r_mode: "{{ 'PREVIEW (--check): current state shown, nothing was changed' if ansible_check_mode else 'APPLIED' }}"
+        n2r_sctp_state: "{{ 'blocked' if '/bin/false' in n2r_sctp_dry.stdout else 'NOT BLOCKED' }}"
+        n2r_sctp_unloaded: "{{ ', unloaded' if ((n2r_sctp_unload | default({})) is changed) else '' }}"
+        n2r_http2: >-
+          {{ 'NO nginx listeners found - is nginx running?' if not n2r_listeners
+             else (n2r_h2_ports | join(', ') or 'off on every port') }}
+        n2r_wss_line: >-
+          {{ 'skipped - no hostname' if not n2r_wss_code
+             else (n2r_wss_code ~ (' (ok)' if n2r_wss_code == '101'
+                   else ' - expected 101, check nym-node is running and listening on :9000')) }}
+        n2r_head:
+          - "{{ n2r_mode }}"
+          - "SCTP       : {{ n2r_sctp_state }}{{ n2r_sctp_unloaded }}"
+          - "nginx      : {{ 'present' if n2r_nginx_bin.stat.exists else 'not installed - SCTP block only' }}"
+        n2r_nginx_lines:
+          - "edited     : {{ (n2r_h2_files | default([])) | join(', ') or 'nothing - HTTP/2 already off' }}"
+          - "legacy WSS : {{ 'removed' if ((n2r_legacy | default({})) is changed) else 'none' }}"
+          - "HTTP/2     : {{ n2r_http2 }}"
+          - "WSS check  : {{ n2r_wss_line }}"
+          - "package    : {{ n2r_pkg.stdout | default('n/a') }} - fix {{ 'INSTALLED' if n2r_fix_in else 'not yet available, keep HTTP/2 off' }}"
+
+    - name: Fail if nginx is not listening after the run
+      ansible.builtin.fail:
+        msg: >-
+          nginx has no listening ports after the run. Check
+          `systemctl status nginx` and `nginx -t`. Originals are in
+          {{ nginx2root_backup_dir | default('/root/nginx-h2-backup') }}.
+      when:
+        - n2r_nginx_bin.stat.exists
+        - not ansible_check_mode
+        - (n2r_alpn.stdout_lines | default([]) | length) == 0
+
+    - name: Fail if HTTP/2 is still on
+      ansible.builtin.fail:
+        msg: >-
+          HTTP/2 is still negotiated on: {{ n2r_alpn.stdout_lines | select('search', 'ALPN protocol: h2') | list | join(', ') }}.
+          A config this play does not manage enables it - check `nginx -T` by hand.
+      when:
+        - n2r_nginx_bin.stat.exists
+        - not ansible_check_mode
+        - "(n2r_alpn.stdout_lines | default([]) | select('search', 'ALPN protocol: h2') | list | length) > 0"
+        

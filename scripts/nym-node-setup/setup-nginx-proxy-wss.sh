@@ -153,8 +153,8 @@ if [[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" ]]; then
   # HTTPS vhost (443) -> nym-node API 8080
   cat > "${SSL_CONF}" <<EOF
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen 443 ssl;
+    listen [::]:443 ssl;
 
     server_name ${HOSTNAME};
 
@@ -175,8 +175,8 @@ EOF
   # WSS vhost (9001) -> clients port 9000
   cat > "${WSS_CONF}" <<EOF
 server {
-    listen 9001 ssl http2;
-    listen [::]:9001 ssl http2;
+    listen 9001 ssl;
+    listen [::]:9001 ssl;
 
     server_name ${HOSTNAME};
 

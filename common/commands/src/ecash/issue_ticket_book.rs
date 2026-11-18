@@ -104,8 +104,9 @@ async fn issue_client_ticketbook(
     );
     let requests_store = loaded.try_get_credential_requests_store()?;
     let persistent_storage = initialise_persistent_storage(credentials_store, database_key).await;
+    let key_secret = key_passphrase.cloned().map(nym_pemstore::KeySecret::from);
     let private_id_key: ed25519::PrivateKey =
-        nym_pemstore::load_key_with(private_id_key, key_passphrase)?;
+        nym_pemstore::load_key_with(private_id_key, key_secret.as_ref())?;
 
     let fetcher = NyxdCredentialFetcher::new(
         Arc::new(client),

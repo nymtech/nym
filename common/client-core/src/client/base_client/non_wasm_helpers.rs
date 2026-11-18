@@ -222,8 +222,9 @@ pub async fn reset_client_identity(
 
     // deleted, not opened: the next start creates a fresh store from the client's own config
     for path in sqlite_database_paths(&paths.reply_surb_database) {
-        if path.exists() {
-            std::fs::remove_file(path)?;
+        match std::fs::remove_file(path) {
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+            result => result?,
         }
     }
 
@@ -232,14 +233,15 @@ pub async fn reset_client_identity(
 
 /// The sqlite database file together with its journal files (wal, shm).
 pub fn sqlite_database_paths<P: AsRef<Path>>(db_file: P) -> Vec<PathBuf> {
+    let db_file = db_file.as_ref();
     ["-shm", "-wal"]
         .iter()
-        .map(|ext_suffix| {
-            let mut new_ext = db_file.as_ref().extension().unwrap_or_default().to_owned();
-            new_ext.push(ext_suffix);
-            db_file.as_ref().with_extension(new_ext)
+        .map(|suffix| {
+            let mut path = db_file.as_os_str().to_owned();
+            path.push(suffix);
+            PathBuf::from(path)
         })
-        .chain([db_file.as_ref().to_path_buf()])
+        .chain([db_file.to_path_buf()])
         .collect()
 }
 
@@ -262,4 +264,26 @@ pub fn default_query_dkg_client(nyxd_url: Url) -> Result<QueryHttpRpcNyxdClient,
 
     QueryHttpRpcNyxdClient::connect(client_config, nyxd_url.as_str())
         .map_err(|source| ClientCoreError::RpcClientCreationFailure { source })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn journal_paths_extend_the_whole_file_name() {
+        assert_eq!(
+            sqlite_database_paths("data/replies.sqlite"),
+            [
+                "data/replies.sqlite-shm",
+                "data/replies.sqlite-wal",
+                "data/replies.sqlite"
+            ]
+            .map(PathBuf::from)
+        );
+        assert_eq!(
+            sqlite_database_paths("data/replies"),
+            ["data/replies-shm", "data/replies-wal", "data/replies"].map(PathBuf::from)
+        );
+    }
 }

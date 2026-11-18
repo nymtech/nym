@@ -37,8 +37,8 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), Socks5ClientError> {
     .await?;
 
     println!(
-        "client '{}' has a new identity and no gateway; run `add-gateway` before running it",
-        args.common_args.id
+        "client '{id}' has a new identity and no gateway; run `add-gateway --id {id}` before running it",
+        id = args.common_args.id
     );
     Ok(())
 }

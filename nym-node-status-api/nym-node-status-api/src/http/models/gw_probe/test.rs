@@ -77,6 +77,7 @@ fn test_weighted_score_calculation() {
                 // so these fields are irrelevant
                 socks5: None,
                 lp: None,
+                bridges: None,
             },
         }
     }
@@ -86,6 +87,20 @@ fn test_weighted_score_calculation() {
     let probe = create_test_probe_outcome(6.0, 1.0); // 6 Mbps, 100% ping
     let score = calc_gateway_visual_score(&gateway, &probe);
     assert_eq!(score, ScoreValue::High, "Excellent node should be High");
+
+    // A failed bridge dial is recorded and does not move the score.
+    let mut with_bridge = probe.clone();
+    with_bridge.outcome.bridges = Some(BridgeProbeResults {
+        transports: vec![BridgeTransportProbe {
+            transport: "quic_plain".to_string(),
+            can_connect_v4: Some(false),
+            can_handshake_v4: None,
+            ping_ips_performance_v4: None,
+            error: Some("timed out".to_string()),
+        }],
+        error: None,
+    });
+    assert_eq!(calc_gateway_visual_score(&gateway, &with_bridge), score);
 
     // Test case 2: Good node (should be High with weighted scoring)
     let gateway = create_test_gateway(90); // 90% mixnet performance
@@ -136,7 +151,9 @@ fn test_weighted_score_calculation() {
 #[test]
 fn conversion_from_gw_probe_latest() {
     use nym_gateway_probe::types::{
-        Entry as EntryLatest, EntryTestResult as EntryTestResultLatest, Exit as ExitLatest,
+        BridgeProbeResults as BridgeProbeResultsLatest,
+        BridgeTransportProbe as BridgeTransportProbeLatest, Entry as EntryLatest,
+        EntryTestResult as EntryTestResultLatest, Exit as ExitLatest,
         HttpsConnectivityResult as HttpsConnectivityResultLatest,
         LpProbeResults as LpProbeResultsLatest, ProbeOutcome as ProbeOutcomeLatest,
         ProbeResult as ProbeResultLatest, Socks5ProbeResults as Socks5ProbeResultsLatest,
@@ -199,6 +216,16 @@ fn conversion_from_gw_probe_latest() {
                 can_register: true,
                 error: Some(String::from("error1")),
             }),
+            bridges: Some(BridgeProbeResultsLatest {
+                transports: vec![BridgeTransportProbeLatest {
+                    transport: "quic_plain".to_string(),
+                    can_connect_v4: Some(true),
+                    can_handshake_v4: Some(true),
+                    ping_ips_performance_v4: Some(1.0),
+                    error: None,
+                }],
+                error: Some(String::from("bridge error")),
+            }),
         },
     };
 
@@ -207,6 +234,16 @@ fn conversion_from_gw_probe_latest() {
 
     let lp = result.outcome.lp.as_ref().expect("lp should be Some");
     assert!(lp.can_connect);
+    let bridges = result
+        .outcome
+        .bridges
+        .as_ref()
+        .expect("bridges should be Some");
+    assert_eq!(bridges.error.as_deref(), Some("bridge error"));
+    assert_eq!(bridges.transports[0].transport, "quic_plain");
+    assert_eq!(bridges.transports[0].can_connect_v4, Some(true));
+    assert_eq!(bridges.transports[0].can_handshake_v4, Some(true));
+    assert_eq!(bridges.transports[0].ping_ips_performance_v4, Some(1.0));
     assert!(lp.can_handshake);
     assert!(lp.can_register);
     assert_eq!(lp.error, Some(String::from("error1")));
@@ -358,6 +395,7 @@ fn deserialize_this_crate_format() {
     }
     assert!(result.outcome.as_exit.is_none());
     assert!(result.outcome.wg.is_none());
+    assert!(result.outcome.bridges.is_none());
 }
 
 /// Test that the latest nym_gateway_probe format deserializes correctly
@@ -422,6 +460,7 @@ fn deserialize_latest_gw_probe_format() {
 
     let result = LastProbeResult::deserialize_with_fallback(latest_format_json)
         .expect("Should deserialize latest format");
+    assert!(result.outcome.bridges.is_none());
 
     assert_eq!(result.node, "new-node-key");
     assert_eq!(result.used_entry, "new-entry-key");
@@ -516,6 +555,16 @@ fn round_trip_serialization() {
                 can_handshake: true,
                 can_register: true,
                 error: Some(String::from("example")),
+            }),
+            bridges: Some(BridgeProbeResults {
+                transports: vec![BridgeTransportProbe {
+                    transport: "tls_plain".to_string(),
+                    can_connect_v4: Some(true),
+                    can_handshake_v4: Some(true),
+                    ping_ips_performance_v4: Some(1.0),
+                    error: None,
+                }],
+                error: None,
             }),
         },
     };
@@ -641,4 +690,9 @@ fn round_trip_serialization() {
     assert_eq!(orig_lp.can_handshake, deser_lp.can_handshake);
     assert_eq!(orig_lp.can_register, deser_lp.can_register);
     assert_eq!(orig_lp.error, deser_lp.error);
+
+    let orig_bridges = original.outcome.bridges.as_ref().unwrap();
+    let deser_bridges = deserialized.outcome.bridges.as_ref().unwrap();
+    assert_eq!(orig_bridges.error, deser_bridges.error);
+    assert_eq!(orig_bridges.transports, deser_bridges.transports);
 }

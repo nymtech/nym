@@ -39,6 +39,9 @@ pub struct NetstackRequest {
     v6_ping_config: PingConfig,
     download_timeout_sec: u64,
     awg_args: String,
+    /// Omit the file download. Distinct from `download_timeout_sec = 0`,
+    /// which Go treats as an unbounded HTTP timeout.
+    skip_download: bool,
     #[serde(flatten)]
     pub port_check: PortCheckConfig,
 }
@@ -103,6 +106,7 @@ impl NetstackRequest {
             v4_ping_config: PingConfig::from_netstack_args_v4(wg_ip4, &netstack_args),
             v6_ping_config: PingConfig::from_netstack_args_v6(wg_ip6, &netstack_args),
             download_timeout_sec,
+            skip_download: false,
             port_check: PortCheckConfig {
                 target: netstack_args.port_check_target.clone(),
                 ports: netstack_args.port_check_ports.clone(),
@@ -110,6 +114,14 @@ impl NetstackRequest {
                 timeout_sec: netstack_args.port_check_timeout_sec,
             },
         }
+    }
+
+    /// Clear metadata and skip the file download. Callers that want a slim
+    /// bridge forward pass should also trim ping targets themselves.
+    pub fn for_bridge_forward(&mut self) -> &mut Self {
+        self.metadata_endpoint.clear();
+        self.skip_download = true;
+        self
     }
 
     #[allow(dead_code)]
@@ -138,6 +150,7 @@ pub struct NetstackRequestGo {
     send_timeout_sec: u64,
     recv_timeout_sec: u64,
     download_timeout_sec: u64,
+    skip_download: bool,
     awg_args: String,
     #[serde(flatten)]
     pub port_check: PortCheckConfig,
@@ -159,6 +172,7 @@ impl NetstackRequestGo {
             send_timeout_sec: req.v4_ping_config.send_timeout_sec,
             recv_timeout_sec: req.v4_ping_config.recv_timeout_sec,
             download_timeout_sec: req.download_timeout_sec,
+            skip_download: req.skip_download,
             awg_args: req.awg_args.clone(),
             port_check: req.port_check.clone(),
         }
@@ -180,6 +194,7 @@ impl NetstackRequestGo {
             send_timeout_sec: req.v6_ping_config.send_timeout_sec,
             recv_timeout_sec: req.v6_ping_config.recv_timeout_sec,
             download_timeout_sec: req.download_timeout_sec,
+            skip_download: req.skip_download,
             awg_args: req.awg_args.clone(),
             port_check: req.port_check.clone(),
         }

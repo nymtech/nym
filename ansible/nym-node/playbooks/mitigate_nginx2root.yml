@@ -21,9 +21,10 @@
 # protection until they do. Re-run this playbook after they land: the upgrade
 # step installs the fix and the report confirms it from the package changelog.
 #
-# Hosts without nginx (mixnodes) only get the SCTP block. Originals are copied to
-# /root/nginx-h2-backup/ before any change. If `nginx -t` fails after editing, the
-# originals are restored and nginx is not restarted. Safe to re-run.
+# Hosts without nginx (mixnodes) only get the SCTP block. Before any change, each
+# file is copied to /root/nginx-h2-backup/original (kept from the first run on)
+# and /root/nginx-h2-backup/last-run. If `nginx -t` fails after editing, the
+# last-run copies are restored and nginx is not restarted. Safe to re-run.
 #
 #   ansible-playbook mitigate_nginx2root.yml --check --diff         # preview
 #   ansible-playbook mitigate_nginx2root.yml                        # apply
@@ -34,33 +35,43 @@
 #
 # Uses ansible.builtin modules only, no collections required.
 
-# Runs once on the controller, before any host is touched: custom templates in
-# playbooks/templates/ that still enable HTTP/2 would put it back on the next
-# deploy.yml run.
-- name: Check custom nginx templates on the controller
+# Runs once on the controller, before any host is touched. Two places can put
+# HTTP/2 back on the next deploy.yml run:
+#   playbooks/templates/        custom templates that override the role's own
+#   ../roles/nginx/             an operator's own copy of the nginx role
+# For a symlinked playbook, playbook_dir is the folder the symlink sits in, so
+# both resolve to the operator's own files, not the repo.
+- name: Check nginx templates on the controller
   hosts: localhost
   gather_facts: false
   become: false
   tasks:
-    - name: Check for a custom templates directory
+    - name: Check for template locations
       ansible.builtin.stat:
-        path: "{{ playbook_dir }}/templates"
-      register: n2r_tpl_dir
+        path: "{{ item }}"
+        follow: true
+      loop:
+        - "{{ playbook_dir }}/templates"
+        - "{{ playbook_dir }}/../roles/nginx/tasks/templates"
+      register: n2r_tpl_dirs
 
-    - name: Find custom templates that enable HTTP/2
-      when: n2r_tpl_dir.stat.isdir | default(false)
+    - name: Find templates that enable HTTP/2
       ansible.builtin.find:
-        paths: "{{ playbook_dir }}/templates"
+        paths: "{{ n2r_tpl_dirs.results | selectattr('stat.isdir', 'defined') | selectattr('stat.isdir') | map(attribute='item') | list }}"
         patterns: ["*.j2"]
         contains: '^\s*(listen[^;#]*\shttp2[\s;]|http2\s+on\s*;)'
+        follow: true
       register: n2r_custom_tpl
+      when: n2r_tpl_dirs.results | selectattr('stat.isdir', 'defined') | selectattr('stat.isdir') | list | length > 0
 
-    - name: Warn about custom templates that re-enable HTTP/2
+    - name: Warn about templates that re-enable HTTP/2
       ansible.builtin.debug:
         msg: >-
-          WARNING: custom template(s) still enable HTTP/2 and would put it back
-          on the next deploy.yml run: {{ n2r_custom_tpl.files | map(attribute='path') | join(', ') }}.
-          Remove `http2` from their listen lines.
+          WARNING: these templates still enable HTTP/2 and would put it back
+          on the next deploy.yml run: {{ n2r_custom_tpl.files | map(attribute='path') | map('realpath') | join(', ') }}.
+          In your own nginx role, remove `http2` from their listen lines.
+          In playbooks/templates/, do the same, or delete any copy you never
+          customised so the role's fixed version is used.
       when: n2r_custom_tpl.matched | default(0) > 0
 
 - name: Mitigate nginx2root
@@ -94,17 +105,33 @@
         group: root
         mode: "0644"
 
+    # built in, SCTP can be neither blocked nor unloaded: only a patched kernel helps
+    - name: Check whether SCTP is built into the kernel
+      ansible.builtin.command:
+        argv: [grep, -qs, '/sctp\.ko', "/lib/modules/{{ ansible_facts['kernel'] }}/modules.builtin"]
+      register: n2r_sctp_builtin
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
     - name: Check whether SCTP is loaded
       ansible.builtin.stat:
         path: /sys/module/sctp
       register: n2r_sctp_mod
 
+    # never forced: a module held by an open socket stays until reboot, and the
+    # block above stops it loading again
     - name: Unload SCTP
       ansible.builtin.command: modprobe -r sctp
       register: n2r_sctp_unload
       changed_when: n2r_sctp_unload.rc == 0
       failed_when: false
-      when: n2r_sctp_mod.stat.exists
+      when: n2r_sctp_mod.stat.exists and n2r_sctp_builtin.rc != 0
+
+    - name: Check whether SCTP is still loaded
+      ansible.builtin.stat:
+        path: /sys/module/sctp
+      register: n2r_sctp_after
 
     # dry run: prints the install rule instead of loading anything
     - name: Verify the SCTP block
@@ -113,6 +140,14 @@
       changed_when: false
       failed_when: false
       check_mode: false
+
+    - name: Work out the SCTP state
+      ansible.builtin.set_fact:
+        n2r_sctp_state: >-
+          {{ 'builtin' if n2r_sctp_builtin.rc == 0
+             else ('loaded' if n2r_sctp_after.stat.exists
+             else ('unloaded' if (n2r_sctp_unload | default({})) is changed
+             else 'absent')) }}
 
     # ----------------------------------------------------------------- nginx --
 
@@ -123,6 +158,10 @@
 
     - name: Mitigate nginx
       when: n2r_nginx_bin.stat.exists
+      vars:
+        n2r_backup_dir: "{{ nginx2root_backup_dir | default('/root/nginx-h2-backup') }}"
+        # whole-file regex (grep -z), so directives split over lines are found too
+        n2r_h2_pattern: '(^|[;{[:space:]])(listen[^;#]*[[:space:]]http2[[:space:];]|http2[[:space:]]+on[[:space:]]*;)'
       block:
         - name: Read the loaded nginx configuration
           ansible.builtin.command: nginx -T
@@ -151,9 +190,7 @@
 
         - name: Find files that enable HTTP/2
           ansible.builtin.command:
-            argv: "{{ ['grep', '-lE', '--', n2r_h2_pattern] + (n2r_files.stdout_lines | unique) }}"
-          vars:
-            n2r_h2_pattern: '^[[:space:]]*(listen[^;#]*[[:space:]]http2([[:space:]]|;)|http2[[:space:]]+on[[:space:]]*;)'
+            argv: "{{ ['grep', '-lzE', '--', n2r_h2_pattern] + (n2r_files.stdout_lines | unique) }}"
           register: n2r_h2_grep
           changed_when: false
           failed_when: n2r_h2_grep.rc not in [0, 1]
@@ -176,44 +213,70 @@
             n2r_legacy_remove: >-
               {{ n2r_wss.results[0].stat.exists
                  and (n2r_wss.results[1].stat.exists or n2r_wss.results[2].stat.exists) }}
+            # the enabled entry as it is now: a symlink (target restored on
+            # rollback) or a regular file (content backed up)
+            n2r_legacy_enabled: "{{ n2r_wss.results[1].stat }}"
 
-        - name: Create the backup directory
+        - name: Work out what to back up
+          ansible.builtin.set_fact:
+            n2r_backup_files: >-
+              {{ (n2r_h2_files
+                  + (['/etc/nginx/sites-available/wss-config-nym']
+                     if (n2r_legacy_remove | bool and n2r_wss.results[2].stat.exists) else [])
+                  + (['/etc/nginx/sites-enabled/wss-config-nym']
+                     if (n2r_legacy_remove | bool and (n2r_legacy_enabled.isreg | default(false))) else []))
+                 | unique }}
+
+        - name: Create the backup directories
           ansible.builtin.file:
-            path: "{{ nginx2root_backup_dir | default('/root/nginx-h2-backup') }}"
+            path: "{{ n2r_backup_dir }}/{{ item }}"
             state: directory
             mode: "0700"
-          when: n2r_h2_files | length > 0 or n2r_legacy_remove | bool
+          loop: [original, last-run]
+          when: n2r_backup_files | length > 0
 
-        # force: false keeps the first original if the play is re-run
-        - name: Back up files before changing them
+        # original/: the state before this playbook first touched the file, kept
+        # across runs. last-run/: this run's state, used for rollback, so a
+        # rollback never undoes changes made after an earlier run.
+        - name: Keep the original files
           ansible.builtin.copy:
             src: "{{ item }}"
-            dest: "{{ nginx2root_backup_dir | default('/root/nginx-h2-backup') }}/{{ item | replace('/', '_') }}"
+            dest: "{{ n2r_backup_dir }}/original/{{ item | replace('/', '_') }}"
             remote_src: true
             force: false
             mode: preserve
+          loop: "{{ n2r_backup_files }}"
           when: not ansible_check_mode
-          loop: >-
-            {{ (n2r_h2_files
-                + (['/etc/nginx/sites-available/wss-config-nym']
-                   if (n2r_legacy_remove | bool and n2r_wss.results[2].stat.exists) else []))
-               | unique }}
+
+        - name: Snapshot the files for rollback
+          ansible.builtin.copy:
+            src: "{{ item }}"
+            dest: "{{ n2r_backup_dir }}/last-run/{{ item | replace('/', '_') }}"
+            remote_src: true
+            force: true
+            mode: preserve
+          loop: "{{ n2r_backup_files }}"
+          when: not ansible_check_mode
 
         - name: Disable HTTP/2, validate, restore on failure
           block:
+            # removes only the http2 token, wherever it sits among the listen
+            # parameters; comments are left alone
             - name: Remove http2 from listen directives
               ansible.builtin.replace:
                 path: "{{ item }}"
-                regexp: '^([ \t]*listen\b[^;#\n]*?)[ \t]+http2\b([^;#\n]*;)'
-                replace: '\1\2'
+                regexp: '((?:^|[;{])[ \t]*listen\b[^;#]*?)\s+http2(?=[\s;])'
+                replace: '\1'
               loop: "{{ n2r_h2_files }}"
               register: n2r_edit_listen
 
-            - name: Remove http2 on directives
+            # rewrites only the directive itself: anything after it on the same
+            # line stays. `http2 off;` is valid wherever `http2 on;` was.
+            - name: Turn http2 on directives off
               ansible.builtin.replace:
                 path: "{{ item }}"
-                regexp: '^[ \t]*http2[ \t]+on[ \t]*;[^\n]*\n'
-                replace: ''
+                regexp: '((?:^|[;{])[ \t]*)http2(\s+)on(\s*);'
+                replace: '\1http2\2off\3;'
               loop: "{{ n2r_h2_files }}"
               register: n2r_edit_on
 
@@ -233,31 +296,30 @@
               when: not ansible_check_mode
 
           rescue:
-            - name: Restore the original files
+            - name: Restore the files from this run's snapshot
               ansible.builtin.copy:
-                src: "{{ nginx2root_backup_dir | default('/root/nginx-h2-backup') }}/{{ item | replace('/', '_') }}"
+                src: "{{ n2r_backup_dir }}/last-run/{{ item | replace('/', '_') }}"
                 dest: "{{ item }}"
                 remote_src: true
                 mode: preserve
-              loop: >-
-                {{ (n2r_h2_files
-                    + (['/etc/nginx/sites-available/wss-config-nym']
-                       if (n2r_legacy_remove | bool and n2r_wss.results[2].stat.exists) else []))
-                   | unique }}
+              loop: "{{ n2r_backup_files }}"
 
+            # a regular file comes back with the copy above; a symlink is put
+            # back pointing exactly where it pointed before
             - name: Restore the legacy WSS symlink
               ansible.builtin.file:
-                src: /etc/nginx/sites-available/wss-config-nym
+                src: "{{ n2r_legacy_enabled.lnk_target }}"
                 dest: /etc/nginx/sites-enabled/wss-config-nym
                 state: link
-              when: n2r_legacy_remove | bool and n2r_wss.results[1].stat.exists
+                force: true
+              when: n2r_legacy_remove | bool and (n2r_legacy_enabled.islnk | default(false))
 
             - name: Stop - nginx rejected the edited configuration
               ansible.builtin.fail:
                 msg: >-
-                  `nginx -t` failed after the edit. The originals were restored
-                  and nginx was not restarted, so the node is as it was before.
-                  Check the config by hand and apply the manual steps.
+                  `nginx -t` failed after the edit. This run's originals were
+                  restored and nginx was not restarted, so the node is as it was
+                  before. Check the config by hand and apply the manual steps.
 
         - name: Restart nginx
           ansible.builtin.service:
@@ -269,16 +331,55 @@
              or (n2r_legacy | default({})) is changed)
             and not ansible_check_mode
 
-        - name: Check which ports still negotiate HTTP/2
+        # independent of SNI and listeners: catches server names a probe can't
+        # reach, such as wildcard or regex names
+        - name: Check the loaded configuration for HTTP/2
           ansible.builtin.shell: |
             set -o pipefail
-            for p in $(ss -ltnpH | grep '"nginx"' | grep -oP ':\K[0-9]+(?=\s)' | sort -un); do
-              r=$(openssl s_client -connect 127.0.0.1:"$p" -alpn h2 </dev/null 2>&1 \
-                  | grep -aoE 'ALPN protocol: h2|No ALPN negotiated')
-              echo "$p ${r:-no-tls}"
+            out=$(nginx -T 2>&1) || { echo "error: nginx -T failed"; exit 0; }
+            if printf '%s' "$out" | sed 's/#.*//' | grep -zE "$N2R_PATTERN" >/dev/null; then
+              echo enabled
+            else
+              echo off
+            fi
+          args:
+            executable: /bin/bash
+          environment:
+            N2R_PATTERN: "{{ n2r_h2_pattern }}"
+          register: n2r_conf_h2
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+        # Every nginx TCP listener is probed at its own address. Offering both
+        # h2 and http/1.1 makes a healthy TLS server answer one of them, so
+        # "off" is positive proof and a failed handshake is reported as
+        # unverified, never as off. Ports without ssl in the config are plain.
+        - name: Check which TLS listeners negotiate HTTP/2
+          ansible.builtin.shell: |
+            set -o pipefail
+            tls_ports=" $(nginx -T 2>/dev/null | sed 's/#.*//' | tr ';{}' '\n\n\n' \
+              | awk '$1=="listen" && / ssl( |$)/ && $2 !~ /^unix:/ {n=split($2,p,":"); if (p[n] ~ /^[0-9]+$/) print p[n]}' \
+              | sort -u | tr '\n' ' ') "
+            probe() {
+              timeout 10 openssl s_client -connect "$1" ${2:+-servername "$2"} -alpn h2,http/1.1 </dev/null 2>&1 \
+                | grep -aoE 'ALPN protocol: [^ ]+' | head -1
+            }
+            for s in $(ss -ltnpH | awk '/"nginx"/{print $4}' | sort -u); do
+              port=${s##*:}; host=${s%:*}
+              case "$host" in 0.0.0.0|"*") host=127.0.0.1 ;; "[::]") host="[::1]" ;; esac
+              if [[ "$tls_ports" != *" $port "* ]]; then echo "$s plain"; continue; fi
+              r1=$(probe "$host:$port")
+              r2=""; [ -n "$N2R_SNI" ] && r2=$(probe "$host:$port" "$N2R_SNI")
+              if [[ "$r1 $r2" == *"protocol: h2"* ]]; then st=h2
+              elif [[ "$r1" == *"http/1.1"* ]] && { [ -z "$N2R_SNI" ] || [[ "$r2" == *"http/1.1"* ]]; }; then st=off
+              else st=unverified; fi
+              echo "$s $st"
             done
           args:
             executable: /bin/bash
+          environment:
+            N2R_SNI: "{{ hostname | default('') }}"
           register: n2r_alpn
           changed_when: false
           failed_when: false
@@ -337,12 +438,18 @@
           failed_when: false
           check_mode: false
 
-        # distro packages list backported CVEs in changelog.Debian.gz,
-        # nginx.org packages in the upstream changelog.gz
+        # distro packages list backported CVEs in changelog.Debian.gz, nginx.org
+        # packages in the upstream changelog.gz. A failed check reports as
+        # unknown, never as "not fixed".
         - name: Check whether the package carries the fix
           ansible.builtin.shell: |
-            set -o pipefail
-            zgrep -hsc CVE-2026-123007 /usr/share/doc/nginx/changelog*.gz | awk '{s+=$1} END {print s+0}'
+            shopt -s nullglob
+            set -- /usr/share/doc/nginx/changelog*.gz
+            if [ "$#" -eq 0 ]; then echo "unknown: no changelog in /usr/share/doc/nginx"; exit 0; fi
+            zgrep -qs CVE-2026-123007 "$@"; rc=$?
+            case $rc in 0) echo found ;; 1) echo absent ;; *) echo "unknown: zgrep exit $rc" ;; esac
+          args:
+            executable: /bin/bash
           register: n2r_fixed
           changed_when: false
           failed_when: false
@@ -354,49 +461,71 @@
       ansible.builtin.debug:
         msg: "{{ n2r_head + (n2r_nginx_lines if n2r_nginx_bin.stat.exists else []) }}"
       vars:
-        n2r_listeners: "{{ n2r_alpn.stdout_lines | default([]) }}"
-        n2r_h2_ports: "{{ n2r_listeners | select('search', 'ALPN protocol: h2') | list }}"
+        n2r_sockets: "{{ n2r_alpn.stdout_lines | default([]) }}"
+        n2r_h2_on: "{{ n2r_sockets | select('search', ' h2$') | map('split', ' ') | map('first') | list }}"
+        n2r_unverified: "{{ n2r_sockets | select('search', ' unverified$') | map('split', ' ') | map('first') | list }}"
+        n2r_tls_off: "{{ n2r_sockets | select('search', ' off$') | list }}"
+        n2r_edited: >-
+          {{ ((n2r_edit_listen.results | default([]) | selectattr('changed') | map(attribute='item') | list)
+             + (n2r_edit_on.results | default([]) | selectattr('changed') | map(attribute='item') | list)) | unique }}
         n2r_wss_code: "{{ n2r_wss_check.stdout | default('') }}"
-        n2r_fix_in: "{{ (n2r_fixed.stdout | default('0')) | int > 0 }}"
+        n2r_fix: "{{ n2r_fixed.stdout | default('unknown') }}"
         n2r_mode: "{{ 'PREVIEW (--check): current state shown, nothing was changed' if ansible_check_mode else 'APPLIED' }}"
-        n2r_sctp_state: "{{ 'blocked' if '/bin/false' in n2r_sctp_dry.stdout else 'NOT BLOCKED' }}"
-        n2r_sctp_unloaded: "{{ ', unloaded' if ((n2r_sctp_unload | default({})) is changed) else '' }}"
+        n2r_sctp_line: >-
+          {{ {'builtin': 'BUILT INTO THE KERNEL - cannot be blocked, needs a patched kernel',
+              'loaded': ('loaded - would be unloaded' if ansible_check_mode
+                         else 'blocked, but STILL LOADED (in use) - reboot to unload it'),
+              'unloaded': 'blocked, unloaded',
+              'absent': ('blocked' if '/bin/false' in n2r_sctp_dry.stdout else 'NOT BLOCKED')}[n2r_sctp_state] }}
         n2r_http2: >-
-          {{ 'NO nginx listeners found - is nginx running?' if not n2r_listeners
-             else (n2r_h2_ports | join(', ') or 'off on every port') }}
+          {{ 'NO nginx listeners found - is nginx running?' if not n2r_sockets
+             else ('ON: ' ~ (n2r_h2_on | join(', '))) if n2r_h2_on
+             else ('UNVERIFIED (TLS handshake failed): ' ~ (n2r_unverified | join(', '))) if n2r_unverified
+             else ('no TLS listeners' if not n2r_tls_off
+             else 'off on every TLS listener (' ~ (n2r_tls_off | length) ~ ')') }}
         n2r_wss_line: >-
           {{ 'skipped - no hostname' if not n2r_wss_code
              else (n2r_wss_code ~ (' (ok)' if n2r_wss_code == '101'
                    else ' - expected 101, check nym-node is running and listening on :9000')) }}
+        n2r_fix_line: >-
+          {{ 'fix INSTALLED' if n2r_fix == 'found'
+             else ('fix not yet available, keep HTTP/2 off' if n2r_fix == 'absent'
+             else 'fix status ' ~ n2r_fix) }}
         n2r_head:
           - "{{ n2r_mode }}"
-          - "SCTP       : {{ n2r_sctp_state }}{{ n2r_sctp_unloaded }}"
+          - "SCTP       : {{ n2r_sctp_line }}"
           - "nginx      : {{ 'present' if n2r_nginx_bin.stat.exists else 'not installed - SCTP block only' }}"
         n2r_nginx_lines:
-          - "edited     : {{ (n2r_h2_files | default([])) | join(', ') or 'nothing - HTTP/2 already off' }}"
+          - "edited     : {{ (n2r_edited | join(', ')) or 'nothing - HTTP/2 already off' }}"
           - "legacy WSS : {{ 'removed' if ((n2r_legacy | default({})) is changed) else 'none' }}"
+          - "config     : {{ 'http2 still ENABLED' if (n2r_conf_h2.stdout | default('')) == 'enabled' else (n2r_conf_h2.stdout | default('n/a')) }}"
           - "HTTP/2     : {{ n2r_http2 }}"
           - "WSS check  : {{ n2r_wss_line }}"
-          - "package    : {{ n2r_pkg.stdout | default('n/a') }} - fix {{ 'INSTALLED' if n2r_fix_in else 'not yet available, keep HTTP/2 off' }}"
+          - "package    : {{ n2r_pkg.stdout | default('n/a') }} - {{ n2r_fix_line }}"
+          - "backups    : {{ (n2r_backup_dir | default('/root/nginx-h2-backup')) ~ '/original' if (n2r_backup_files | default([])) else 'none needed' }}"
 
-    - name: Fail if nginx is not listening after the run
+    # one check at the end, so nginx is mitigated even where SCTP needs a reboot
+    - name: Fail if the node is not fully mitigated
       ansible.builtin.fail:
-        msg: >-
-          nginx has no listening ports after the run. Check
-          `systemctl status nginx` and `nginx -t`. Originals are in
-          {{ nginx2root_backup_dir | default('/root/nginx-h2-backup') }}.
+        msg: "{{ n2r_problems }}"
+      vars:
+        n2r_sockets: "{{ n2r_alpn.stdout_lines | default([]) }}"
+        n2r_h2_on: "{{ n2r_sockets | select('search', ' h2$') | map('split', ' ') | map('first') | list }}"
+        n2r_unverified: "{{ n2r_sockets | select('search', ' unverified$') | map('split', ' ') | map('first') | list }}"
+        n2r_sctp_err: "{{ (n2r_sctp_unload | default({})).stderr | default('') | trim | regex_replace('\\.$', '') }}"
+        n2r_problems: >-
+          {{ ([] if n2r_sctp_state not in ['builtin', 'loaded'] else
+               [('SCTP is built into this kernel, so it cannot be blocked or unloaded. Install a patched kernel when one is available.'
+                 if n2r_sctp_state == 'builtin' else
+                 'SCTP is still loaded, most likely held by an open socket: ' ~ n2r_sctp_err
+                 ~ '. The block stops it loading again; reboot to unload it. Do not force-unload it.')])
+             + ([] if not n2r_nginx_bin.stat.exists else
+                 (['nginx has no listening ports. Check `systemctl status nginx` and `nginx -t`.'] if not n2r_sockets else [])
+                 + (['HTTP/2 is still negotiated on: ' ~ (n2r_h2_on | join(', '))] if n2r_h2_on else [])
+                 + (['HTTP/2 could not be verified (TLS handshake failed) on: ' ~ (n2r_unverified | join(', '))]
+                    if n2r_unverified else [])
+                 + (['http2 is still enabled in the loaded configuration - check `nginx -T` by hand.']
+                    if (n2r_conf_h2.stdout | default('')) == 'enabled' else [])) }}
       when:
-        - n2r_nginx_bin.stat.exists
         - not ansible_check_mode
-        - (n2r_alpn.stdout_lines | default([]) | length) == 0
-
-    - name: Fail if HTTP/2 is still on
-      ansible.builtin.fail:
-        msg: >-
-          HTTP/2 is still negotiated on: {{ n2r_alpn.stdout_lines | select('search', 'ALPN protocol: h2') | list | join(', ') }}.
-          A config this play does not manage enables it - check `nginx -T` by hand.
-      when:
-        - n2r_nginx_bin.stat.exists
-        - not ansible_check_mode
-        - "(n2r_alpn.stdout_lines | default([]) | select('search', 'ALPN protocol: h2') | list | length) > 0"
-        
+        - n2r_problems | length > 0

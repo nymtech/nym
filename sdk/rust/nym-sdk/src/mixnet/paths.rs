@@ -292,7 +292,7 @@ mod tests {
     #[tokio::test]
     async fn raw_key_reaches_the_key_store() {
         let dir = tempfile::tempdir().unwrap();
-        let secret = KeySecret::from(RawKey::new([7; nym_pemstore::RAW_KEY_LEN]));
+        let secret = KeySecret::from(RawKey::from_bytes(&[7; nym_pemstore::RAW_KEY_LEN]));
         let paths = StoragePaths::new_from_dir(dir.path())
             .unwrap()
             .with_key_secret(Some(secret.clone()));

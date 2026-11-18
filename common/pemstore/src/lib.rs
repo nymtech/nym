@@ -483,7 +483,7 @@ mod tests {
         }
 
         fn raw_key(byte: u8) -> KeySecret {
-            RawKey::new([byte; RAW_KEY_LEN]).into()
+            RawKey::from_bytes(&[byte; RAW_KEY_LEN]).into()
         }
 
         #[test]

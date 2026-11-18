@@ -20,6 +20,7 @@ use pkcs8::der::{Decode, Encode};
 use pkcs8::pkcs5::{pbes2, scrypt};
 use std::fmt;
 use std::io;
+use std::sync::Arc;
 use zeroize::Zeroizing;
 
 /// Length of a [`RawKey`] in bytes.
@@ -68,22 +69,29 @@ impl fmt::Debug for Passphrase {
 
 /// Raw 256-bit key protecting private key files on disk. It is used as is, without passphrase
 /// key derivation, so it must be uniformly random.
+///
+/// The key is kept in a single shared heap allocation, so moving a `RawKey` doesn't leave copies
+/// of it behind, and clones share it. It's zeroized when the last clone is dropped.
 #[derive(Clone)]
-pub struct RawKey(Zeroizing<[u8; RAW_KEY_LEN]>);
+pub struct RawKey(Arc<Zeroizing<[u8; RAW_KEY_LEN]>>);
 
 impl RawKey {
-    pub fn new(key: [u8; RAW_KEY_LEN]) -> Self {
-        RawKey(Zeroizing::new(key))
+    /// Copies the key from a borrowed buffer straight into the shared allocation, without
+    /// intermediate copies. The caller stays responsible for wiping its own buffer.
+    pub fn from_bytes(key: &[u8; RAW_KEY_LEN]) -> Self {
+        RawKey::from_fn(|buf| buf.copy_from_slice(key))
+    }
+
+    /// Fills the key in place, e.g. from an RNG, so it only ever exists in the shared allocation.
+    pub fn from_fn(fill: impl FnOnce(&mut [u8; RAW_KEY_LEN])) -> Self {
+        let mut key = Arc::new(Zeroizing::new([0u8; RAW_KEY_LEN]));
+        // the Arc isn't shared yet, so this doesn't clone
+        fill(&mut *Arc::make_mut(&mut key));
+        RawKey(key)
     }
 
     pub(crate) fn as_bytes(&self) -> &[u8; RAW_KEY_LEN] {
         &self.0
-    }
-}
-
-impl From<[u8; RAW_KEY_LEN]> for RawKey {
-    fn from(key: [u8; RAW_KEY_LEN]) -> Self {
-        RawKey::new(key)
     }
 }
 
@@ -249,7 +257,18 @@ mod tests {
     }
 
     fn raw_key(byte: u8) -> KeySecret {
-        RawKey::new([byte; RAW_KEY_LEN]).into()
+        RawKey::from_bytes(&[byte; RAW_KEY_LEN]).into()
+    }
+
+    #[test]
+    fn raw_key_constructors_agree() {
+        let filled = RawKey::from_fn(|key| key.fill(7));
+
+        assert_eq!(filled.as_bytes(), &[7; RAW_KEY_LEN]);
+        assert_eq!(
+            RawKey::from_bytes(&[7; RAW_KEY_LEN]).as_bytes(),
+            filled.as_bytes()
+        );
     }
 
     #[test]

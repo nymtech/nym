@@ -31,17 +31,30 @@ pub type Key = [u8; KEY_LEN];
 pub struct DatabaseKey(Arc<Zeroizing<Key>>);
 
 impl DatabaseKey {
-    pub fn new(key: Key) -> Self {
-        DatabaseKey(Arc::new(Zeroizing::new(key)))
+    /// Copies the key from a borrowed buffer straight into the shared allocation, without
+    /// intermediate copies. The caller stays responsible for wiping its own buffer.
+    pub fn from_bytes(key: &Key) -> Self {
+        DatabaseKey::from_fn(|buf| buf.copy_from_slice(key))
+    }
+
+    /// Fills the key in place, e.g. from an RNG, so it only ever exists in the shared allocation.
+    pub fn from_fn(fill: impl FnOnce(&mut Key)) -> Self {
+        let mut key = Arc::new(Zeroizing::new([0u8; KEY_LEN]));
+        // the Arc isn't shared yet, so this doesn't clone
+        fill(&mut *Arc::make_mut(&mut key));
+        DatabaseKey(key)
     }
 
     /// Parses a key from its hex encoding: exactly [`KEY_LEN`] bytes, i.e. 64 hex characters.
     ///
-    /// The error doesn't include the input, so that it can't leak the key.
+    /// The key is decoded straight into the shared allocation. The error doesn't include the
+    /// input, so that it can't leak the key.
     pub fn from_hex(hex_key: &str) -> Result<Self, InvalidHexKey> {
-        let mut key = Zeroizing::new([0u8; KEY_LEN]);
-        hex::decode_to_slice(hex_key.trim(), key.as_mut_slice()).map_err(|_| InvalidHexKey)?;
-        Ok(DatabaseKey::new(*key))
+        let mut result = Ok(());
+        let key = DatabaseKey::from_fn(|buf| {
+            result = hex::decode_to_slice(hex_key.trim(), buf.as_mut_slice());
+        });
+        result.map(|_| key).map_err(|_| InvalidHexKey)
     }
 
     pub fn as_bytes(&self) -> &Key {
@@ -60,12 +73,6 @@ impl std::str::FromStr for DatabaseKey {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         DatabaseKey::from_hex(s)
-    }
-}
-
-impl From<Key> for DatabaseKey {
-    fn from(key: Key) -> Self {
-        DatabaseKey::new(key)
     }
 }
 
@@ -401,11 +408,28 @@ mod tests {
     use tempfile::TempDir;
 
     fn key() -> DatabaseKey {
-        DatabaseKey::new([0x42; KEY_LEN])
+        DatabaseKey::from_bytes(&[0x42; KEY_LEN])
     }
 
     fn other_key() -> DatabaseKey {
-        DatabaseKey::new([0x24; KEY_LEN])
+        DatabaseKey::from_bytes(&[0x24; KEY_LEN])
+    }
+
+    #[test]
+    fn database_key_constructors_agree() {
+        let filled = DatabaseKey::from_fn(|key| key.fill(0x42));
+
+        assert_eq!(filled.as_bytes(), &[0x42; KEY_LEN]);
+        assert_eq!(
+            DatabaseKey::from_bytes(&[0x42; KEY_LEN]).as_bytes(),
+            filled.as_bytes()
+        );
+        assert_eq!(
+            DatabaseKey::from_hex(&"42".repeat(KEY_LEN))
+                .unwrap()
+                .as_bytes(),
+            filled.as_bytes()
+        );
     }
 
     #[test]

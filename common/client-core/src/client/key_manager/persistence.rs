@@ -435,7 +435,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let paths = paths(dir.path());
         let keys = fresh_keys();
-        let raw_key = || Some(KeySecret::from(RawKey::new([7; nym_pemstore::RAW_KEY_LEN])));
+        let raw_key = || {
+            Some(KeySecret::from(RawKey::from_bytes(
+                &[7; nym_pemstore::RAW_KEY_LEN],
+            )))
+        };
         OnDiskKeys::new(paths.clone()).store_keys(&keys).unwrap();
 
         let loaded = OnDiskKeys::with_secret(paths.clone(), raw_key())

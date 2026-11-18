@@ -2,14 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    client::base_client::storage::helpers::{
+        get_all_registered_identities, remove_gateway_details,
+    },
+    client::key_manager::persistence::{OnDiskKeys, Passphrase},
     client::replies::reply_storage::{CombinedReplyStorage, ReplyStorageBackend, fs_backend},
     config,
     config::Config,
+    config::disk_persistence::CommonClientPaths,
     error::ClientCoreError,
+    init::generate_new_client_keys,
 };
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd};
-use std::{io, path::Path};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 use time::OffsetDateTime;
 use tracing::{error, info, trace};
 use url::Url;
@@ -181,6 +190,68 @@ pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
         .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
             source: Box::new(source),
         })
+}
+
+/// Gives the client a new identity: new random root keys, no gateway registrations and no reply
+/// SURBs or reply keys. It contacts no gateway and leaves the credential store unopened, so
+/// ticketbooks are kept. No client may be using these paths while it runs.
+pub async fn reset_client_identity(
+    paths: &CommonClientPaths,
+    key_passphrase: Option<Passphrase>,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
+) -> Result<(), ClientCoreError> {
+    // the keys go last, so a reset cut short leaves registrations under the keys they were
+    // made with, or none, and running it again finishes it
+    let details_store =
+        setup_fs_gateways_storage(&paths.gateway_registrations, database_key).await?;
+    for gateway_id in get_all_registered_identities(&details_store).await? {
+        remove_gateway_details(&details_store, &gateway_id.to_base58_string()).await?;
+    }
+
+    // loaded directly: the usual setup would create a missing store with default thresholds,
+    // which the client would then keep
+    if paths.reply_surb_database.exists() {
+        match fs_backend::Backend::try_load(&paths.reply_surb_database, database_key).await {
+            Ok(reply_store) => {
+                let deleted = reply_store.delete_all_reply_data().await;
+                reply_store.shutdown().await;
+                deleted.map_err(|source| ClientCoreError::SurbStorageError {
+                    source: Box::new(source),
+                })?;
+            }
+            // a flush cut short or never made: the client's next start would archive this
+            // store and begin a fresh one, so deleting it loses nothing a start would keep.
+            // Any other failure, a wrong key included, may hide data the client can still read
+            Err(fs_backend::StorageError::IncompleteDataFlush) => {
+                for path in sqlite_database_paths(&paths.reply_surb_database) {
+                    if path.exists() {
+                        std::fs::remove_file(path)?;
+                    }
+                }
+            }
+            Err(source) => {
+                return Err(ClientCoreError::SurbStorageError {
+                    source: Box::new(source),
+                });
+            }
+        }
+    }
+
+    let key_store = OnDiskKeys::with_passphrase(paths.keys.clone(), key_passphrase);
+    generate_new_client_keys(&mut nym_crypto::rng::os_rng(), &key_store).await
+}
+
+/// The sqlite database file together with its journal files (wal, shm).
+pub fn sqlite_database_paths<P: AsRef<Path>>(db_file: P) -> Vec<PathBuf> {
+    ["-shm", "-wal"]
+        .iter()
+        .map(|ext_suffix| {
+            let mut new_ext = db_file.as_ref().extension().unwrap_or_default().to_owned();
+            new_ext.push(ext_suffix);
+            db_file.as_ref().with_extension(new_ext)
+        })
+        .chain([db_file.as_ref().to_path_buf()])
+        .collect()
 }
 
 pub fn default_query_dkg_client_from_config(

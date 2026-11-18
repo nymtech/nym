@@ -98,13 +98,6 @@ impl Backend {
         self.manager.close_pool().await
     }
 
-    /// Deletes every stored reply SURB and reply key.
-    pub async fn delete_all_reply_data(&self) -> Result<(), StorageError> {
-        self.manager.delete_all_reply_surb_data().await?;
-        self.manager.delete_all_reply_keys().await?;
-        Ok(())
-    }
-
     async fn try_load_inner(manager: &StorageManager) -> Result<(), StorageError> {
         // the database flush wasn't fully finished and thus the data is in inconsistent state
         // (we don't really know what's properly saved or what's not)
@@ -366,54 +359,5 @@ impl ReplyStorageBackend for Backend {
         let result = self.stop_client_use().await;
         self.shutdown().await;
         result
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use sqlx::sqlite::SqliteConnectOptions;
-    use std::str::FromStr;
-
-    async fn in_memory_backend() -> Backend {
-        let options = SqliteConnectOptions::from_str("sqlite::memory:").unwrap();
-        let manager = StorageManager::new_with_options(options).await.unwrap();
-        Backend::new(Path::new(":memory:"), None, manager)
-    }
-
-    #[tokio::test]
-    async fn delete_all_reply_data_clears_reply_surbs_and_reply_keys() {
-        let backend = in_memory_backend().await;
-        let manager = &backend.manager;
-        manager
-            .insert_reply_key(StoredReplyKey {
-                key_digest: vec![1],
-                reply_key: vec![2],
-                sent_at: OffsetDateTime::UNIX_EPOCH,
-            })
-            .await
-            .unwrap();
-        let sender_id = manager
-            .insert_surb_sender(StoredSurbSender {
-                id: 0,
-                tag: vec![3],
-                last_sent: OffsetDateTime::UNIX_EPOCH,
-            })
-            .await
-            .unwrap();
-        manager
-            .insert_reply_surb(StoredReplySurb {
-                reply_surb_sender_id: sender_id,
-                reply_surb: vec![4],
-                encoded_key_rotation: 0,
-            })
-            .await
-            .unwrap();
-
-        backend.delete_all_reply_data().await.unwrap();
-
-        assert!(manager.get_reply_keys().await.unwrap().is_empty());
-        assert!(manager.get_surb_senders().await.unwrap().is_empty());
-        assert!(manager.get_reply_surbs(sender_id).await.unwrap().is_empty());
     }
 }

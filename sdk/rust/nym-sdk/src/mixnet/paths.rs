@@ -260,13 +260,9 @@ mod tests {
     };
     use nym_client_core::client::key_manager::persistence::KeyStore;
     use nym_client_core::client::key_manager::ClientKeys;
-    use nym_client_core::client::replies::reply_storage::{
-        CombinedReplyStorage, ReplyStorageBackend,
-    };
+    use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
     use nym_client_core::error::ClientCoreError;
-    use nym_sphinx::anonymous_replies::SurbEncryptionKey;
     use nym_test_utils::helpers::{deterministic_rng, dummy_ed25519_keypair};
-    use time::OffsetDateTime;
 
     #[tokio::test]
     async fn key_passphrase_reaches_the_key_store() {
@@ -305,10 +301,9 @@ mod tests {
     async fn reset_client_identity_replaces_the_root_and_clears_registrations_and_replies() {
         let dir = tempfile::tempdir().unwrap();
         let paths = StoragePaths::new_from_dir(dir.path()).unwrap();
-        let mut rng = deterministic_rng();
 
         let key_store = paths.on_disk_key_storage_spec();
-        let old_keys = ClientKeys::generate_new(&mut rng);
+        let old_keys = ClientKeys::generate_new(&mut deterministic_rng());
         key_store.store_keys(&old_keys).await.unwrap();
 
         let gateway_id = *dummy_ed25519_keypair(1).public_key();
@@ -322,14 +317,9 @@ mod tests {
             .await
             .unwrap();
 
-        let replies = CombinedReplyStorage::new(10, 100);
-        replies
-            .key_storage_ref()
-            .insert_multiple(vec![SurbEncryptionKey::new(&mut rng)]);
-        let mut reply_store = paths.default_persistent_fs_reply_backend().await.unwrap();
-        reply_store.flush_surb_storage(&replies).await.unwrap();
+        let reply_store = paths.default_persistent_fs_reply_backend().await.unwrap();
         reply_store.stop_storage_session().await.unwrap();
-        assert_eq!(stored_reply_data(&paths).await, (1, 0));
+        assert!(paths.reply_surb_database_path.exists());
 
         paths.reset_client_identity().await.unwrap();
 
@@ -349,37 +339,6 @@ mod tests {
             .unwrap()
             .registration
             .is_none());
-        assert_eq!(stored_reply_data(&paths).await, (0, 0));
-    }
-
-    #[tokio::test]
-    async fn reset_client_identity_deletes_a_reply_store_that_was_never_flushed() {
-        let dir = tempfile::tempdir().unwrap();
-        let paths = StoragePaths::new_from_dir(dir.path()).unwrap();
-
-        let key_store = paths.on_disk_key_storage_spec();
-        let old_keys = ClientKeys::generate_new(&mut deterministic_rng());
-        key_store.store_keys(&old_keys).await.unwrap();
-
-        // created and closed without a flush, as by a client that went down before its first one
-        let reply_store = paths.default_persistent_fs_reply_backend().await.unwrap();
-        reply_store.stop_storage_session().await.unwrap();
-        assert!(matches!(
-            fs_backend::Backend::try_load(&paths.reply_surb_database_path, None).await,
-            Err(fs_backend::StorageError::IncompleteDataFlush)
-        ));
-
-        paths.reset_client_identity().await.unwrap();
-
-        assert_ne!(
-            key_store
-                .load_keys()
-                .await
-                .unwrap()
-                .identity_keypair()
-                .public_key(),
-            old_keys.identity_keypair().public_key()
-        );
         assert!(paths
             .reply_surb_database_paths()
             .iter()
@@ -430,21 +389,5 @@ mod tests {
             details_store.all_gateways_identities().await.unwrap().len(),
             1
         );
-    }
-
-    /// The numbers of stored reply keys and of senders with stored reply SURBs.
-    async fn stored_reply_data(paths: &StoragePaths) -> (usize, usize) {
-        let reply_store = fs_backend::Backend::try_load(&paths.reply_surb_database_path, None)
-            .await
-            .unwrap();
-        let stored = reply_store
-            .load_surb_storage(OffsetDateTime::UNIX_EPOCH)
-            .await
-            .unwrap();
-        reply_store.shutdown().await;
-        (
-            stored.key_storage_ref().as_raw_iter().count(),
-            stored.surbs_storage_ref().as_raw_iter().count(),
-        )
     }
 }

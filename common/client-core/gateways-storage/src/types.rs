@@ -112,6 +112,12 @@ impl GatewayDetails {
         }
     }
 
+    /// Whether a remote gateway's stored listeners are past their TTL.
+    pub fn published_data_expired(&self) -> bool {
+        self.details_exipration()
+            .is_some_and(|expiration| OffsetDateTime::now_utc() > expiration)
+    }
+
     pub fn is_custom(&self) -> bool {
         matches!(self, GatewayDetails::Custom(..))
     }

@@ -15,7 +15,7 @@ pub mod encryption;
 pub mod traits;
 
 #[cfg(feature = "encryption")]
-pub use encryption::{KeySecret, Passphrase, RAW_KEY_LEN, RawKey};
+pub use encryption::{InvalidRawKeyLength, KeySecret, Passphrase, RAW_KEY_LEN, RawKey};
 
 /// Prefix on the PEM tag of a private key encrypted with a passphrase or raw key.
 const ENCRYPTED_TAG_PREFIX: &str = "ENCRYPTED ";

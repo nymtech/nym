@@ -95,6 +95,26 @@ impl RawKey {
     }
 }
 
+/// Copies the key straight into the shared allocation. Fails unless it's exactly [`RAW_KEY_LEN`]
+/// bytes. The caller stays responsible for wiping its own buffer.
+impl TryFrom<&[u8]> for RawKey {
+    type Error = InvalidRawKeyLength;
+
+    fn try_from(key: &[u8]) -> Result<Self, Self::Error> {
+        if key.len() != RAW_KEY_LEN {
+            return Err(InvalidRawKeyLength { len: key.len() });
+        }
+        Ok(RawKey::from_fn(|buf| buf.copy_from_slice(key)))
+    }
+}
+
+/// Returned by `RawKey::try_from(&[u8])` when the input isn't exactly [`RAW_KEY_LEN`] bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("the raw key must be exactly {RAW_KEY_LEN} bytes, got {len}")]
+pub struct InvalidRawKeyLength {
+    pub len: usize,
+}
+
 impl fmt::Debug for RawKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("RawKey(..)")
@@ -258,6 +278,21 @@ mod tests {
 
     fn raw_key(byte: u8) -> KeySecret {
         RawKey::from_bytes(&[byte; RAW_KEY_LEN]).into()
+    }
+
+    #[test]
+    fn raw_key_from_slice_checks_the_length() {
+        let key = RawKey::try_from(&[7; RAW_KEY_LEN][..]).unwrap();
+
+        assert_eq!(key.as_bytes(), &[7; RAW_KEY_LEN]);
+        assert_eq!(
+            RawKey::try_from(&[7; RAW_KEY_LEN - 1][..]).unwrap_err(),
+            InvalidRawKeyLength {
+                len: RAW_KEY_LEN - 1
+            }
+        );
+        assert!(RawKey::try_from(&[7; RAW_KEY_LEN + 1][..]).is_err());
+        assert!(RawKey::try_from(&[][..]).is_err());
     }
 
     #[test]

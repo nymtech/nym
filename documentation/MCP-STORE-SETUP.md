@@ -27,7 +27,7 @@ The guide covers task 4.1 of the OpenSpec change `add-shared-retrieval-index`, f
    <direct host>:*:<database>:<owner>:<password>
    ```
 
-   `<direct host>` is the host name of the direct address, without the port, and `*` matches any port. `libpq` ignores the file if other users can read it, so set the mode before you write the password.
+   `<direct host>` is the host name of the direct address, without the port, and `*` matches any port. If the password contains `:` or `\`, put a `\` before each one (`a:b` becomes `a\:b`). `libpq` ignores the file if other users can read it, so set the mode before you write the password.
 4. Put the owner account's direct connection string, with no password, in a shell variable for the next steps:
 
    ```

@@ -32,7 +32,8 @@ const SHARDS: [Modality, string, string][] = [
 ];
 // A shard that loses more than this share of its rows in one run is refused: a
 // lost content directory or a broken walk would otherwise delete that part of
-// the public index. ALLOW_SHRINK=1 lets an intended large removal through.
+// the public index. ALLOW_SHRINK=1 lets an intended large removal through. The
+// package checks it against the rows it holds under the store lock.
 const MAX_SHRINK = 0.2;
 
 /** A provider that answers only from the index file's vectors, and refuses a file of another model. */
@@ -58,18 +59,10 @@ export function fileProvider(index: DocIndex, model: string, dim = DIM): EmbedPr
   };
 }
 
-/** Refuses a run that would drop more than MAX_SHRINK of a shard's rows. */
-export function checkShrink(shard: string, before: number, after: number, allowShrink: boolean): void {
-  if (allowShrink || before === 0 || after >= before * (1 - MAX_SHRINK)) return;
-  throw new Error(
-    `${shard}: this run has ${after} chunks, but the store holds ${before}. Refusing to delete ${before - after} rows; set ALLOW_SHRINK=1 if the removal is intended`,
-  );
-}
-
 async function main(): Promise<void> {
   const url = process.env.RETRIEVAL_STORE_WRITE_URL;
   if (!url) throw new Error('write-store: RETRIEVAL_STORE_WRITE_URL is not set');
-  const allowShrink = process.env.ALLOW_SHRINK === '1';
+  const maxShrink = process.env.ALLOW_SHRINK === '1' ? undefined : MAX_SHRINK;
 
   // One client, not a pool: a write run is one transaction on one connection.
   const db = new pg.Client({ connectionString: url });
@@ -83,12 +76,8 @@ async function main(): Promise<void> {
       const index: DocIndex = JSON.parse(readFileSync(path.join(PUBLIC_DIR, file), 'utf-8'));
       const provider = fileProvider(index, model);
       const chunks = index.chunks.map(({ vector: _vector, ...chunk }) => chunk);
-      const shard = `${REPO}/${modality}`;
-      const { rows } = await db.query<{ n: number }>('select count(*)::int as n from chunks where shard = $1', [shard]);
-      checkShrink(shard, rows[0]!.n, chunks.length, allowShrink);
-
-      const stats = await indexShard(db, { repo: REPO, modality, chunks, provider, sourceRev: process.env.GITHUB_SHA ?? null });
-      console.log(`${shard} (${model}): ${stats.total} chunks, ${stats.embedded} changed, ${stats.unchanged} unchanged, ${stats.deleted} deleted`);
+      const stats = await indexShard(db, { repo: REPO, modality, chunks, provider, maxShrink, sourceRev: process.env.GITHUB_SHA ?? null });
+      console.log(`${REPO}/${modality} (${model}): ${stats.total} chunks, ${stats.embedded} changed, ${stats.unchanged} unchanged, ${stats.deleted} deleted`);
     }
   } finally {
     await db.end();

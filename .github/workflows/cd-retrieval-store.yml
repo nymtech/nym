@@ -19,6 +19,10 @@ concurrency:
   group: retrieval-store
   cancel-in-progress: false
 
+# The job reads the repo and writes only to the store, with its own secret.
+permissions:
+  contents: read
+
 jobs:
   write:
     # Only develop writes, because Vercel builds the production docs from develop:

@@ -88,9 +88,6 @@ pub enum NymNodeError {
         source: io::Error,
     },
 
-    #[error("received shutdown signal while attempting to complete the action")]
-    ShutdownReceived,
-
     #[error("could not find an existing config file at '{}' and fresh node initialisation has been disabled", config_path.display())]
     ForbiddenInitialisation { config_path: PathBuf },
 
@@ -155,12 +152,6 @@ pub enum NymNodeError {
 
     #[error("there are no available endpoints to the nyx chain")]
     NoNyxEndpoints,
-
-    #[error("failed to resolve nym-api query - no nodes returned a valid response")]
-    NymApisExhausted,
-
-    #[error("the current epoch appears to be stuck")]
-    StuckEpoch,
 
     // this should never happen in normal usage, but it's better to throw it than to panic
     // in case of bugs

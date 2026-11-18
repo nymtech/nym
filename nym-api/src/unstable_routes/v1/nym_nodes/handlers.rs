@@ -40,11 +40,11 @@ pub(crate) async fn nodes_by_addresses(
 
     // TODO: perhaps introduce different cache because realistically nym-api will receive
     // request for the same couple addresses from all nodes in quick succession
-    let describe_cache = state.describe_nodes_cache_data().await?;
+    let snapshot = state.latest_snapshot().await?;
 
     let mut existence = HashMap::new();
     for address in body.addresses {
-        existence.insert(address, describe_cache.node_with_address(address));
+        existence.insert(address, snapshot.node_view.node_with_address(address));
     }
 
     Ok(output.to_response(NodesByAddressesResponse { existence }))

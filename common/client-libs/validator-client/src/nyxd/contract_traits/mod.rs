@@ -52,7 +52,9 @@ pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
 pub use network_monitors_query_client::{
     NetworkMonitorsQueryClient, PagedNetworkMonitorsQueryClient,
 };
-pub use node_families_query_client::{NodeFamiliesQueryClient, PagedNodeFamiliesQueryClient};
+pub use node_families_query_client::{
+    NodeFamiliesQueryClient, PagedNodeFamiliesQueryClient, PinnedNodeFamiliesQueryClient,
+};
 pub use performance_query_client::{
     PagedPerformanceQueryClient, PerformanceQueryClient, PinnedPerformanceQueryClient,
 };

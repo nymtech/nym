@@ -8,7 +8,6 @@ use nym_validator_client::nyxd::error::NyxdError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tendermint::block::Height;
-use time::OffsetDateTime;
 
 /// What the annotations need beside a performance snapshot that the digest does not commit,
 /// read at the snapshot's height and unproven.
@@ -16,9 +15,6 @@ use time::OffsetDateTime;
 pub(crate) struct PerformanceAuxiliary {
     /// The weights in force at the snapshot height.
     weights: EpochWeights,
-
-    /// The block time of the snapshot height.
-    block_time: OffsetDateTime,
 
     /// The per-node medians of the newest entry epoch and the one before it.
     medians: BTreeMap<EpochId, BTreeMap<NodeId, KindMedians>>,
@@ -55,7 +51,6 @@ impl PerformanceAuxiliary {
     pub(crate) async fn read<C>(
         client: &C,
         height: Height,
-        block_time: OffsetDateTime,
         newest_epoch: Option<EpochId>,
         previous: Option<PerformanceAuxiliary>,
     ) -> Result<Self, NyxdError>
@@ -81,7 +76,6 @@ impl PerformanceAuxiliary {
 
         Ok(PerformanceAuxiliary {
             weights,
-            block_time,
             medians,
             last_submission,
         })
@@ -89,10 +83,6 @@ impl PerformanceAuxiliary {
 
     pub(crate) fn weights(&self) -> EpochWeights {
         self.weights
-    }
-
-    pub(crate) fn block_time(&self) -> OffsetDateTime {
-        self.block_time
     }
 
     /// The medians of `node_id`'s bundle at `epoch_id`; `None` when that epoch's are not held.
@@ -147,24 +137,21 @@ impl PerformanceAuxiliary {
     /// What a read would hold beside a snapshot, without the recorded submission it skips on.
     pub(crate) fn new_for_tests(
         weights: EpochWeights,
-        block_time: OffsetDateTime,
         medians: BTreeMap<EpochId, BTreeMap<NodeId, KindMedians>>,
     ) -> Self {
         PerformanceAuxiliary {
             weights,
-            block_time,
             medians,
             last_submission: None,
         }
     }
 
     /// A value with every field and every `Option` set, the recorded submission included.
-    pub(crate) fn populated_for_tests(block_time: OffsetDateTime) -> Self {
+    pub(crate) fn populated_for_tests() -> Self {
         use crate::node_performance::attestation::test_helpers::{kind_medians, weights};
 
         PerformanceAuxiliary {
             weights: weights(),
-            block_time,
             medians: BTreeMap::from([(
                 100,
                 BTreeMap::from([(1, kind_medians(Some(90), Some(80), Some(100)))]),
@@ -182,7 +169,7 @@ impl PerformanceAuxiliary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node_performance::attestation::test_helpers::{block_time, percent, weights};
+    use crate::node_performance::attestation::test_helpers::{percent, weights};
     use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
     use async_trait::async_trait;
     use cosmwasm_std::Timestamp;
@@ -331,15 +318,9 @@ mod tests {
         newest_epoch: Option<EpochId>,
         previous: Option<PerformanceAuxiliary>,
     ) -> PerformanceAuxiliary {
-        PerformanceAuxiliary::read(
-            contract,
-            Height::from(HEIGHT),
-            block_time(HEIGHT),
-            newest_epoch,
-            previous,
-        )
-        .await
-        .unwrap()
+        PerformanceAuxiliary::read(contract, Height::from(HEIGHT), newest_epoch, previous)
+            .await
+            .unwrap()
     }
 
     #[tokio::test]
@@ -364,7 +345,6 @@ mod tests {
         // the last submission, the weights and both epochs' pages
         assert_eq!(contract.read_at(), vec![Height::from(HEIGHT); 4]);
         assert_eq!(aux.weights, weights());
-        assert_eq!(aux.block_time, block_time(HEIGHT));
         assert_eq!(
             aux.last_submission,
             SubmissionKey::new(&submission(950, 100, 2))
@@ -458,15 +438,9 @@ mod tests {
     }
 
     async fn fails(contract: FakeContract) -> bool {
-        PerformanceAuxiliary::read(
-            &contract,
-            Height::from(HEIGHT),
-            block_time(HEIGHT),
-            Some(100),
-            None,
-        )
-        .await
-        .is_err()
+        PerformanceAuxiliary::read(&contract, Height::from(HEIGHT), Some(100), None)
+            .await
+            .is_err()
     }
 
     fn contract() -> FakeContract {

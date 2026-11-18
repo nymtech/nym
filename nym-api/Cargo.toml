@@ -18,12 +18,12 @@ bs58 = { workspace = true }
 bip39 = { workspace = true }
 bincode.workspace = true
 console-subscriber = { workspace = true, optional = true } # nym-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
+celes = { workspace = true }
 cfg-if = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env"] }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 moka = { workspace = true }
-pin-project = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -83,8 +83,8 @@ nym-topology = { workspace = true }
 nym-api-requests = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-http-api-client = { workspace = true }
-nym-bin-common = { workspace = true, features = ["output_format", "openapi", "basic_tracing"] }
-nym-node-requests = { workspace = true, features = ["client"] }
+nym-bin-common = { workspace = true, features = ["output_format", "openapi", "basic_tracing", "ip_check"] }
+nym-node-requests = { workspace = true }
 nym-network-defaults = {workspace = true, features = ["serde", "utoipa"]}
 nym-http-api-common = { workspace = true, features = ["utoipa", "output", "middleware"] }
 nym-serde-helpers = { workspace = true, features = ["date"] }
@@ -93,6 +93,9 @@ nym-ecash-signer-check = { workspace = true }
 nym-node-families-contract-common = { workspace = true }
 nym-contract-attestation = { workspace = true, features = ["utoipa"] }
 nym-directory-client = { workspace = true }
+nym-directory-types = { workspace = true }
+nym-noise-keys = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
 nym-contract-anchor = { workspace = true, features = ["light-client", "https-checkpoint-fetcher"] }
 nym-performance-contract-common = { workspace = true }
 nym-geolocation-client = { workspace = true }

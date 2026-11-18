@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::state::EcashState;
-use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2;
-use crate::node_describe_cache::cache::DescribedNodes;
-use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::signers_cache::cache::SignersCacheData;
@@ -13,26 +10,20 @@ use crate::status::ApiStatusState;
 use crate::support::attested_snapshots::data::RetainedHeight;
 use crate::support::attested_snapshots::state::ContractSnapshots;
 use crate::support::caching::cache::SharedCache;
-use crate::support::caching::Cache;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::force_refresh::ForcedRefresh;
-use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::nyxd::Client;
 use crate::support::storage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::unstable_routes::v1::account::models::NyxAccountDetails;
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::ed25519;
-use nym_topology::CachedEpochRewardedSet;
 use std::sync::Arc;
 use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod chain_status;
 pub(crate) mod contract_details;
-pub(crate) mod force_refresh;
 pub(crate) mod helpers;
-pub(crate) mod mixnet_contract_cache;
 #[cfg(test)]
 pub(crate) mod test_helpers;
 
@@ -57,22 +48,8 @@ pub(crate) struct AppState {
     /// Holds mapping between a nyx address and tokens/delegations it holds
     pub(crate) address_info_cache: AddressInfoCache,
 
-    /// Holds information on when nym-nodes requested an explicit request of their self-described data.
-    /// It is used to prevent DoS by nodes constantly requesting the refresh.
-    pub(crate) forced_refresh: ForcedRefresh,
-
-    /// Holds cached state of the Nym Mixnet contract, e.g. bonded nym-nodes, rewarded set, current interval.
-    pub(crate) mixnet_contract_cache: MixnetContractCacheState,
-
-    /// Hold cached state of node families, e.g. membership, invitations, age, etc.
-    pub(crate) node_families_cache: SharedCache<NodeFamiliesCacheData>,
-
     /// Holds reference to the persistent storage of this nym-api.
     pub(crate) storage: storage::NymApiStorage,
-
-    /// Holds information on the self-reported information of nodes, e.g. auxiliary keys they use,
-    /// ports they announce, etc.
-    pub(crate) described_nodes_cache: SharedCache<DescribedNodes>,
 
     /// Information about the current network this nym-api is connected to, e.g. contract addresses,
     /// endpoints, denominations.
@@ -93,7 +70,7 @@ pub(crate) struct AppState {
     /// Cache holding data required by the ecash credentials - static signatures, merkle trees, etc.
     pub(crate) ecash_state: Arc<EcashState>,
 
-    /// Verified snapshots of every contract this nym-api attests.
+    /// The retained snapshot heights every node, epoch and family route reads from.
     pub(crate) contract_snapshots: ContractSnapshots,
 }
 
@@ -106,18 +83,6 @@ impl FromRef<AppState> for ApiStatusState {
 impl FromRef<AppState> for Arc<EcashState> {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.ecash_state.clone()
-    }
-}
-
-impl FromRef<AppState> for MixnetContractCache {
-    fn from_ref(app_state: &AppState) -> Self {
-        app_state.mixnet_contract_cache.inner_cache.clone()
-    }
-}
-
-impl FromRef<AppState> for MixnetContractCacheState {
-    fn from_ref(app_state: &AppState) -> Self {
-        app_state.mixnet_contract_cache.clone()
     }
 }
 
@@ -134,16 +99,8 @@ impl AppState {
         self.ecash_state.local.identity_keypair.private_key()
     }
 
-    pub(crate) fn nym_contract_cache(&self) -> &MixnetContractCache {
-        &self.mixnet_contract_cache.inner_cache
-    }
-
     pub(crate) fn network_details(&self) -> &NetworkDetailsV2 {
         &self.network_details
-    }
-
-    pub(crate) fn described_nodes_cache(&self) -> &SharedCache<DescribedNodes> {
-        &self.described_nodes_cache
     }
 
     pub(crate) fn storage(&self) -> &storage::NymApiStorage {
@@ -157,25 +114,14 @@ impl AppState {
 
 // handler helpers to easily get data or return error response
 impl AppState {
-    pub(crate) async fn describe_nodes_cache_data(
-        &self,
-    ) -> Result<RwLockReadGuard<'_, Cache<DescribedNodes>>, AxumErrorResponse> {
-        Ok(self.described_nodes_cache().get().await?)
-    }
-
-    pub(crate) async fn rewarded_set(
-        &self,
-    ) -> Result<Cache<CachedEpochRewardedSet>, AxumErrorResponse> {
-        Ok(self.nym_contract_cache().cached_rewarded_set().await?)
-    }
-
-    /// The latest settled snapshot, which every node's published performance is read from.
+    /// The latest settled snapshot; read it once per response so that it never mixes two heights.
     pub(crate) async fn latest_snapshot(
         &self,
     ) -> Result<RwLockReadGuard<'_, RetainedHeight>, AxumErrorResponse> {
-        self.contract_snapshots.latest_entry().await.ok_or_else(|| {
-            AxumErrorResponse::service_unavailable("no performance snapshots available")
-        })
+        self.contract_snapshots
+            .latest_entry()
+            .await
+            .ok_or_else(|| AxumErrorResponse::service_unavailable("no snapshot has settled yet"))
     }
 
     pub(crate) async fn get_address_info(
@@ -196,7 +142,7 @@ impl AppState {
                     .address_info_cache
                     .collect_balances(
                         self.nyxd_client.clone(),
-                        self.mixnet_contract_cache.inner_cache.clone(),
+                        self.contract_snapshots.clone(),
                         self.network_details()
                             .network
                             .chain_details

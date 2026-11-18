@@ -112,18 +112,10 @@ fn node_roles(
 ) -> HashMap<NodeId, Vec<AvailableRole>> {
     let mut roles = HashMap::new();
     for (node_id, node) in node_entries {
-        if !node.verified {
-            debug!("nym-node {node_id} has no verified directory entries");
-            continue;
-        }
         let information = match node.payload::<NodeInformation>() {
-            Some(Ok(information)) => information,
-            Some(Err(err)) => {
-                debug!("nym-node {node_id} publishes undecodable node information: {err}");
-                continue;
-            }
-            None => {
-                debug!("nym-node {node_id} publishes no node information");
+            Ok(information) => information,
+            Err(err) => {
+                debug!("nym-node {node_id} has no role: {err}");
                 continue;
             }
         };

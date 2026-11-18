@@ -32,22 +32,8 @@ mod upgrade_helpers;
 
 pub const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 
-const DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(150);
-const DEFAULT_NODE_FAMILIES_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(600);
-
-/// Maximum number of `block_timestamp` lookups in flight in parallel during a
-/// single refresh tick.
-const DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY: usize = 8;
-
-/// Number of blocks to look back when bootstrapping an average block time for
-/// estimating timestamps of pruned (no longer servable) heights.
-const DEFAULT_NODE_FAMILIES_BLOCK_TIME_ESTIMATION_LOOKBACK: u32 = 100;
-
 pub(crate) const DEFAULT_ADDRESS_CACHE_TTL: Duration = Duration::from_secs(60 * 15);
 pub(crate) const DEFAULT_ADDRESS_CACHE_CAPACITY: u64 = 1000;
-
-pub(crate) const DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL: Duration = Duration::from_secs(4500);
-pub(crate) const DEFAULT_NODE_DESCRIBE_BATCH_SIZE: usize = 50;
 
 // TODO: make it configurable
 pub(crate) const DEFAULT_CHAIN_STATUS_CACHE_TTL: Duration = Duration::from_secs(30);
@@ -95,17 +81,7 @@ pub struct Config {
 
     pub base: Base,
 
-    #[serde(default)]
-    pub mixnet_contract_cache: MixnetContractCache,
-
-    #[serde(default)]
-    pub node_families_cache: NodeFamiliesCache,
-
     pub node_status_api: NodeStatusAPI,
-
-    #[serde(alias = "topology_cacher")]
-    #[serde(default)]
-    pub describe_cache: DescribeCache,
 
     #[serde(default)]
     pub contracts_info_cache: ContractsInfoCache,
@@ -134,10 +110,7 @@ impl Config {
         Config {
             save_path: None,
             base: Base::new_default(id.as_ref()),
-            mixnet_contract_cache: Default::default(),
-            node_families_cache: Default::default(),
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
-            describe_cache: Default::default(),
             contracts_info_cache: Default::default(),
             signers_cache: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
@@ -171,9 +144,6 @@ impl Config {
         if let Some(nyxd_upstream) = args.nyxd_validator {
             self.base.local_validator = nyxd_upstream;
         }
-        if let Some(bearer) = args.utility_routes_bearer {
-            self.base.utility_routes_bearer = Some(bearer)
-        }
         if let Some(mnemonic) = args.mnemonic {
             self.base.mnemonic = Some(mnemonic)
         }
@@ -186,8 +156,8 @@ impl Config {
         if let Some(http_bind_address) = args.bind_address {
             self.base.bind_address = http_bind_address
         }
-        if args.allow_illegal_ips {
-            self.describe_cache.debug.allow_illegal_ips = true
+        if args.unsafe_allow_illegal_ips {
+            self.directory.debug.unsafe_allow_illegal_ips = true
         }
         if let Some(address_cache_ttl) = args.address_cache_ttl {
             self.address_cache.time_to_live = address_cache_ttl;
@@ -278,11 +248,6 @@ pub struct Base {
     #[serde(default = "default_http_socket_addr")]
     pub bind_address: SocketAddr,
 
-    /// Bearer token for exposing and accessing additional utility routes
-    #[serde(default)]
-    #[serde(deserialize_with = "de_maybe_stringified")]
-    pub utility_routes_bearer: Option<String>,
-
     /// Mnemonic used for the ecash signer's DKG and multisig operations
     // TODO: similarly to the note in gateway, this should get moved to a separate file
     #[serde(deserialize_with = "de_maybe_stringified")]
@@ -308,7 +273,6 @@ impl Base {
             id,
             local_validator: default_validator,
             bind_address: default_http_socket_addr(),
-            utility_routes_bearer: None,
             mnemonic: None,
         }
     }
@@ -323,76 +287,6 @@ impl Default for ContractsInfoCache {
     fn default() -> Self {
         ContractsInfoCache {
             time_to_live: DEFAULT_CONTRACT_DETAILS_CACHE_TTL,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct MixnetContractCache {
-    #[serde(default)]
-    pub debug: MixnetContractCacheDebug,
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for MixnetContractCache {
-    fn default() -> Self {
-        MixnetContractCache {
-            debug: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct MixnetContractCacheDebug {
-    #[serde(with = "humantime_serde")]
-    pub caching_interval: Duration,
-}
-
-impl Default for MixnetContractCacheDebug {
-    fn default() -> Self {
-        MixnetContractCacheDebug {
-            caching_interval: DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct NodeFamiliesCache {
-    #[serde(default)]
-    pub debug: NodeFamiliesCacheDebug,
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for NodeFamiliesCache {
-    fn default() -> Self {
-        NodeFamiliesCache {
-            debug: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct NodeFamiliesCacheDebug {
-    #[serde(with = "humantime_serde")]
-    pub caching_interval: Duration,
-
-    pub node_families_block_timestamp_fetch_concurrency: usize,
-
-    /// Blocks to look back when bootstrapping an average block time for
-    /// estimating timestamps of pruned heights.
-    pub node_families_block_time_estimation_lookback: u32,
-}
-
-impl Default for NodeFamiliesCacheDebug {
-    fn default() -> Self {
-        NodeFamiliesCacheDebug {
-            caching_interval: DEFAULT_NODE_FAMILIES_CACHE_REFRESH_INTERVAL,
-            node_families_block_timestamp_fetch_concurrency:
-                DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY,
-            node_families_block_time_estimation_lookback:
-                DEFAULT_NODE_FAMILIES_BLOCK_TIME_ESTIMATION_LOOKBACK,
         }
     }
 }
@@ -460,40 +354,6 @@ impl NodeStatusAPI {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         NodeStatusAPI {
             storage_paths: NodeStatusAPIPaths::new_default(id),
-        }
-    }
-}
-
-#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct DescribeCache {
-    // pub enabled: bool,
-
-    // pub paths: TopologyCacherPathfinder,
-    #[serde(default)]
-    pub debug: DescribeCacheDebug,
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct DescribeCacheDebug {
-    #[serde(with = "humantime_serde")]
-    #[serde(alias = "node_describe_caching_interval")]
-    pub caching_interval: Duration,
-
-    #[serde(alias = "node_describe_batch_size")]
-    pub batch_size: usize,
-
-    #[serde(alias = "node_describe_allow_illegal_ips")]
-    pub allow_illegal_ips: bool,
-}
-
-impl Default for DescribeCacheDebug {
-    fn default() -> Self {
-        DescribeCacheDebug {
-            caching_interval: DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL,
-            batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
-            allow_illegal_ips: false,
         }
     }
 }
@@ -636,6 +496,10 @@ pub struct DirectoryConfigDebug {
     /// and consequently for whether new snapshot should be taken.
     #[serde(with = "humantime_serde")]
     pub polling_interval: Duration,
+
+    /// Lists nodes announcing addresses that are not publicly routable; for local test networks
+    /// only.
+    pub unsafe_allow_illegal_ips: bool,
 }
 
 impl DirectoryConfigDebug {
@@ -658,6 +522,7 @@ impl Default for DirectoryConfigDebug {
             settle_lag: Self::DEFAULT_SETTLE_LAG,
             trusted_rpc_node: true,
             polling_interval: Self::DEFAULT_POLLING_INTERVAL,
+            unsafe_allow_illegal_ips: false,
         }
     }
 }

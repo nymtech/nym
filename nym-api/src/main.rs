@@ -12,10 +12,8 @@ mod circulating_supply_api;
 mod directory;
 mod ecash;
 mod geolocation;
-mod key_rotation;
 pub(crate) mod mixnet_contract_cache;
 pub(crate) mod network;
-pub(crate) mod node_describe_cache;
 mod node_families;
 mod node_performance;
 pub(crate) mod node_status_api;
@@ -24,7 +22,6 @@ mod signers_cache;
 mod status;
 pub(crate) mod support;
 mod unstable_routes;
-pub(crate) mod utility_routes;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {

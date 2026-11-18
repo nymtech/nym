@@ -21,6 +21,7 @@ pub(crate) fn epoch_routes() -> Router<AppState> {
 }
 
 // /v1/legacy
+#[allow(deprecated)]
 pub(crate) fn legacy_nodes_routes() -> Router<AppState> {
     Router::new()
         .route("/mixnodes", get(get_legacy_mixnodes))
@@ -43,16 +44,11 @@ pub(crate) fn legacy_nodes_routes() -> Router<AppState> {
 async fn get_interval_reward_params(
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> FormattedResponse<Option<RewardingParams>> {
+) -> AxumResult<FormattedResponse<Option<RewardingParams>>> {
     let output = output.output.unwrap_or_default();
 
-    output.to_response(
-        state
-            .nym_contract_cache()
-            .interval_reward_params()
-            .await
-            .ok(),
-    )
+    let snapshot = state.latest_snapshot().await?;
+    Ok(output.to_response(Some(snapshot.mixnet().current_reward_params)))
 }
 
 #[utoipa::path(
@@ -71,10 +67,11 @@ async fn get_interval_reward_params(
 async fn get_current_epoch(
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> FormattedResponse<Option<Interval>> {
+) -> AxumResult<FormattedResponse<Option<Interval>>> {
     let output = output.output.unwrap_or_default();
 
-    output.to_response(state.nym_contract_cache().current_interval().await.ok())
+    let snapshot = state.latest_snapshot().await?;
+    Ok(output.to_response(Some(snapshot.mixnet().current_interval)))
 }
 
 //
@@ -97,20 +94,14 @@ async fn get_current_key_rotation_info(
 ) -> ApiResult<FormattedResponse<KeyRotationInfoResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let contract_cache = state.nym_contract_cache();
-    let current_interval = contract_cache.current_interval().await?;
-    let key_rotation_state = contract_cache.get_key_rotation_state().await?;
-
-    let details = KeyRotationDetails {
-        key_rotation_state,
-        current_absolute_epoch_id: current_interval.current_epoch_absolute_id(),
-        current_epoch_start: current_interval.current_epoch_start(),
-        epoch_duration: current_interval.epoch_length(),
-    };
+    let snapshot = state.latest_snapshot().await?;
+    let mixnet = snapshot.mixnet();
+    let details = KeyRotationDetails::new(mixnet.key_rotation_state, &mixnet.current_interval);
 
     Ok(output.to_response(details.into()))
 }
 
+/// Deprecated: legacy mixnodes are no longer read, so this is always empty.
 #[utoipa::path(
     tag = "contract-cache",
     get,
@@ -125,19 +116,17 @@ async fn get_current_key_rotation_info(
     ),
     params(OutputParams)
 )]
+#[deprecated]
 async fn get_legacy_mixnodes(
     Query(output): Query<OutputParams>,
-    State(state): State<AppState>,
-) -> AxumResult<FormattedResponse<LegacyMixnodesResponse>> {
-    let output = output.get_output();
-    let contract_cache = state.nym_contract_cache();
-    let mixnodes = contract_cache.legacy_mixnodes().await?;
-    Ok(output.to_response(LegacyMixnodesResponse {
-        count: mixnodes.len(),
-        nodes: mixnodes,
-    }))
+) -> FormattedResponse<LegacyMixnodesResponse> {
+    output.get_output().to_response(LegacyMixnodesResponse {
+        count: 0,
+        nodes: Vec::new(),
+    })
 }
 
+/// Deprecated: legacy gateways are no longer read, so this is always empty.
 #[utoipa::path(
     tag = "contract-cache",
     get,
@@ -151,15 +140,12 @@ async fn get_legacy_mixnodes(
     ),
     params(OutputParamsV2)
 )]
+#[deprecated]
 async fn get_legacy_gateways(
     Query(output): Query<OutputParamsV2>,
-    State(state): State<AppState>,
-) -> AxumResult<FormattedResponse<LegacyGatewaysResponse>> {
-    let output = output.get_output();
-    let contract_cache = state.nym_contract_cache();
-    let gateways = contract_cache.legacy_gateways().await?;
-    Ok(output.to_response(LegacyGatewaysResponse {
-        count: gateways.len(),
-        nodes: gateways,
-    }))
+) -> FormattedResponse<LegacyGatewaysResponse> {
+    output.get_output().to_response(LegacyGatewaysResponse {
+        count: 0,
+        nodes: Vec::new(),
+    })
 }

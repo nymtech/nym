@@ -1,13 +1,23 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::{ConfigScoreDataResponse, LegacyGatewayBondWithId};
+use nym_api_requests::models::{CirculatingSupplyResponse, ConfigScoreDataResponse};
+use nym_contract_anchor::whole_set;
+use nym_contracts_common::truncate_decimal;
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, GatewayBond, HistoricalNymNodeVersionEntry, Interval, KeyRotationState,
-    MixNodeDetails, NodeId, NymNodeDetails, RewardingParams,
+    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, KeyRotationState, NodeId,
+    NymNodeDetails, RewardingParams,
 };
 use nym_topology::CachedEpochRewardedSet;
+use nym_validator_client::nyxd::contract_traits::PinnedMixnetQueryClient;
+use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::Coin;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use tendermint::block::Height;
+
+const TOTAL_SUPPLY_AMOUNT: u128 = 1_000_000_000_000_000; // 1B tokens
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ConfigScoreData {
@@ -28,40 +38,72 @@ impl From<ConfigScoreData> for ConfigScoreDataResponse {
     }
 }
 
-/// A legacy gateway bond together with its node id, as held in the cache.
-///
-/// Deliberately not the [`LegacyGatewayBondWithId`] response type: that one `#[serde(flatten)]`s
-/// its bond to keep the JSON shape flat, and a flattened field makes serde ask the serialiser for
-/// an unknown-length map, which bincode (this cache's on-disk format) cannot encode. Keeping the
-/// stored shape separate from the wire shape lets each pick what its format needs.
-#[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct CachedLegacyGatewayBond {
-    pub(crate) bond: GatewayBond,
-    pub(crate) node_id: NodeId,
-}
-
-impl From<CachedLegacyGatewayBond> for LegacyGatewayBondWithId {
-    fn from(cached: CachedLegacyGatewayBond) -> Self {
-        LegacyGatewayBondWithId {
-            bond: cached.bond,
-            node_id: cached.node_id,
-        }
-    }
-}
-
+/// The mixnet contract at a snapshot height, read unproven beside the attested snapshots.
 #[derive(Serialize, Deserialize)]
-pub(crate) struct MixnetContractCacheData {
+pub(crate) struct MixnetContractData {
     pub(crate) rewarding_denom: String,
-
-    pub(crate) legacy_mixnodes: Vec<MixNodeDetails>,
-    pub(crate) legacy_gateways: Vec<CachedLegacyGatewayBond>,
     pub(crate) nym_nodes: Vec<NymNodeDetails>,
     pub(crate) rewarded_set: CachedEpochRewardedSet,
-
     pub(crate) config_score_data: ConfigScoreData,
     pub(crate) current_reward_params: RewardingParams,
     pub(crate) current_interval: Interval,
     pub(crate) key_rotation_state: KeyRotationState,
+}
+
+impl MixnetContractData {
+    /// Every value as of `height`, each query pinned there.
+    pub(crate) async fn read<C>(client: &C, height: Height) -> Result<Self, NyxdError>
+    where
+        C: PinnedMixnetQueryClient + Sync,
+    {
+        let contract_state = client.get_mixnet_contract_state_at_height(height).await?;
+        Ok(MixnetContractData {
+            rewarding_denom: contract_state.rewarding_denom,
+            nym_nodes: client.get_all_nymnodes_detailed_at_height(height).await?,
+            rewarded_set: client.get_rewarded_set_at_height(height).await?.into(),
+            config_score_data: ConfigScoreData {
+                config_score_params: contract_state.params.config_score_params,
+                nym_node_version_history: client
+                    .get_full_nym_node_version_history_at_height(height)
+                    .await?,
+            },
+            current_reward_params: client.get_rewarding_parameters_at_height(height).await?,
+            current_interval: client
+                .get_current_interval_details_at_height(height)
+                .await?
+                .interval,
+            key_rotation_state: client.get_key_rotation_state_at_height(height).await?,
+        })
+    }
+
+    /// The identity key of every bonded node, the map every attested contract is verified with.
+    pub(crate) fn node_identities(&self) -> BTreeMap<NodeId, ed25519::PublicKey> {
+        whole_set::node_identities(self.nym_nodes.iter().map(|node| &node.bond_information))
+    }
+
+    /// The key rotation in force in the current epoch.
+    pub(crate) fn current_key_rotation_id(&self) -> u32 {
+        self.key_rotation_state
+            .key_rotation_id(self.current_interval.current_epoch_absolute_id())
+    }
+
+    /// The total supply less the mixmining reserve, every token having vested.
+    pub(crate) fn circulating_supply(&self) -> CirculatingSupplyResponse {
+        let mix_denom = &self.rewarding_denom;
+        let reward_pool = self.current_reward_params.interval.reward_pool;
+        let mixmining_reserve_amount = truncate_decimal(reward_pool).u128();
+
+        CirculatingSupplyResponse {
+            total_supply: Coin::new(TOTAL_SUPPLY_AMOUNT, mix_denom).into(),
+            mixmining_reserve: Coin::new(mixmining_reserve_amount, mix_denom).into(),
+            vesting_tokens: Coin::new(0, mix_denom).into(),
+            circulating_supply: Coin::new(
+                TOTAL_SUPPLY_AMOUNT - mixmining_reserve_amount,
+                mix_denom,
+            )
+            .into(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -70,12 +112,11 @@ pub(crate) mod test_helpers {
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{coin, Addr, Coin, Decimal, Timestamp};
     use nym_contracts_common::Percent;
-    use nym_mixnet_contract_common::mixnode::PendingMixNodeChanges;
     use nym_mixnet_contract_common::reward_params::{IntervalRewardParams, RewardedSetParams};
     use nym_mixnet_contract_common::NodeCostParams;
     use nym_mixnet_contract_common::{
-        Gateway, HistoricalNymNodeVersion, IdentityKey, MixNode, MixNodeBond, NodeRewarding,
-        NymNode, NymNodeBond, PendingNodeChanges,
+        HistoricalNymNodeVersion, IdentityKey, NodeRewarding, NymNode, NymNodeBond,
+        PendingNodeChanges,
     };
     use std::collections::HashSet;
     use std::time::Duration;
@@ -100,51 +141,7 @@ pub(crate) mod test_helpers {
         format!("identity-key-of-node-{seed}")
     }
 
-    fn legacy_mixnode(mix_id: NodeId) -> MixNodeDetails {
-        MixNodeDetails::new(
-            MixNodeBond {
-                mix_id,
-                owner: Addr::unchecked(format!("n1owner{mix_id}")),
-                original_pledge: pledge(),
-                mix_node: MixNode {
-                    host: "1.1.1.1".to_string(),
-                    mix_port: 1789,
-                    verloc_port: 1790,
-                    http_api_port: 8000,
-                    sphinx_key: format!("sphinx-key-of-node-{mix_id}"),
-                    identity_key: identity(mix_id),
-                    version: "1.1.5".to_string(),
-                },
-                proxy: None,
-                bonding_height: 100,
-                is_unbonding: false,
-            },
-            rewarding_details(),
-            PendingMixNodeChanges::new_empty(),
-        )
-    }
-
-    fn legacy_gateway(node_id: NodeId) -> CachedLegacyGatewayBond {
-        CachedLegacyGatewayBond {
-            bond: GatewayBond::new(
-                pledge(),
-                Addr::unchecked(format!("n1gateway{node_id}")),
-                100,
-                Gateway {
-                    host: "2.2.2.2".to_string(),
-                    mix_port: 1789,
-                    clients_port: 9000,
-                    location: "GB".to_string(),
-                    sphinx_key: format!("sphinx-key-of-gateway-{node_id}"),
-                    identity_key: identity(node_id),
-                    version: "1.1.5".to_string(),
-                },
-            ),
-            node_id,
-        }
-    }
-
-    fn nym_node(node_id: NodeId) -> NymNodeDetails {
+    pub(crate) fn nym_node(node_id: NodeId, identity_key: IdentityKey) -> NymNodeDetails {
         NymNodeDetails::new(
             NymNodeBond {
                 node_id,
@@ -155,7 +152,7 @@ pub(crate) mod test_helpers {
                 node: NymNode {
                     host: "3.3.3.3".to_string(),
                     custom_http_port: Some(8080),
-                    identity_key: identity(node_id),
+                    identity_key,
                 },
             },
             rewarding_details(),
@@ -221,13 +218,11 @@ pub(crate) mod test_helpers {
         Interval::init_interval(24, Duration::from_secs(60 * 60), &env)
     }
 
-    /// A cache holding one node of each kind and every other field set.
-    pub(crate) fn populated_cache() -> MixnetContractCacheData {
-        MixnetContractCacheData {
+    /// Mixnet contract data holding one node and every other field set.
+    pub(crate) fn populated_mixnet_data() -> MixnetContractData {
+        MixnetContractData {
             rewarding_denom: "unym".to_string(),
-            legacy_mixnodes: vec![legacy_mixnode(1)],
-            legacy_gateways: vec![legacy_gateway(2)],
-            nym_nodes: vec![nym_node(3)],
+            nym_nodes: vec![nym_node(3, identity(3))],
             rewarded_set: rewarded_set(),
             config_score_data: config_score_data(),
             current_reward_params: reward_params(),
@@ -242,23 +237,17 @@ pub(crate) mod test_helpers {
 
 #[cfg(test)]
 mod tests {
-    use super::test_helpers::populated_cache;
-    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
+    use super::test_helpers::populated_mixnet_data;
+    use cosmwasm_std::coin;
 
-    // This cache is persisted to disk with bincode; a populated value must survive that
-    // round trip or the on-disk cache silently never writes.
     #[test]
-    fn populated_cache_round_trips_through_the_on_disk_format() -> anyhow::Result<()> {
-        let restored = round_trip_through_disk_cache(populated_cache())?;
+    fn the_circulating_supply_is_the_total_less_the_mixmining_reserve() {
+        // the fixture's reward pool holds 100M of the 1B NYM
+        let supply = populated_mixnet_data().circulating_supply();
 
-        assert_eq!(restored.rewarding_denom, "unym");
-        assert_eq!(restored.legacy_mixnodes.len(), 1);
-        assert_eq!(restored.legacy_gateways.len(), 1);
-        assert_eq!(restored.nym_nodes.len(), 1);
-        assert_eq!(restored.legacy_gateways[0].node_id, 2);
-        assert_eq!(restored.nym_nodes[0].node_id(), 3);
-        assert_eq!(restored.rewarded_set.entry_gateways.len(), 1);
-        assert_eq!(restored.config_score_data.nym_node_version_history.len(), 1);
-        Ok(())
+        assert_eq!(supply.total_supply, coin(1_000_000_000_000_000, "unym"));
+        assert_eq!(supply.mixmining_reserve, coin(100_000_000_000_000, "unym"));
+        assert_eq!(supply.vesting_tokens, coin(0, "unym"));
+        assert_eq!(supply.circulating_supply, coin(900_000_000_000_000, "unym"));
     }
 }

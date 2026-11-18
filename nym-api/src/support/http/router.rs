@@ -11,22 +11,18 @@ use crate::support::http::state::AppState;
 use crate::unstable_routes::v1::unstable_routes_v1;
 use crate::unstable_routes::v2::unstable_routes_v2;
 use crate::unstable_routes::v3::unstable_routes_v3;
-use crate::utility_routes::utility_routes;
 use crate::{directory, geolocation, network, node_performance, nym_nodes, status};
 use anyhow::anyhow;
 use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
 use core::net::SocketAddr;
-use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 use nym_http_api_common::middleware::logging::log_request_info;
 use nym_task::ShutdownToken;
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use zeroize::Zeroizing;
 
 /// Wrapper around `axum::Router` which ensures correct [order of layers][order].
 /// Add new routes as if you were working directly with `axum`.
@@ -40,8 +36,8 @@ pub(crate) struct RouterBuilder {
 }
 
 impl RouterBuilder {
-    fn v1_routes(bearer_token: Option<String>) -> Router<AppState> {
-        let base = Router::new()
+    fn v1_routes() -> Router<AppState> {
+        Router::new()
             // unfortunately some routes didn't use correct prefix and were attached to the root
             .nest("/epoch", epoch_routes())
             .nest("/circulating-supply", circulating_supply_routes())
@@ -58,14 +54,7 @@ impl RouterBuilder {
             .nest("/geolocation", geolocation::handlers::routes())
             .nest("/ecash", ecash_routes())
             .nest("/unstable", unstable_routes_v1())
-            .nest("/legacy", legacy_nodes_routes()); // CORS layer needs to be "outside" of routes
-
-        if let Some(bearer_token) = bearer_token {
-            let auth_middleware = AuthLayer::new(Arc::new(Zeroizing::new(bearer_token)));
-            base.nest("/utility", utility_routes().route_layer(auth_middleware))
-        } else {
-            base
-        }
+            .nest("/legacy", legacy_nodes_routes()) // CORS layer needs to be "outside" of routes
     }
 
     fn v2_routes() -> Router<AppState> {
@@ -83,7 +72,7 @@ impl RouterBuilder {
 
     /// All routes should be, if possible, added here. Exceptions are e.g.
     /// routes which are added conditionally in other places based on some `if`.
-    pub(crate) fn with_default_routes(bearer_token: Option<String>) -> Self {
+    pub(crate) fn with_default_routes() -> Self {
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
         // TODO rocket use tracing instead of env_logger
         // https://github.com/tokio-rs/axum/blob/main/examples/tracing-aka-logging/src/main.rs
@@ -97,7 +86,7 @@ impl RouterBuilder {
         let default_routes = Router::new()
             .merge(SwaggerUi::new("/swagger").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .route("/", get(|| async { Redirect::to("/swagger") }))
-            .nest("/v1", Self::v1_routes(bearer_token))
+            .nest("/v1", Self::v1_routes())
             .nest("/v2", Self::v2_routes())
             .nest("/v3", Self::v3_routes());
 
@@ -184,6 +173,6 @@ mod tests {
     /// to catch such regressions in CI.
     #[test]
     fn default_router_builds_without_panic() {
-        let _ = RouterBuilder::with_default_routes(None);
+        let _ = RouterBuilder::with_default_routes();
     }
 }

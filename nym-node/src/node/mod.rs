@@ -8,10 +8,10 @@ use crate::error::{EntryGatewayError, NymNodeError, ServiceProvidersError};
 use crate::node::authorised_agents::{AuthorisedAgent, AuthorisedAgentsView};
 use crate::node::description::save_node_description;
 use crate::node::helpers::{
-    DisplayDetails, DisplayLpDetails, get_current_rotation_id, load_ed25519_identity_keypair,
-    load_mceliece_keypair, load_mlkem768_keypair, load_x25519_lp_keypair,
-    load_x25519_noise_keypair, store_ed25519_identity_keypair, store_keypair,
-    store_mceliece_keypair, store_mlkem768_keypair, store_x25519_lp_keypair,
+    DisplayDetails, DisplayLpDetails, NymApiClient, build_nym_api_client, get_current_rotation_id,
+    load_ed25519_identity_keypair, load_mceliece_keypair, load_mlkem768_keypair,
+    load_x25519_lp_keypair, load_x25519_noise_keypair, store_ed25519_identity_keypair,
+    store_keypair, store_mceliece_keypair, store_mlkem768_keypair, store_x25519_lp_keypair,
     store_x25519_noise_keypair,
 };
 use crate::node::http::api::api_requests;
@@ -19,6 +19,7 @@ use crate::node::http::state::AppState;
 use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
+use crate::node::key_rotation::get_key_rotation_details;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::lp::active_sessions::{ActiveLpSessions, LpPeer};
 use crate::node::lp::control::LpControlSetup;
@@ -36,7 +37,6 @@ use crate::node::metrics::handler::tokio_runtime_updater::TokioRuntimeMetricsUpd
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
-use crate::node::nym_apis_client::NymApisClient;
 use crate::node::nyx_client::NyxClient;
 use crate::node::nyxd_watcher::network_monitor_agents::NetworkMonitorAgentsModule;
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
@@ -104,8 +104,7 @@ pub mod lp;
 pub(crate) mod metrics;
 pub(crate) mod mixnet;
 pub(crate) mod node_details;
-mod nym_apis_client;
-mod nyx_client;
+pub(crate) mod nyx_client;
 mod nyxd_watcher;
 pub(crate) mod replay_protection;
 mod routing_filter;
@@ -239,8 +238,22 @@ impl NymNode {
         let mlkem = generate_keypair_mlkem(&mut rng010);
         let mceliece = generate_keypair_mceliece(&mut rng010);
 
+        let mnemonic = match custom_mnemonic {
+            None => {
+                trace!("generating new mnemonic");
+                // SAFETY: 24 is a valid word count
+                #[allow(clippy::unwrap_used)]
+                Arc::new(Zeroizing::new(
+                    bip39::Mnemonic::generate(bip39::WordCount::Words24).unwrap(),
+                ))
+            }
+            Some(custom_mnemonic) => Arc::new(custom_mnemonic),
+        };
+
+        let network = NymNetworkDetails::new_from_env();
+        let nyx_client = NyxClient::new(&config.nyx.nyxd_urls, &network, &mnemonic)?;
         let current_rotation_id =
-            get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
+            get_current_rotation_id(&nyx_client, &config.mixnet.nym_api_urls).await?;
         let _ = SphinxKeyManager::initialise_new(
             &mut rng,
             current_rotation_id,
@@ -277,17 +290,6 @@ impl NymNode {
             &config.storage_paths.description,
             &NodeDescription::default(),
         )?;
-        let mnemonic = match custom_mnemonic {
-            None => {
-                trace!("generating new mnemonic");
-                // SAFETY: 24 is a valid word count
-                #[allow(clippy::unwrap_used)]
-                Arc::new(Zeroizing::new(
-                    bip39::Mnemonic::generate(bip39::WordCount::Words24).unwrap(),
-                ))
-            }
-            Some(custom_mnemonic) => Arc::new(custom_mnemonic),
-        };
 
         trace!("attempting to store the mnemonic");
         config.storage_paths.save_mnemonic_to_file(&mnemonic)?;
@@ -384,8 +386,11 @@ impl NymNode {
         accepted_operator_terms_and_conditions: bool,
     ) -> Result<Self, NymNodeError> {
         let wireguard_data = WireguardData::new(&config.wireguard)?;
+        let mnemonic = config.storage_paths.load_mnemonic_from_file()?;
+        let network = NymNetworkDetails::new_from_env();
+        let nyx_client = NyxClient::new(&config.nyx.nyxd_urls, &network, &mnemonic)?;
         let current_rotation_id =
-            get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
+            get_current_rotation_id(&nyx_client, &config.mixnet.nym_api_urls).await?;
 
         let ed25519_identity_keys = load_ed25519_identity_keypair(
             &config.storage_paths.keys.ed25519_identity_storage_paths(),
@@ -396,10 +401,6 @@ impl NymNode {
         let mlkem = load_mlkem768_keypair(&config.storage_paths.keys.mlkem768_key_paths())?;
         let mceliece = load_mceliece_keypair(&config.storage_paths.keys.mceliece_key_paths())?;
         let psq_kem_keys = KEMKeys::new(mceliece, mlkem);
-        let mnemonic = config.storage_paths.load_mnemonic_from_file()?;
-
-        let network = NymNetworkDetails::new_from_env();
-        let nyx_client = NyxClient::new(&config.nyx, &network, &mnemonic)?;
         let cosmos_address = nyx_client.address().await;
 
         let node_details = NodeDetails::construct(
@@ -511,7 +512,7 @@ impl NymNode {
     async fn build_network_refresher(
         &self,
         routing_filter: NetworkRoutingFilter,
-        client: NymApisClient,
+        client: NymApiClient,
         noise_view: NoiseNetworkView,
         lp_nodes: LpNodes,
     ) -> Result<NetworkRefresher, NymNodeError> {
@@ -806,18 +807,6 @@ impl NymNode {
         bin_info!().into()
     }
 
-    async fn try_refresh_remote_nym_api_cache(
-        &self,
-        client: &NymApisClient,
-    ) -> Result<(), NymNodeError> {
-        info!("attempting to request described cache refresh from nym-api(s)...");
-
-        client
-            .broadcast_force_refresh(self.ed25519_identity_keys.private_key())
-            .await;
-        Ok(())
-    }
-
     pub(crate) fn start_verloc_measurements(&self) {
         info!(
             "Starting the [verloc] round-trip-time measurer on {} ...",
@@ -979,14 +968,6 @@ impl NymNode {
         Ok(bloomfilters_manager)
     }
 
-    // I'm assuming this will be needed in other places, so it's explicitly extracted
-    fn setup_nym_apis_client(&self) -> Result<NymApisClient, NymNodeError> {
-        NymApisClient::new(
-            &self.config.mixnet.nym_api_urls,
-            self.shutdown_manager.clone_shutdown_token(),
-        )
-    }
-
     #[track_caller]
     fn sphinx_keys(&self) -> Result<&SphinxKeyManager, NymNodeError> {
         self.sphinx_key_manager
@@ -1002,17 +983,18 @@ impl NymNode {
 
     pub(crate) async fn setup_key_rotation(
         &mut self,
-        nym_apis_client: NymApisClient,
+        nym_api_client: NymApiClient,
         replay_protection_manager: ReplayProtectionBloomfiltersManager,
         directory_publisher_events_sender: Option<DirectoryPublisherEventsSender>,
     ) -> Result<(), NymNodeError> {
         let managed_keys = self.take_managed_sphinx_keys()?;
-        let rotation_state = nym_apis_client.get_key_rotation_info().await?;
+        let rotation_details = get_key_rotation_details(&self.nyx_client, &nym_api_client).await?;
 
         let rotation_controller = KeyRotationController::new(
             &self.config,
-            rotation_state.into(),
-            nym_apis_client,
+            rotation_details.into(),
+            self.nyx_client.clone(),
+            nym_api_client,
             replay_protection_manager,
             managed_keys,
             directory_publisher_events_sender,
@@ -1231,11 +1213,7 @@ impl NymNode {
         // ##### END HTTP SERVER #####
 
         // shared client for querying nym-apis
-        let nym_apis_client = self.setup_nym_apis_client()?;
-
-        // announce current sphinx key to all nym apis
-        self.try_refresh_remote_nym_api_cache(&nym_apis_client)
-            .await?;
+        let nym_api_client = build_nym_api_client(&self.config.mixnet.nym_api_urls)?;
 
         // start verloc
         self.start_verloc_measurements();
@@ -1262,7 +1240,7 @@ impl NymNode {
         let network_refresher = self
             .build_network_refresher(
                 routing_filter.clone(),
-                nym_apis_client.clone(),
+                nym_api_client.clone(),
                 noise_view.clone(),
                 lp_nodes.clone(),
             )
@@ -1355,7 +1333,7 @@ impl NymNode {
         network_refresher.start();
         // start watching for key rotation and update the keys accordingly
         self.setup_key_rotation(
-            nym_apis_client,
+            nym_api_client,
             bloomfilters_manager,
             directory_publisher_events_sender,
         )

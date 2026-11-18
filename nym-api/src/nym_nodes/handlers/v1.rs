@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
+use crate::nym_nodes::node_view::NodeSubset;
 use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::Router;
 use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
 use nym_api_requests::models::described::NoiseDetails;
 use nym_api_requests::models::{
-    AnnotationResponseV1, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
+    AnnotationResponseV1, NodeDatePerformanceResponse, NodePerformanceResponse,
     PerformanceHistoryResponse, RewardedSetResponse, StakeSaturationResponse,
     UptimeHistoryResponse,
 };
@@ -20,8 +22,7 @@ use nym_http_api_common::{FormattedResponse, Output, OutputParams};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NymNodeDetails;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use time::{Date, OffsetDateTime};
+use time::Date;
 use tower_http::compression::CompressionLayer;
 use utoipa::{IntoParams, ToSchema};
 
@@ -72,67 +73,28 @@ async fn rewarded_set(
 ) -> AxumResult<FormattedResponse<RewardedSetResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let rewarded_set = state.nym_contract_cache().rewarded_set_owned().await?;
+    let rewarded_set = state.latest_snapshot().await?.mixnet().rewarded_set.clone();
 
     Ok(output.to_response(nym_mixnet_contract_common::EpochRewardedSet::from(rewarded_set).into()))
 }
 
+/// Removed: nym-api reads node data from the directory, so there is nothing to refresh.
 #[utoipa::path(
     tag = "Nym Nodes",
     post,
-    request_body = NodeRefreshBody,
     path = "/refresh-described",
     context_path = "/v1/nym-nodes",
+    responses(
+        (status = 410, description = "the endpoint was removed", body = String, content_type = "text/plain")
+    ),
 )]
-async fn refresh_described(
-    State(state): State<AppState>,
-    Json(request_body): Json<NodeRefreshBody>,
-) -> AxumResult<Json<()>> {
-    let Some(refresh_data) = state
-        .nym_contract_cache()
-        .get_node_refresh_data(request_body.node_identity)
-        .await
-    else {
-        return Err(AxumErrorResponse::not_found(format!(
-            "node with identity {} does not seem to exist",
-            request_body.node_identity
-        )));
-    };
-
-    if !request_body.verify_signature() {
-        return Err(AxumErrorResponse::unauthorised("invalid request signature"));
-    }
-
-    if request_body.is_stale() {
-        return Err(AxumErrorResponse::bad_request("the request is stale"));
-    }
-
-    let node_id = refresh_data.node_id();
-    if let Some(last) = state.forced_refresh.last_refreshed(node_id).await {
-        // max 1 refresh a minute
-        let minute_ago = OffsetDateTime::now_utc() - Duration::from_secs(60);
-        if last > minute_ago {
-            return Err(AxumErrorResponse::too_many(
-                "already refreshed node in the last minute",
-            ));
-        }
-    }
-    // to make sure you can't ddos the endpoint while a request is in progress
-    state.forced_refresh.set_last_refreshed(node_id).await;
-    let allow_all_ips = state.forced_refresh.allow_all_ip_addresses;
-
-    if let Some(updated_data) = refresh_data.try_refresh(allow_all_ips).await {
-        let Ok(mut describe_cache) = state.described_nodes_cache.write().await else {
-            return Err(AxumErrorResponse::service_unavailable(""));
-        };
-        describe_cache.get_mut().force_update(updated_data)
-    } else {
-        return Err(AxumErrorResponse::unprocessable_entity(
-            "failed to refresh node description",
-        ));
-    }
-
-    Ok(Json(()))
+#[deprecated]
+async fn refresh_described() -> (StatusCode, &'static str) {
+    (
+        StatusCode::GONE,
+        "this endpoint was removed: nym-api reads node data from the directory contract and no \
+        longer queries nym-nodes. Please upgrade your nym-node.",
+    )
 }
 
 #[utoipa::path(
@@ -157,10 +119,11 @@ async fn nodes_noise(
     let _ = pagination;
     let output = pagination.output.unwrap_or_default();
 
-    let describe_cache = state.describe_nodes_cache_data().await?;
+    let snapshot = state.latest_snapshot().await?;
 
-    let nodes = describe_cache
-        .all_nodes()
+    let nodes = snapshot
+        .node_view
+        .nodes(NodeSubset::All)
         .filter_map(|n| {
             n.description
                 .host_information
@@ -204,22 +167,22 @@ async fn nodes_noise(
 async fn get_bonded_nodes(
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,
-) -> FormattedResponse<PaginatedResponse<NymNodeDetails>> {
+) -> AxumResult<FormattedResponse<PaginatedResponse<NymNodeDetails>>> {
     // TODO: implement it
     let _ = pagination;
     let output = pagination.output.unwrap_or_default();
 
-    let details = state.nym_contract_cache().nym_nodes().await;
+    let details = state.latest_snapshot().await?.mixnet().nym_nodes.clone();
     let total = details.len();
 
-    output.to_response(PaginatedResponse {
+    Ok(output.to_response(PaginatedResponse {
         pagination: Pagination {
             total,
             page: 0,
             size: total,
         },
         data: details,
-    })
+    }))
 }
 
 #[utoipa::path(
@@ -245,11 +208,12 @@ async fn get_described_nodes(
     let _ = pagination;
     let output = pagination.output.unwrap_or_default();
 
-    let cache = state.described_nodes_cache.get().await?;
+    let snapshot = state.latest_snapshot().await?;
 
     // convert description to V1
-    let descriptions = cache
-        .all_nodes()
+    let descriptions = snapshot
+        .node_view
+        .nodes(NodeSubset::All)
         .map(|d| d.clone().into())
         .collect::<Vec<_>>();
 
@@ -284,14 +248,11 @@ async fn get_node_annotation(
 ) -> AxumResult<FormattedResponse<AnnotationResponseV1>> {
     let output = output.output.unwrap_or_default();
 
-    let rewarded_set = state.rewarded_set().await?;
     let snapshot = state.latest_snapshot().await?;
 
     Ok(output.to_response(AnnotationResponseV1 {
         node_id,
-        annotation: snapshot
-            .node_annotation(node_id, &rewarded_set)
-            .map(Into::into),
+        annotation: snapshot.node_annotation(node_id).map(Into::into),
     }))
 }
 
@@ -345,20 +306,24 @@ async fn get_node_stake_saturation(
 ) -> AxumResult<FormattedResponse<StakeSaturationResponse>> {
     let output = output.get_output();
 
-    let contract_cache = state.nym_contract_cache();
-    let Some(node) = contract_cache.nym_node(node_id).await? else {
+    let snapshot = state.latest_snapshot().await?;
+    let mixnet = snapshot.mixnet();
+    let Some(node) = mixnet
+        .nym_nodes
+        .iter()
+        .find(|node| node.node_id() == node_id)
+    else {
         return Err(AxumErrorResponse::not_found("nym node bond not found"));
     };
 
-    let rewarding_params = contract_cache.interval_reward_params().await?;
-    let as_at = contract_cache.cache_timestamp().await;
+    let rewarding_params = &mixnet.current_reward_params;
 
     Ok(output.to_response(StakeSaturationResponse {
-        saturation: node.rewarding_details.bond_saturation(&rewarding_params),
+        saturation: node.rewarding_details.bond_saturation(rewarding_params),
         uncapped_saturation: node
             .rewarding_details
-            .uncapped_bond_saturation(&rewarding_params),
-        as_at: as_at.unix_timestamp(),
+            .uncapped_bond_saturation(rewarding_params),
+        as_at: snapshot.block_time().unix_timestamp(),
     }))
 }
 

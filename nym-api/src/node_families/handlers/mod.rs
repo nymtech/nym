@@ -51,15 +51,15 @@ async fn get_families(
     );
     let output = pagination.output.unwrap_or_default();
 
-    let cache = state.node_families_cache.get().await?;
-    let total = cache.families.len();
+    let snapshot = state.latest_snapshot().await?;
+    let families = &snapshot.node_families().families;
+    let total = families.len();
     let offset = (page as usize).saturating_mul(per_page as usize);
 
     // BTreeMap ascending-id iteration is stable across refreshes, so paging
     // by offset is well-defined: page N is the same window of ids on every
     // call (until the underlying set changes).
-    let data: Vec<NodeFamily> = cache
-        .families
+    let data: Vec<NodeFamily> = families
         .values()
         .skip(offset)
         .take(per_page as usize)
@@ -99,8 +99,11 @@ async fn get_family_by_id(
 ) -> AxumResult<FormattedResponse<NodeFamilyResponse>> {
     let output = output.get_output();
 
-    let cache = state.node_families_cache.get().await?;
-    let family = cache.families.get(&family_id).map(NodeFamily::from);
+    let snapshot = state.latest_snapshot().await?;
+    let family = snapshot
+        .node_families()
+        .family(family_id)
+        .map(NodeFamily::from);
 
     Ok(output.to_response(NodeFamilyResponse { family }))
 }
@@ -128,11 +131,10 @@ async fn get_family_for_node(
 ) -> AxumResult<FormattedResponse<NodeFamilyForNodeResponse>> {
     let output = output.get_output();
 
-    let cache = state.node_families_cache.get().await?;
-    let family = cache
-        .family_by_member
-        .get(&node_id)
-        .and_then(|family_id| cache.families.get(family_id))
+    let snapshot = state.latest_snapshot().await?;
+    let family = snapshot
+        .node_families()
+        .family_for_node(node_id)
         .map(NodeFamily::from);
 
     Ok(output.to_response(NodeFamilyForNodeResponse { node_id, family }))

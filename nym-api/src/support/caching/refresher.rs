@@ -2,59 +2,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::caching::cache::SharedCache;
-use crate::support::caching::CacheNotification;
 use async_trait::async_trait;
 use nym_task::ShutdownToken;
-use serde::Serialize;
-use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::futures::Notified;
-use tokio::sync::{watch, Notify};
 use tokio::time::interval;
 use tracing::{debug, error, info, trace, warn};
-
-pub(crate) type CacheUpdateWatcher = watch::Receiver<CacheNotification>;
 
 /// How soon a failed refresh is retried while a cache has never been built, so that a transient
 /// failure at startup costs seconds rather than a whole refresh interval.
 pub(crate) const FIRST_BUILD_RETRY_INTERVAL: Duration = Duration::from_secs(30);
-
-#[derive(Clone)]
-pub struct RefreshRequester(Arc<Notify>);
-
-impl RefreshRequester {
-    pub(crate) fn request_cache_refresh(&self) {
-        self.0.notify_waiters()
-    }
-
-    pub(crate) fn notified(&self) -> Notified<'_> {
-        self.0.notified()
-    }
-}
-
-impl Default for RefreshRequester {
-    fn default() -> Self {
-        RefreshRequester(Arc::new(Notify::new()))
-    }
-}
 
 /// Explanation on generics:
 /// the CacheItemProvider provides a value of type S, which is converted into T and swapped in for
 /// the internal SharedCache<T>'s value
 pub struct CacheRefresher<T, E, S = T> {
     name: String,
-
-    /// Path to an on-disk location where the contents of the retrieved items should be written
-    /// upon refresh
-    on_disk_file: Option<PathBuf>,
     refreshing_interval: Duration,
-    refresh_notification_sender: watch::Sender<CacheNotification>,
 
-    // TODO: the Send + Sync bounds are only required for the `start` method. could we maybe make it less restrictive?
+    // TODO: the Send + Sync bounds are only required for the `start_with_delay` method. could we maybe make it less restrictive?
     provider: Box<dyn CacheItemProvider<Error = E, Item = S> + Send + Sync>,
     shared_cache: SharedCache<T>,
-    refresh_requester: RefreshRequester,
 }
 
 #[async_trait]
@@ -75,22 +42,16 @@ impl<T, E, S> CacheRefresher<T, E, S>
 where
     E: std::error::Error,
     S: Into<T>,
-    T: Serialize,
 {
     pub(crate) fn new_boxed(
         item_provider: Box<dyn CacheItemProvider<Error = E, Item = S> + Send + Sync>,
         refreshing_interval: Duration,
     ) -> Self {
-        let (refresh_notification_sender, _) = watch::channel(CacheNotification::Start);
-
         CacheRefresher {
             name: "GenericCacheRefresher".to_string(),
-            on_disk_file: None,
             refreshing_interval,
-            refresh_notification_sender,
             provider: item_provider,
             shared_cache: SharedCache::new(),
-            refresh_requester: Default::default(),
         }
     }
     pub(crate) fn new<P>(item_provider: P, refreshing_interval: Duration) -> Self
@@ -100,42 +61,10 @@ where
         Self::new_boxed(Box::new(item_provider), refreshing_interval)
     }
 
-    pub(crate) fn new_with_initial_value(
-        item_provider: Box<dyn CacheItemProvider<Error = E, Item = S> + Send + Sync>,
-        refreshing_interval: Duration,
-        shared_cache: SharedCache<T>,
-    ) -> Self {
-        let (refresh_notification_sender, _) = watch::channel(CacheNotification::Start);
-
-        CacheRefresher {
-            name: "GenericCacheRefresher".to_string(),
-            on_disk_file: None,
-            refreshing_interval,
-            refresh_notification_sender,
-            provider: item_provider,
-            shared_cache,
-            refresh_requester: Default::default(),
-        }
-    }
-
     #[must_use]
     pub(crate) fn named(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
-    }
-
-    #[must_use]
-    pub(crate) fn with_persistent_cache(mut self, storage_path: PathBuf) -> Self {
-        self.on_disk_file = Some(storage_path);
-        self
-    }
-
-    pub(crate) fn update_watcher(&self) -> CacheUpdateWatcher {
-        self.refresh_notification_sender.subscribe()
-    }
-
-    pub(crate) fn refresh_requester(&self) -> RefreshRequester {
-        self.refresh_requester.clone()
     }
 
     #[allow(dead_code)]
@@ -169,19 +98,6 @@ where
         }
     }
 
-    async fn try_flush_to_disk(&self) {
-        // if specified, attempt to flush data onto disk
-        let Some(disk_cache) = self.on_disk_file.as_ref() else {
-            return;
-        };
-        let Ok(new_cached) = self.shared_cache.get().await else {
-            error!("the {} cache is still not initialised!", self.name);
-            return;
-        };
-        // error reporting is handled by the serialise function itself
-        let _ = new_cached.try_serialise_to_file(disk_cache);
-    }
-
     async fn do_refresh_cache(&mut self) {
         let updated_items = match self.provider.try_refresh().await {
             Err(err) => {
@@ -196,16 +112,6 @@ where
         };
 
         self.overwrite_cache(updated_items.into()).await;
-        self.try_flush_to_disk().await;
-
-        if !self.refresh_notification_sender.is_closed()
-            && self
-                .refresh_notification_sender
-                .send(CacheNotification::Updated)
-                .is_err()
-        {
-            warn!("failed to send cache update notification");
-        }
     }
 
     pub async fn refresh(&mut self, shutdown_token: &ShutdownToken) {
@@ -222,7 +128,6 @@ where
 
     pub async fn run(&mut self, shutdown_token: ShutdownToken) {
         self.provider.wait_until_ready().await;
-        self.try_flush_to_disk().await;
 
         let mut refresh_interval = interval(self.refreshing_interval);
         loop {
@@ -233,27 +138,11 @@ where
                     break
                 }
                 _ = refresh_interval.tick() => self.refresh(&shutdown_token).await,
-                // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
-                // so it doesn't matter if we lose our queue position
-                _ = self.refresh_requester.notified() => {
-                    self.refresh(&shutdown_token).await;
-                    // since we just performed the full request, we can reset our existing interval
-                    refresh_interval.reset();
-                }
             }
             if self.shared_cache.get().await.is_err() {
                 refresh_interval.reset_after(FIRST_BUILD_RETRY_INTERVAL);
             }
         }
-    }
-
-    pub fn start(mut self, shutdown_token: ShutdownToken)
-    where
-        T: Send + Sync + 'static,
-        E: Send + Sync + 'static,
-        S: Send + Sync + 'static,
-    {
-        tokio::spawn(async move { self.run(shutdown_token).await });
     }
 
     pub fn start_with_delay(mut self, shutdown_token: ShutdownToken, delay: Duration)
@@ -275,24 +164,13 @@ where
             self.run(shutdown_token).await
         });
     }
-
-    pub fn start_with_watcher(self, shutdown_token: ShutdownToken) -> CacheUpdateWatcher
-    where
-        T: Send + Sync + 'static,
-        E: Send + Sync + 'static,
-        S: Send + Sync + 'static,
-    {
-        let receiver = self.update_watcher();
-        self.start(shutdown_token);
-        receiver
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::VecDeque;
-    use std::sync::Mutex;
+    use std::sync::{Arc, Mutex};
     use tokio::time::Instant;
 
     const REFRESH_INTERVAL: Duration = Duration::from_secs(600);
@@ -323,23 +201,15 @@ mod tests {
         }
     }
 
-    /// When, from its start over `cache`, a refresher whose refreshes go as `outcomes` attempts
-    /// them during the first `elapsed`.
-    async fn attempts(
-        cache: SharedCache<u32>,
-        outcomes: &[bool],
-        elapsed: Duration,
-    ) -> Vec<Duration> {
+    /// When, from its start, a refresher whose refreshes go as `outcomes` attempts them during
+    /// the first `elapsed`.
+    async fn attempts(outcomes: &[bool], elapsed: Duration) -> Vec<Duration> {
         let attempts = Arc::new(Mutex::new(Vec::new()));
         let provider = ScriptedProvider {
             outcomes: outcomes.iter().copied().collect(),
             attempts: attempts.clone(),
         };
-        let mut refresher = CacheRefresher::<u32, RefreshFailed>::new_with_initial_value(
-            Box::new(provider),
-            REFRESH_INTERVAL,
-            cache,
-        );
+        let mut refresher = CacheRefresher::<u32, RefreshFailed>::new(provider, REFRESH_INTERVAL);
 
         let shutdown = ShutdownToken::new();
         let start = Instant::now();
@@ -361,34 +231,15 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn a_failed_first_build_is_retried_after_30_seconds() {
-        let attempts = attempts(
-            SharedCache::new(),
-            &[false, false, true],
-            Duration::from_secs(700),
-        )
-        .await;
+        let attempts = attempts(&[false, false, true], Duration::from_secs(700)).await;
 
         assert_eq!(attempts, secs(&[0, 30, 60, 660]));
     }
 
     #[tokio::test(start_paused = true)]
     async fn after_the_first_build_a_failure_waits_for_the_normal_interval() {
-        let attempts = attempts(
-            SharedCache::new(),
-            &[true, false],
-            Duration::from_secs(1300),
-        )
-        .await;
+        let attempts = attempts(&[true, false], Duration::from_secs(1300)).await;
 
         assert_eq!(attempts, secs(&[0, 600, 1200]));
-    }
-
-    /// As after loading a persisted value within its age limit.
-    #[tokio::test(start_paused = true)]
-    async fn a_cache_holding_a_value_retries_a_failure_at_the_normal_interval() {
-        let cache = SharedCache::new_with_value(1);
-        let attempts = attempts(cache, &[false, false], Duration::from_secs(700)).await;
-
-        assert_eq!(attempts, secs(&[0, 600]));
     }
 }

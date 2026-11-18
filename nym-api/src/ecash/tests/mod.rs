@@ -5,8 +5,6 @@ use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
-use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::support::caching::cache::SharedCache;
 use crate::support::config;
 use crate::support::nyxd::{construct_ecash_api_client, Client};
 use crate::support::storage::NymApiStorage;
@@ -1498,7 +1496,6 @@ impl TestFixture {
             storage.clone(),
             bundle.ecash_state,
             bundle.real_client,
-            SharedCache::<NodeFamiliesCacheData>::new(),
         );
 
         TestFixture {

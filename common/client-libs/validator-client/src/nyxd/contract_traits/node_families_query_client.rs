@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::contract_traits::{collect_pages_at_height, NymContractsProvider, PinnedPage};
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::CosmWasmClient;
+use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_mixnet_contract_common::NodeId;
@@ -330,6 +330,137 @@ pub trait PagedNodeFamiliesQueryClient: NodeFamiliesQueryClient {
 
 #[async_trait]
 impl<T> PagedNodeFamiliesQueryClient for T where T: NodeFamiliesQueryClient {}
+
+/// Height-pinned reads, for callers that need the families as they stood at the height they
+/// read everything else at.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait PinnedNodeFamiliesQueryClient {
+    /// Every family at exactly `height`, every page requested at that same height.
+    async fn get_all_families_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<NodeFamily>, NyxdError>;
+
+    /// Every member of every family at exactly `height`, every page requested at that same
+    /// height.
+    async fn get_all_family_members_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<FamilyMemberRecord>, NyxdError>;
+
+    /// Every pending invitation of every family at exactly `height`, every page requested at
+    /// that same height.
+    async fn get_all_pending_invitations_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<PendingFamilyInvitationDetails>, NyxdError>;
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C> PinnedNodeFamiliesQueryClient for C
+where
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
+{
+    async fn get_all_families_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<NodeFamily>, NyxdError> {
+        collect_pages_at_height::<FamiliesPagedResponse, _>(self, height, ()).await
+    }
+
+    async fn get_all_family_members_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<FamilyMemberRecord>, NyxdError> {
+        collect_pages_at_height::<AllFamilyMembersPagedResponse, _>(self, height, ()).await
+    }
+
+    async fn get_all_pending_invitations_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<PendingFamilyInvitationDetails>, NyxdError> {
+        collect_pages_at_height::<PendingInvitationsPagedResponse, _>(self, height, ()).await
+    }
+}
+
+impl PinnedPage for FamiliesPagedResponse {
+    type QueryMsg = NodeFamiliesQueryMsg;
+    type QueryArgs = ();
+    type Record = NodeFamily;
+    type Cursor = NodeFamilyId;
+
+    const CONTRACT: &'static str = "node families contract";
+
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.node_families_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<NodeFamilyId>) -> NodeFamiliesQueryMsg {
+        NodeFamiliesQueryMsg::GetFamiliesPaged {
+            start_after,
+            limit: None,
+        }
+    }
+
+    fn into_parts(self) -> (Vec<NodeFamily>, Option<NodeFamilyId>) {
+        (self.families, self.start_next_after)
+    }
+}
+
+impl PinnedPage for AllFamilyMembersPagedResponse {
+    type QueryMsg = NodeFamiliesQueryMsg;
+    type QueryArgs = ();
+    type Record = FamilyMemberRecord;
+    type Cursor = NodeId;
+
+    const CONTRACT: &'static str = "node families contract";
+
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.node_families_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<NodeId>) -> NodeFamiliesQueryMsg {
+        NodeFamiliesQueryMsg::GetAllFamilyMembersPaged {
+            start_after,
+            limit: None,
+        }
+    }
+
+    fn into_parts(self) -> (Vec<FamilyMemberRecord>, Option<NodeId>) {
+        (self.members, self.start_next_after)
+    }
+}
+
+impl PinnedPage for PendingInvitationsPagedResponse {
+    type QueryMsg = NodeFamiliesQueryMsg;
+    type QueryArgs = ();
+    type Record = PendingFamilyInvitationDetails;
+    type Cursor = (NodeFamilyId, NodeId);
+
+    const CONTRACT: &'static str = "node families contract";
+
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.node_families_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<(NodeFamilyId, NodeId)>) -> NodeFamiliesQueryMsg {
+        NodeFamiliesQueryMsg::GetAllPendingInvitationsPaged {
+            start_after,
+            limit: None,
+        }
+    }
+
+    fn into_parts(
+        self,
+    ) -> (
+        Vec<PendingFamilyInvitationDetails>,
+        Option<(NodeFamilyId, NodeId)>,
+    ) {
+        (self.invitations, self.start_next_after)
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

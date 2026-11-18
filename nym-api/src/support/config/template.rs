@@ -18,9 +18,6 @@ local_validator = '{{ base.local_validator }}'
 # Socket address this api will use for binding its http API.
 bind_address = '{{ base.bind_address }}'
 
-# Bearer token for exposing and accessing additional utility routes
-utility_routes_bearer = '{{ base.utility_routes_bearer }}'
-
 # Mnemonic used for the ecash signer's DKG and multisig operations
 mnemonic = '{{ base.mnemonic }}'
 
@@ -65,5 +62,12 @@ decryption_key_path = '{{ ecash_signer.storage_paths.decryption_key_path }}'
 
 # Path to the dkg dealer public key with proof
 public_key_with_proof_path = '{{ ecash_signer.storage_paths.public_key_with_proof_path }}'
+
+##### attested snapshots config options #####
+
+[directory.debug]
+
+# Lists nodes announcing addresses that are not publicly routable; for local test networks only.
+unsafe_allow_illegal_ips = {{ directory.debug.unsafe_allow_illegal_ips }}
 
 "#;

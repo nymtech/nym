@@ -14,13 +14,15 @@ use nym_contracts_common::{NaiveFloat, Percent};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NodeId;
 use nym_performance_contract_common::LatestPerformance;
-use nym_topology::CachedEpochRewardedSet;
 
 impl RetainedHeight {
     /// `node_id`'s committed score, 0 when the contract cannot score it; `None` for a node without
     /// a committed entry, which is served 0.
     pub(crate) fn published_score(&self, node_id: NodeId) -> Option<f64> {
-        self.performance.bonded_entry(node_id).map(committed_score)
+        self.reads
+            .performance
+            .bonded_entry(node_id)
+            .map(committed_score)
     }
 
     /// `node_id`'s performance as the topology routes publish it.
@@ -30,15 +32,12 @@ impl RetainedHeight {
 
     /// `node_id`'s annotation, built from its committed entry and the medians held beside it;
     /// `None` for a node without a committed entry.
-    pub(crate) fn node_annotation(
-        &self,
-        node_id: NodeId,
-        rewarded_set: &CachedEpochRewardedSet,
-    ) -> Option<NodeAnnotationV2> {
-        let committed = self.performance.bonded_entry(node_id)?;
+    pub(crate) fn node_annotation(&self, node_id: NodeId) -> Option<NodeAnnotationV2> {
+        let committed = self.reads.performance.bonded_entry(node_id)?;
 
         // an entry older than the epochs whose medians are held keeps default sub-scores
         let medians = self
+            .reads
             .performance_auxiliary
             .node_medians(committed.epoch_id, node_id)
             .unwrap_or_default();
@@ -68,7 +67,11 @@ impl RetainedHeight {
         );
 
         Some(NodeAnnotationV2 {
-            current_role: rewarded_set.role(node_id).map(DisplayRole::from),
+            current_role: self
+                .mixnet()
+                .rewarded_set
+                .role(node_id)
+                .map(DisplayRole::from),
             // nothing queries them any more
             chain_interaction_capabilities: None,
             detailed_performance,
@@ -107,6 +110,7 @@ mod tests {
         committed, kind_medians, percent, retained_entry,
     };
     use nym_performance_contract_common::KindMedians;
+    use nym_topology::CachedEpochRewardedSet;
     use std::collections::BTreeMap;
 
     /// Node 7's annotation from a snapshot holding `entry`, with `held` as node 7's medians at
@@ -117,9 +121,7 @@ mod tests {
             (100, BTreeMap::from([(7, held)])),
         ]);
         let entry = retained_entry(1000, vec![entry], &[7], medians);
-        entry
-            .node_annotation(7, &CachedEpochRewardedSet::default())
-            .unwrap()
+        entry.node_annotation(7).unwrap()
     }
 
     fn measured() -> KindMedians {
@@ -216,27 +218,26 @@ mod tests {
         // 8 is bonded but never measured, 9 is measured but no longer bonded
         let records = vec![committed(7, 100, Some(85)), committed(9, 100, Some(85))];
         let entry = retained_entry(1000, records, &[7, 8], BTreeMap::new());
-        let rewarded_set = CachedEpochRewardedSet::default();
 
-        assert!(entry.node_annotation(7, &rewarded_set).is_some());
-        assert!(entry.node_annotation(8, &rewarded_set).is_none());
-        assert!(entry.node_annotation(9, &rewarded_set).is_none());
+        assert!(entry.node_annotation(7).is_some());
+        assert!(entry.node_annotation(8).is_none());
+        assert!(entry.node_annotation(9).is_none());
     }
 
     #[test]
-    fn the_role_comes_from_the_rewarded_set() {
-        let entry = retained_entry(
+    fn the_role_comes_from_the_rewarded_set_of_the_same_height() {
+        let mut entry = retained_entry(
             1000,
             vec![committed(7, 100, Some(85))],
             &[7],
             BTreeMap::new(),
         );
-        let rewarded_set = CachedEpochRewardedSet {
+        entry.reads.mixnet.rewarded_set = CachedEpochRewardedSet {
             layer1: [7].into(),
             ..Default::default()
         };
 
-        let annotation = entry.node_annotation(7, &rewarded_set).unwrap();
+        let annotation = entry.node_annotation(7).unwrap();
         assert!(matches!(annotation.current_role, Some(DisplayRole::Layer1)));
         assert!(annotation.chain_interaction_capabilities.is_none());
     }

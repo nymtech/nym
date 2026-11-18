@@ -2,52 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::AxumErrorResponse;
-use crate::support::caching::refresher::RefreshRequester;
 use crate::support::nyxd::Client;
 use nym_validator_client::nyxd::error::NyxdError;
-use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
-
-/// Handle for on-demand cache refreshes driven by external triggers (e.g. an HTTP endpoint).
-///
-/// Wraps a [`RefreshRequester`] alongside the timestamp of the most recent refresh request so
-/// callers can rate-limit or expose "last refreshed" information without reaching into the
-/// underlying cache.
-#[derive(Clone)]
-pub(crate) struct Refreshing {
-    handle: RefreshRequester,
-    /// Unix timestamp of the last refresh request; stored atomically so multiple request handlers
-    /// can update it concurrently without taking a lock.
-    last_requested: Arc<AtomicI64>,
-}
-
-impl Refreshing {
-    pub(crate) fn new(handle: RefreshRequester) -> Self {
-        Refreshing {
-            handle,
-            last_requested: Arc::new(Default::default()),
-        }
-    }
-
-    pub(crate) fn last_requested(&self) -> OffsetDateTime {
-        // SAFETY: this value is always populated with valid timestamps
-        #[allow(clippy::unwrap_used)]
-        OffsetDateTime::from_unix_timestamp(self.last_requested.load(Ordering::SeqCst)).unwrap()
-    }
-
-    fn update_last_requested(&self, now: OffsetDateTime) {
-        self.last_requested
-            .store(now.unix_timestamp(), Ordering::SeqCst);
-    }
-
-    pub(crate) fn request_refresh(&self, now: OffsetDateTime) {
-        self.update_last_requested(now);
-        self.handle.request_cache_refresh();
-    }
-}
 
 /// Shared, TTL-gated cache for values that are (re)hydrated from the nyxd chain on demand.
 ///

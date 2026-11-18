@@ -27,15 +27,9 @@ use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
 use nym_http_api_client::UserAgent;
 use nym_mixnet_contract_common::gateway::PreassignedId;
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::reward_params::RewardingParams;
-use nym_mixnet_contract_common::{
-    ConfigScoreParams, CurrentIntervalResponse, Delegation, EpochRewardedSet, GatewayBond,
-    HistoricalNymNodeVersionEntry, IdentityKey, KeyRotationState, NymNodeDetails,
-};
+use nym_mixnet_contract_common::{Delegation, GatewayBond, IdentityKey, NymNodeDetails};
 use nym_node_families_contract_common::msg::QueryMsg as NodeFamiliesQueryMsg;
 use nym_validator_client::coconut::EcashApiError;
-use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::{
     NodeFamiliesQueryClient, PagedDkgQueryClient, TypedNymContracts,
 };
@@ -43,8 +37,8 @@ use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
     contract_traits::{
-        DkgQueryClient, DkgSigningClient, EcashQueryClient, GroupQueryClient, MixnetQueryClient,
-        MultisigQueryClient, MultisigSigningClient, NymContractsProvider, PagedMixnetQueryClient,
+        DkgQueryClient, DkgSigningClient, EcashQueryClient, GroupQueryClient, MultisigQueryClient,
+        MultisigSigningClient, NymContractsProvider, PagedMixnetQueryClient,
         PagedMultisigQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
@@ -169,18 +163,6 @@ impl Client {
         Ok(time)
     }
 
-    /// Tendermint block timestamp at the given height.
-    pub(crate) async fn block_timestamp(&self, height: u32) -> Result<TendermintTime, NyxdError> {
-        let time = self.query.get_block_timestamp(Some(height)).await?;
-
-        Ok(time)
-    }
-
-    /// Latest committed block (height + timestamp) in a single RPC call.
-    pub(crate) async fn current_block_info(&self) -> Result<BlockResponse, NyxdError> {
-        Ok(self.query.latest_block().await?)
-    }
-
     /// Obtains the hash of a block specified by the provided height.
     /// If the resulting digest is empty, a `None` is returned instead.
     ///
@@ -204,53 +186,12 @@ impl Client {
         self.query.get_all_nymnodes_detailed().await
     }
 
-    pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NyxdError> {
-        self.query.get_all_mixnodes_detailed().await
-    }
-
     pub(crate) async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NyxdError> {
         self.query.get_all_gateways().await
     }
 
     pub(crate) async fn get_gateway_ids(&self) -> Result<Vec<PreassignedId>, NyxdError> {
         self.query.get_all_preassigned_gateway_ids().await
-    }
-
-    pub(crate) async fn get_key_rotation_state(&self) -> Result<KeyRotationState, NyxdError> {
-        self.query.get_key_rotation_state().await
-    }
-
-    pub(crate) async fn get_config_score_params(&self) -> Result<ConfigScoreParams, NyxdError> {
-        self.query
-            .get_mixnet_contract_state_params()
-            .await
-            .map(|state| state.config_score_params)
-    }
-
-    pub(crate) async fn get_nym_node_version_history(
-        &self,
-    ) -> Result<Vec<HistoricalNymNodeVersionEntry>, NyxdError> {
-        self.query.get_full_nym_node_version_history().await
-    }
-
-    pub(crate) async fn get_current_interval(&self) -> Result<CurrentIntervalResponse, NyxdError> {
-        self.query.get_current_interval_details().await
-    }
-
-    pub(crate) async fn get_mixnet_contract_state(
-        &self,
-    ) -> Result<nym_mixnet_contract_common::ContractState, NyxdError> {
-        self.query.get_mixnet_contract_state().await
-    }
-
-    pub(crate) async fn get_current_rewarding_parameters(
-        &self,
-    ) -> Result<RewardingParams, NyxdError> {
-        self.query.get_rewarding_parameters().await
-    }
-
-    pub(crate) async fn get_rewarded_set_nodes(&self) -> Result<EpochRewardedSet, NyxdError> {
-        self.query.get_rewarded_set().await
     }
 
     pub(crate) async fn get_all_delegator_delegations(

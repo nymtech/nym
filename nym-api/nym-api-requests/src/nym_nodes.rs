@@ -165,7 +165,11 @@ impl<T> PaginatedCachedNodesResponseV2<T> {
         self
     }
 
-    pub fn no_updates(absolute_epoch_id: EpochId, rotation_id: u32) -> Self {
+    pub fn no_updates(
+        absolute_epoch_id: EpochId,
+        rotation_id: u32,
+        refreshed_at: impl Into<OffsetDateTimeJsonSchemaWrapper>,
+    ) -> Self {
         PaginatedCachedNodesResponseV2 {
             nodes: PaginatedResponse {
                 pagination: Pagination {
@@ -176,7 +180,7 @@ impl<T> PaginatedCachedNodesResponseV2<T> {
                 data: Vec::new(),
             },
             metadata: NodesResponseMetadata {
-                refreshed_at: OffsetDateTime::now_utc().into(),
+                refreshed_at: refreshed_at.into(),
                 status: Some(TopologyRequestStatus::NoUpdates),
                 absolute_epoch_id,
                 rotation_id,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::AxumResult;
+use crate::nym_nodes::node_view::NodeSubset;
 use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
@@ -43,10 +44,11 @@ async fn get_described_nodes(
     let _ = pagination;
     let output = pagination.output.unwrap_or_default();
 
-    let cache = state.described_nodes_cache.get().await?;
+    let snapshot = state.latest_snapshot().await?;
     // convert description to V2
-    let descriptions = cache
-        .all_nodes()
+    let descriptions = snapshot
+        .node_view
+        .nodes(NodeSubset::All)
         .map(|d| d.clone().into())
         .collect::<Vec<_>>();
 
@@ -79,11 +81,10 @@ async fn get_node_annotation(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<AnnotationResponseV2>> {
-    let rewarded_set = state.rewarded_set().await?;
     let snapshot = state.latest_snapshot().await?;
 
     Ok(output.get_output().to_response(AnnotationResponseV2 {
         node_id,
-        annotation: snapshot.node_annotation(node_id, &rewarded_set),
+        annotation: snapshot.node_annotation(node_id),
     }))
 }

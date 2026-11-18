@@ -49,6 +49,22 @@ pub struct ProvenNodeEntry {
     pub verified: bool,
 }
 
+/// Why a node's entry under a label cannot be read.
+#[derive(Debug, thiserror::Error)]
+pub enum PayloadError {
+    #[error("not every directory entry of the node verifies against its bonded identity")]
+    Unverified,
+
+    #[error("the node publishes no '{label}' entry")]
+    Missing { label: KnownLabel },
+
+    #[error("the node's '{label}' entry does not decode: {source}")]
+    Undecodable {
+        label: KnownLabel,
+        source: DecodeError,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DirectoryNode {
     // data submitted by the node for known labels, i.e. ones we know how to parse
@@ -70,11 +86,20 @@ impl DirectoryNode {
         }
     }
 
-    /// The node's entry under `T`'s label, decoded; `None` when it publishes none.
-    pub fn payload<T: DirectoryEntryPayload>(&self) -> Option<Result<T, DecodeError>> {
-        self.known_labels
+    /// The node's entry under `T`'s label, decoded, provided every entry the node published
+    /// verifies against its bonded identity.
+    pub fn payload<T: DirectoryEntryPayload>(&self) -> Result<T, PayloadError> {
+        if !self.verified {
+            return Err(PayloadError::Unverified);
+        }
+        let entry = self
+            .known_labels
             .get(&T::LABEL)
-            .map(|entry| T::from_canonical_bytes(&entry.data))
+            .ok_or(PayloadError::Missing { label: T::LABEL })?;
+        T::from_canonical_bytes(&entry.data).map_err(|source| PayloadError::Undecodable {
+            label: T::LABEL,
+            source,
+        })
     }
 }
 
@@ -225,6 +250,7 @@ mod tests {
     use nym_contract_attestation::{DigestSnapshot, DirectorySnapshotData};
     use nym_crypto::asymmetric::ed25519::KeyPair;
     use nym_directory_contract_common::CuratedEntry;
+    use nym_directory_types::NodeInformation;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
     use std::collections::HashMap;
 
@@ -407,5 +433,73 @@ mod tests {
             VerifiedDirectory::from(anchor.verified_records(snapshot.height).await.unwrap());
         let offline = VerifiedDirectory::from(verify_offline(&snapshot, data).unwrap());
         assert_eq!(attested, offline);
+    }
+
+    /// A node whose entries are `verified`, publishing `data` as its node information.
+    fn node_publishing(verified: bool, data: Option<Vec<u8>>) -> DirectoryNode {
+        let mut node = DirectoryNode::new(verified);
+        if let Some(data) = data {
+            node.known_labels.insert(
+                NodeInformation::LABEL,
+                DirectoryNodeEntry {
+                    data,
+                    updated_at_height: 1,
+                    sequence: 1,
+                    signature: Vec::new(),
+                },
+            );
+        }
+        node
+    }
+
+    fn node_information(binary_version: &str) -> Vec<u8> {
+        NodeInformation {
+            binary_version: binary_version.to_string(),
+            ..Default::default()
+        }
+        .to_canonical_bytes()
+    }
+
+    #[test]
+    fn a_verified_node_entry_decodes() {
+        let node = node_publishing(true, Some(node_information("1.20.0")));
+
+        let information = node.payload::<NodeInformation>().unwrap();
+        assert_eq!(information.binary_version, "1.20.0");
+    }
+
+    #[test]
+    fn an_unverified_node_yields_no_payload() {
+        let node = node_publishing(false, Some(node_information("1.20.0")));
+
+        assert!(matches!(
+            node.payload::<NodeInformation>(),
+            Err(PayloadError::Unverified)
+        ));
+    }
+
+    #[test]
+    fn a_missing_entry_names_its_label() {
+        let node = node_publishing(true, None);
+
+        assert!(matches!(
+            node.payload::<NodeInformation>(),
+            Err(PayloadError::Missing {
+                label: KnownLabel::NodeInformation
+            })
+        ));
+    }
+
+    #[test]
+    fn an_undecodable_entry_names_its_label() {
+        let node = node_publishing(true, Some(vec![0xff, 0xff]));
+
+        assert!(matches!(
+            node.payload::<NodeInformation>(),
+            Err(PayloadError::Undecodable {
+                label: KnownLabel::NodeInformation,
+                ..
+            })
+        ));
     }
 }

@@ -45,6 +45,8 @@ impl From<v1::nym_nodes::helpers::NodesParamsWithRole> for NodesParamsWithRole {
 pub(crate) struct NodesParams {
     #[allow(dead_code)]
     pub(crate) semver_compatibility: Option<String>,
+    // legacy nodes are no longer listed, so it changes nothing
+    #[allow(dead_code)]
     pub(crate) no_legacy: Option<bool>,
     pub(crate) page: Option<u32>,
     pub(crate) per_page: Option<u32>,

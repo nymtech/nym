@@ -21,8 +21,8 @@
 //! full refresh if the endpoint is not supported.
 
 use crate::error::NymNodeError;
+use crate::node::helpers::NymApiClient;
 use crate::node::lp::directory::{LpNodeDetails, LpNodes};
-use crate::node::nym_apis_client::NymApisClient;
 use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use crate::node::shared_network::{CachedFullTopology, CachedNetwork, NymTopologyBuilder};
 use nym_node_metrics::prometheus_wrapper::{PROMETHEUS_METRICS, PrometheusMetric};
@@ -31,13 +31,14 @@ use nym_task::ShutdownToken;
 use nym_topology::EpochRewardedSet;
 use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_validator_client::ValidatorClientError;
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nym_api::{SemiSkimmedNodeV1, SemiSkimmedNodesWithMetadata};
 use nym_validator_client::nym_nodes::{LpSkimmedNodesWithMetadata, SkimmedNodeV2};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{Instant, interval, sleep};
-use tracing::{trace, warn};
+use tracing::{error, trace, warn};
 
 #[derive(Debug, Clone, Copy)]
 pub struct NetworkRefresherConfig {
@@ -65,7 +66,7 @@ impl NetworkRefresherConfig {
 
 pub struct NetworkRefresher {
     config: NetworkRefresherConfig,
-    client: NymApisClient,
+    client: NymApiClient,
     shutdown_token: ShutdownToken,
 
     network: CachedNetwork,
@@ -74,13 +75,13 @@ pub struct NetworkRefresher {
 impl NetworkRefresher {
     pub(crate) async fn initialise_new(
         config: NetworkRefresherConfig,
-        client: NymApisClient,
+        client: NymApiClient,
         routing_filter: NetworkRoutingFilter,
         noise_view: NoiseNetworkView,
         lp_nodes: LpNodes,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
-        let mut this = NetworkRefresher {
+        let this = NetworkRefresher {
             config,
             client,
             shutdown_token,
@@ -101,7 +102,7 @@ impl NetworkRefresher {
     ///
     /// 1. Collect all pending IPs that need resolution (lock required)
     /// 2. Short-circuit if all pending IPs are already in allowed/denied sets (race condition check)
-    /// 3. Try optimised nym-api query: `query_nym_nodes_addresses(ips)` for bulk lookup
+    /// 3. Try optimised nym-api query: `nodes_by_addresses(ips)` for bulk lookup
     ///    - If supported: Get immediate results, update allowed/denied sets, clear pending queue
     ///    - If not supported (404): Fall back to full network refresh
     ///
@@ -118,7 +119,7 @@ impl NetworkRefresher {
     /// - Full refresh is needed anyway for topology updates
     /// - The pending queue typically has <10 entries
     /// - This only affects older nym-api versions
-    async fn inspect_pending(&mut self) {
+    async fn inspect_pending(&self) {
         let to_resolve = self.network.routing_filter.pending.nodes().await;
 
         // no pending requests to resolve
@@ -140,7 +141,12 @@ impl NetworkRefresher {
 
         // 1. attempt to use the new nym-api query to get information just by ips
         let nodes = to_resolve.into_iter().collect();
-        if let Ok(res) = self.client.query_nym_nodes_addresses(nodes).await {
+        if let Ok(res) = self
+            .client
+            .nodes_by_addresses(nodes)
+            .await
+            .inspect_err(|err| error!("failed to obtain node information: {err}"))
+        {
             for (ip, maybe_id) in res.existence {
                 if maybe_id.is_some() {
                     allowed.insert(ip);
@@ -161,9 +167,18 @@ impl NetworkRefresher {
 
     /// Fetch everything first, so a failed request leaves every view as it was rather than some
     /// updated and some not.
-    async fn refresh_network_nodes_inner(&mut self) -> Result<(), ValidatorClientError> {
-        let rewarded_set = self.client.rewarded_set().await?;
-        let nodes = self.client.current_nymnodes().await?;
+    async fn refresh_network_nodes_inner(&self) -> Result<(), ValidatorClientError> {
+        let rewarded_set: EpochRewardedSet = self
+            .client
+            .get_current_rewarded_set()
+            .await
+            .inspect_err(|err| error!("failed to get current rewarded set: {err}"))?
+            .into();
+        let nodes = self
+            .client
+            .get_all_expanded_nodes()
+            .await
+            .inspect_err(|err| error!("failed to get network nodes: {err}"))?;
 
         // the LP listing describes a smaller network: only the nodes that published LP details,
         // and so only the nodes an LP route can name. Everything about the network as a whole -
@@ -171,7 +186,7 @@ impl NetworkRefresher {
         // route over - comes from the listing above, which omits nothing. So a failure here is no
         // reason to hold the rest back: the LP views keep the nodes they had, if any, under the
         // listing's metadata
-        let lp_nodes = match self.client.current_lp_nymnodes().await {
+        let lp_nodes = match self.client.get_all_lp_nodes_with_metadata().await {
             Ok(lp_nodes) => lp_nodes,
             Err(err) => {
                 warn!("failed to get the LP network nodes, keeping the previous LP view: {err}");
@@ -188,7 +203,7 @@ impl NetworkRefresher {
         Ok(())
     }
 
-    async fn update_routing_filter(&mut self, nodes: &[SemiSkimmedNodeV1]) {
+    async fn update_routing_filter(&self, nodes: &[SemiSkimmedNodeV1]) {
         let known_nodes = nodes
             .iter()
             .flat_map(|n| n.basic.ip_addresses.iter())
@@ -221,7 +236,7 @@ impl NetworkRefresher {
         self.network.routing_filter.pending.clear().await;
     }
 
-    async fn update_noise_view(&mut self, nodes: &[SemiSkimmedNodeV1]) {
+    async fn update_noise_view(&self, nodes: &[SemiSkimmedNodeV1]) {
         let noise_update_permit = self.network.noise_view.get_update_permit().await;
         let current_nodes = self.network.noise_view.all_nodes();
 
@@ -257,7 +272,7 @@ impl NetworkRefresher {
     }
 
     /// Replace the LP directory wholesale: nym-api is its only source, so nothing is preserved.
-    fn update_lp_nodes(&mut self, lp_nodes: &[SkimmedNodeV2]) {
+    fn update_lp_nodes(&self, lp_nodes: &[SkimmedNodeV2]) {
         let mut new_lp_nodes = HashMap::new();
 
         for node in lp_nodes {
@@ -292,7 +307,7 @@ impl NetworkRefresher {
     }
 
     fn update_topologies(
-        &mut self,
+        &self,
         rewarded_set: EpochRewardedSet,
         nodes: SemiSkimmedNodesWithMetadata,
         lp_nodes: LpSkimmedNodesWithMetadata,
@@ -316,7 +331,7 @@ impl NetworkRefresher {
         self.network.full_topology.store(new_full_topology);
     }
 
-    async fn refresh_network_nodes(&mut self) {
+    async fn refresh_network_nodes(&self) {
         let timer =
             PROMETHEUS_METRICS.start_timer(PrometheusMetric::ProcessTopologyQueryResolutionLatency);
 
@@ -353,7 +368,7 @@ impl NetworkRefresher {
     ///
     /// In any case, the node should NOT start packet processing.
     pub(crate) async fn obtain_initial_network(
-        &mut self,
+        &self,
         max_startup_waiting_period: Duration,
         min_mix_performance: u8,
     ) -> Result<(), NymNodeError> {
@@ -397,7 +412,7 @@ impl NetworkRefresher {
         self.network.full_topology.clone()
     }
 
-    pub(crate) async fn run(&mut self) {
+    pub(crate) async fn run(&self) {
         let mut full_refresh_interval = interval(self.config.full_refresh_interval);
         full_refresh_interval.reset();
 
@@ -422,7 +437,7 @@ impl NetworkRefresher {
         trace!("NetworkRefresher: Exiting");
     }
 
-    pub(crate) fn start(mut self) {
+    pub(crate) fn start(self) {
         tokio::spawn(async move { self.run().await });
     }
 }

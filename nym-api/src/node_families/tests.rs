@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::tests::build_dummy_ecash_state;
-use crate::node_families::cache::{
-    BlockTime, CachedFamily, CachedFamilyInvitation, CachedFamilyMember, NodeFamiliesCacheData,
-};
+use crate::node_families::data::{CachedFamily, CachedFamilyMember, NodeFamiliesData};
 use crate::node_families::handlers;
-use crate::support::caching::cache::SharedCache;
+use crate::support::attested_snapshots::data::test_helpers::empty_height_reads;
+use crate::support::attested_snapshots::data::HeightReads;
+use crate::support::attested_snapshots::state::test_helpers::settled_snapshots;
 use crate::support::config;
 use crate::support::http::state::test_helpers::build_app_state;
+use crate::support::http::state::AppState;
 use crate::support::storage::NymApiStorage;
 use axum::Router;
 use axum_test::http::StatusCode;
@@ -24,56 +25,38 @@ use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-struct NodeFamiliesTestFixture {
-    axum: TestServer,
-    cache: SharedCache<NodeFamiliesCacheData>,
-}
-
-impl NodeFamiliesTestFixture {
-    /// Build a test server with the node-families router mounted and an empty
-    /// (but initialised) shared cache. Use [`seed`] to populate it.
-    async fn new() -> Self {
-        let storage = NymApiStorage::init_in_memory().await.unwrap();
-
-        let cache = SharedCache::<NodeFamiliesCacheData>::new_with_value(Default::default());
-
-        // node-families handlers don't read `AppState.ecash_state`, but
-        // `AppState` requires one; we just need a valid construction.
-        let mut cfg = config::Config::new("test");
-        cfg.ecash_signer.enabled = false;
-        let bundle = build_dummy_ecash_state(&cfg, storage.clone(), [7u8; 32]).await;
-
-        let app_state = build_app_state(
-            storage,
-            bundle.ecash_state,
-            bundle.real_client,
-            cache.clone(),
-        );
-
-        let server = TestServer::new(
-            Router::new()
-                .nest("/v1/node-families", handlers::routes())
-                .with_state(app_state),
-        );
-
-        NodeFamiliesTestFixture {
-            axum: server,
-            cache,
-        }
-    }
-
-    /// Replace the cached data with the provided snapshot.
-    async fn seed(&self, data: NodeFamiliesCacheData) {
-        // try_overwrite_old_value swaps the entire cached value
-        let res = self
-            .cache
-            .try_overwrite_old_value(data, "node-families-test")
-            .await;
-        assert!(res.is_ok(), "failed to seed node-families cache: {res:?}");
-    }
-}
-
 // ---------- fixtures ----------
+
+/// An `AppState` with no settled snapshot.
+async fn app_state() -> AppState {
+    let storage = NymApiStorage::init_in_memory().await.unwrap();
+
+    // node-families handlers don't read `AppState.ecash_state`, but
+    // `AppState` requires one; we just need a valid construction.
+    let mut cfg = config::Config::new("test");
+    cfg.ecash_signer.enabled = false;
+    let bundle = build_dummy_ecash_state(&cfg, storage.clone(), [7u8; 32]).await;
+
+    build_app_state(storage, bundle.ecash_state, bundle.real_client)
+}
+
+fn server(app_state: AppState) -> TestServer {
+    TestServer::new(
+        Router::new()
+            .nest("/v1/node-families", handlers::routes())
+            .with_state(app_state),
+    )
+}
+
+/// A server whose latest settled snapshot holds `families`.
+async fn serving(families: NodeFamiliesData) -> TestServer {
+    let mut app_state = app_state().await;
+    app_state.contract_snapshots = settled_snapshots(HeightReads {
+        node_families: families,
+        ..empty_height_reads(1000)
+    });
+    server(app_state)
+}
 
 fn stake_coin(amount: u128) -> Coin {
     Coin::new(amount, "unym")
@@ -107,7 +90,7 @@ fn family(id: NodeFamilyId, name: &str, members: Vec<CachedFamilyMember>) -> Cac
     }
 }
 
-fn snapshot(families: Vec<CachedFamily>) -> NodeFamiliesCacheData {
+fn families_data(families: Vec<CachedFamily>) -> NodeFamiliesData {
     let mut family_by_member: HashMap<NodeId, NodeFamilyId> = HashMap::new();
     let mut families_map: BTreeMap<NodeFamilyId, CachedFamily> = BTreeMap::new();
     for family in families {
@@ -116,59 +99,39 @@ fn snapshot(families: Vec<CachedFamily>) -> NodeFamiliesCacheData {
         }
         families_map.insert(family.id, family);
     }
-    NodeFamiliesCacheData {
+    NodeFamiliesData {
         families: families_map,
         family_by_member,
-        block_timestamps: HashMap::new(),
     }
 }
 
-// ---------- on-disk persistence ----------
+// ---------- no settled snapshot ----------
 
-// This cache is persisted to disk with bincode; a populated value must survive that
-// round trip or the on-disk cache silently never writes.
-#[test]
-fn populated_cache_round_trips_through_the_on_disk_format() -> anyhow::Result<()> {
-    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
+#[tokio::test]
+async fn every_route_answers_503_while_no_snapshot_has_settled() {
+    let server = server(app_state().await);
 
-    let mut data = snapshot(vec![
-        family(1, "alpha", vec![member(10, Some(1_000)), member(11, None)]),
-        family(2, "beta", vec![member(20, Some(2_000))]),
-    ]);
-
-    // `snapshot` and `family` leave these empty, and an empty collection never reaches its
-    // element encoder - populate them so every field of the snapshot is exercised.
-    #[allow(clippy::unwrap_used)]
-    let alpha = data.families.get_mut(&1).unwrap();
-    alpha.total_stake = Some(stake_coin(1_000));
-    alpha.pending_invitations.push(CachedFamilyInvitation {
-        node_id: 12,
-        expires_at: OffsetDateTime::UNIX_EPOCH,
-    });
-    data.block_timestamps
-        .insert(100, BlockTime::Fetched(OffsetDateTime::UNIX_EPOCH));
-    data.block_timestamps
-        .insert(200, BlockTime::Estimated(OffsetDateTime::UNIX_EPOCH));
-
-    let restored = round_trip_through_disk_cache(data)?;
-
-    assert_eq!(restored.families.len(), 2);
-    assert_eq!(restored.family_by_member.len(), 3);
-    assert_eq!(restored.block_timestamps.len(), 2);
-    let alpha = &restored.families[&1];
-    assert_eq!(alpha.members.len(), 2);
-    assert_eq!(alpha.pending_invitations.len(), 1);
-    assert!(alpha.total_stake.is_some());
-    Ok(())
+    for route in [
+        "/v1/node-families",
+        "/v1/node-families/1",
+        "/v1/node-families/by-node/10",
+    ] {
+        let res = server.get(route).await;
+        assert_eq!(
+            res.status_code(),
+            StatusCode::SERVICE_UNAVAILABLE,
+            "{route}"
+        );
+    }
 }
 
 // ---------- /v1/node-families (list) ----------
 
 #[tokio::test]
-async fn list_returns_empty_when_cache_has_no_families() {
-    let fx = NodeFamiliesTestFixture::new().await;
+async fn list_returns_empty_when_the_snapshot_has_no_families() {
+    let server = serving(NodeFamiliesData::default()).await;
 
-    let res = fx.axum.get("/v1/node-families").await;
+    let res = server.get("/v1/node-families").await;
     assert_eq!(res.status_code(), StatusCode::OK);
     let body: PaginatedResponse<NodeFamily> = res.json();
     assert_eq!(body.pagination.total, 0);
@@ -178,15 +141,14 @@ async fn list_returns_empty_when_cache_has_no_families() {
 }
 
 #[tokio::test]
-async fn list_returns_every_seeded_family() {
-    let fx = NodeFamiliesTestFixture::new().await;
-    fx.seed(snapshot(vec![
+async fn list_returns_every_family_of_the_snapshot() {
+    let server = serving(families_data(vec![
         family(1, "alpha", vec![member(10, Some(100))]),
         family(2, "beta", vec![member(20, None)]),
     ]))
     .await;
 
-    let res = fx.axum.get("/v1/node-families").await;
+    let res = server.get("/v1/node-families").await;
     let body: PaginatedResponse<NodeFamily> = res.json();
     assert_eq!(body.pagination.total, 2);
     let ids: Vec<_> = body.data.iter().map(|f| f.id).collect();
@@ -195,14 +157,13 @@ async fn list_returns_every_seeded_family() {
 
 #[tokio::test]
 async fn list_paginates_by_offset_in_ascending_id_order() {
-    let fx = NodeFamiliesTestFixture::new().await;
     let families: Vec<_> = (1u32..=5)
         .map(|i| family(i, &format!("f{i}"), vec![]))
         .collect();
-    fx.seed(snapshot(families)).await;
+    let server = serving(families_data(families)).await;
 
     // page 0 / per_page 2 → ids [1, 2]
-    let res = fx.axum.get("/v1/node-families?page=0&per_page=2").await;
+    let res = server.get("/v1/node-families?page=0&per_page=2").await;
     let page0: PaginatedResponse<NodeFamily> = res.json();
     assert_eq!(page0.pagination.total, 5);
     assert_eq!(page0.pagination.page, 0);
@@ -213,7 +174,7 @@ async fn list_paginates_by_offset_in_ascending_id_order() {
     );
 
     // page 1 / per_page 2 → ids [3, 4]
-    let res = fx.axum.get("/v1/node-families?page=1&per_page=2").await;
+    let res = server.get("/v1/node-families?page=1&per_page=2").await;
     let page1: PaginatedResponse<NodeFamily> = res.json();
     assert_eq!(
         page1.data.iter().map(|f| f.id).collect::<Vec<_>>(),
@@ -221,13 +182,13 @@ async fn list_paginates_by_offset_in_ascending_id_order() {
     );
 
     // page 2 / per_page 2 → just id 5 on the last page
-    let res = fx.axum.get("/v1/node-families?page=2&per_page=2").await;
+    let res = server.get("/v1/node-families?page=2&per_page=2").await;
     let page2: PaginatedResponse<NodeFamily> = res.json();
     assert_eq!(page2.pagination.size, 1);
     assert_eq!(page2.data.iter().map(|f| f.id).collect::<Vec<_>>(), vec![5]);
 
     // page 3 / per_page 2 → past the end; data empty but total still reported
-    let res = fx.axum.get("/v1/node-families?page=3&per_page=2").await;
+    let res = server.get("/v1/node-families?page=3&per_page=2").await;
     let page3: PaginatedResponse<NodeFamily> = res.json();
     assert_eq!(page3.pagination.total, 5);
     assert_eq!(page3.pagination.size, 0);
@@ -238,10 +199,9 @@ async fn list_paginates_by_offset_in_ascending_id_order() {
 
 #[tokio::test]
 async fn get_family_by_id_returns_some_on_hit() {
-    let fx = NodeFamiliesTestFixture::new().await;
-    fx.seed(snapshot(vec![family(7, "seven", vec![])])).await;
+    let server = serving(families_data(vec![family(7, "seven", vec![])])).await;
 
-    let res = fx.axum.get("/v1/node-families/7").await;
+    let res = server.get("/v1/node-families/7").await;
     assert_eq!(res.status_code(), StatusCode::OK);
     let body: NodeFamilyResponse = res.json();
     let family = body.family.expect("family should be present");
@@ -251,10 +211,9 @@ async fn get_family_by_id_returns_some_on_hit() {
 
 #[tokio::test]
 async fn get_family_by_id_returns_none_on_miss() {
-    let fx = NodeFamiliesTestFixture::new().await;
-    fx.seed(snapshot(vec![family(1, "alpha", vec![])])).await;
+    let server = serving(families_data(vec![family(1, "alpha", vec![])])).await;
 
-    let res = fx.axum.get("/v1/node-families/999").await;
+    let res = server.get("/v1/node-families/999").await;
     // still 200 — `family: None` signals absence
     assert_eq!(res.status_code(), StatusCode::OK);
     let body: NodeFamilyResponse = res.json();
@@ -265,15 +224,14 @@ async fn get_family_by_id_returns_none_on_miss() {
 
 #[tokio::test]
 async fn get_family_for_node_returns_some_on_hit() {
-    let fx = NodeFamiliesTestFixture::new().await;
-    fx.seed(snapshot(vec![family(
+    let server = serving(families_data(vec![family(
         3,
         "gamma",
         vec![member(42, None), member(43, None)],
     )]))
     .await;
 
-    let res = fx.axum.get("/v1/node-families/by-node/42").await;
+    let res = server.get("/v1/node-families/by-node/42").await;
     let body: NodeFamilyForNodeResponse = res.json();
     assert_eq!(body.node_id, 42);
     let family = body.family.expect("expected to find the family");
@@ -282,11 +240,14 @@ async fn get_family_for_node_returns_some_on_hit() {
 
 #[tokio::test]
 async fn get_family_for_node_returns_none_on_miss() {
-    let fx = NodeFamiliesTestFixture::new().await;
-    fx.seed(snapshot(vec![family(1, "alpha", vec![member(10, None)])]))
-        .await;
+    let server = serving(families_data(vec![family(
+        1,
+        "alpha",
+        vec![member(10, None)],
+    )]))
+    .await;
 
-    let res = fx.axum.get("/v1/node-families/by-node/9999").await;
+    let res = server.get("/v1/node-families/by-node/9999").await;
     assert_eq!(res.status_code(), StatusCode::OK);
     let body: NodeFamilyForNodeResponse = res.json();
     assert_eq!(body.node_id, 9999);

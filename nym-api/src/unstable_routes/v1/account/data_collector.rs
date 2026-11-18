@@ -1,11 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
+use crate::support::attested_snapshots::state::ContractSnapshots;
 use crate::unstable_routes::v1::account::models::NyxAccountDelegationRewardDetails;
-use crate::{
-    mixnet_contract_cache::cache::MixnetContractCache,
-    node_status_api::models::{AxumErrorResponse, AxumResult},
-};
 use cosmwasm_std::{Coin, Decimal};
 use nym_mixnet_contract_common::NodeRewarding;
 use nym_validator_client::nyxd::AccountId;
@@ -14,7 +12,7 @@ use tracing::error;
 
 pub(crate) struct AddressDataCollector {
     nyxd_client: crate::nyxd::Client,
-    nym_contract_cache: MixnetContractCache,
+    contract_snapshots: ContractSnapshots,
     account_id: AccountId,
     total_value: u128,
     operator_rewards: u128,
@@ -26,13 +24,13 @@ pub(crate) struct AddressDataCollector {
 impl AddressDataCollector {
     pub(crate) fn new(
         nyxd_client: crate::nyxd::Client,
-        nym_contract_cache: MixnetContractCache,
+        contract_snapshots: ContractSnapshots,
         base_denom: String,
         account_id: AccountId,
     ) -> Self {
         Self {
             nyxd_client,
-            nym_contract_cache,
+            contract_snapshots,
             base_denom,
             account_id,
             total_value: 0,
@@ -66,11 +64,15 @@ impl AddressDataCollector {
 
         let mut node_delegation_info = Vec::new();
 
-        let delegated_to_nodes_bonded = self
-            .nym_contract_cache
-            .all_cached_nym_nodes()
+        // taken after the live read so that no chain query holds the snapshot guard
+        let snapshot = self
+            .contract_snapshots
+            .latest_entry()
             .await
-            .ok_or_else(|| AxumErrorResponse::service_unavailable(""))?
+            .ok_or_else(|| AxumErrorResponse::service_unavailable("no snapshot has settled yet"))?;
+        let delegated_to_nodes_bonded = snapshot
+            .mixnet()
+            .nym_nodes
             .iter()
             .filter_map(|node_details| {
                 // is this an operator of this node?

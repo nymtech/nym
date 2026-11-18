@@ -90,8 +90,8 @@ importers:
         specifier: ^0.2.1
         version: 0.2.1
       '@nymproject/retrieval-indexer':
-        specifier: github:nymtech/retrieval-indexer#v0.1.1
-        version: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/d47c67dae8d0c80ebc3c1a26bb47ff5fa163ee90
+        specifier: github:nymtech/retrieval-indexer#v0.1.2
+        version: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/05998589a22e44df6d1217198a324889d78a34e9
       '@nymproject/sdk-full-fat':
         specifier: '>=1.5.1-rc.0 || ^1.4.1'
         version: 1.4.1
@@ -137,6 +137,9 @@ importers:
       nextra-theme-docs:
         specifier: ^4.6.1
         version: 4.6.1(@types/react@19.3.0)(immer@10.2.0)(next@15.5.21(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(nextra@4.6.1(patch_hash=1594e44bf2738ab1bce4d86c31192967decc1fc470526da73f5910b3ec9b070c)(next@15.5.21(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
       react:
         specifier: ^19.0.0
         version: 19.3.0
@@ -162,6 +165,9 @@ importers:
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
       '@types/react':
         specifier: ^19
         version: 19.3.0
@@ -1449,9 +1455,9 @@ packages:
   '@nymproject/mix-websocket@0.2.1':
     resolution: {integrity: sha512-KzK6hW05d86EfBybRhlX4eL9LBD+QkyrHTmJ49cC2uquAJXksf1+dT0HEUmSczwVyoYUxDcw9+8E4B+PFDH+hg==}
 
-  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/d47c67dae8d0c80ebc3c1a26bb47ff5fa163ee90':
-    resolution: {gitHosted: true, integrity: sha512-2L22CHzaPutdmKhY6Md8tSP4bT2lw+1WP5CRDOXRATjIYH5YX+liceXgGCwLsGxfFWBgJm9jh939wFDdFaXHIA==, tarball: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/d47c67dae8d0c80ebc3c1a26bb47ff5fa163ee90}
-    version: 0.1.1
+  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/05998589a22e44df6d1217198a324889d78a34e9':
+    resolution: {gitHosted: true, integrity: sha512-c8ms02TlVtmcoK6UNRy487u8AS1oxTJuB3S9IKwuaEky8sSGR9gS5jJQ8lmaHXL9vSwycDLiRgd+Hx/VL7PZXg==, tarball: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/05998589a22e44df6d1217198a324889d78a34e9}
+    version: 0.1.2
     engines: {node: '>=20'}
 
   '@nymproject/sdk-full-fat@1.4.1':
@@ -2021,9 +2027,6 @@ packages:
   '@types/node@10.12.18':
     resolution: {integrity: sha512-fh+pAqt4xRzPfqA6eh3Z2y6fyZavRIumvjhaCL753+TVkGKGhpPeyrJG2JftD0T9q4GF00KjefsQ+PQNDdWQaQ==}
 
-  '@types/node@18.11.10':
-    resolution: {integrity: sha512-juG3RWMBOqcOuXC643OAdSA525V44cVgGV6dUDuiFtss+8Fk5x1hI93Rsld43VeJVIeqlP9I7Fn9/qaVqoEAuQ==}
-
   '@types/node@22.7.5':
     resolution: {integrity: sha512-jML7s2NAzMWc//QSJ1a3prpk78cOPchGvXJsC3C6R6PSMoooztvRVQEz89gmBTBY1SPMaqo5teB4uNHPdetShQ==}
 
@@ -2032,6 +2035,9 @@ packages:
 
   '@types/parse-json@4.0.2':
     resolution: {integrity: sha512-dISoDXWWQwUquiKsyZ4Ng+HX2KsPL7LyHKHQwgGFEA3IaKac4Obd+h2a/a6waisAoepJlBcx9paWqjA8/HVjCw==}
+
+  '@types/pg@8.23.1':
+    resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
 
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
@@ -8260,7 +8266,7 @@ snapshots:
     dependencies:
       '@nymproject/mix-tunnel': 0.2.1
 
-  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/d47c67dae8d0c80ebc3c1a26bb47ff5fa163ee90':
+  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/05998589a22e44df6d1217198a324889d78a34e9':
     dependencies:
       github-slugger: 2.0.0
       gray-matter: 4.0.3
@@ -8876,8 +8882,6 @@ snapshots:
 
   '@types/node@10.12.18': {}
 
-  '@types/node@18.11.10': {}
-
   '@types/node@22.7.5':
     dependencies:
       undici-types: 6.19.8
@@ -8887,6 +8891,12 @@ snapshots:
       undici-types: 7.24.6
 
   '@types/parse-json@4.0.2': {}
+
+  '@types/pg@8.23.1':
+    dependencies:
+      '@types/node': 24.19.2
+      pg-protocol: 1.16.1
+      pg-types: 2.2.0
 
   '@types/prop-types@15.7.15': {}
 
@@ -13068,7 +13078,7 @@ snapshots:
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.2
       '@types/long': 4.0.2
-      '@types/node': 18.11.10
+      '@types/node': 24.19.2
       long: 4.0.0
 
   proxy-addr@2.0.8:

@@ -5,11 +5,10 @@
 // This keeps the entire tool behaviour testable without the MCP SDK; server.ts
 // is a thin transport shell that just registers these against a Server.
 //
-// Dependencies are injected (index, query embedder, network client) so tests
-// run hermetically with fakes and no docs-index.json or live network.
+// Dependencies are injected (retrieval source, query embedder, network client)
+// so tests run hermetically with fakes and no index, store, or live network.
 
-import type { DocIndex } from '@nymproject/retrieval-indexer/types';
-import { search, getSection } from '../retrieval/retrieval';
+import type { RetrievalSource } from '../retrieval/retrieval-source';
 import * as nymApi from '../nym-api/client';
 import { unymToNym } from '../nym-api/client';
 import { validateSetupMixTunnelOpts } from './validate-config';
@@ -37,12 +36,12 @@ type NymClient = Pick<
 >;
 
 export interface ToolDeps {
-  index: DocIndex;
+  retrieval: RetrievalSource;
   embedQuery: (query: string) => Promise<number[]>;
   nym?: NymClient;
-  // Optional code index (separate model). When both are present, search_code is
-  // exposed. embedCode must use the same model the code index was built with.
-  codeIndex?: DocIndex;
+  // Code search uses a separate model. When the source can search code and
+  // embedCode is given, search_code is exposed. embedCode must use the model
+  // the code index was built with.
   embedCode?: (query: string) => Promise<number[]>;
 }
 
@@ -66,6 +65,15 @@ function safe(fn: (args: any) => Promise<McpToolResult>) {
 // a silently shortened query embeds to a different vector and returns confidently
 // wrong neighbours, which is worse than an error the agent can read and act on.
 const MAX_QUERY_CHARS = 4000;
+
+// Bounded and whole, so both sources treat it alike: the store passes it to a
+// SQL LIMIT, which rejects a fraction or a negative.
+const MAX_TOP_K = 20;
+
+function checkedTopK(topK: unknown): number {
+  const k = Math.trunc(Number(topK));
+  return Number.isFinite(k) && k >= 1 ? Math.min(k, MAX_TOP_K) : 6;
+}
 
 function checkedQuery(query: string): string {
   if (typeof query !== 'string' || !query.trim()) {
@@ -92,13 +100,13 @@ export function createTools(deps: ToolDeps): McpTool[] {
         type: 'object',
         properties: {
           query: { type: 'string', description: 'Natural-language search query' },
-          topK: { type: 'number', description: 'Max results (default 6)' },
+          topK: { type: 'number', description: 'Max results (default 6, at most 20)' },
         },
         required: ['query'],
       },
       handler: safe(async ({ query, topK = 6 }) => {
         const vec = await deps.embedQuery(checkedQuery(query));
-        const hits = search(vec, deps.index, { topK }); // MCP sees all sources
+        const hits = await deps.retrieval.searchDocs(vec, checkedTopK(topK));
         if (!hits.length) return text(`No documentation matched "${query}".`);
         return text(
           hits
@@ -117,7 +125,7 @@ export function createTools(deps: ToolDeps): McpTool[] {
         required: ['ref'],
       },
       handler: safe(async ({ ref }) => {
-        const s = getSection(deps.index, ref);
+        const s = await deps.retrieval.getSection(ref);
         return s ? text(`# ${s.title} - ${s.heading}\n${s.url}\n\n${s.text}`) : text(`No section found for "${ref}".`);
       }),
     },
@@ -211,9 +219,9 @@ export function createTools(deps: ToolDeps): McpTool[] {
         return text(lines.join('\n'));
       }),
     },
-    // Code search is only available when a code index + matching embedder were
-    // injected (they use a different, code-tuned model than the docs index).
-    ...(deps.codeIndex && deps.embedCode
+    // Code search is only available when the source can search code and a
+    // matching embedder was injected (a different, code-tuned model than docs).
+    ...(deps.retrieval.searchCode && deps.embedCode
       ? [
           {
             name: 'search_code',
@@ -223,13 +231,13 @@ export function createTools(deps: ToolDeps): McpTool[] {
               type: 'object',
               properties: {
                 query: { type: 'string', description: 'Natural-language or code-shaped query' },
-                topK: { type: 'number', description: 'Max results (default 6)' },
+                topK: { type: 'number', description: 'Max results (default 6, at most 20)' },
               },
               required: ['query'],
             },
             handler: safe(async ({ query, topK = 6 }) => {
               const vec = await deps.embedCode!(checkedQuery(query));
-              const hits = search(vec, deps.codeIndex!, { topK });
+              const hits = await deps.retrieval.searchCode!(vec, checkedTopK(topK));
               if (!hits.length) return text(`No source code matched "${query}".`);
               return text(
                 hits

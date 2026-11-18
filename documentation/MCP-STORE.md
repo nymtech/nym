@@ -45,7 +45,9 @@ public Postgres + pgvector
   SQL over TLS, through a pooler                                   reader role
 ```
 
-The route is to use the package's read side: `search`, `getSection`, and `modalities` from `@nymproject/retrieval-indexer/search`. These load no parser. A `search` call runs two queries: one reads the model of the modality, one scans its rows. The query embedding does not change.
+The route uses the package's read side: `search` and `getSection` from `@nymproject/retrieval-indexer/search`. These load no parser. A `search` call runs two queries: one reads the model of the modality, one scans its rows. `getSection` runs one, or two when it falls back from the chunk id to the URL. The query embedding does not change.
+
+The route reads the store when `MCP_RETRIEVAL_SOURCE` is `store`, with the reader connection string in `RETRIEVAL_STORE_READ_URL`. When the variable is unset, empty, or `bundle`, it reads the bundled files as before. Each search names the model the route embedded its query with, and the package refuses rows of another model, because such a query would return confident, wrong neighbours. In store mode `search_code` is always listed; with no code shard, it returns an error.
 
 ## What changes for contributors
 
@@ -102,7 +104,8 @@ Search is a sequential scan with no vector index (design decision 5). A `search_
 
 | Failure | Effect | Detection |
 |---|---|---|
-| The store is unreachable | `search_docs`, `search_code` and `get_section` fail | The route should return an error, not an empty result. Task 5.2 has to decide this |
+| The store is unreachable or slow | `search_docs`, `search_code` and `get_section` return a tool error the agent can read. The live network tools keep working | Each query fails on its own limit: 5 s to connect, the reader's 5 s `statement_timeout` for a slow query (`canceling statement due to statement timeout`), and 8 s for a store that stops answering (`Query read timeout`). A tool call that runs two queries can take twice as long. When both pooled connections of an instance are busy, a third call waits up to 5 s for one. A query on a connection that was dropped while the instance was frozen is retried once |
+| The store has no shard for a modality, or a shard with another model | The search of that modality returns a tool error, not an empty result | The error text names the modality, and for another model, both models |
 | A producer stops writing | Its shard ages, and the answers drift from the source | `staleShards` in the package reports the age of each shard. No job runs it yet |
 | Two runs write the same shard at once | One fails and must run again | The CI `concurrency` group prevents it |
 | The model of a modality changes | Every shard of the modality needs new vectors. One producer cannot switch alone: the package rejects its run while other shards keep the old model | Run all producers of the modality in one `indexShards` call, one run for each shard, so that the shards change model in one transaction. Do not delete the shards first: the delete cascades to their chunks, and the modality has no rows until the producers commit |

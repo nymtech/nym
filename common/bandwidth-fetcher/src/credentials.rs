@@ -607,11 +607,7 @@ mod tests {
     use serde::Deserialize;
 
     use nym_validator_client::nyxd::{
-        Fee,
-        contract_traits::dkg_query_client::DkgQueryMsg,
-        cosmwasm_client::types::ExecuteResult,
-        error::NyxdError,
-        nym_ecash_contract_common::msg::{ExecuteMsg, QueryMsg},
+        contract_traits::dkg_query_client::DkgQueryMsg, error::NyxdError,
     };
     use tokio::fs::remove_file;
 
@@ -632,41 +628,14 @@ mod tests {
         }
     }
 
-    #[async_trait]
-    impl EcashSigningClient for MockPruneClient {
-        async fn execute_ecash_contract(
-            &self,
-            _fee: Option<Fee>,
-            _msg: ExecuteMsg,
-            _memo: String,
-            _funds: Vec<Coin>,
-        ) -> Result<ExecuteResult, NyxdError> {
-            unreachable!("client not used in prune unit tests");
-        }
-    }
-
-    #[async_trait]
-    impl EcashQueryClient for MockPruneClient {
-        async fn query_ecash_contract<T>(&self, _query: QueryMsg) -> Result<T, NyxdError>
-        where
-            for<'a> T: Deserialize<'a>,
-        {
-            unreachable!("client not used in prune unit tests");
-        }
-    }
-
     #[tokio::test]
     async fn prune_expired() {
         let mut db_path = temp_dir();
         db_path.push("prune_expired_unittest.db");
-        let fetcher = NyxdCredentialFetcher::new(
-            Arc::new(MockPruneClient {}),
-            &db_path,
-            None,
-            Zeroizing::new(Vec::new()),
-        )
-        .await
-        .unwrap();
+        // pruning touches only the pending store, which needs no ecash key
+        let fetcher = FetcherCore::new(Arc::new(MockPruneClient {}), &db_path, None)
+            .await
+            .unwrap();
 
         // pruning empty database doesn't fail
         fetcher.cancel_expired_ticketbooks().await.unwrap();

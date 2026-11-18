@@ -6874,7 +6874,6 @@ dependencies = [
  "nym-validator-client",
  "nym-wasm-utils",
  "rand 0.10.2",
- "rand_chacha 0.10.0",
  "semver 1.0.28",
  "serde",
  "serde_json",

@@ -18,7 +18,6 @@ use nym_client_core::client::{
     received_buffer::ReconstructedMessagesReceiver,
 };
 use nym_client_core::config::{ForgetMe, RememberMe};
-use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
@@ -109,8 +108,6 @@ pub struct MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
 
-    pub(crate) identity_keys: Arc<ed25519::KeyPair>,
-
     /// The base client this one wraps, which decides what it can do.
     pub(crate) inner: MixnetClientInner,
 
@@ -173,7 +170,6 @@ pub(crate) struct LegacyClient {
 impl MixnetClient {
     pub(crate) fn new(
         nym_address: Recipient,
-        identity_keys: Arc<ed25519::KeyPair>,
         inner: MixnetClientInner,
         task_handle: ShutdownTracker,
         packet_type: Option<PacketType>,
@@ -182,7 +178,6 @@ impl MixnetClient {
     ) -> Self {
         Self {
             nym_address,
-            identity_keys,
             inner,
             shutdown_handle: task_handle,
             packet_type,
@@ -273,22 +268,6 @@ impl MixnetClient {
     /// On a client over LP.
     pub fn client_request_sender(&self) -> ClientRequestSender {
         self.legacy().client_input.client_request_sender.clone()
-    }
-
-    /// Get the client's identity keys.
-    pub fn identity_keypair(&self) -> Arc<ed25519::KeyPair> {
-        self.identity_keys.clone()
-    }
-
-    /// Sign a message with the client's private identity key.
-    pub fn sign(&self, data: &[u8]) -> ed25519::Signature {
-        self.identity_keys.private_key().sign(data)
-    }
-
-    /// Sign a message with the client's private identity key and return it as a base58 encoded
-    /// signature.
-    pub fn sign_text(&self, text: &str) -> String {
-        self.identity_keys.private_key().sign_text(text)
     }
 
     /// Get gateway connection information, like the file descriptor of the WebSocket

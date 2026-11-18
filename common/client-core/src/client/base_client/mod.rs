@@ -40,8 +40,7 @@ use nym_bandwidth_controller::{BandwidthController, BandwidthTicketProvider};
 use nym_bandwidth_fetcher::NyxdGlobalDataFetcher;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::GatewayDetails;
-use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_crypto::hkdf::DerivationMaterial;
+use nym_crypto::asymmetric::x25519;
 use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
@@ -233,8 +232,6 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
 
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-
-    derivation_material: Option<DerivationMaterial>,
 }
 
 impl<C, S> BaseClientBuilder<C, S>
@@ -263,17 +260,7 @@ where
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
-            derivation_material: None,
         }
-    }
-
-    #[must_use]
-    pub fn with_derivation_material(
-        mut self,
-        derivation_material: Option<DerivationMaterial>,
-    ) -> Self {
-        self.derivation_material = derivation_material;
-        self
     }
 
     /// Set Nym API URLs for domain fronting support.
@@ -873,7 +860,6 @@ where
 
     pub(crate) async fn initialise_keys(
         key_store: &S::KeyStore,
-        derivation_material: Option<DerivationMaterial>,
     ) -> Result<ClientKeys, ClientCoreError> {
         // if client keys do not exist already, create and persist them; any other load failure
         // means existing keys could not be read and must not be overwritten
@@ -881,16 +867,7 @@ where
             Ok(keys) => Ok(keys),
             Err(err) if err.keys_missing() => {
                 tracing::info!("could not find client keys - a new set will be generated");
-                // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await` below
-                let keys = {
-                    let mut rng = rand::rng();
-                    if let Some(derivation_material) = derivation_material {
-                        ClientKeys::from_master_key(&mut rng, &derivation_material)
-                            .map_err(|_| ClientCoreError::HkdfDerivationError)?
-                    } else {
-                        ClientKeys::generate_new(&mut rng)
-                    }
-                };
+                let keys = ClientKeys::generate_new(&mut rand::rng());
                 store_client_keys(keys.clone(), key_store).await?;
                 Ok(keys)
             }
@@ -904,9 +881,8 @@ where
         setup_method: GatewaySetup,
         key_store: &S::KeyStore,
         details_store: &S::GatewaysDetailsStore,
-        derivation_material: Option<DerivationMaterial>,
     ) -> Result<InitialisationResult, ClientCoreError> {
-        Self::initialise_keys(key_store, derivation_material).await?;
+        Self::initialise_keys(key_store).await?;
         setup_gateway(setup_method, key_store, details_store).await
     }
 
@@ -994,7 +970,6 @@ where
             self.setup_method,
             self.client_store.key_store(),
             self.client_store.gateway_details_store(),
-            self.derivation_material,
         )
         .await?;
 
@@ -1039,7 +1014,6 @@ where
         let self_address = Self::mix_address(&init_res);
         let ack_key = init_res.gateway_keys.ack_key();
         let encryption_keys = init_res.gateway_keys.encryption_keypair();
-        let identity_keys = init_res.gateway_keys.identity_keypair();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -1191,7 +1165,6 @@ where
 
         Ok(BaseClient {
             address: self_address,
-            identity_keys,
             client_input: ClientInputStatus::AwaitingProducer {
                 client_input: ClientInput {
                     connection_command_sender: client_connection_tx,
@@ -1220,7 +1193,6 @@ where
 
 pub struct BaseClient {
     pub address: Recipient,
-    pub identity_keys: Arc<ed25519::KeyPair>,
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,

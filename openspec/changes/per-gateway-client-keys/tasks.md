@@ -42,15 +42,15 @@
 
 ## 6. SDK surface
 
-- [ ] 6.1 Remove `identity_keypair()`, `sign()` and `sign_text()` from the SDK's `MixnetClient`, and the field that only served them
-- [ ] 6.2 Remove or rewrite any example, binding or doc text in the repository that uses those three methods
+- [x] 6.1 Remove `identity_keypair()`, `sign()` and `sign_text()` from the SDK's `MixnetClient`, and the field that only served them (with the client-core fields that only fed it: `BaseClient.identity_keys` and `LpBaseClient`'s `identity_keys` field and accessor)
+- [x] 6.2 Remove or rewrite any example, binding or doc text in the repository that uses those three methods (none did: no example, FFI binding or doc page calls them on a `MixnetClient`)
 
 ## 7. Remove derivation material
 
-- [ ] 7.1 Remove `DerivationMaterial` from `common/crypto/src/hkdf.rs`, `ClientKeys::from_master_key` with its tests in `key_manager/test.rs`, and the derivation material argument of `initialise_keys_and_gateway`
-- [ ] 7.2 Remove `with_derivation_material` from client-core's base client builder, the LP client builder (`LpBaseClientBuilder`) and the SDK's `MixnetClientBuilder`, with the fields behind them
-- [ ] 7.3 Remove `ed25519::KeyPair::from_secret`, the keypair's `index` field and `fake_index`
-- [ ] 7.4 Run the workspace tests and update any value that a test pinned from a seeded generator and that changed because `KeyPair::new` no longer draws the index
+- [x] 7.1 Remove `DerivationMaterial` from `common/crypto/src/hkdf.rs`, `ClientKeys::from_master_key` with its tests in `key_manager/test.rs`, and the derivation material argument of `initialise_keys_and_gateway` (and of `initialise_keys`, with `ClientCoreError::HkdfDerivationError` and client-core's `rand_chacha` dependency, which only these served)
+- [x] 7.2 Remove `with_derivation_material` from client-core's base client builder, the LP client builder (`LpBaseClientBuilder`) and the SDK's `MixnetClientBuilder`, with the fields behind them
+- [x] 7.3 Remove `ed25519::KeyPair::from_secret`, the keypair's `index` field and `fake_index` (keypairs the wasm client stored with an `index` still load, since the derived `Deserialize` ignores unknown fields; a comment on `KeyPair` says so)
+- [x] 7.4 Run the workspace tests and update any value that a test pinned from a seeded generator and that changed because `KeyPair::new` no longer draws the index (one: the three keys in `nym-crypto`'s `vec_bs58_ed25519_pubkey_json`; the contracts workspace, which patches in the local `nym-crypto`, passed unchanged)
 
 ## 8. Ecash user key and the bandwidth fetcher
 

@@ -254,9 +254,6 @@ pub enum ClientCoreError {
     )]
     UnexpectedKeyUpgrade { gateway_id: String },
 
-    #[error("failed to derive keys from master key")]
-    HkdfDerivationError,
-
     #[error("missing url for constructing RPC client")]
     RpcClientMissingUrl,
 

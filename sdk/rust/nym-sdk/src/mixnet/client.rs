@@ -25,7 +25,6 @@ use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::init::{refresh_gateway_published_data, setup_gateway};
-use nym_crypto::hkdf::DerivationMaterial;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
@@ -106,7 +105,6 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     storage: S,
     forget_me: ForgetMe,
     remember_me: RememberMe,
-    derivation_material: Option<DerivationMaterial>,
     stream_idle_timeout: Option<std::time::Duration>,
     lp_enabled: bool,
     refresh_gateway_keys: bool,
@@ -154,7 +152,6 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             connection_fd_callback: None,
             forget_me: Default::default(),
             remember_me: Default::default(),
-            derivation_material: None,
             stream_idle_timeout: None,
             lp_enabled: false,
             refresh_gateway_keys: false,
@@ -190,7 +187,6 @@ where
             storage,
             forget_me: Default::default(),
             remember_me: Default::default(),
-            derivation_material: None,
             stream_idle_timeout: None,
             lp_enabled: false,
             refresh_gateway_keys: false,
@@ -221,17 +217,10 @@ where
             storage,
             forget_me: self.forget_me,
             remember_me: self.remember_me,
-            derivation_material: self.derivation_material,
             stream_idle_timeout: self.stream_idle_timeout,
             lp_enabled: self.lp_enabled,
             refresh_gateway_keys: self.refresh_gateway_keys,
         }
-    }
-
-    #[must_use]
-    pub fn with_derivation_material(mut self, derivation_material: DerivationMaterial) -> Self {
-        self.derivation_material = Some(derivation_material);
-        self
     }
 
     /// Change the underlying storage of this builder to use default implementation of on-disk disk_persistence.
@@ -476,7 +465,6 @@ where
         }
         client.forget_me = self.forget_me;
         client.remember_me = self.remember_me;
-        client.derivation_material = self.derivation_material;
         client.stream_idle_timeout = self.stream_idle_timeout;
         client.lp_enabled = self.lp_enabled;
         client.refresh_gateway_keys = self.refresh_gateway_keys;
@@ -551,8 +539,6 @@ where
     forget_me: ForgetMe,
 
     remember_me: RememberMe,
-    /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
-    derivation_material: Option<DerivationMaterial>,
 
     stream_idle_timeout: Option<std::time::Duration>,
 
@@ -618,7 +604,6 @@ where
             connection_fd_callback: None,
             forget_me,
             remember_me,
-            derivation_material: None,
             stream_idle_timeout: None,
             lp_enabled: false,
             refresh_gateway_keys: false,
@@ -932,7 +917,6 @@ where
 
         let mut lp_builder: LpBaseClientBuilder<_, _> =
             LpBaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
-                .with_derivation_material(self.derivation_material)
                 .with_nym_api_urls(self.config.network_details.nym_api_urls());
 
         if let Some(gateway) = requested_gateway {
@@ -956,12 +940,10 @@ where
         self.state = BuilderState::Registered {};
 
         let nym_address = lp_client.address();
-        let identity_keys = lp_client.identity_keys().clone();
         let shutdown_handle = lp_client.shutdown_handle().clone();
 
         let mut client = MixnetClient::new(
             nym_address,
-            identity_keys,
             MixnetClientInner::Lp(Box::new(lp_client)),
             shutdown_handle,
             None,
@@ -997,7 +979,6 @@ where
                 .with_wait_for_initial_topology(self.wait_for_initial_topology)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)
-                .with_derivation_material(self.derivation_material)
                 .with_nym_api_urls(self.config.network_details.nym_api_urls());
 
         if let Some(user_agent) = self.user_agent {
@@ -1134,12 +1115,10 @@ where
             started_client.client_state;
         let stats_events_reporter = started_client.stats_reporter;
 
-        let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;
 
         let mut client = MixnetClient::new(
             nym_address,
-            identity_keys,
             MixnetClientInner::Legacy(LegacyClient {
                 client_input,
                 client_output,

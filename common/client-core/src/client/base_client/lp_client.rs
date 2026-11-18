@@ -25,7 +25,6 @@ use futures::Stream;
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_client_core_gateways_storage::GenerationId;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_crypto::hkdf::DerivationMaterial;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownTracker;
@@ -77,7 +76,6 @@ impl LpClientInput {
 
 pub struct LpBaseClient {
     address: Recipient,
-    identity_keys: Arc<ed25519::KeyPair>,
     client_input: LpClientInput,
 
     /// The messages this client receives, one per item, waiting to be read through this client's
@@ -98,10 +96,6 @@ pub struct LpBaseClient {
 impl LpBaseClient {
     pub fn address(&self) -> Recipient {
         self.address
-    }
-
-    pub fn identity_keys(&self) -> &Arc<ed25519::KeyPair> {
-        &self.identity_keys
     }
 
     pub fn client_input(&self) -> &LpClientInput {
@@ -140,8 +134,6 @@ pub struct LpBaseClientBuilder<C, S: MixnetClientStorage> {
 
     /// `None` picks one at random from the LP topology on startup.
     gateway: Option<NodeIdentity>,
-
-    derivation_material: Option<DerivationMaterial>,
 }
 
 impl<C, S> LpBaseClientBuilder<C, S>
@@ -164,17 +156,7 @@ where
             shutdown: None,
             user_agent: None,
             gateway: None,
-            derivation_material: None,
         }
-    }
-
-    #[must_use]
-    pub fn with_derivation_material(
-        mut self,
-        derivation_material: Option<DerivationMaterial>,
-    ) -> Self {
-        self.derivation_material = derivation_material;
-        self
     }
 
     /// Set Nym API URLs for domain fronting support.
@@ -319,11 +301,8 @@ where
     pub async fn start(self) -> Result<LpBaseClient, ClientCoreError> {
         info!("Starting LP client");
 
-        let client_keys = BaseClientBuilder::<C, S>::initialise_keys(
-            self.client_store.key_store(),
-            self.derivation_material,
-        )
-        .await?;
+        let client_keys =
+            BaseClientBuilder::<C, S>::initialise_keys(self.client_store.key_store()).await?;
 
         let (_, credential_store, _) = self.client_store.into_runtime_stores();
 
@@ -380,7 +359,7 @@ where
         Self::build_lp_tasks(
             &self.config,
             self_address,
-            identity_keys.clone(),
+            identity_keys,
             encryption_keys,
             topology_accessor,
             input_receiver,
@@ -393,7 +372,6 @@ where
 
         Ok(LpBaseClient {
             address: self_address,
-            identity_keys,
             client_input: LpClientInput {
                 sender: input_sender,
             },

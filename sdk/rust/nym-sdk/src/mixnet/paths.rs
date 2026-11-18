@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{Error, Result};
-use nym_client_core::client::base_client::storage::helpers::{
-    get_all_registered_identities, remove_gateway_details,
-};
 use nym_client_core::client::base_client::storage::OnDiskGatewaysDetails;
 use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::{OnDiskKeys, Passphrase};
@@ -18,7 +15,6 @@ use nym_client_core::config::disk_persistence::{
     DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME, DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME,
     DEFAULT_REPLY_SURB_DB_FILENAME,
 };
-use nym_client_core::init::generate_new_client_keys;
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use std::path::{Path, PathBuf};
 
@@ -190,59 +186,34 @@ impl StoragePaths {
     /// reply SURBs or reply keys. It contacts no gateway and leaves the credential store unopened,
     /// so ticketbooks are kept. No client may be using these paths while it runs.
     pub async fn reset_client_identity(&self) -> Result<()> {
-        // the keys go last, so a reset cut short leaves registrations under the keys they were
-        // made with, or none, and running it again finishes it
-        let details_store = self.on_disk_gateway_details_storage().await?;
-        for gateway_id in get_all_registered_identities(&details_store).await? {
-            remove_gateway_details(&details_store, &gateway_id.to_base58_string()).await?;
-        }
-
-        // loaded directly: the usual setup would create a missing store with default thresholds,
-        // which the client would then keep
-        if self.reply_surb_database_path.exists() {
-            match fs_backend::Backend::try_load(&self.reply_surb_database_path, self.database_key())
-                .await
-            {
-                Ok(reply_store) => {
-                    let deleted = reply_store.delete_all_reply_data().await;
-                    reply_store.shutdown().await;
-                    deleted.map_err(|source| Error::ReplyStorageError {
-                        source: Box::new(source),
-                    })?;
-                }
-                // a flush cut short or never made: the client's next start would archive this
-                // store and begin a fresh one, so deleting it loses nothing a start would keep.
-                // Any other failure, a wrong key included, may hide data the client can still read
-                Err(fs_backend::StorageError::IncompleteDataFlush) => {
-                    for path in self.reply_surb_database_paths() {
-                        if path.exists() {
-                            std::fs::remove_file(path)?;
-                        }
-                    }
-                }
-                Err(source) => {
-                    return Err(Error::ReplyStorageError {
-                        source: Box::new(source),
-                    })
-                }
-            }
-        }
-
-        let mut rng = nym_crypto::rng::os_rng();
-        generate_new_client_keys(&mut rng, &self.on_disk_key_storage_spec()).await?;
-        Ok(())
+        Ok(non_wasm_helpers::reset_client_identity(
+            &self.common_client_paths(),
+            self.key_passphrase.clone(),
+            self.database_key(),
+        )
+        .await?)
     }
 
     pub fn credential_database_paths(&self) -> Vec<PathBuf> {
-        Self::with_sqlite_journal_paths(&self.credential_database_path)
+        non_wasm_helpers::sqlite_database_paths(&self.credential_database_path)
     }
 
     pub fn reply_surb_database_paths(&self) -> Vec<PathBuf> {
-        Self::with_sqlite_journal_paths(&self.reply_surb_database_path)
+        non_wasm_helpers::sqlite_database_paths(&self.reply_surb_database_path)
     }
 
     pub fn gateway_registrations_paths(&self) -> Vec<PathBuf> {
-        Self::with_sqlite_journal_paths(&self.gateway_registrations)
+        non_wasm_helpers::sqlite_database_paths(&self.gateway_registrations)
+    }
+
+    fn common_client_paths(&self) -> CommonClientPaths {
+        CommonClientPaths {
+            keys: self.client_keys_paths(),
+            gateway_registrations: self.gateway_registrations.clone(),
+            credential_requests_database: self.credential_requests_database_path.clone(),
+            credentials_database: self.credential_database_path.clone(),
+            reply_surb_database: self.reply_surb_database_path.clone(),
+        }
     }
 
     fn client_keys_paths(&self) -> ClientKeysPaths {
@@ -254,36 +225,11 @@ impl StoragePaths {
             ack_key_file: self.ack_key.clone(),
         }
     }
-
-    /// Returns a list of paths that include the sqlite database and journal files (wal, shm)
-    fn with_sqlite_journal_paths<P: AsRef<Path>>(db_file: P) -> Vec<PathBuf> {
-        ["-shm", "-wal"]
-            .iter()
-            .map(|ext_suffix| {
-                let mut new_ext = db_file.as_ref().extension().unwrap_or_default().to_owned();
-                new_ext.push(ext_suffix);
-                db_file.as_ref().with_extension(new_ext)
-            })
-            .chain([db_file.as_ref().to_path_buf()])
-            .collect()
-    }
 }
 
 impl From<StoragePaths> for CommonClientPaths {
     fn from(value: StoragePaths) -> Self {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: value.private_identity,
-                public_identity_key_file: value.public_identity,
-                private_encryption_key_file: value.private_encryption,
-                public_encryption_key_file: value.public_encryption,
-                ack_key_file: value.ack_key,
-            },
-            gateway_registrations: value.gateway_registrations,
-            credential_requests_database: value.credential_requests_database_path,
-            credentials_database: value.credential_database_path,
-            reply_surb_database: value.reply_surb_database_path,
-        }
+        value.common_client_paths()
     }
 }
 

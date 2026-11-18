@@ -29,5 +29,9 @@ export default {
   "use-with-ai": {
     "title": "Use with AI",
     "type": "page"
+  },
+  "about": {
+    "title": "About",
+    "type": "page"
   }
 }

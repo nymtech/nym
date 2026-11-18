@@ -102,7 +102,7 @@ export default function McpPanel() {
         </p>
 
         <p style={introStyle}>
-          <Link href="/developers/mcp" style={linkStyle} onClick={() => setOpen(false)}>
+          <Link href="/use-with-ai/mcp" style={linkStyle} onClick={() => setOpen(false)}>
             Full tool reference
           </Link>
           {' · '}

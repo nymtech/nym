@@ -46,7 +46,14 @@ const navbar = (
   </Navbar>
 );
 
-const footer = <Footer>© {new Date().getFullYear()} Nym Technologies SA</Footer>;
+const footer = (
+  <Footer>
+    <span>
+      © {new Date().getFullYear()} Nym Technologies SA ·{" "}
+      <Link href="/about/how-these-docs-are-checked">How these docs are checked</Link>
+    </span>
+  </Footer>
+);
 
 export default async function DocsLayout({ children }: { children: ReactNode }) {
   return (

@@ -35,10 +35,7 @@ function buildProvider(rpcUrl: string): JsonRpcProvider {
 }
 ```
 
-One caveat: browser `fetch` decompresses gzip transparently and `mixFetch` does
-not, so the demo adds a `DecompressionStream` step after each response (Cloudflare
-gzips RPC replies). The full version with decompression and per-call logging is in
-[`components/demos/ens/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/ens).
+Browser `fetch` decompresses compressed responses and `mixFetch` does not, so the demo adds a `DecompressionStream` step to each response that has a gzip or deflate `Content-Encoding` (Cloudflare gzips RPC replies). The full version with decompression and per-call logging is in [`components/demos/ens/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/ens).
 
 On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) and [`ethers`](https://www.npmjs.com/package/ethers).
 

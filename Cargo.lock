@@ -9160,14 +9160,12 @@ dependencies = [
  "semver 1.0.28",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "thiserror 2.0.21",
  "time",
  "tokio",
  "tokio-util",
  "tracing",
  "url",
- "zeroize",
 ]
 
 [[package]]

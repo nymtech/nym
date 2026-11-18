@@ -729,23 +729,23 @@ where
         &self,
         height: Height,
     ) -> Result<Vec<NymNodeBond>, NyxdError> {
-        let contract_address = self
-            .mixnet_contract_address()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
-
-        collect_pages_at_height::<PagedNymNodeBondsResponse, _>(self, contract_address, height)
-            .await
+        collect_pages_at_height::<PagedNymNodeBondsResponse, _>(self, height, ()).await
     }
 }
 
 impl AttestationPage for PagedNymNodeBondsResponse {
     type QueryMsg = MixnetQueryMsg;
+    type QueryArgs = ();
     type Record = NymNodeBond;
     type Cursor = NodeId;
 
     const CONTRACT: &'static str = "mixnet contract";
 
-    fn query_msg(start_after: Option<NodeId>) -> MixnetQueryMsg {
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.mixnet_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<NodeId>) -> MixnetQueryMsg {
         MixnetQueryMsg::GetNymNodeBondsPaged {
             start_after,
             limit: None,

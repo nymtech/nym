@@ -13,9 +13,9 @@ use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
-use tracing::error;
 
 mod config_score;
+mod contract_annotations;
 pub mod data;
 pub mod refresher;
 
@@ -26,6 +26,12 @@ enum NodeStatusCacheError {
 
     #[error("the self-described cache data is not available")]
     UnavailableDescribedCache,
+
+    #[error("no performance snapshot has settled yet")]
+    NoSettledPerformanceSnapshot,
+
+    #[error("timed out waiting to write the node status cache")]
+    WriteTimeout,
 
     #[error(transparent)]
     PerformanceRetrievalFailure(#[from] PerformanceRetrievalFailure),
@@ -53,14 +59,11 @@ impl From<SharedCache<NodeStatusCacheData>> for NodeStatusCache {
 }
 
 impl NodeStatusCache {
-    /// Creates a new cache with no data.
+    /// The persisted annotations if still fresh, else uninitialised until the first refresh: an
+    /// empty map would be served as performance 0 for every node.
     pub(crate) fn new<P: AsRef<Path>>(store_path: P, max_cache_age: Duration) -> NodeStatusCache {
         NodeStatusCache {
-            inner: SharedCache::new_with_persistent(
-                store_path,
-                max_cache_age,
-                Some(HashMap::new().into()),
-            ),
+            inner: SharedCache::new_with_persistent(store_path, max_cache_age),
         }
     }
 
@@ -73,15 +76,14 @@ impl NodeStatusCache {
     }
 
     /// Updates the cache with the latest data.
-    async fn update(&self, node_annotations: HashMap<NodeId, NodeAnnotationV2>) {
-        if self
-            .inner
+    async fn update(
+        &self,
+        node_annotations: HashMap<NodeId, NodeAnnotationV2>,
+    ) -> Result<(), NodeStatusCacheError> {
+        self.inner
             .try_overwrite_old_value(node_annotations, "node-status")
             .await
-            .is_err()
-        {
-            error!("failed to update node status cache!")
-        }
+            .map_err(|_| NodeStatusCacheError::WriteTimeout)
     }
 
     pub(crate) async fn cache(

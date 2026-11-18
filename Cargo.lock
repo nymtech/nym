@@ -6377,6 +6377,7 @@ dependencies = [
  "nym-compact-ecash",
  "nym-config",
  "nym-config-score",
+ "nym-contract-anchor",
  "nym-contract-attestation",
  "nym-contracts-common",
  "nym-contracts-common-testing",
@@ -6394,6 +6395,7 @@ dependencies = [
  "nym-group-contract-common",
  "nym-http-api-client",
  "nym-http-api-common",
+ "nym-lthash",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
@@ -6401,10 +6403,13 @@ dependencies = [
  "nym-node-requests",
  "nym-node-tester-utils",
  "nym-pemstore",
+ "nym-performance-client",
+ "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
+ "nym-test-utils",
  "nym-ticketbooks-merkle",
  "nym-topology",
  "nym-types",
@@ -6464,6 +6469,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-node-requests",
  "nym-noise-keys",
+ "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-test-utils",
  "nym-ticketbooks-merkle",
@@ -8947,15 +8953,18 @@ dependencies = [
 
 [[package]]
 name = "nym-performance-client"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
+ "async-trait",
  "nym-contract-anchor",
  "nym-contract-attestation",
  "nym-crypto",
+ "nym-http-api-client",
  "nym-lthash",
  "nym-performance-contract-common",
  "nym-test-utils",
  "nym-validator-client",
+ "serde",
  "tokio",
 ]
 
@@ -8970,6 +8979,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "thiserror 2.0.21",
+ "utoipa",
 ]
 
 [[package]]

@@ -1,17 +1,21 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_status_api::models::{ApiResult, AxumErrorResponse};
+use crate::node_status_api::models::{ApiResult, AxumErrorResponse, AxumResult};
+use crate::support::http::helpers::NodeIdParam;
 use crate::support::http::state::AppState;
 use crate::support::storage::models::{NymNodeLivenessResult, NymNodeStressTestingResult};
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use nym_api_requests::models::performance::NodePerformanceResponseV3;
 use nym_api_requests::models::v3::{
     KnownNetworkMonitorResponse, LivenessTestBatchSubmission, LivenessTestBatchSubmissionResponse,
     StressTestBatchSubmission, StressTestBatchSubmissionResponse,
 };
 use nym_crypto::asymmetric::ed25519;
+use nym_http_api_common::{FormattedResponse, OutputParamsV2};
+use nym_performance_contract_common::EpochWeights;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::{error, warn};
@@ -345,6 +349,69 @@ async fn known_network_monitor(
     }))
 }
 
+#[utoipa::path(
+    tag = "Nym Nodes",
+    get,
+    operation_id = "v3_get_node_performance",
+    path = "/performance/{node_id}",
+    context_path = "/v3/nym-nodes",
+    responses(
+        (status = 200, content(
+            (NodePerformanceResponseV3 = "application/json"),
+            (NodePerformanceResponseV3 = "application/yaml"),
+        )),
+        (status = 503, description = "no performance snapshot has settled yet"),
+    ),
+    params(NodeIdParam, OutputParamsV2),
+)]
+async fn get_node_performance(
+    Path(NodeIdParam { node_id }): Path<NodeIdParam>,
+    Query(output): Query<OutputParamsV2>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<NodePerformanceResponseV3>> {
+    let performance = state
+        .contract_snapshots
+        .performance
+        .latest_entry()
+        .await
+        .ok_or_else(|| {
+            AxumErrorResponse::service_unavailable("no performance snapshots available")
+        })?
+        .node_performance(node_id);
+    Ok(output.to_response(performance))
+}
+
+#[utoipa::path(
+    tag = "Nym Nodes",
+    get,
+    path = "/performance-weights",
+    context_path = "/v3/nym-nodes",
+    responses(
+        (status = 200, content(
+            (EpochWeights = "application/json"),
+            (EpochWeights = "application/yaml"),
+        )),
+        (status = 503, description = "no performance snapshot has settled yet"),
+    ),
+    params(OutputParamsV2),
+)]
+async fn get_performance_weights(
+    Query(output): Query<OutputParamsV2>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<EpochWeights>> {
+    let weights = state
+        .contract_snapshots
+        .performance
+        .latest_entry()
+        .await
+        .ok_or_else(|| {
+            AxumErrorResponse::service_unavailable("no performance snapshots available")
+        })?
+        .auxiliary()
+        .weights();
+    Ok(output.to_response(weights))
+}
+
 fn stress_testing_routes() -> Router<AppState> {
     Router::new()
         .route("/batch-submit", post(batch_submit_stress_testing_results))
@@ -358,9 +425,12 @@ fn liveness_testing_routes() -> Router<AppState> {
     Router::new().route("/batch-submit", post(batch_submit_liveness_testing_results))
 }
 
-/// Build the `/v3/nym-nodes` subtree hosting the v3 network-monitor endpoints.
+/// Build the `/v3/nym-nodes` subtree hosting the v3 network-monitor endpoints and the
+/// per-node performance read from the latest settled performance snapshot.
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .nest("/stress-testing", stress_testing_routes())
         .nest("/liveness-testing", liveness_testing_routes())
+        .route("/performance/{node_id}", get(get_node_performance))
+        .route("/performance-weights", get(get_performance_weights))
 }

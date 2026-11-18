@@ -109,7 +109,11 @@ nym-statistics-common = { workspace = true }
 nym-ecash-signer-check = { workspace = true }
 nym-node-families-contract-common = { workspace = true }
 nym-contract-attestation = { workspace = true, features = ["utoipa"] }
-nym-directory-client = { workspace = true, features = ["light-client", "https-checkpoint-fetcher"] }
+nym-directory-client = { workspace = true }
+nym-contract-anchor = { workspace = true, features = ["light-client", "https-checkpoint-fetcher"] }
+nym-performance-client = { workspace = true }
+nym-performance-contract-common = { workspace = true }
+nym-lthash = { workspace = true }
 
 
 [features]
@@ -143,6 +147,7 @@ test-with = { workspace = true, default-features = false }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-contract-attestation = { workspace = true, features = ["mock"] }
 nym-directory-contract-common = { workspace = true }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 
 # `test-util` for `#[tokio::test(start_paused = true)]`: the dkg controller sleeps
 # between polls, and a test driving it should not wait in real time

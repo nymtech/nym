@@ -16,7 +16,7 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::directory::DirectoryState;
+use crate::support::http::state::contract_snapshots::ContractSnapshots;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -33,7 +33,7 @@ use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod chain_status;
 pub(crate) mod contract_details;
-pub(crate) mod directory;
+pub(crate) mod contract_snapshots;
 pub(crate) mod force_refresh;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_contract_cache;
@@ -112,13 +112,13 @@ pub(crate) struct AppState {
     /// Cache holding data required by the ecash credentials - static signatures, merkle trees, etc.
     pub(crate) ecash_state: Arc<EcashState>,
 
-    /// Verified nym-directory retrieved from the directory contract.
-    pub(crate) directory: DirectoryState,
+    /// Verified snapshots of every contract this nym-api attests.
+    pub(crate) contract_snapshots: ContractSnapshots,
 
-    /// The performance contract's window, present when this nym-api reads the contract.
+    /// The performance contract's window, present exactly when this nym-api rewards.
     pub(crate) performance_contract_window: Option<PerformanceContractWindow>,
 
-    /// Whether rewarding and selection use the performance contract's figure (contract mode).
+    /// Contract mode: nym-api publishes the performance contract's figure and computes none of its own.
     pub(crate) use_performance_contract_data: bool,
 }
 
@@ -167,12 +167,6 @@ impl FromRef<AppState> for NodeStatusCache {
 impl FromRef<AppState> for SharedCache<SignersCacheData> {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.ecash_signers_cache.clone()
-    }
-}
-
-impl FromRef<AppState> for DirectoryState {
-    fn from_ref(app_state: &AppState) -> Self {
-        app_state.directory.clone()
     }
 }
 

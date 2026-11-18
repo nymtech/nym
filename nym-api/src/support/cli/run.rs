@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::directory::attestation::source::DirectorySnapshotSource;
 use crate::ecash::client::Client;
 use crate::ecash::comm::{CommunicationChannelConfig, QueryCommunicationChannel};
 use crate::ecash::dkg::controller::keys::{
@@ -15,19 +16,22 @@ use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2 as NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
+use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::node_performance::contract_window::refresher::PerformanceContractWindowRefresher;
 use crate::node_performance::contract_window::PerformanceContractWindow;
-use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
 use crate::status::{ApiStatusState, SignerState};
+use crate::support::attested_snapshots;
 use crate::support::caching::cache::SharedCache;
+use crate::support::caching::startup::StartupCaches;
+use crate::support::chain_anchor::SharedChainAnchor;
 use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::directory::DirectoryState;
+use crate::support::http::state::contract_snapshots::ContractSnapshots;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -39,11 +43,12 @@ use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::m
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
-    directory, ecash, epoch_operations, mixnet_contract_cache, network_monitor,
-    node_describe_cache, node_families, node_status_api, signers_cache,
+    ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
+    node_families, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::v2::NymNetworkDetails;
+use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::Coin;
@@ -143,184 +148,169 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     let shutdown_manager = ShutdownManager::build_new_default()?
         .with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
 
+    // ===== SETUP: the chain client, storage, identity and ecash
     let nym_network_details = NymNetworkDetails::new_from_env();
     let nyxd_client = nyxd::Client::new(&config, &nym_network_details)?;
     let connected_nyxd = config.get_nyxd_url();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
-    let ecash_keypair_wrapper = ecash::keys::KeyPair::new();
-
-    // if the keypair doesn't exist (because say this API is running in the caching mode), nothing will happen
-    if let Some(loaded_keys) = load_ecash_keypair_if_exists(&config.ecash_signer)? {
-        let issued_for = loaded_keys.issued_for_epoch;
-        ecash_keypair_wrapper.set(loaded_keys).await;
-
-        if can_validate_ecash_keys(&nyxd_client, issued_for).await? {
-            ecash_keypair_wrapper.validate()
-        }
-    }
-
-    // credentials issued under earlier epochs remain spendable, and their auxiliary signatures
-    // can only be produced with the keys of the epoch that issued them.
-    //
-    // this is deliberately not tied to holding a *current* key: an api that restarted between
-    // archiving its old one and deriving its replacement holds nothing else.
-    if config.ecash_signer.enabled {
-        for archived in
-            load_archived_ecash_keypairs(&config.ecash_signer.storage_paths.ecash_key_path)
-        {
-            ecash_keypair_wrapper.archive(archived).await;
-        }
-    }
+    let ecash_keypair = load_ecash_keys(&config, &nyxd_client).await?;
 
     let storage = initialise_storage(&config).await?;
-
     let identity_keypair = Arc::new(config.base.storage_paths.load_identity()?);
-    let identity_public_key = *identity_keypair.public_key();
 
-    let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
+    let mut ecash_state = build_ecash_state(
+        &config,
+        &nyxd_client,
+        &identity_keypair,
+        &ecash_keypair,
+        &storage,
+        &shutdown_manager,
+    )
+    .await?;
+    let signer_information = load_signer_information(
+        &config,
+        &nyxd_client,
+        &network_details,
+        &identity_keypair,
+        &ecash_keypair,
+    )
+    .await?;
+
+    // ===== STARTUP CACHES: each loaded from its persisted file while fresh and refreshed in the
+    // background, beside the attested producers' startup production
     let storage_cfg = &config.base.storage_paths;
 
-    // ===== START: attempt to build up initial caches based on prior data
-    //
     // MIXNET CONTRACT
     let mixnet_path = storage_cfg.cache_file("mixnet_contract");
     let ttl = config.mixnet_contract_cache.debug.caching_interval;
     let mixnet_contract_cache_state = MixnetContractCache::new(&mixnet_path, ttl);
     let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
         &config.mixnet_contract_cache,
-        &mixnet_contract_cache_state.clone(),
+        &mixnet_contract_cache_state,
         nyxd_client.clone(),
         mixnet_path,
     );
+    let mixnet_contract_cache_refresh_requester =
+        mixnet_contract_cache_refresher.refresh_requester();
+    let contract_cache_watcher =
+        mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
     // DESCRIBED NODES
     let described_path = storage_cfg.cache_file("described_nodes");
     let ttl = config.describe_cache.debug.caching_interval;
     let described_nodes_cache =
-        SharedCache::<DescribedNodes>::new_with_persistent(&described_path, ttl, None);
+        SharedCache::<DescribedNodes>::new_with_persistent(&described_path, ttl);
     let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
         &config.describe_cache,
         mixnet_contract_cache_state.clone(),
         described_nodes_cache.clone(),
         described_path,
     );
+    let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
+    let describe_cache_watcher =
+        describe_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
     // NODE FAMILIES
     let node_families_path = storage_cfg.cache_file("node_families");
     let ttl = config.node_families_cache.debug.caching_interval;
     let node_families_cache =
-        SharedCache::<NodeFamiliesCacheData>::new_with_persistent(&node_families_path, ttl, None);
-    let node_families_cache_refresher = node_families::build_refresher(
+        SharedCache::<NodeFamiliesCacheData>::new_with_persistent(&node_families_path, ttl);
+    node_families::build_refresher(
         &config.node_families_cache,
-        &mixnet_contract_cache_state.clone(),
+        &mixnet_contract_cache_state,
         &node_families_cache,
         nyxd_client.clone(),
         node_families_path,
-    );
+    )
+    .start(shutdown_manager.clone_shutdown_token());
 
-    // NODES ANNOTATIONS
-    let annotations_path = storage_cfg.cache_file("node_annotations");
+    // NODE ANNOTATIONS: its refresher starts below, after the performance snapshots. each mode
+    // persists its own file, so that neither loads, or carries over, what the other built
+    let annotations_file = if config.performance_provider.use_performance_contract_data {
+        "contract_node_annotations"
+    } else {
+        "node_annotations"
+    };
+    let annotations_path = storage_cfg.cache_file(annotations_file);
     let ttl = config.node_status_api.debug.caching_interval;
     let node_status_cache_state = NodeStatusCache::new(&annotations_path, ttl);
 
-    // note: can't create the cache refresher the same way as above as it's using a different structure
-    // unfortunately
+    // CHAIN ANCHOR
+    // the chain trust every attested contract's snapshots are verified under
+    let checkpoint_path = storage_cfg.cache_file("nyx_checkpoint.json");
+    let chain_anchor = SharedChainAnchor::new(
+        &config.directory.debug,
+        nyxd_client.query_client(),
+        &checkpoint_path,
+    )
+    .await?;
 
-    // ===== END: attempt to build up initial caches based on prior data
-
-    // not a 'persistent' cache that's updated on a timer like the above - it's just use for retrieving database information
-    // for unstable routes regarding test runs.
-    let node_info_cache = unstable::NodeInfoCache::default();
-
-    // not as data sensitive as others
-    // check if signers cache is enabled, and if so, start the refresher
-    let ecash_signers_cache = if config.signers_cache.enabled {
-        signers_cache::start_refresher(
-            &config.signers_cache,
-            nyxd_client.clone(),
-            &shutdown_manager,
-        )
-    } else {
-        SharedCache::new()
-    };
-
-    let mixnet_contract_cache_refresh_requester =
-        mixnet_contract_cache_refresher.refresh_requester();
-
-    let ecash_contract = nyxd_client
-        .get_ecash_contract_address()
-        .await
-        .context("e-cash contract address is required to setup the nym-api routes")?;
-
-    let comm_channel = QueryCommunicationChannel::new(
-        nyxd_client.clone(),
-        CommunicationChannelConfig::new(&config),
-    );
-
-    let encoded_identity = identity_keypair.public_key().to_base58_string();
-    let mut ecash_state = EcashState::new(
-        &config,
-        ecash_contract,
-        nyxd_client.clone(),
+    // PERFORMANCE SNAPSHOTS
+    let performance_snapshots = attested_snapshots::start_refresher(
+        PerformanceSnapshotSource::new(&chain_anchor)?,
+        &chain_anchor,
+        config.directory.debug,
         identity_keypair.clone(),
-        ecash_keypair_wrapper.clone(),
-        comm_channel,
-        storage.clone(),
+        storage_cfg.cache_file("performance_snapshots"),
         &shutdown_manager,
-    );
+    )
+    .await?;
 
-    // if ecash signer is enabled, there are additional constraints on the nym-api,
-    // such as having sufficient token balance
-    let signer_information = if config.ecash_signer.enabled {
-        let cosmos_address = nyxd_client.address().await?;
+    // NODE ANNOTATIONS' REFRESHER
+    // after the performance snapshots, which contract mode builds them from, and before the
+    // directory's startup production, so that their first refresh runs beside it
+    let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
+        &config,
+        &nyxd_client,
+        &mixnet_contract_cache_state,
+        &described_nodes_cache,
+        &performance_snapshots,
+        &node_status_cache_state,
+        &storage,
+        contract_cache_watcher.clone(),
+        describe_cache_watcher,
+        annotations_path,
+        &shutdown_manager,
+    )
+    .await;
 
-        // make sure we have some tokens to cover multisig fees
-        let balance = nyxd_client.balance(&mix_denom).await?;
-        if balance.amount < ecash::MINIMUM_BALANCE {
-            let min = Coin::new(ecash::MINIMUM_BALANCE, mix_denom);
-            bail!("the account ({cosmos_address}) doesn't have enough funds to cover verification fees. it has {balance} while it needs at least {min}")
-        }
+    // DIRECTORY SNAPSHOTS
+    let directory = attested_snapshots::start_refresher(
+        DirectorySnapshotSource::new(&chain_anchor)?,
+        &chain_anchor,
+        config.directory.debug,
+        identity_keypair.clone(),
+        storage_cfg.cache_file("directory"),
+        &shutdown_manager,
+    )
+    .await?;
 
-        let announce_address = config
-            .ecash_signer
-            .announce_address
-            .clone()
-            .map(|u| u.to_string())
-            .unwrap_or_default();
-        Some(SignerState {
-            cosmos_address: cosmos_address.to_string(),
-            identity: encoded_identity,
-            announce_address,
-            ecash_keypair: ecash_keypair_wrapper.clone(),
-        })
-    } else {
-        None
+    // ===== WAIT: nothing else is spawned and nothing is served until the startup caches hold
+    // values, so that no route, reward or selection reads one that was never built
+    let startup_caches = StartupCaches {
+        mixnet_contract: mixnet_contract_cache_state.clone(),
+        described_nodes: described_nodes_cache.clone(),
+        node_families: node_families_cache.clone(),
+        node_annotations: node_status_cache_state.clone(),
     };
+    if startup_caches
+        .wait_until_built(&shutdown_manager.clone_shutdown_token())
+        .await
+        .is_err()
+    {
+        // shutdown was signalled, or a task panicked, so there is nothing more to start
+        return Ok(shutdown_manager);
+    }
 
-    ecash_state.spawn_background_cleaner();
-
-    let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
-
-    let describe_cache_watcher =
-        describe_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
-
-    let performance_provider = LegacyStoragePerformanceProvider::new(
-        storage.clone(),
-        mixnet_contract_cache_state.clone(),
-        config.performance_provider.debug.stress_testing_data_period,
-        config.performance_provider.debug.liveness_data_period,
-    );
-
-    // start all the caches first
-    let contract_cache_watcher =
-        mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
-
-    let performance_contract_window = if config.performance_provider.read_performance_contract {
+    // ===== TASKS AND HTTP
+    // held only where rewarding runs: contract-mode rewarding and selection and, with the switch
+    // off, the contract-divergence route are its only readers; loaded, in contract mode, before
+    // the epoch operations start
+    let performance_contract_window = if config.rewarding.enabled {
         Some(
             start_performance_contract_window(
                 &config,
-                &network_details,
                 &nyxd_client,
                 &mixnet_contract_cache_state,
                 &shutdown_manager,
@@ -331,35 +321,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         None
     };
 
-    let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
-        &config,
-        &nyxd_client,
-        &mixnet_contract_cache_state,
-        &described_nodes_cache,
-        &node_status_cache_state,
-        performance_provider,
-        contract_cache_watcher.clone(),
-        describe_cache_watcher,
-        annotations_path,
-        &shutdown_manager,
-    )
-    .await;
-
-    node_families_cache_refresher.start(shutdown_manager.clone_shutdown_token());
-
-    // DIRECTORY
-    let directory_path = storage_cfg.cache_file("directory");
-    let checkpoint_path = storage_cfg.cache_file("nyx_checkpoint.json");
-    let directory_cache = directory::cache::start_cache_refresher(
-        config.directory,
-        identity_keypair.clone(),
-        nyxd_client.clone(),
-        directory_path,
-        checkpoint_path,
-        &shutdown_manager,
-    )
-    .await?;
-
     // start dkg task
     if config.ecash_signer.enabled {
         let dkg_bte_keypair = load_bte_keypair(&config.ecash_signer)?;
@@ -367,19 +328,17 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         DkgController::start(
             &config.ecash_signer,
             nyxd_client.clone(),
-            ecash_keypair_wrapper,
+            ecash_keypair,
             dkg_bte_keypair,
-            identity_public_key,
+            *identity_keypair.public_key(),
             nym_crypto::rng::os_rng(),
             &shutdown_manager,
         )?;
     }
 
-    let has_performance_data =
-        config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
+    ecash_state.spawn_background_cleaner();
 
-    // and then only start the uptime updater (and the monitor itself, duh)
-    // if the monitoring is enabled
+    // the network monitor and its uptime updater, where monitoring is enabled
     if config.network_monitor.enabled {
         network_monitor::start::<SphinxMessageReceiver>(
             &config,
@@ -395,7 +354,9 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         HistoricalUptimeUpdater::start(storage.to_owned(), &shutdown_manager);
     }
 
-    // start 'rewarding' if its enabled and there exists source for performance data
+    // rewarding, where enabled and there is a source of performance data
+    let has_performance_data =
+        config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
     if config.rewarding.enabled && has_performance_data {
         epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
         let performance_source = match &performance_contract_window {
@@ -415,14 +376,25 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         );
     }
 
-    // finally start a background task watching the contract changes and requesting
-    // self-described cache refresh upon being close to key rotation rollover
+    // a background task watching the contract changes and requesting self-described cache
+    // refresh upon being close to key rotation rollover
     KeyRotationController::new(
         describe_cache_refresh_requester,
         contract_cache_watcher,
         mixnet_contract_cache_state.clone(),
     )
     .start(shutdown_manager.clone_shutdown_token());
+
+    // it probes this nym-api's own HTTP after its start delay, which therefore runs from here
+    let ecash_signers_cache = if config.signers_cache.enabled {
+        signers_cache::start_refresher(
+            &config.signers_cache,
+            nyxd_client.clone(),
+            &shutdown_manager,
+        )
+    } else {
+        SharedCache::new()
+    };
 
     let mixnet_contract_cache = MixnetContractCacheState::new(
         mixnet_contract_cache_state,
@@ -455,11 +427,15 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         storage,
         described_nodes_cache,
         network_details,
-        node_info_cache,
+        // filled on demand from the database, for the unstable test-run routes
+        node_info_cache: unstable::NodeInfoCache::default(),
         contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
-        directory: DirectoryState::new(directory_cache, config.directory.debug.retention_count),
+        contract_snapshots: ContractSnapshots {
+            directory,
+            performance: performance_snapshots,
+        },
         performance_contract_window,
         use_performance_contract_data: config.performance_provider.use_performance_contract_data,
     });
@@ -480,26 +456,114 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     Ok(shutdown_manager)
 }
 
+/// The ecash keys this nym-api holds: its current one if any, and a signer's archived ones.
+async fn load_ecash_keys(
+    config: &Config,
+    nyxd_client: &nyxd::Client,
+) -> anyhow::Result<ecash::keys::KeyPair> {
+    let ecash_keypair = ecash::keys::KeyPair::new();
+
+    // if the keypair doesn't exist (because say this API is running in the caching mode), nothing will happen
+    if let Some(loaded_keys) = load_ecash_keypair_if_exists(&config.ecash_signer)? {
+        let issued_for = loaded_keys.issued_for_epoch;
+        ecash_keypair.set(loaded_keys).await;
+
+        if can_validate_ecash_keys(nyxd_client, issued_for).await? {
+            ecash_keypair.validate()
+        }
+    }
+
+    // credentials issued under earlier epochs remain spendable, and their auxiliary signatures
+    // can only be produced with the keys of the epoch that issued them.
+    //
+    // this is deliberately not tied to holding a *current* key: an api that restarted between
+    // archiving its old one and deriving its replacement holds nothing else.
+    if config.ecash_signer.enabled {
+        for archived in
+            load_archived_ecash_keypairs(&config.ecash_signer.storage_paths.ecash_key_path)
+        {
+            ecash_keypair.archive(archived).await;
+        }
+    }
+
+    Ok(ecash_keypair)
+}
+
+/// The ecash state, whose background cleaner is started once the startup caches are built.
+async fn build_ecash_state(
+    config: &Config,
+    nyxd_client: &nyxd::Client,
+    identity_keypair: &Arc<ed25519::KeyPair>,
+    ecash_keypair: &ecash::keys::KeyPair,
+    storage: &NymApiStorage,
+    shutdown_manager: &ShutdownManager,
+) -> anyhow::Result<EcashState> {
+    let ecash_contract = nyxd_client
+        .get_ecash_contract_address()
+        .await
+        .context("e-cash contract address is required to setup the nym-api routes")?;
+
+    let comm_channel = QueryCommunicationChannel::new(
+        nyxd_client.clone(),
+        CommunicationChannelConfig::new(config),
+    );
+
+    Ok(EcashState::new(
+        config,
+        ecash_contract,
+        nyxd_client.clone(),
+        identity_keypair.clone(),
+        ecash_keypair.clone(),
+        comm_channel,
+        storage.clone(),
+        shutdown_manager,
+    ))
+}
+
+/// This nym-api's signer information when it is an ecash signer, which also requires its account
+/// to hold enough to cover the multisig fees.
+async fn load_signer_information(
+    config: &Config,
+    nyxd_client: &nyxd::Client,
+    network_details: &NetworkDetails,
+    identity_keypair: &ed25519::KeyPair,
+    ecash_keypair: &ecash::keys::KeyPair,
+) -> anyhow::Result<Option<SignerState>> {
+    if !config.ecash_signer.enabled {
+        return Ok(None);
+    }
+
+    let cosmos_address = nyxd_client.address().await?;
+
+    // make sure we have some tokens to cover multisig fees
+    let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
+    let balance = nyxd_client.balance(&mix_denom).await?;
+    if balance.amount < ecash::MINIMUM_BALANCE {
+        let min = Coin::new(ecash::MINIMUM_BALANCE, mix_denom);
+        bail!("the account ({cosmos_address}) doesn't have enough funds to cover verification fees. it has {balance} while it needs at least {min}")
+    }
+
+    let announce_address = config
+        .ecash_signer
+        .announce_address
+        .clone()
+        .map(|u| u.to_string())
+        .unwrap_or_default();
+    Ok(Some(SignerState {
+        cosmos_address: cosmos_address.to_string(),
+        identity: identity_keypair.public_key().to_base58_string(),
+        announce_address,
+        ecash_keypair: ecash_keypair.clone(),
+    }))
+}
+
 /// Starts the window over the performance contract, loaded up front in contract mode.
 async fn start_performance_contract_window(
     config: &Config,
-    network_details: &NetworkDetails,
     nyxd_client: &nyxd::Client,
     mixnet_contract_cache: &MixnetContractCache,
     shutdown_manager: &ShutdownManager,
 ) -> anyhow::Result<PerformanceContractWindow> {
-    if network_details
-        .network
-        .contracts
-        .performance_contract_address
-        .is_none()
-    {
-        bail!(
-            "[performance_provider].read_performance_contract is set, but the network details \
-             carry no performance contract address"
-        )
-    }
-
     let window = PerformanceContractWindow::default();
     let refresher = PerformanceContractWindowRefresher::new(
         window.clone(),

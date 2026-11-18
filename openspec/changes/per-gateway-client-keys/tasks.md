@@ -54,8 +54,8 @@
 
 ## 8. Ecash user key and the bandwidth fetcher
 
-- [ ] 8.1 Add the mnemonic helper to `nym-credentials`: take a `&bip39::Mnemonic`, compute SHA-256 over the label `nym-ecash-user-key-from-mnemonic-v1` and the mnemonic entropy in a zeroizing buffer, and return the `KeyPairUser` from the existing seeded key generation
-- [ ] 8.2 Add a known-answer test for the helper on a fixed mnemonic, with a comment saying that a changed output changes the ecash key of every self-funding client
+- [x] 8.1 Add the mnemonic helper to `nym-credentials`: take a `&bip39::Mnemonic`, compute SHA-256 over the label `nym-ecash-user-key-from-mnemonic-v1` and the mnemonic entropy in a zeroizing buffer, and return the `KeyPairUser` from the existing seeded key generation (`ecash_keypair_from_mnemonic` in `ecash/user_key.rs`, exported from the crate root; `bip39` through the validator client's re-export, `sha2` added as a direct dependency)
+- [x] 8.2 Add a known-answer test for the helper on a fixed mnemonic, with a comment saying that a changed output changes the ecash key of every self-funding client (the mnemonic is built from fixed entropy bytes; the seed is checked against an independent SHA-256, and the public key is recorded from the implementation, since it comes from the existing seeded ecash key generation)
 - [ ] 8.3 Change `NyxdCredentialFetcher::new` to take a `&bip39::Mnemonic` and derive the keypair with the helper, remove the constructor that takes seed bytes, and leave `new_with_keypair` using its keypair unchanged
 - [ ] 8.4 Give the recovery-only fetcher a construction path that takes no ecash key and no placeholder keypair, and update `recover_ticket_book` in nym-cli to use it
 - [ ] 8.5 In nym-sdk, make `create_bandwidth_client` and `BandwidthAcquireClient` pass the mnemonic to the fetcher and stop loading the client keys

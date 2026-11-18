@@ -12,5 +12,6 @@ pub use ecash::bandwidth::{
     },
     CredentialSigningData, CredentialSpendingData, IssuanceTicketBook, IssuedTicketBook,
 };
+pub use ecash::user_key::ecash_keypair_from_mnemonic;
 pub use ecash::utils::{aggregate_verification_keys, obtain_aggregate_wallet};
 pub use error::Error;

@@ -5,7 +5,7 @@ use crate::{
     client::base_client::storage::helpers::{
         get_all_registered_identities, remove_gateway_details,
     },
-    client::key_manager::persistence::{OnDiskKeys, Passphrase},
+    client::key_manager::persistence::{KeyStore, OnDiskKeys, OnDiskKeysError, Passphrase},
     client::replies::reply_storage::{CombinedReplyStorage, ReplyStorageBackend, fs_backend},
     config,
     config::Config,
@@ -194,12 +194,24 @@ pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
 
 /// Gives the client a new identity: new random root keys, no gateway registrations and no reply
 /// SURBs or reply keys. It contacts no gateway and leaves the credential store unopened, so
-/// ticketbooks are kept. No client may be using these paths while it runs.
+/// ticketbooks are kept. No client may be using these paths while it runs. It fails before
+/// changing anything when `key_passphrase` does not open the existing keys.
 pub async fn reset_client_identity(
     paths: &CommonClientPaths,
     key_passphrase: Option<Passphrase>,
     database_key: Option<&nym_sqlcipher::DatabaseKey>,
 ) -> Result<(), ClientCoreError> {
+    let key_store = OnDiskKeys::with_passphrase(paths.keys.clone(), key_passphrase);
+    if let Err(
+        err
+        @ (OnDiskKeysError::PassphraseRequired { .. } | OnDiskKeysError::WrongPassphrase { .. }),
+    ) = key_store.load_keys().await
+    {
+        return Err(ClientCoreError::KeyStoreError {
+            source: Box::new(err),
+        });
+    }
+
     // the keys go last, so a reset cut short leaves registrations under the keys they were
     // made with, or none, and running it again finishes it
     let details_store =
@@ -237,7 +249,6 @@ pub async fn reset_client_identity(
         }
     }
 
-    let key_store = OnDiskKeys::with_passphrase(paths.keys.clone(), key_passphrase);
     generate_new_client_keys(&mut nym_crypto::rng::os_rng(), &key_store).await
 }
 

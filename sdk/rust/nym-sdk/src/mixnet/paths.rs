@@ -186,7 +186,8 @@ impl StoragePaths {
 
     /// Gives the client a new identity: new random root keys, no gateway registrations and no
     /// reply SURBs or reply keys. It contacts no gateway and leaves the credential store unopened,
-    /// so ticketbooks are kept. No client may be using these paths while it runs.
+    /// so ticketbooks are kept. No client may be using these paths while it runs. It fails before
+    /// changing anything when the key passphrase does not open the existing keys.
     pub async fn reset_client_identity(&self) -> Result<()> {
         Ok(non_wasm_helpers::reset_client_identity(
             &self.common_client_paths(),
@@ -264,6 +265,7 @@ mod tests {
     use nym_client_core::client::replies::reply_storage::{
         CombinedReplyStorage, ReplyStorageBackend,
     };
+    use nym_client_core::error::ClientCoreError;
     use nym_sphinx::anonymous_replies::SurbEncryptionKey;
     use nym_test_utils::helpers::{deterministic_rng, dummy_ed25519_keypair};
     use time::OffsetDateTime;
@@ -410,6 +412,52 @@ mod tests {
             .reply_surb_database_paths()
             .iter()
             .all(|path| !path.exists()));
+    }
+
+    #[tokio::test]
+    async fn reset_client_identity_changes_nothing_without_the_key_passphrase() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = StoragePaths::new_from_dir(dir.path())
+            .unwrap()
+            .with_key_passphrase(Some(Passphrase::new("hunter2")));
+
+        let old_keys = ClientKeys::generate_new(&mut deterministic_rng());
+        paths
+            .on_disk_key_storage_spec()
+            .store_keys(&old_keys)
+            .await
+            .unwrap();
+
+        let gateway_id = *dummy_ed25519_keypair(1).public_key();
+        let details_store = paths.on_disk_gateway_details_storage().await.unwrap();
+        details_store
+            .store_gateway_details(&GatewayDetails::new_custom(gateway_id, None).into())
+            .await
+            .unwrap();
+
+        for key_passphrase in [None, Some(Passphrase::new("hunter3"))] {
+            let reset = paths
+                .clone()
+                .with_key_passphrase(key_passphrase)
+                .reset_client_identity()
+                .await;
+            assert!(matches!(
+                reset,
+                Err(Error::ClientCoreError(
+                    ClientCoreError::KeyStoreError { .. }
+                ))
+            ));
+        }
+
+        let keys = paths.on_disk_key_storage_spec().load_keys().await.unwrap();
+        assert_eq!(
+            keys.identity_keypair().public_key(),
+            old_keys.identity_keypair().public_key()
+        );
+        assert_eq!(
+            details_store.all_gateways_identities().await.unwrap().len(),
+            1
+        );
     }
 
     /// The numbers of stored reply keys and of senders with stored reply SURBs.

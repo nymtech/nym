@@ -6,7 +6,7 @@ use nym_registration_common::NymNodeInformation;
 use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
-        KeySecret, MixnetClient, MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent,
+        MixnetClient, MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent, Passphrase,
         StoragePaths, x25519,
     },
 };
@@ -46,11 +46,11 @@ pub struct BuilderConfig {
     /// with it. SQLCipher has to be linked in place of SQLite.
     #[builder(default)]
     pub database_key: Option<nym_sqlcipher::DatabaseKey>,
-    /// Secret (passphrase or raw 256-bit key) encrypting the mixnet client private keys in
-    /// `data_path`: identity, encryption and ack keys. Plaintext keys get encrypted on first load
-    /// with it. Validating a passphrase (for instance rejecting an empty one) is the caller's job.
+    /// Passphrase encrypting the mixnet client private keys in `data_path`: identity,
+    /// encryption and ack keys. Plaintext keys get encrypted on first load with it. Validating
+    /// the passphrase (for instance rejecting an empty one) is the caller's job.
     #[builder(default)]
-    pub keys_secret: Option<KeySecret>,
+    pub key_passphrase: Option<Passphrase>,
     pub mode: RegistrationMode,
     pub bandwidth_request_sender: BandwidthControllerRequestSender,
     /// Clock skew to apply to the system clock when timestamping bandwidth credentials spent
@@ -137,7 +137,7 @@ impl BuilderConfig {
         let storage_paths = StoragePaths::new_from_dir(&self.data_path)
             .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?
             .with_database_key(self.database_key.clone())
-            .with_key_secret(self.keys_secret.clone());
+            .with_key_passphrase(self.key_passphrase.clone());
 
         let mixnet_client_storage = storage_paths
             .initialise_persistent_storage(&self.mixnet_client_debug_config())

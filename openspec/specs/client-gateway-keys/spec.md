@@ -113,7 +113,7 @@ The stored registration MUST be replaced only after the new registration has suc
 
 As part of a refresh the client MUST NOT connect to the gateway as its previous identity.
 
-The flag SHALL be settable on the SDK's mixnet client builder and through `nym-registration-client`. It is not exposed by the command-line clients or by the wasm client. This requirement applies to clients that keep stored registrations; over LP the flag is rejected, as required for LP clients.
+The flag SHALL be settable on the SDK's mixnet client builder and through `nym-registration-client`. The native and socks5 clients offer the same refresh as their `refresh-gateway-keys` command, which refreshes without starting the client. The wasm client does not expose it. This requirement applies to clients that keep stored registrations; over LP the flag is rejected, as required for LP clients.
 
 #### Scenario: A refresh gives the gateway a new client
 - **WHEN** an application connects with the refresh flag to a gateway it has a derived registration for
@@ -145,7 +145,7 @@ The flag SHALL be settable on the SDK's mixnet client builder and through `nym-r
 
 ### Requirement: A full reset replaces the root keys and keeps the credential store
 
-The SDK SHALL provide an explicit reset operation, `reset_client_identity`, also reachable through `nym-registration-client`. A reset SHALL generate new random root keys, remove every stored gateway registration and clear the reply store of its reply SURBs and reply keys. A reset MUST NOT modify the credential store, MUST NOT contact any gateway and MUST NOT happen implicitly. It SHALL be available only on a client that is not connected.
+The SDK SHALL provide an explicit reset operation, `reset_client_identity`, also reachable through `nym-registration-client` and as the `reset-client-identity` command of the native and socks5 clients. A reset SHALL generate new random root keys, remove every stored gateway registration and clear the reply store of its reply SURBs and reply keys. A reset MUST NOT modify the credential store, MUST NOT contact any gateway and MUST NOT happen implicitly. The caller MUST NOT run a reset while a client is using the same storage: the reset cannot detect one.
 
 A reset replaces the root because an LP client derives its keys from the root at the zero generation id at every start, so removing registrations alone would not give an LP client a fresh identity.
 

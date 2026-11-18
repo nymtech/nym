@@ -81,9 +81,9 @@ A change of key source SHALL affect only ticketbooks issued after it. Ticketbook
 - **WHEN** nym-vpn-client, whose ticketbooks were issued under the ecash key it derives from its account mnemonic, upgrades its dependency and constructs the fetcher with that same keypair
 - **THEN** every ticketbook it already holds can be spent, and its new ticketbooks are issued under the same ecash public key as its old ones
 
-#### Scenario: A deposit pending at upgrade time is completed
+#### Scenario: A deposit pending at upgrade time is recovered as before
 - **WHEN** a deposit was made and recorded as pending by an earlier version, and the client upgrades before issuance finished
-- **THEN** recovery completes the ticketbook with the keypair stored in the pending record
+- **THEN** recovery uses the keypair stored in the pending record and completes the ticketbook whenever it would have before the upgrade
 
 #### Scenario: Ticketbooks under two ecash keys coexist
 - **WHEN** a credential store holds one ticketbook issued before the change of key source and one issued after it

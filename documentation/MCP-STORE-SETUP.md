@@ -1,6 +1,6 @@
 # Provision the public retrieval store
 
-This guide creates the public Postgres store that the MCP server reads after the cutover, and puts its credentials where the producers and the route can use them. For what the store is and why it exists, read [`MCP-STORE.md`](MCP-STORE.md).
+This guide creates the public Postgres store that the MCP server reads after the cutover, and puts its credentials where the producers and the route can use them. For what the store is and why it exists, read [`MCP-STORE.md`](MCP-STORE.md). To run a store on your machine instead, follow [`MCP-STORE-LOCAL.md`](MCP-STORE-LOCAL.md).
 
 The guide covers task 4.1 of the OpenSpec change `add-shared-retrieval-index`, for the public store only. The private store is a separate database on Nym infrastructure.
 

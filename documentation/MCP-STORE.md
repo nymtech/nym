@@ -2,7 +2,7 @@
 
 This page explains the planned move of the MCP server's index from files in the function bundle to a Postgres store. It is for contributors who change the retrieval pipeline or the `/api/mcp` route, and for whoever runs the store.
 
-Status (2026-11-18): the read path (`/api/mcp` behind `MCP_RETRIEVAL_SOURCE`) and the write path (`cd-retrieval-store.yml` behind `RETRIEVAL_STORE_ENABLED`) are built, and both are off by default, so the route reads the bundled files. Not done: creating the store and switching both on (tasks 4.1, 5.2 and 5.3 of the OpenSpec change `add-shared-retrieval-index`). Until task 5.3, [`MCP-SERVER.md`](MCP-SERVER.md) describes the system that runs by default. To create the store, follow [`MCP-STORE-SETUP.md`](MCP-STORE-SETUP.md).
+Status (2026-11-18): the read path (`/api/mcp` behind `MCP_RETRIEVAL_SOURCE`) and the write path (`cd-retrieval-store.yml` behind `RETRIEVAL_STORE_ENABLED`) are built, and both are off by default, so the route reads the bundled files. Not done: creating the store and switching both on (tasks 4.1, 5.2 and 5.3 of the OpenSpec change `add-shared-retrieval-index`). Until task 5.3, [`MCP-SERVER.md`](MCP-SERVER.md) describes the system that runs by default. To create the public store, follow [`MCP-STORE-SETUP.md`](MCP-STORE-SETUP.md). To run a store on your machine, follow [`MCP-STORE-LOCAL.md`](MCP-STORE-LOCAL.md).
 
 ## How the MCP reads today
 

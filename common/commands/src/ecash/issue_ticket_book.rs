@@ -1,7 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::context::SigningClient;
+use crate::context::{create_signing_client_with_mnemonic, SigningClient};
 use crate::utils::CommonConfigsWrapper;
 use anyhow::{anyhow, bail};
 use clap::ArgGroup;
@@ -10,33 +10,22 @@ use log::info;
 use nym_bandwidth_controller::BandwidthController;
 use nym_bandwidth_fetcher::NyxdCredentialFetcher;
 use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
-use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
-use nym_client_core::client::key_manager::persistence::KeySecret;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
-use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::ed25519;
+use nym_credentials_interface::{KeyPairUser, TicketType};
+use nym_network_defaults::NymNetworkDetails;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::NamedTempFile;
 use zeroize::Zeroizing;
 
-const KEY_PASSPHRASE_HELP: &str = "Passphrase decrypting the client's private identity key, \
-    if it's stored encrypted. Only used with --client-config. A plaintext key is read as is and \
-    stays unencrypted. Prefer the environment variable: a flag value is visible in the process list";
-
 #[derive(Debug, Parser)]
-#[clap(
-    group(ArgGroup::new("output").required(true)),
-    // the shared help describes the clients, which also encrypt plaintext keys on load; this
-    // command only reads the identity key
-    mut_arg("key_passphrase", |arg| arg.help(KEY_PASSPHRASE_HELP)),
-)]
+#[clap(group(ArgGroup::new("output").required(true)))]
 pub struct Args {
     /// Specify which type of ticketbook should be issued
     #[clap(long, default_value_t = TicketType::V1MixnetEntry)]
@@ -71,17 +60,14 @@ pub struct Args {
     pub(crate) bs58_encoded_client_secret: Option<String>,
 
     #[clap(flatten)]
-    pub(crate) key_passphrase: KeyPassphraseArgs,
-
-    #[clap(flatten)]
     pub(crate) database_key: DatabaseKeyArgs,
 }
 
 async fn issue_client_ticketbook(
     config_path: PathBuf,
     ticketbook_type: TicketType,
-    key_secret: Option<&KeySecret>,
     database_key: Option<&nym_sqlcipher::DatabaseKey>,
+    mnemonic: &bip39::Mnemonic,
     client: SigningClient,
 ) -> anyhow::Result<()> {
     let loaded = CommonConfigsWrapper::try_load(config_path)?;
@@ -94,26 +80,16 @@ async fn issue_client_ticketbook(
         bail!("the loaded config does not have a credentials store information")
     };
 
-    let Ok(private_id_key) = loaded.try_get_private_id_key() else {
-        bail!("the loaded config does not have a public id key information")
-    };
-
     println!(
         "using credentials store at '{}'",
         credentials_store.display()
     );
     let requests_store = loaded.try_get_credential_requests_store()?;
     let persistent_storage = initialise_persistent_storage(credentials_store, database_key).await;
-    let private_id_key: ed25519::PrivateKey =
-        nym_pemstore::load_key_with(private_id_key, key_secret)?;
 
-    let fetcher = NyxdCredentialFetcher::new(
-        Arc::new(client),
-        requests_store,
-        database_key,
-        Zeroizing::new(private_id_key.to_bytes().to_vec()),
-    )
-    .await?;
+    let fetcher =
+        NyxdCredentialFetcher::new(Arc::new(client), requests_store, database_key, mnemonic)
+            .await?;
     let controller = BandwidthController::new(persistent_storage).with_credential_fetcher(fetcher);
     controller.fetch_ticketbook(ticketbook_type).await?;
 
@@ -123,7 +99,8 @@ async fn issue_client_ticketbook(
 async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> {
     // those MUST HAVE been specified; clap ensures it
     let output_file = args.output_file.unwrap();
-    let secret = bs58::decode(&args.bs58_encoded_client_secret.unwrap()).into_vec()?;
+    let secret =
+        Zeroizing::new(bs58::decode(&args.bs58_encoded_client_secret.unwrap()).into_vec()?);
 
     let temp_credential_store_file = NamedTempFile::new()?;
     let credential_store_path = temp_credential_store_file.into_temp_path();
@@ -134,11 +111,11 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
     let pending_requests_file = NamedTempFile::new()?;
     let pending_requests_path = pending_requests_file.into_temp_path();
 
-    let fetcher = NyxdCredentialFetcher::new(
+    let fetcher = NyxdCredentialFetcher::new_with_keypair(
         Arc::new(client),
         &pending_requests_path,
         None,
-        Zeroizing::new(secret),
+        KeyPairUser::new_seeded(secret.as_slice()),
     )
     .await?;
     let controller =
@@ -201,20 +178,24 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
     Ok(())
 }
 
-pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
+pub async fn execute(
+    args: Args,
+    mnemonic: bip39::Mnemonic,
+    network_details: &NymNetworkDetails,
+) -> anyhow::Result<()> {
     if let Some(client_config) = args.client_config {
+        // the mnemonic that pays for the deposit also derives the ticketbook's ecash keypair
+        let client = create_signing_client_with_mnemonic(mnemonic.clone(), network_details)?;
         return issue_client_ticketbook(
             client_config,
             args.ticketbook_type,
-            args.key_passphrase
-                .key_passphrase
-                .map(KeySecret::from)
-                .as_ref(),
             args.database_key.database_key.as_ref(),
+            &mnemonic,
             client,
         )
         .await;
     }
 
+    let client = create_signing_client_with_mnemonic(mnemonic, network_details)?;
     issue_to_file(args, client).await
 }

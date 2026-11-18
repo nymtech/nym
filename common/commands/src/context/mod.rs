@@ -57,22 +57,30 @@ pub fn get_network_details(args: &ClientArgs) -> Result<NymNetworkDetails, Conte
     Ok(NymNetworkDetails::new_from_env())
 }
 
+/// The mnemonic a signing client signs with: the `MNEMONIC` env var, else `--mnemonic`.
+pub fn signing_mnemonic(
+    mnemonic_arg: Option<bip39::Mnemonic>,
+) -> Result<bip39::Mnemonic, ContextError> {
+    match std::env::var("MNEMONIC") {
+        Ok(value) => Ok(bip39::Mnemonic::parse(value)?),
+        // env var MNEMONIC is not present, so try to fall back to arg --mnemonic ...
+        Err(_) => mnemonic_arg.ok_or(ContextError::MnemonicNotProvided),
+    }
+}
+
 pub fn create_signing_client(
     args: ClientArgs,
     network_details: &NymNetworkDetails,
 ) -> Result<SigningClient, ContextError> {
+    create_signing_client_with_mnemonic(signing_mnemonic(args.mnemonic)?, network_details)
+}
+
+pub fn create_signing_client_with_mnemonic(
+    mnemonic: bip39::Mnemonic,
+    network_details: &NymNetworkDetails,
+) -> Result<SigningClient, ContextError> {
     let client_config = nyxd::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
-
-    // get mnemonic
-    let mnemonic = match std::env::var("MNEMONIC") {
-        Ok(value) => bip39::Mnemonic::parse(value)?,
-        // env var MNEMONIC is not present, so try to fall back to arg --mnemonic ...
-        Err(_) => match args.mnemonic {
-            Some(value) => value,
-            None => return Err(ContextError::MnemonicNotProvided), // no env var or arg provided
-        },
-    };
 
     let nyxd_url = network_details
         .endpoints
@@ -113,15 +121,7 @@ pub fn create_signing_client_with_nym_api(
     let client_config = nym_validator_client::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
-    // get mnemonic
-    let mnemonic = match std::env::var("MNEMONIC") {
-        Ok(value) => bip39::Mnemonic::parse(value)?,
-        // env var MNEMONIC is not present, so try to fall back to arg --mnemonic ...
-        Err(_) => match args.mnemonic {
-            Some(value) => value,
-            None => return Err(ContextError::MnemonicNotProvided), // no env var or arg provided
-        },
-    };
+    let mnemonic = signing_mnemonic(args.mnemonic)?;
 
     match nym_validator_client::client::Client::new_signing(client_config, mnemonic) {
         Ok(client) => Ok(client),

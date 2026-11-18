@@ -34,6 +34,7 @@ nym-kkt-ciphersuite = { workspace = true }
 nym-lp = { workspace = true }
 nym-lp-data = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
+nym-sqlcipher = { workspace = true }
 nym-task = { workspace = true }
 nym-bridges-types = { workspace = true, features = ["serde"] }
 

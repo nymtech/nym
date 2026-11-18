@@ -25,7 +25,7 @@ impl AsRef<CommonShowTicketbooksArgs> for Args {
 
 pub async fn execute(args: Args) -> Result<(), IpPacketRouterError> {
     let output = args.output;
-    let res = show_ticketbooks::<CliIpPacketRouterClient, _>(args).await?;
+    let res = show_ticketbooks::<CliIpPacketRouterClient, _>(args, None).await?;
 
     println!("{}", output.format(&res));
     Ok(())

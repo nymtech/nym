@@ -79,8 +79,10 @@ pub struct GatewayCoreStatusResponse {
 /// stress testing results to nym-api via signed batches.
 pub mod v3 {
     use super::*;
-    use crate::models::OffsetDateTimeJsonSchemaWrapper;
+    use crate::models::described::v3::DeclaredRolesV3;
+    use crate::models::{DisplayRole, OffsetDateTimeJsonSchemaWrapper};
     use crate::signable::SignedMessage;
+    use nym_mixnet_contract_common::EpochId;
     use std::time::Duration;
     use time::OffsetDateTime;
 
@@ -327,6 +329,163 @@ pub mod v3 {
         pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
 
         pub nodes: Vec<NodeLivenessDivergence>,
+    }
+
+    /// Which way nym-api's figure and the performance contract's differ for a node, the first
+    /// that matches in declaration order.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum ContractDivergenceCategory {
+        /// nym-api scores the node above zero; the contract has no source for it.
+        Missing,
+
+        /// nym-api has no annotation for the node; the contract scores it.
+        ContractOnly,
+
+        /// The contract has a source for the node but cannot score it.
+        Unscoreable,
+
+        /// The contract's figure comes from an epoch before the current one.
+        Fallback,
+
+        /// The two figures differ by at least the threshold.
+        Divergent,
+
+        Agree,
+    }
+
+    /// Nodes in one category, in total and per declared role. A node counts under every role it
+    /// declares, and one nym-api has not described counts in the total only.
+    #[derive(
+        Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema,
+    )]
+    pub struct ContractDivergenceCounts {
+        pub total: usize,
+        pub mixnode: usize,
+        pub entry: usize,
+        pub exit: usize,
+    }
+
+    #[derive(
+        Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema,
+    )]
+    pub struct ContractDivergenceCategoryCounts {
+        pub missing: ContractDivergenceCounts,
+        pub contract_only: ContractDivergenceCounts,
+        pub unscoreable: ContractDivergenceCounts,
+        pub fallback: ContractDivergenceCounts,
+        pub divergent: ContractDivergenceCounts,
+        pub agree: ContractDivergenceCounts,
+    }
+
+    impl ContractDivergenceCounts {
+        /// Counts one node under every role it declares, and an undescribed one in the total only.
+        pub fn add(&mut self, declared_roles: Option<&DeclaredRolesV3>) {
+            self.total += 1;
+            let Some(roles) = declared_roles else {
+                return;
+            };
+            if roles.mixnode {
+                self.mixnode += 1;
+            }
+            if roles.entry {
+                self.entry += 1;
+            }
+            if roles.can_operate_exit_gateway() {
+                self.exit += 1;
+            }
+        }
+    }
+
+    impl ContractDivergenceCategoryCounts {
+        pub fn category_mut(
+            &mut self,
+            category: ContractDivergenceCategory,
+        ) -> &mut ContractDivergenceCounts {
+            match category {
+                ContractDivergenceCategory::Missing => &mut self.missing,
+                ContractDivergenceCategory::ContractOnly => &mut self.contract_only,
+                ContractDivergenceCategory::Unscoreable => &mut self.unscoreable,
+                ContractDivergenceCategory::Fallback => &mut self.fallback,
+                ContractDivergenceCategory::Divergent => &mut self.divergent,
+                ContractDivergenceCategory::Agree => &mut self.agree,
+            }
+        }
+    }
+
+    /// nym-api's own figure for a node, from its annotation.
+    #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema, ToSchema)]
+    pub struct NymApiFigure {
+        pub performance: f64,
+        pub routing_score: f64,
+        pub config_score: f64,
+    }
+
+    /// The performance contract's figure for a node at the current epoch, with the medians it
+    /// was scored from.
+    #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema, ToSchema)]
+    pub struct NodeContractFigure {
+        /// The epoch of the bundle the figure resolved to.
+        #[schema(value_type = u32)]
+        pub source_epoch: EpochId,
+
+        pub score: Option<f64>,
+        pub liveness: Option<f64>,
+        pub stress: Option<f64>,
+        pub config: Option<f64>,
+    }
+
+    /// What nym-api's describe cache says about a node, carried on `missing` rows to tell the
+    /// groups the orchestrator cannot describe apart.
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema, ToSchema)]
+    pub struct DescribedNodeDetails {
+        pub version: String,
+        pub mixnode: bool,
+        pub entry: bool,
+        pub exit: bool,
+    }
+
+    /// One node whose figures do not agree.
+    #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+    pub struct NodeContractDivergence {
+        #[schema(value_type = u32)]
+        pub node_id: NodeId,
+
+        pub category: ContractDivergenceCategory,
+
+        /// Absent when nym-api has no annotation for the node.
+        pub nym_api: Option<NymApiFigure>,
+
+        /// Absent when the contract has no source for the node.
+        pub contract: Option<NodeContractFigure>,
+
+        /// The node's role in the current rewarded set, if it has one.
+        pub rewarded_set_role: Option<DisplayRole>,
+
+        /// Present on `missing` rows only.
+        pub described: Option<DescribedNodeDetails>,
+    }
+
+    /// Response body for the contract divergence gauge.
+    ///
+    /// TEMPORARY: it exists for the shadow period before rewarding switches to the performance
+    /// contract, and is deleted afterwards.
+    #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+    pub struct ContractDivergenceResponse {
+        /// Oldest of the caches this was assembled from, so the figures' age is visible.
+        pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
+
+        /// The current epoch, at which the contract's figures are resolved.
+        #[schema(value_type = u32)]
+        pub epoch_id: EpochId,
+
+        /// The difference at which two figures count as divergent.
+        pub threshold: f64,
+
+        pub counts: ContractDivergenceCategoryCounts,
+
+        /// Every node not in agreement.
+        pub nodes: Vec<NodeContractDivergence>,
     }
 
     /// Response body for `GET /v3/nym-nodes/stress-testing/known-monitors/{identity_key}`,

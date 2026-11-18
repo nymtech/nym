@@ -23,6 +23,7 @@ tracing = { workspace = true }
 pnet_packet = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true, features = ["socks"] }
+rustls = { workspace = true, features = ["ring", "std"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 semver = { workspace = true }
@@ -46,6 +47,7 @@ nym-authenticator-requests = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bandwidth-fetcher = { workspace = true }
 nym-bin-common = { workspace = true }
+nym-bridges = { workspace = true }
 nym-client-core = { workspace = true }
 nym-config = { workspace = true }
 nym-connection-monitor = { path = "../common/nym-connection-monitor" }

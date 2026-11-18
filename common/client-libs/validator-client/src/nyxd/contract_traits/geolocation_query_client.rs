@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::{NymContractsProvider, MAX_PINNED_READ_RECORDS};
+use crate::nyxd::contract_traits::{
+    collect_pages_at_height, AttestationPage, NymContractsProvider,
+};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
+use cosmrs::AccountId;
 use nym_geolocation_contract_common::{
     AllRecordsPagedResponse, ConfigResponse, DigestResponse, EntryResponse, GeolocationRecord,
     QueryMsg as GeolocationQueryMsg, RecordKey, Source, Subject, SubjectEntriesResponse,
@@ -142,46 +145,31 @@ where
         &self,
         height: Height,
     ) -> Result<Vec<GeolocationRecord>, NyxdError> {
-        let contract_address = self
-            .geolocation_contract_address()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("geolocation contract"))?;
+        collect_pages_at_height::<AllRecordsPagedResponse, _>(self, height, ()).await
+    }
+}
 
-        let mut records = Vec::new();
-        let mut start_after: Option<RecordKey> = None;
-        loop {
-            let requested_from = start_after.clone();
-            let page: AllRecordsPagedResponse = self
-                .query_contract_smart_at_height(
-                    contract_address,
-                    &GeolocationQueryMsg::AllRecords {
-                        start_after,
-                        limit: None,
-                    },
-                    Some(height),
-                )
-                .await?;
+impl AttestationPage for AllRecordsPagedResponse {
+    type QueryMsg = GeolocationQueryMsg;
+    type QueryArgs = ();
+    type Record = GeolocationRecord;
+    type Cursor = RecordKey;
 
-            records.extend(page.records);
-            match page.start_next_after {
-                Some(cursor) => {
-                    if requested_from.as_ref() == Some(&cursor) {
-                        return Err(NyxdError::extension_query_failure(
-                            "geolocation contract",
-                            "pagination cursor did not advance",
-                        ));
-                    }
-                    if records.len() > MAX_PINNED_READ_RECORDS {
-                        return Err(NyxdError::extension_query_failure(
-                            "geolocation contract",
-                            "paginated read exceeded the maximum record count",
-                        ));
-                    }
-                    start_after = Some(cursor)
-                }
-                None => break,
-            }
+    const CONTRACT: &'static str = "geolocation contract";
+
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.geolocation_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<RecordKey>) -> GeolocationQueryMsg {
+        GeolocationQueryMsg::AllRecords {
+            start_after,
+            limit: None,
         }
-        Ok(records)
+    }
+
+    fn into_parts(self) -> (Vec<GeolocationRecord>, Option<RecordKey>) {
+        (self.records, self.start_next_after)
     }
 }
 

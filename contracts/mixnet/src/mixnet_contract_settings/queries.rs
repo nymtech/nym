@@ -86,6 +86,7 @@ pub(crate) mod tests {
             node_families_contract_address: Some(deps.api.addr_make("bar")),
             geolocation_contract_address: Some(deps.api.addr_make("geolocation")),
             directory_contract_address: Some(deps.api.addr_make("quux")),
+            performance_contract_address: Some(deps.api.addr_make("performance")),
             rewarding_denom: "unym".to_string(),
             params: ContractStateParams {
                 delegations_params: DelegationsParams {

@@ -119,6 +119,8 @@ impl DvpnProbeOutcome {
                 ScoreValue::Offline => false,
                 ScoreValue::Low | ScoreValue::Medium | ScoreValue::High => true,
             });
+        // `bridges` stays on the raw `ProbeOutcome` / `last_probe_result` only
+        // — not reshaped into this VPN-API contract.
         Self {
             as_entry: outcome.as_entry.clone(),
             as_exit: outcome.as_exit.clone(),
@@ -140,6 +142,11 @@ pub struct ProbeOutcome {
     pub wg: Option<WgProbeResults>,
     pub socks5: Option<Socks5ProbeResults>,
     pub lp: Option<LpProbeResults>,
+    /// Bridge transports the node published. Unset when bridge tests were not
+    /// run, when the node has no reachable client-params, or on probe rows
+    /// stored before this field existed.
+    #[serde(default)]
+    pub bridges: Option<BridgeProbeResults>,
 }
 
 use nym_gateway_probe::types::ProbeOutcome as ProbeOutcomeLatest;
@@ -152,6 +159,7 @@ impl From<ProbeOutcomeLatest> for ProbeOutcome {
             wg: value.wg.map(From::from),
             socks5: value.socks5.map(From::from),
             lp: value.lp.map(From::from),
+            bridges: value.bridges.map(From::from),
         }
     }
 }
@@ -470,6 +478,52 @@ impl From<LpProbeResultsLatest> for LpProbeResults {
             can_connect: value.can_connect,
             can_handshake: value.can_handshake,
             can_register: value.can_register,
+            error: value.error,
+        }
+    }
+}
+
+use nym_gateway_probe::types::BridgeProbeResults as BridgeProbeResultsLatest;
+use nym_gateway_probe::types::BridgeTransportProbe as BridgeTransportProbeLatest;
+
+/// Per-transport bridge probe (IPv4). Handshake / ping come from WireGuard
+/// through the bridge forwarder after a successful dial. A dial that succeeds
+/// but whose forwarder/netstack setup fails keeps `can_connect_v4 = true` with
+/// `can_handshake_v4 = false`. Not used by directory scoring. Exposed on raw
+/// `last_probe_result`, not on the VPN-API `DvpnProbeOutcome` reshape.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, ToSchema)]
+pub struct BridgeProbeResults {
+    pub transports: Vec<BridgeTransportProbe>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, ToSchema)]
+pub struct BridgeTransportProbe {
+    pub transport: String,
+    #[serde(default)]
+    pub can_connect_v4: Option<bool>,
+    pub can_handshake_v4: Option<bool>,
+    #[serde(default)]
+    pub ping_ips_performance_v4: Option<f32>,
+    pub error: Option<String>,
+}
+
+impl From<BridgeProbeResultsLatest> for BridgeProbeResults {
+    fn from(value: BridgeProbeResultsLatest) -> Self {
+        Self {
+            transports: value.transports.into_iter().map(From::from).collect(),
+            error: value.error,
+        }
+    }
+}
+
+impl From<BridgeTransportProbeLatest> for BridgeTransportProbe {
+    fn from(value: BridgeTransportProbeLatest) -> Self {
+        Self {
+            transport: value.transport,
+            can_connect_v4: value.can_connect_v4,
+            can_handshake_v4: value.can_handshake_v4,
+            ping_ips_performance_v4: value.ping_ips_performance_v4,
             error: value.error,
         }
     }

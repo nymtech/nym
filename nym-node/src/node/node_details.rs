@@ -290,7 +290,7 @@ impl ServiceProvidersKeys {
     ) -> Result<(), ServiceProvidersError> {
         // insert all required information into the gateways store
         // (I hate that we have to do it, but that's currently the simplest thing to do)
-        let storage = setup_fs_gateways_storage(storage_path).await?;
+        let storage = setup_fs_gateways_storage(storage_path, None).await?;
         store_gateway_details(&storage, registration).await?;
         set_active_gateway(&storage, &registration.gateway_id().to_base58_string()).await?;
         Ok(())

@@ -5227,11 +5227,13 @@ dependencies = [
  "nym-directory-contract-common",
  "nym-ecash-signer-check-types",
  "nym-ecash-time",
+ "nym-geolocation-contract-common",
  "nym-kkt-ciphersuite",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-node-requests",
  "nym-noise-keys",
+ "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-ticketbooks-merkle",
  "schemars 0.8.22",
@@ -5417,6 +5419,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
+ "nym-contracts-common",
  "nym-mixnet-contract-common",
  "schemars 0.8.22",
  "serde",
@@ -5486,10 +5489,13 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
+ "nym-contracts-common",
  "nym-mixnet-contract-common",
  "schemars 0.8.22",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
+ "utoipa",
 ]
 
 [[package]]
@@ -5719,6 +5725,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "thiserror 2.0.18",
+ "utoipa",
 ]
 
 [[package]]

@@ -9,6 +9,8 @@ use nym_mixnet_contract_common::NodeId;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
+pub use nym_contracts_common::digest::{DigestLeaf, DigestResponse};
+
 /// Key-class / trust-tier discriminant for a directory entry. Extensible: new
 /// entry classes get a new variant (and a new, never-reused [`Namespace::tag`]).
 #[cw_serde]
@@ -261,12 +263,6 @@ pub struct SequenceResponse {
     pub next_sequence: u64,
 }
 
-/// The compact 32-byte digest: the BLAKE3 collapse of the LtHash accumulator.
-#[cw_serde]
-pub struct DigestResponse {
-    pub digest: Binary,
-}
-
 /// One whitelisted label together with its policy.
 #[cw_serde]
 pub struct LabelEntry {
@@ -451,13 +447,15 @@ impl DirectoryEntryRecord {
             DirectoryEntryRecord::Curated { key, .. } => EntryKey::new_curated(key.clone()),
         }
     }
+}
 
+impl DigestLeaf for DirectoryEntryRecord {
     /// The canonical LtHash leaf for this record: a class tag, the length-framed key
     /// components, then the entry's committed value. A node leaf commits
     /// `(data, signature, sequence)` so it is self-authenticating; a curated leaf commits
     /// `data`. The leading tag plus length-prefixing make every distinct `(key, value)`
     /// map to distinct leaf bytes, within and across classes.
-    pub fn digest_leaf(&self) -> Vec<u8> {
+    fn digest_leaf(&self) -> Vec<u8> {
         use crate::helpers::push_len_prefixed;
 
         let mut buf = vec![self.namespace().tag()];

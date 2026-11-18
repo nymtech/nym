@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::{NymContractsProvider, MAX_PINNED_READ_RECORDS};
+use crate::nyxd::contract_traits::{
+    collect_pages_at_height, AttestationPage, NymContractsProvider,
+};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
@@ -569,7 +571,20 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
     }
 
     async fn get_all_nymnodes_detailed(&self) -> Result<Vec<NymNodeDetails>, NyxdError> {
-        collect_paged!(self, get_nymnodes_detailed_paged, nodes)
+        let mut nodes = Vec::new();
+        let mut start_after = None;
+        loop {
+            // the contract's maximum page (it caps anything larger), fewer queries than the default
+            let page = self
+                .get_nymnodes_detailed_paged(start_after.take(), Some(75))
+                .await?;
+            nodes.extend(page.nodes);
+
+            match page.start_next_after {
+                Some(next) => start_after = Some(next),
+                None => return Ok(nodes),
+            }
+        }
     }
 
     async fn get_all_unbonded_nymnodes(&self) -> Result<Vec<UnbondedNymNode>, NyxdError> {
@@ -727,45 +742,32 @@ where
         &self,
         height: Height,
     ) -> Result<Vec<NymNodeBond>, NyxdError> {
-        let contract_address = self
-            .mixnet_contract_address()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
+        collect_pages_at_height::<PagedNymNodeBondsResponse, _>(self, height, ()).await
+    }
+}
 
-        let mut bonds = Vec::new();
-        let mut start_after = None;
-        loop {
-            let page: PagedNymNodeBondsResponse = self
-                .query_contract_smart_at_height(
-                    contract_address,
-                    &MixnetQueryMsg::GetNymNodeBondsPaged {
-                        start_after,
-                        limit: None,
-                    },
-                    Some(height),
-                )
-                .await?;
+impl AttestationPage for PagedNymNodeBondsResponse {
+    type QueryMsg = MixnetQueryMsg;
+    type QueryArgs = ();
+    type Record = NymNodeBond;
+    type Cursor = NodeId;
 
-            bonds.extend(page.nodes);
-            match page.start_next_after {
-                Some(cursor) => {
-                    if start_after == Some(cursor) {
-                        return Err(NyxdError::extension_query_failure(
-                            "mixnet contract",
-                            "pagination cursor did not advance",
-                        ));
-                    }
-                    if bonds.len() > MAX_PINNED_READ_RECORDS {
-                        return Err(NyxdError::extension_query_failure(
-                            "mixnet contract",
-                            "paginated read exceeded the maximum record count",
-                        ));
-                    }
-                    start_after = Some(cursor)
-                }
-                None => break,
-            }
+    const CONTRACT: &'static str = "mixnet contract";
+
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.mixnet_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<NodeId>) -> MixnetQueryMsg {
+        MixnetQueryMsg::GetNymNodeBondsPaged {
+            start_after,
+            // the contract's maximum page (it caps anything larger), half the default's queries
+            limit: Some(100),
         }
-        Ok(bonds)
+    }
+
+    fn into_parts(self) -> (Vec<NymNodeBond>, Option<NodeId>) {
+        (self.nodes, self.start_next_after)
     }
 }
 

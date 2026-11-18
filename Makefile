@@ -156,6 +156,7 @@ CONTRACTS_OUT_DIR = contracts/artifacts
 COSMWASM_OPTIMIZER_IMAGE ?= cosmwasm/optimizer:0.17.0
 COSMWASM_OPTIMIZER_PLATFORM ?= linux/amd64
 COSMWASM_CHECK_IMAGE ?= rust:1.88
+# the chain runs CosmWasm 2.2, so the 2.2 line; pinned like ci-contracts.yml (2.2.10+ requires rust 1.95)
 COSMWASM_CHECK_VERSION ?= 2.2.9
 
 # Ensure clean build environment and run the optimizer

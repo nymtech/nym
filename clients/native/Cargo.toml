@@ -61,6 +61,7 @@ nym-crypto = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-sphinx = { workspace = true }
+nym-sqlcipher = { workspace = true }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
 nym-topology = { workspace = true }

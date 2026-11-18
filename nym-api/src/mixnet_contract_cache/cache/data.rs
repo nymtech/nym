@@ -65,9 +65,8 @@ pub(crate) struct MixnetContractCacheData {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod test_helpers {
     use super::*;
-    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{coin, Addr, Coin, Decimal, Timestamp};
     use nym_contracts_common::Percent;
@@ -222,7 +221,8 @@ mod tests {
         Interval::init_interval(24, Duration::from_secs(60 * 60), &env)
     }
 
-    fn populated_cache() -> MixnetContractCacheData {
+    /// A cache holding one node of each kind and every other field set.
+    pub(crate) fn populated_cache() -> MixnetContractCacheData {
         MixnetContractCacheData {
             rewarding_denom: "unym".to_string(),
             legacy_mixnodes: vec![legacy_mixnode(1)],
@@ -238,6 +238,12 @@ mod tests {
             },
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_helpers::populated_cache;
+    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
 
     // This cache is persisted to disk with bincode; a populated value must survive that
     // round trip or the on-disk cache silently never writes.

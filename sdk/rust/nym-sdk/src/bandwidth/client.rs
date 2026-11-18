@@ -46,7 +46,7 @@ where
         )?);
 
         let credential_fetcher =
-            NyxdCredentialFetcher::new(client, ":memory:", Zeroizing::new(client_id))
+            NyxdCredentialFetcher::new(client, ":memory:", None, Zeroizing::new(client_id))
                 .await
                 .map_err(|e| BandwidthControllerError::fetcher_error(Box::new(e)))?;
         let bandwidth_controller =

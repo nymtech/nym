@@ -1,16 +1,32 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ecash::bandwidth::IssuanceTicketBook;
+use crate::ecash::bandwidth::{CredentialSigningData, IssuanceTicketBook};
 use crate::error::Error;
+use futures::stream::{FuturesUnordered, StreamExt};
 use log::{debug, warn};
 use nym_credentials_interface::{
     aggregate_expiration_signatures, aggregate_indices_signatures, Base58, CoinIndexSignature,
-    CoinIndexSignatureShare, ExpirationDateSignature, ExpirationDateSignatureShare,
+    CoinIndexSignatureShare, ExpirationDateSignature, ExpirationDateSignatureShare, PartialWallet,
     VerificationKeyAuth, WalletSignatures,
 };
 use nym_validator_client::client::EcashApiClient;
 use nym_validator_client::nym_api::{EpochId, NymApiClientExt};
+use rand::seq::SliceRandom;
+use std::time::Duration;
+
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::timeout;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::timeout;
+
+/// Blind signing requests sent beyond the threshold, so that this many unresponsive signers
+/// don't delay the issuance.
+pub const SPARE_SIGNER_REQUESTS: usize = 2;
+
+/// Upper bound on a single signer's response to a blind signing request.
+pub const SIGNER_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
 // so we wouldn't break all the existing imports
 pub use nym_ecash_time::{
@@ -141,8 +157,6 @@ pub async fn obtain_aggregate_wallet(
     threshold: u64,
     epoch_id: EpochId,
 ) -> Result<WalletSignatures, Error> {
-    const MAX_ATTEMPTS: usize = 2;
-
     if ecash_api_clients.len() < threshold as usize {
         return Err(Error::NoValidatorsAvailable);
     }
@@ -150,42 +164,74 @@ pub async fn obtain_aggregate_wallet(
 
     let request = voucher.prepare_for_signing();
 
-    let mut wallets = Vec::with_capacity(ecash_api_clients.len());
+    // random order so that no fixed subset of signers ends up doing all the work
+    let mut signers: Vec<_> = ecash_api_clients.iter().collect();
+    signers.shuffle(&mut rand::rng());
+    let mut signers = signers.into_iter();
 
-    // TODO: optimise and query just threshold
-    for ecash_api_client in ecash_api_clients.iter() {
-        debug!(
-            "attempting to obtain partial credential from {}",
-            ecash_api_client.api_client.api_url()
-        );
+    let mut in_flight = FuturesUnordered::new();
+    for signer in signers
+        .by_ref()
+        .take(threshold as usize + SPARE_SIGNER_REQUESTS)
+    {
+        in_flight.push(obtain_partial_wallet(voucher, signer, &request, epoch_id));
+    }
 
-        match voucher
-            .obtain_partial_ticketbook_credential_with_retries(
-                &ecash_api_client.api_client,
-                ecash_api_client.node_id,
-                &ecash_api_client.verification_key,
-                request.clone(),
-                epoch_id,
-                MAX_ATTEMPTS,
-            )
-            .await
-        {
-            Ok(wallet) => wallets.push(wallet),
-            Err(err) => {
-                warn!("failed to obtain partial credential from API {ecash_api_client}: {err}",);
+    let mut wallets = Vec::with_capacity(threshold as usize);
+    while let Some(res) = in_flight.next().await {
+        match res {
+            Ok(wallet) => {
+                wallets.push(wallet);
+                if wallets.len() >= threshold as usize {
+                    break;
+                }
             }
-        };
-
-        // we got sufficient number of shares
-        if wallets.len() >= threshold as usize {
-            break;
+            Err(_) => {
+                if let Some(signer) = signers.next() {
+                    in_flight.push(obtain_partial_wallet(voucher, signer, &request, epoch_id));
+                }
+            }
         }
     }
+    // abandon the requests still in flight, we have all the shares we need
+    drop(in_flight);
+
     if wallets.len() < threshold as usize {
         return Err(Error::NotEnoughShares);
     }
 
     voucher.aggregate_signature_shares(&verification_key, &wallets, request)
+}
+
+async fn obtain_partial_wallet(
+    voucher: &IssuanceTicketBook,
+    signer: &EcashApiClient,
+    request: &CredentialSigningData,
+    epoch_id: EpochId,
+) -> Result<PartialWallet, Error> {
+    debug!("attempting to obtain partial credential from {signer}");
+
+    let res = timeout(
+        SIGNER_REQUEST_TIMEOUT,
+        voucher.obtain_partial_ticketbook_credential(
+            &signer.api_client,
+            signer.node_id,
+            &signer.verification_key,
+            request.clone(),
+            epoch_id,
+        ),
+    )
+    .await
+    .unwrap_or_else(|_| {
+        Err(Error::CredentialShareTimeout {
+            signer: signer.to_string(),
+        })
+    });
+
+    if let Err(err) = &res {
+        warn!("failed to obtain partial credential from {signer}: {err}");
+    }
+    res
 }
 
 pub fn signatures_to_string<B>(sigs: &[B]) -> String

@@ -22,7 +22,13 @@ pub struct StorageManager {
 
 // all SQL goes here
 impl StorageManager {
-    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+    /// Opens the database at `database_path`, creating it if needed. With `key`, it's encrypted
+    /// with SQLCipher using the raw 256-bit key, and an existing plaintext database is encrypted in
+    /// place first.
+    pub async fn init<P: AsRef<Path>>(
+        database_path: P,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
+    ) -> Result<Self, StorageError> {
         // ensure the whole directory structure exists
         if let Some(parent_dir) = database_path.as_ref().parent() {
             std::fs::create_dir_all(parent_dir).map_err(|source| {
@@ -36,9 +42,10 @@ impl StorageManager {
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
-            .filename(database_path)
+            .filename(database_path.as_ref())
             .create_if_missing(true)
             .disable_statement_logging();
+        let opts = nym_sqlcipher::apply_key(opts, key).await?;
 
         let connection_pool = sqlx::SqlitePool::connect_with(opts)
             .await

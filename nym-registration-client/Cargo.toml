@@ -40,6 +40,7 @@ nym-lp-gateway-client = { workspace = true }
 nym-lp-data.workspace = true
 nym-registration-common = { workspace = true }
 nym-sdk = { workspace = true }
+nym-sqlcipher = { workspace = true }
 nym-wireguard-types = { workspace = true }
 
 [dev-dependencies]

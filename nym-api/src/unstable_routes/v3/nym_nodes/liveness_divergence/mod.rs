@@ -17,7 +17,7 @@
 //! and it lives under `/unstable` rather than the stable tree so that removing it breaks no
 //! compatibility promise. Do not build anything durable on top of it.
 
-use crate::node_status_api::models::AxumResult;
+use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
 use crate::unstable_routes::helpers::refreshed_at;
 use axum::extract::{Query, State};
@@ -96,7 +96,8 @@ fn build_response<'a>(
 ///
 /// Every liveness-eligible bonded node is listed, including those with no sample yet, so that
 /// coverage and comparison are readable from one response. Nodes the orchestrator would never
-/// assign a liveness test are omitted rather than reported as diverging.
+/// assign a liveness test are omitted rather than reported as diverging. Served only while
+/// nym-api computes its own figure.
 #[utoipa::path(
     operation_id = "v3_liveness_divergence",
     tag = "Unstable Nym Nodes v3",
@@ -108,24 +109,30 @@ fn build_response<'a>(
         (status = 200, content(
             (LivenessDivergenceResponse = "application/json"),
             (LivenessDivergenceResponse = "application/yaml"),
-        ))
+        )),
+        (status = 503, description = "this nym-api runs in contract mode, so it computes no figure of its own"),
     )
 )]
 pub(super) async fn liveness_divergence(
     state: State<AppState>,
     Query(output): Query<OutputParamsV2>,
 ) -> LivenessDivergence {
-    let describe_cache = state.describe_nodes_cache_data().await?;
-    let status_cache = &state.node_status_cache();
-    let annotations = status_cache.node_annotations().await?;
+    if state.use_performance_contract_data {
+        return Err(AxumErrorResponse::service_unavailable(
+            "this nym-api runs in contract mode, so it computes no figure of its own to compare",
+        ));
+    }
 
-    let nodes = build_response(describe_cache.all_nym_nodes(), &annotations);
+    let describe_cache = state.describe_nodes_cache_data().await?;
+    let status_cache = state.node_status_cache().cache().await?;
+
+    let nodes = build_response(
+        describe_cache.all_nym_nodes(),
+        &status_cache.node_annotations,
+    );
 
     // the older of the two caches, since a divergence row pairs a score from each
-    let refreshed = refreshed_at([
-        status_cache.cache_timestamp().await,
-        describe_cache.timestamp(),
-    ]);
+    let refreshed = refreshed_at([status_cache.timestamp(), describe_cache.timestamp()]);
 
     Ok(output.to_response(LivenessDivergenceResponse {
         refreshed_at: refreshed,

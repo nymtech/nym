@@ -3,6 +3,7 @@
 
 pub(crate) mod cache;
 pub(crate) mod refresher;
+pub(crate) mod startup;
 
 use tokio::sync::watch;
 

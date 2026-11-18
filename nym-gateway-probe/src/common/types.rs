@@ -60,6 +60,11 @@ pub struct ProbeOutcome {
     pub socks5: Option<Socks5ProbeResults>,
     pub wg: Option<WgProbeResults>,
     pub lp: Option<LpProbeResults>,
+    /// Bridge transports the node publishes. Unset when bridge tests were not
+    /// run, or when the node has no reachable client-params. The directory
+    /// score does not read this.
+    #[serde(default)]
+    pub bridges: Option<BridgeProbeResults>,
 }
 
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
@@ -103,6 +108,47 @@ pub struct LpProbeResults {
     pub can_connect: bool,
     pub can_handshake: bool,
     pub can_register: bool,
+    pub error: Option<String>,
+}
+
+/// Outcome of probing the bridge transports a node advertises.
+///
+/// One entry per transport in `advertised()` order (IPv4 dials only for now).
+/// `can_handshake_v4` / `ping_ips_performance_v4` come from WireGuard through
+/// the bridge forwarder (Amnezia-shaped) after a successful dial. A dial that
+/// succeeds but whose forwarder/netstack setup fails keeps `can_connect_v4 =
+/// true` and sets `can_handshake_v4 = false`. The directory score does not
+/// read this; failing transports are reported, not used to drop the node.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BridgeProbeResults {
+    pub transports: Vec<BridgeTransportProbe>,
+    /// Registration failure, or a descriptor that did not parse. Per-transport
+    /// dial/forward failures live on each `BridgeTransportProbe.error`.
+    pub error: Option<String>,
+}
+
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BridgeTransportProbe {
+    /// From the descriptor — typically `quic_plain`, `tls_plain` or `ssh_plain`.
+    pub transport: String,
+    /// Result of `BridgeConn::try_connect` on the IPv4 address.
+    /// `None` when this transport was not dialled (unusable, or no IPv4
+    /// address in the descriptor). Public IPv6 dials are not attempted yet.
+    pub can_connect_v4: Option<bool>,
+    /// WireGuard handshake through the bridge after a successful dial.
+    /// `None` when the forward path was not tested (no dial, dial failed, or
+    /// no WG peer registered). `Some(false)` when dial succeeded but the
+    /// forwarder/netstack path failed or the handshake did not complete.
+    pub can_handshake_v4: Option<bool>,
+    /// IP ping success ratio from the bridge forward netstack pass.
+    /// Set whenever that pass runs (including when `can_handshake_v4` is
+    /// false); `None` when the forward path was not tested.
+    pub ping_ips_performance_v4: Option<f32>,
+    /// Set when the transport is unusable, has no IPv4 endpoint, the dial
+    /// failed, or post-dial forward setup failed. Registration / parse
+    /// failures that apply to every transport live in `bridges.error`.
     pub error: Option<String>,
 }
 

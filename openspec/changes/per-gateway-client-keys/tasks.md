@@ -58,19 +58,24 @@
 - [x] 8.2 Add a known-answer test for the helper on a fixed mnemonic, with a comment saying that a changed output changes the ecash key of every self-funding client (the mnemonic is built from fixed entropy bytes; the seed is checked against an independent SHA-256, and the public key is recorded from the implementation, since it comes from the existing seeded ecash key generation)
 - [x] 8.3 Change `NyxdCredentialFetcher::new` to take a `&bip39::Mnemonic` and derive the keypair with the helper, remove the constructor that takes seed bytes, and leave `new_with_keypair` using its keypair unchanged (the seed-bytes constructor was `new` itself, so its last argument changed from the seed bytes to the mnemonic)
 - [x] 8.4 Give the recovery-only fetcher a construction path that takes no ecash key and no placeholder keypair (both fetchers are built over a private part that holds no key: the chain client, the pending-deposit store, the signing-data fetchers and the recovery steps; only `NyxdCredentialFetcher` adds the ecash keypair and the deposit lock; `NyxdRecoveryFetcher::new` kept its signature, so `recover_ticket_book` in nym-cli needed no change)
-- [ ] 8.5 In nym-sdk, make `create_bandwidth_client` and `BandwidthAcquireClient` pass the mnemonic to the fetcher and stop loading the client keys
+- [x] 8.5 In nym-sdk, make `create_bandwidth_client` and `BandwidthAcquireClient` pass the mnemonic to the fetcher and stop loading the client keys (`create_bandwidth_client` keeps its `String` parameter; `BandwidthAcquireClient::new` parses it once, gives a clone to the chain client and a reference to the fetcher; nym-sdk's `zeroize` dependency, used only by the removed key load, is gone)
 - [ ] 8.6 In nym-cli's `issue_ticket_book`, pass the paying mnemonic down to the client-config path and stop reading the client's identity key file there; in the output-file path build the keypair from the explicit secret and use `new_with_keypair`
 - [ ] 8.7 In `nym-sdk-session`, pass the mnemonic to the fetcher and delete `derive_client_id`
 - [ ] 8.8 Update the fetcher's existing unit test to the new constructor
 
-## 9. Compatibility of existing ticketbooks
+## 9. Reset: a reply store that cannot be loaded
 
-- [ ] 9.1 Confirm from the finished diff that nothing under `common/credential-storage` changed and that the serialised forms of `IssuedTicketBook` and `IssuanceTicketBook` are untouched
-- [ ] 9.2 Confirm from the finished diff that the spend path (`prepare_for_spending`, the bandwidth controller's ticket preparation) reads no client key, no mnemonic and no fetcher state
+- [ ] 9.1 In `StoragePaths::reset_client_identity`, when the reply store fails to load with `IncompleteDataFlush` (a flush cut short or never made, the states in which a client start archives the store and begins a fresh one), delete the store's database and journal files and continue; every other load failure, a wrong database key included, still fails the reset; add a sentence on this to design Decision 8
+- [ ] 9.2 Test the reset on a reply store that was created and never flushed: assert first that loading it fails with `IncompleteDataFlush`, then that the reset succeeds, the store's files are gone and the root identity key changed
 
-## 10. Verification
+## 10. Compatibility of existing ticketbooks
 
-- [ ] 10.1 Run `cargo fmt`, then build and run the tests of `nym-crypto`, `nym-client-core`, `nym-client-core-gateways-storage`, `nym-credentials`, `nym-bandwidth-fetcher`, `nym-sdk`, `nym-sdk-session`, `nym-registration-client` and `nym-cli-commands`
-- [ ] 10.2 Check that `nym-wasm-client-core` and the wasm client still build for their wasm target
-- [ ] 10.3 Run `openspec validate per-gateway-client-keys` and fix anything it reports
-- [ ] 10.4 Copy the QA checklist from `design.md` into the PR description
+- [ ] 10.1 Confirm from the finished diff that nothing under `common/credential-storage` changed and that the serialised forms of `IssuedTicketBook` and `IssuanceTicketBook` are untouched
+- [ ] 10.2 Confirm from the finished diff that the spend path (`prepare_for_spending`, the bandwidth controller's ticket preparation) reads no client key, no mnemonic and no fetcher state
+
+## 11. Verification
+
+- [ ] 11.1 Run `cargo fmt`, then build and run the tests of `nym-crypto`, `nym-client-core`, `nym-client-core-gateways-storage`, `nym-credentials`, `nym-bandwidth-fetcher`, `nym-sdk`, `nym-sdk-session`, `nym-registration-client` and `nym-cli-commands`
+- [ ] 11.2 Check that `nym-wasm-client-core` and the wasm client still build for their wasm target
+- [ ] 11.3 Run `openspec validate per-gateway-client-keys` and fix anything it reports
+- [ ] 11.4 Copy the QA checklist from `design.md` into the PR description

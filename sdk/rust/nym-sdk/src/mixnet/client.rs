@@ -40,8 +40,6 @@ use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 #[cfg(feature = "credentials")]
 use nym_credentials_interface::TicketType;
-#[cfg(feature = "credentials")]
-use zeroize::Zeroizing;
 
 #[cfg(feature = "fs-storage")]
 use super::StoragePaths;
@@ -850,6 +848,8 @@ where
 
     /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
     /// credentials of particular type for this client to consume.
+    ///
+    /// Its ecash keypair is derived from `mnemonic`, so it works before the client's keys exist.
     #[cfg(feature = "credentials")]
     pub async fn create_bandwidth_client(
         &self,
@@ -859,25 +859,11 @@ where
         if !self.config.enabled_credentials_mode {
             return Err(Error::DisabledCredentialsMode);
         }
-        let client_id_array = Zeroizing::new(
-            self.storage
-                .key_store()
-                .load_keys()
-                .await
-                .map_err(|e| Error::KeyStorageError {
-                    source: Box::new(e),
-                })?
-                .identity_keypair()
-                .private_key()
-                .to_bytes(),
-        );
-        let client_id = client_id_array.to_vec();
 
         BandwidthAcquireClient::new(
             self.config.network_details.clone(),
             mnemonic,
             self.storage.credential_store().clone(),
-            client_id,
             ticketbook_type,
         )
         .await

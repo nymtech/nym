@@ -241,6 +241,7 @@ fn perform_framed_packet_processing(
     })
 }
 
+// r[impl delay.only-hop-reads]
 fn wrap_processed_sphinx_packet(
     packet: nym_sphinx_types::ProcessedPacket,
     packet_size: PacketSize,
@@ -313,6 +314,7 @@ fn process_final_hop(
     })
 }
 
+// r[impl sphinx.ack-packet]
 fn split_into_ack_and_message(
     data: Vec<u8>,
     packet_size: PacketSize,
@@ -367,6 +369,7 @@ fn split_hop_data_into_ack_and_message(
     Ok((ack_data, message))
 }
 
+// r[impl sphinx.forward-hop]
 fn process_forward_hop(
     packet: NymPacket,
     forward_address: NodeAddressBytes,
@@ -387,6 +390,182 @@ fn process_forward_hop(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_sphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
+    use nym_sphinx_types::{
+        DESTINATION_ADDRESS_LENGTH, Destination, HEADER_SIZE, IDENTIFIER_LENGTH, Node,
+        PAYLOAD_KEYS_SEEDS_VERSION, PublicKey,
+    };
+    use std::net::SocketAddr;
+
+    fn hop_address(hop: u8) -> NymNodeRoutingAddress {
+        SocketAddr::from(([10, 0, 0, hop], 1789)).into()
+    }
+
+    fn hop_key(hop: u8) -> PrivateKey {
+        PrivateKey::from([hop; 32])
+    }
+
+    /// An ack-sized packet through hops 1 to 4, so that hop 4 is the final hop and returns the
+    /// payload without looking for a SURB-ACK in it.
+    fn framed_packet_through_four_hops(delays: &[SphinxDelay; 4]) -> FramedNymPacket {
+        let route: Vec<_> = (1..=4)
+            .map(|hop| {
+                Node::new(
+                    hop_address(hop).try_into().unwrap(),
+                    PublicKey::from(&hop_key(hop)),
+                )
+            })
+            .collect();
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([3u8; DESTINATION_ADDRESS_LENGTH]),
+            [4u8; IDENTIFIER_LENGTH],
+        );
+        let packet = NymPacket::sphinx_build_legacy(
+            PacketSize::AckPacket.payload_size(),
+            b"foomp",
+            &route,
+            &destination,
+            delays,
+        )
+        .unwrap();
+        FramedNymPacket::new(
+            packet,
+            PacketType::Mix,
+            SphinxKeyRotation::EvenRotation,
+            false,
+        )
+    }
+
+    fn reframe(packet: &MixPacket) -> FramedNymPacket {
+        let bytes = packet.packet().to_bytes().unwrap();
+        FramedNymPacket::new(
+            NymPacket::sphinx_from_bytes(&bytes).unwrap(),
+            PacketType::Mix,
+            SphinxKeyRotation::EvenRotation,
+            false,
+        )
+    }
+
+    // r[verify sphinx.forward-hop]
+    #[test]
+    fn a_forward_hop_learns_its_next_hop_and_delay_and_drops_a_tampered_header() {
+        let delays = [11, 22, 33, 44].map(SphinxDelay::new_from_millis);
+        let received = framed_packet_through_four_hops(&delays);
+        let received_bytes = received.packet().to_bytes().unwrap();
+
+        let mut tampered_bytes = received_bytes.clone();
+        // the first byte of the encrypted routing information, after the group element and the MAC
+        tampered_bytes[32 + 16] ^= 1;
+        let tampered = FramedNymPacket::new(
+            NymPacket::sphinx_from_bytes(&tampered_bytes).unwrap(),
+            PacketType::Mix,
+            SphinxKeyRotation::EvenRotation,
+            false,
+        );
+        let Err((_, err)) = PartiallyUnwrappedPacket::new(tampered, &hop_key(1)) else {
+            panic!("a tampered header passed the MAC check");
+        };
+        assert!(matches!(
+            err,
+            PacketProcessingError::SphinxProcessingError(_)
+        ));
+
+        let processed = PartiallyUnwrappedPacket::new(received, &hop_key(1))
+            .unwrap()
+            .finalise_unwrapping()
+            .unwrap();
+        let MixPacketVersion::Sphinx(version) = processed.packet_version else {
+            panic!("expected a sphinx packet");
+        };
+        assert_eq!(version, PAYLOAD_KEYS_SEEDS_VERSION);
+        let MixProcessingResultData::ForwardHop { packet, delay } = processed.processing_data
+        else {
+            panic!("expected a forward hop");
+        };
+        assert_eq!(packet.next_hop(), hop_address(2));
+        assert_eq!(delay, Some(delays[0]));
+
+        let forwarded_bytes = packet.packet().to_bytes().unwrap();
+        let forwarded_header = &packet.packet().sphinx_packet_ref().unwrap().header;
+        assert_eq!(HEADER_SIZE, 348);
+        assert_eq!(forwarded_header.to_bytes().len(), HEADER_SIZE);
+        assert_eq!(forwarded_bytes.len(), received_bytes.len());
+        // the hop blinds the group element before it forwards the packet
+        assert_ne!(forwarded_bytes[..32], received_bytes[..32]);
+    }
+
+    // r[verify delay.only-hop-reads]
+    #[test]
+    fn each_mix_reads_only_its_own_delay_and_no_link_carries_a_delay_in_clear() {
+        let delays = [
+            12_345_678_901,
+            23_456_789_012,
+            34_567_890_123,
+            45_678_901_234,
+        ]
+        .map(SphinxDelay::new_from_nanos);
+        let assert_no_delay_in_clear = |framed: &FramedNymPacket| {
+            let wire_bytes = framed.packet().to_bytes().unwrap();
+            for delay in &delays {
+                assert!(
+                    !wire_bytes.windows(8).any(|w| w == delay.to_bytes()),
+                    "{delay:?} is in clear on a link"
+                );
+            }
+        };
+
+        let mut framed = framed_packet_through_four_hops(&delays);
+        for hop in 1..=3u8 {
+            assert_no_delay_in_clear(&framed);
+            let processed = process_framed_packet(framed, &hop_key(hop)).unwrap();
+            let MixProcessingResultData::ForwardHop { packet, delay } = processed.processing_data
+            else {
+                panic!("expected a forward hop at hop {hop}");
+            };
+            assert_eq!(delay, Some(delays[hop as usize - 1]));
+            // a hop cannot open the layer of the next hop, so it cannot read the next delay
+            assert!(process_framed_packet(reframe(&packet), &hop_key(hop)).is_err());
+            framed = reframe(&packet);
+        }
+
+        assert_no_delay_in_clear(&framed);
+        let processed = process_framed_packet(framed, &hop_key(4)).unwrap();
+        assert!(matches!(
+            processed.processing_data,
+            MixProcessingResultData::FinalHop { .. }
+        ));
+    }
+
+    // r[verify sphinx.ack-packet]
+    #[test]
+    fn the_egress_forwards_the_surb_ack_to_its_first_hop_and_keeps_the_message() {
+        let delays = [11, 22, 33, 44].map(SphinxDelay::new_from_millis);
+        let ack_bytes = framed_packet_through_four_hops(&delays)
+            .into_inner()
+            .to_bytes()
+            .unwrap();
+        assert_eq!(ack_bytes.len(), PacketSize::AckPacket.size());
+        let message = b"the message".to_vec();
+        let data: Vec<u8> = hop_address(1)
+            .as_zero_padded_bytes(MAX_NODE_ADDRESS_UNPADDED_LEN)
+            .into_iter()
+            .chain(ack_bytes.clone())
+            .chain(message.clone())
+            .collect();
+
+        let (forward_ack, recovered_message) = split_into_ack_and_message(
+            data,
+            PacketSize::RegularPacket,
+            PacketType::Mix,
+            SphinxKeyRotation::EvenRotation,
+        )
+        .unwrap();
+
+        let forward_ack = forward_ack.unwrap();
+        assert_eq!(forward_ack.next_hop(), hop_address(1));
+        assert_eq!(forward_ack.packet().to_bytes().unwrap(), ack_bytes);
+        assert_eq!(recovered_message, message);
+    }
 
     #[test]
     fn splitting_hop_data_works_for_sufficiently_long_payload() {

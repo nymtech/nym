@@ -396,6 +396,7 @@ where
 
     // future constantly pumping loop cover traffic at some specified average rate
     // the pumped traffic goes to the MixTrafficController
+    // r[impl cover.stops-with-client]
     fn start_cover_traffic_stream(
         debug_config: &DebugConfig,
         ack_key: Arc<AckKey>,
@@ -981,6 +982,7 @@ where
         Ok(client.get_key_rotation_info().await?.into())
     }
 
+    // r[impl cover.defaults-and-settings]
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError> {
         tracing::info!("Starting nym client");
         #[cfg(debug_assertions)]
@@ -1162,6 +1164,7 @@ where
             &shutdown_tracker.clone(),
         );
 
+        // r[impl cover.defaults-and-settings]
         if !self
             .config
             .debug
@@ -1233,7 +1236,11 @@ pub struct BaseClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::client::base_client::storage::Ephemeral;
+    use crate::client::cover_traffic_stream::tests::TestNetwork;
     use nym_network_defaults::{ApiUrl, NymNetworkDetails};
+    use nym_validator_client::QueryHttpRpcNyxdClient;
+    use std::time::Duration;
 
     #[test]
     fn test_network_details_with_multiple_urls() {
@@ -1277,5 +1284,29 @@ mod tests {
     fn test_default_nym_api_retries_constant() {
         // Verify the retry constant is set correctly
         assert_eq!(DEFAULT_NYM_API_RETRIES, 3);
+    }
+
+    // r[verify cover.stops-with-client]
+    #[tokio::test]
+    async fn loop_cover_stream_stops_when_the_shutdown_token_is_cancelled() {
+        let network = TestNetwork::new();
+        let (mix_tx, _mix_rx) = tokio::sync::mpsc::channel(1);
+        let shutdown_tracker = ShutdownTracker::default();
+        BaseClientBuilder::<QueryHttpRpcNyxdClient, Ephemeral>::start_cover_traffic_stream(
+            &DebugConfig::default(),
+            network.ack_key.clone(),
+            network.address,
+            TopologyAccessor::new(false),
+            mix_tx,
+            ClientStatsSender::new(None, shutdown_tracker.clone_shutdown_token()),
+            &shutdown_tracker,
+        );
+        assert_eq!(shutdown_tracker.tracked_tasks(), 1);
+
+        shutdown_tracker.clone_shutdown_token().cancel();
+        shutdown_tracker.close_tracker();
+        tokio::time::timeout(Duration::from_secs(5), shutdown_tracker.wait_for_tracker())
+            .await
+            .expect("the loop cover stream did not stop after the test cancelled the token");
     }
 }

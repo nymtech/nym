@@ -57,6 +57,9 @@ where
     )?)
 }
 
+// r[impl cover.loop-own-address]
+// r[impl cover.same-format]
+// r[impl delay.acks-replies-cover]
 #[allow(clippy::too_many_arguments)]
 pub fn generate_loop_cover_packet<R>(
     rng: &mut R,
@@ -157,6 +160,7 @@ where
 /// Helper function used to determine if given message represents a loop cover message.
 // It kinda seems like there must exist "prefix" or "starts_with" method for bytes
 // or something, but I couldn't find anything
+// r[impl cover.drop-own-loop]
 pub fn is_cover(data: &[u8]) -> bool {
     if data.len() < LOOP_COVER_MESSAGE_PAYLOAD.len() {
         return false;
@@ -176,11 +180,13 @@ mod tests {
     use super::*;
     use std::iter::repeat_n;
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_works_for_identical_input() {
         assert!(is_cover(LOOP_COVER_MESSAGE_PAYLOAD))
     }
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_works_for_longer_input() {
         let input: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
@@ -191,6 +197,7 @@ mod tests {
         assert!(is_cover(&input))
     }
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_returns_false_for_unrelated_input() {
         // make sure the length checks out
@@ -198,6 +205,7 @@ mod tests {
         assert!(!is_cover(&input))
     }
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_returns_false_for_part_of_correct_input() {
         let input: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
@@ -209,6 +217,7 @@ mod tests {
         assert!(!is_cover(&input))
     }
 
+    // r[verify cover.drop-own-loop]
     #[test]
     fn is_cover_returns_false_for_empty_input() {
         let empty = Vec::new();

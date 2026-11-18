@@ -99,7 +99,6 @@ enum WorkerJob {
 
     /// Handed over by a service provider this node hosts. Never touched the wire, so there is
     /// nothing to decrypt and no fragments to put back together.
-    #[expect(dead_code)]
     Local {
         data: TimedData<LpFrame>,
         processing_time: Instant,

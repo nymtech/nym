@@ -1,0 +1,168 @@
+{
+  "name": "assurance",
+  "status": "draft",
+  "note": "Draft for add-codex-assurance A4. Field names are provisional. The stage 7 generator does not exist yet.",
+  "stakeholder": "An external reviewer who needs to know what the Nym network guarantees, under which assumptions, and what is still open",
+  "concerns": [
+    {
+      "question": "Which privacy properties does the network commit to, and against which adversaries?",
+      "needs": {
+        "kinds": [
+          "model"
+        ],
+        "modelTypes": [
+          "property",
+          "actor"
+        ]
+      }
+    },
+    {
+      "question": "Which requirements realise each property, and which code realises each requirement?",
+      "needs": {
+        "kinds": [
+          "prose",
+          "code"
+        ],
+        "edges": [
+          "realises"
+        ]
+      }
+    },
+    {
+      "question": "Which requirements reduce what each adversary can observe, and which code realises them?",
+      "needs": {
+        "kinds": [
+          "prose",
+          "code"
+        ],
+        "edges": [
+          "mitigates",
+          "realises"
+        ]
+      }
+    },
+    {
+      "question": "What does each guarantee assume?",
+      "needs": {
+        "kinds": [
+          "model"
+        ],
+        "modelTypes": [
+          "condition",
+          "invariant"
+        ]
+      }
+    },
+    {
+      "question": "Which commitments have no witness, or a witness that cannot fail?",
+      "needs": {
+        "coverage": [
+          "requirements-without-code",
+          "properties-without-requirements",
+          "statements-without-witness",
+          "witness-without-canary"
+        ]
+      }
+    },
+    {
+      "question": "Which statements are enforced, and which are only approved?",
+      "needs": {
+        "kinds": [
+          "prose"
+        ],
+        "meta": [
+          "status",
+          "warrant",
+          "witness",
+          "canary"
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "path": "views/assurance",
+      "sections": [
+        {
+          "title": "Open gaps",
+          "coverage": [
+            "requirements-without-code",
+            "properties-without-requirements",
+            "statements-without-witness",
+            "witness-without-canary",
+            "open-obligations"
+          ]
+        },
+        {
+          "title": "Guarantees",
+          "forEach": {
+            "kind": "model",
+            "modelType": "property"
+          },
+          "follow": [
+            {
+              "rel": "realises",
+              "direction": "in",
+              "depth": 2
+            }
+          ],
+          "template": "templates/assurance-guarantee.mdx"
+        },
+        {
+          "title": "Mitigations",
+          "forEach": {
+            "kind": "model",
+            "modelType": "vector"
+          },
+          "follow": [
+            {
+              "rel": "mitigates",
+              "direction": "in",
+              "depth": 2
+            }
+          ],
+          "note": "Requirements that mitigate a vector, and the code that realises them. Most links from add-mixnet-core-specs are of this kind."
+        },
+        {
+          "title": "Adversaries",
+          "select": {
+            "kind": "model",
+            "modelType": "actor"
+          }
+        },
+        {
+          "title": "Assumptions",
+          "select": {
+            "kind": "model",
+            "modelType": "condition"
+          },
+          "ifEmpty": "The corpus has no condition records yet."
+        },
+        {
+          "title": "Enforced and approved",
+          "select": {
+            "authority": "normative",
+            "has": [
+              "meta.level"
+            ]
+          },
+          "columns": [
+            "id",
+            "level",
+            "status",
+            "warrant",
+            "witness",
+            "canary"
+          ]
+        },
+        {
+          "title": "Summary",
+          "generate": {
+            "prompt": "prompts/assurance-summary.md",
+            "inputs": "sections"
+          }
+        }
+      ]
+    }
+  ]
+}

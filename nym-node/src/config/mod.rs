@@ -953,6 +953,7 @@ impl Default for MixnetDebug {
             maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             egress_trace_sample_rate: Self::DEFAULT_EGRESS_TRACE_SAMPLE_RATE,
             // TODO: update this in few releases...
+            // r[impl sphinx.frame-rejection]
             use_legacy_packet_encoding: true,
             unsafe_disable_noise: false,
         }
@@ -1265,5 +1266,16 @@ impl Default for Debug {
             routing_nodes_check_interval: Self::DEFAULT_ROUTING_NODES_CHECK_INTERVAL,
             testnet: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // r[verify sphinx.frame-rejection]
+    #[test]
+    fn a_node_emits_the_legacy_frame_header_by_default() {
+        assert!(MixnetDebug::default().use_legacy_packet_encoding);
     }
 }

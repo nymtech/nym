@@ -6,6 +6,11 @@ on:
   push:
     branches: [develop]
   workflow_dispatch:
+    inputs:
+      allow_shrink:
+        description: Let a shard lose more than 20% of its rows in this run (an intended removal)
+        type: boolean
+        default: false
 
 # Two runs on one shard must not overlap: the second fails with "another run
 # changed it while this one was embedding". This queues a new run behind the one
@@ -23,6 +28,8 @@ jobs:
     # not secrets.
     if: github.ref == 'refs/heads/develop' && vars.RETRIEVAL_STORE_ENABLED == '1'
     runs-on: arc-linux-latest
+    # A hang anywhere (a generator, the store) frees the concurrency slot after this.
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: documentation/docs
@@ -59,14 +66,33 @@ jobs:
         env:
           VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
           REQUIRE_EMBEDDINGS: "1"
-      # Saved before the write, so a failed write does not throw away the
-      # embeddings this run paid for.
+      # Saved before the write, and also when a generator fails partway (it
+      # checkpoints its cache), so a failed run does not throw away the embeddings
+      # it paid for. The attempt number lets a re-run save under a new key.
       - name: Save embedding cache
+        if: ${{ !cancelled() }}
         uses: actions/cache/save@v4
         with:
           path: documentation/docs/node_modules/.cache/nym-docs
-          key: nym-embed-store-${{ github.sha }}
+          key: nym-embed-store-${{ github.sha }}-${{ github.run_attempt }}
+      # A re-run of an older develop run would write older content over newer
+      # content. Write only when this commit is still develop's head: a newer push
+      # has its own run, queued or done.
+      - name: Check that this commit is develop's head
+        id: head
+        run: |
+          head=$(git ls-remote origin refs/heads/develop | cut -f1)
+          if [ -z "$head" ]; then
+            echo "::error::could not read the head of develop"
+            exit 1
+          fi
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::notice::develop is at $head, not $GITHUB_SHA, so this run does not write the store."
+            echo "stale=1" >> "$GITHUB_OUTPUT"
+          fi
       - name: Write the store
+        if: steps.head.outputs.stale != '1'
         run: node lib/retrieval/write-store.mts
         env:
           RETRIEVAL_STORE_WRITE_URL: ${{ secrets.RETRIEVAL_STORE_WRITE_URL }}
+          ALLOW_SHRINK: ${{ inputs.allow_shrink && '1' || '' }}

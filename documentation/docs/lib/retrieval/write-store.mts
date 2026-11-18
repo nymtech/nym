@@ -75,6 +75,10 @@ async function main(): Promise<void> {
   const db = new pg.Client({ connectionString: url });
   await db.connect();
   try {
+    // A run waits for the store-wide lock while another producer writes, which
+    // is correct. A transaction left open elsewhere would hold it indefinitely;
+    // this turns that into a failed run instead of a job that never ends.
+    await db.query("set lock_timeout = '5min'");
     for (const [modality, file, model] of SHARDS) {
       const index: DocIndex = JSON.parse(readFileSync(path.join(PUBLIC_DIR, file), 'utf-8'));
       const provider = fileProvider(index, model);

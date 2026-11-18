@@ -16,10 +16,13 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { PAGES_DIR } from '../../docs/lib/retrieval/pages-source.mjs';
 
-// Routed through the shared content root so the Nextra 4 pages/ -> content/ move is
-// the same env change here as in the retrieval generators.
+// The same content root and DOCS_CONTENT_DIR override as PAGES_DIR in
+// docs/lib/retrieval/pages-source.mjs. Not imported from there: that module
+// imports @nymproject/retrieval-indexer from documentation/docs/node_modules, and
+// the typedoc workflow installs only the root workspace.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PAGES_DIR = path.resolve(__dirname, '../../docs', process.env.DOCS_CONTENT_DIR ?? 'content');
 const DEVELOPERS = path.join(PAGES_DIR, 'developers');
 
 // Category folder -> sidebar label, in the order we want them to appear. The

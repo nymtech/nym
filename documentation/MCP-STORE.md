@@ -2,7 +2,7 @@
 
 This page explains the planned move of the MCP server's index from files in the function bundle to a Postgres store. It is for contributors who change the retrieval pipeline or the `/api/mcp` route, and for whoever runs the store.
 
-Status (2026-11-13): planned, not built. The work is the OpenSpec change `add-shared-retrieval-index` (tasks 4.1 and 5.0 to 5.4). Until task 5.3 flips the route, [`MCP-SERVER.md`](MCP-SERVER.md) describes the system that runs. To create the store, follow [`MCP-STORE-SETUP.md`](MCP-STORE-SETUP.md).
+Status (2026-11-18): the read path (`/api/mcp` behind `MCP_RETRIEVAL_SOURCE`) and the write path (`cd-retrieval-store.yml` behind `RETRIEVAL_STORE_ENABLED`) are built, and both are off by default, so the route reads the bundled files. Not done: creating the store and switching both on (tasks 4.1, 5.2 and 5.3 of the OpenSpec change `add-shared-retrieval-index`). Until task 5.3, [`MCP-SERVER.md`](MCP-SERVER.md) describes the system that runs by default. To create the store, follow [`MCP-STORE-SETUP.md`](MCP-STORE-SETUP.md).
 
 ## How the MCP reads today
 
@@ -108,6 +108,6 @@ Search is a sequential scan with no vector index (design decision 5). A `search_
 | The store has no shard for a modality, or a shard with another model | The search of that modality returns a tool error, not an empty result | The error text names the modality, and for another model, both models |
 | A producer stops writing | Its shard ages, and the answers drift from the source | `staleShards` in the package reports the age of each shard. No job runs it yet |
 | Two runs write the same shard at once | One fails and must run again | The CI `concurrency` group prevents it |
-| The model of a modality changes | Every shard of the modality needs new vectors. One producer cannot switch alone: the package rejects its run while other shards keep the old model | Run all producers of the modality in one `indexShards` call, one run for each shard, so that the shards change model in one transaction. Do not delete the shards first: the delete cascades to their chunks, and the modality has no rows until the producers commit |
-| The store is lost | The index is gone until the producers run again | Run each producer once. The cost is one full embedding run |
+| The model of a modality changes | Every shard of the modality needs new vectors. One producer cannot switch alone: the package rejects its run while other shards keep the old model | Run all producers of the modality in one `indexShards` call, one run for each shard, so that the shards change model in one transaction. Do not delete the shards first: the delete cascades to their chunks, and the modality has no rows until the producers commit. The route embeds queries with the model set in `pages/api/mcp.ts`, and each search refuses rows of another model, so change the model there and in `write-store.mts` in the same PR. From the deploy until the producers have written the new vectors, searches of that modality return an error. The develop push that deploys the route also starts the nym producer, so the gap is the time between the two |
+| The store is lost | The index is gone until the producers run again | Create the database, the schema and the roles first (`MCP-STORE-SETUP.md` steps 1 to 3), then run each producer once. The cost is one full embedding run |
 

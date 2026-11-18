@@ -29,13 +29,12 @@ import {
 } from "../../docs/lib/retrieval/indexer.mts";
 import { ROOTS } from "../../indexed-sources.mjs";
 import { resolveEmbedKey } from "../../docs/lib/retrieval/embed-key.mts";
+import { PUBLIC_DIR } from "../../docs/lib/retrieval/pages-source.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(__dirname, "../../.."); // repo root
-const OUTPUT_FILE = path.resolve(
-  __dirname,
-  "../../docs/public/code-index.json",
-);
+// The same directory as the docs index (DOCS_PUBLIC_DIR), where write-store.mts reads both.
+const OUTPUT_FILE = path.join(PUBLIC_DIR, "code-index.json");
 // Under node_modules/.cache so Vercel (and CI via actions/cache) persist it
 // between deploys; otherwise every deploy re-embeds the whole code corpus.
 const CACHE_FILE = path.resolve(

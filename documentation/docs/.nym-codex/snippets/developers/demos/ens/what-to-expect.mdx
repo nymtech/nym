@@ -13,4 +13,4 @@
   makes one direct clearnet call to ipinfo.io for comparison.
 - **Rate limiting.** Public IPFS gateways and Ethereum RPCs rate-limit shared IP
   addresses. If requests fail with 403, 429, or connection errors, the provider has
-  probably flagged the exit gateway's IP address. Reload the page, then tick **Use random IPR** before you connect, to get a new exit gateway. A reload clears the tick.
+  probably flagged the exit gateway's IP address. Reload the page, then tick **Use random IPR** before you connect. A reload clears the tick. The client then picks an exit gateway at random, and it can pick the same one again, so retry if requests still fail.

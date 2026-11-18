@@ -18,7 +18,7 @@ import OperatorIntroduction from 'components/operators/templates/provider_introd
 import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
 import NTMExplanation from 'components/operators/snippets/ntm-explanation.mdx';
 import AnsibleRolesByMode from 'components/operators/snippets/ansible-roles-by-node-mode.mdx';
-
+import CVENginx2ManualFix 'components/operators/snippets/cve-nginx2root-fix-manual.mdx'
 
 
 import { TestingSteps, TryYourself, CiConfig, TunnelManagerCommands, LoadEndpointInfo } from 'components/operators/mdx-client-snippets'
@@ -30,6 +30,21 @@ This page displays a full list of all the changes during our release cycle from 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
 <VarInfo />
+
+## CVE `nginx2root` Mitigation
+
+Five critical nginx vulnerabilities were published on 18 November 2026, plus a Linux kernel bug that can be chained with them to get root. Two of the vulnerabilities affect gateways set up from our docs or `setup-nginx-proxy-wss.sh`, because that setup enables HTTP/2. A fixed nginx is due on 19 November.
+
+Disabling HTTP/2 closes both. You lose nothing: WSS runs over HTTP/1.1 anyway.
+
+<div>
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
+    <MyTab>
+    </MyTab>
+FILL HERE AFTER TESTING
+    <MyTab>
+<CVENginx2ManualFix />
+    </MyTab>
 
 ## `v2026.22-istanbul`
 

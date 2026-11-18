@@ -39,7 +39,7 @@ pub(crate) struct SharedChainAnchor {
 impl Clone for SharedChainAnchor {
     fn clone(&self) -> Self {
         SharedChainAnchor {
-            anchor: Arc::clone(&self.anchor),
+            anchor: self.anchor.clone(),
             chain_id: self.chain_id.clone(),
             query_client: self.query_client.clone_query_client(),
         }

@@ -353,6 +353,7 @@ impl RpcClient {
 
 #[cfg(test)]
 mod tests {
+    use super::test_helpers::client_without_a_node;
     use super::*;
     use crate::block_processor::types::test_helpers::{
         NEW_BLOCK_MESSAGE, TX_GAS_USED, TX_HASH, parse_new_block_message,
@@ -366,12 +367,6 @@ mod tests {
         get_transactions: true,
         get_block_results: false,
     };
-
-    // nothing listens on this port, so a call that attempts any rpc query fails
-    fn client_without_a_node() -> RpcClient {
-        let url = "http://127.0.0.1:1".parse().expect("the url is valid");
-        RpcClient::new(&[url]).expect("building the client opens no connection")
-    }
 
     // With no endpoint there is nothing to query. That has to surface when the client is built,
     // not as a failure of the first block that needs fetching.
@@ -465,5 +460,16 @@ mod tests {
         assert!(res.is_err());
         // the waits between three attempts: 300ms, then 600ms
         assert_eq!(Duration::from_millis(900), started.elapsed());
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_helpers {
+    use super::RpcClient;
+
+    // nothing listens on this port, so a call that attempts any rpc query fails
+    pub(crate) fn client_without_a_node() -> RpcClient {
+        let url = "http://127.0.0.1:1".parse().expect("the url is valid");
+        RpcClient::new(&[url]).expect("building the client opens no connection")
     }
 }

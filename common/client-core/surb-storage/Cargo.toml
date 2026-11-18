@@ -47,9 +47,6 @@ sqlx = { workspace = true, features = [
     "migrate",
 ] }
 
-[dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt"] }
-
 [features]
 fs-surb-storage = ["sqlx", "nym-crypto", "nym-crypto/hashing", "dep:nym-sqlcipher"]
 

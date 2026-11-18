@@ -56,7 +56,7 @@ impl StorageManager {
             .disable_statement_logging())
     }
 
-    pub(super) async fn new_with_options(
+    async fn new_with_options(
         opts: sqlx::sqlite::SqliteConnectOptions,
     ) -> Result<Self, StorageError> {
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {

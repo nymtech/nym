@@ -12,7 +12,7 @@ use nym_client_core::client::base_client::lp_client::LpBaseClientBuilder;
 use nym_client_core::client::base_client::storage::gateways_storage::GatewayRegistration;
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
-    set_active_gateway,
+    load_active_gateway_details, set_active_gateway,
 };
 use nym_client_core::client::base_client::storage::{
     Ephemeral, GatewaysDetailsStore, MixnetClientStorage,
@@ -751,16 +751,25 @@ where
     }
 
     /// Setup for the active gateway's stored registration: loaded, or refreshed when asked.
-    fn stored_gateway_setup(&self) -> GatewaySetup {
-        if self.refresh_gateway_keys {
-            GatewaySetup::RefreshKeys {
-                gateway_id: None,
-                #[cfg(unix)]
-                connection_fd_callback: self.connection_fd_callback.clone(),
-            }
-        } else {
-            GatewaySetup::MustLoad { gateway_id: None }
+    async fn stored_gateway_setup(&mut self) -> Result<GatewaySetup, ClientCoreError> {
+        if !self.refresh_gateway_keys {
+            return Ok(GatewaySetup::MustLoad { gateway_id: None });
         }
+
+        // a refresh dials the stored listeners, so expired ones are replaced before it, not after
+        let registration = load_active_gateway_details(self.storage.gateway_details_store())
+            .await?
+            .registration
+            .ok_or(ClientCoreError::NoActiveGatewaySet)?;
+        if registration.details.published_data_expired() {
+            self.refresh_gateway_published_data(registration).await?;
+        }
+
+        Ok(GatewaySetup::RefreshKeys {
+            gateway_id: None,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback.clone(),
+        })
     }
 
     async fn refresh_gateway_published_data(
@@ -815,12 +824,12 @@ where
             (Some(user_chosen_gateway), Some(active_gateway))
                 if &active_gateway.to_base58_string() == user_chosen_gateway =>
             {
-                self.stored_gateway_setup()
+                self.stored_gateway_setup().await?
             }
             // When a user-chosen gateway exists but there's no active gateway, or it doesn't match the active one.
             (Some(_), _) => self.new_gateway_setup().await?,
             // When no user-chosen gateway exists but there's an active gateway.
-            (None, Some(_)) => self.stored_gateway_setup(),
+            (None, Some(_)) => self.stored_gateway_setup().await?,
             // When there's no user-chosen gateway and no active gateway.
             (None, None) => self.new_gateway_setup().await?,
         };

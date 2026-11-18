@@ -220,32 +220,10 @@ pub async fn reset_client_identity(
         remove_gateway_details(&details_store, &gateway_id.to_base58_string()).await?;
     }
 
-    // loaded directly: the usual setup would create a missing store with default thresholds,
-    // which the client would then keep
-    if paths.reply_surb_database.exists() {
-        match fs_backend::Backend::try_load(&paths.reply_surb_database, database_key).await {
-            Ok(reply_store) => {
-                let deleted = reply_store.delete_all_reply_data().await;
-                reply_store.shutdown().await;
-                deleted.map_err(|source| ClientCoreError::SurbStorageError {
-                    source: Box::new(source),
-                })?;
-            }
-            // a flush cut short or never made: the client's next start would archive this
-            // store and begin a fresh one, so deleting it loses nothing a start would keep.
-            // Any other failure, a wrong key included, may hide data the client can still read
-            Err(fs_backend::StorageError::IncompleteDataFlush) => {
-                for path in sqlite_database_paths(&paths.reply_surb_database) {
-                    if path.exists() {
-                        std::fs::remove_file(path)?;
-                    }
-                }
-            }
-            Err(source) => {
-                return Err(ClientCoreError::SurbStorageError {
-                    source: Box::new(source),
-                });
-            }
+    // deleted, not opened: the next start creates a fresh store from the client's own config
+    for path in sqlite_database_paths(&paths.reply_surb_database) {
+        if path.exists() {
+            std::fs::remove_file(path)?;
         }
     }
 

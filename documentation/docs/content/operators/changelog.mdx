@@ -18,7 +18,7 @@ import OperatorIntroduction from 'components/operators/templates/provider_introd
 import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
 import NTMExplanation from 'components/operators/snippets/ntm-explanation.mdx';
 import AnsibleRolesByMode from 'components/operators/snippets/ansible-roles-by-node-mode.mdx';
-import CVENginx2ManualFix 'components/operators/snippets/cve-nginx2root-fix-manual.mdx'
+import CVENginx2ManualFix from 'components/operators/snippets/cve-nginx2root-fix-manual.mdx';
 
 
 import { TestingSteps, TryYourself, CiConfig, TunnelManagerCommands, LoadEndpointInfo } from 'components/operators/mdx-client-snippets'
@@ -40,10 +40,12 @@ Disabling HTTP/2 closes both. You lose nothing: WSS runs over HTTP/1.1 anyway.
 <div>
   <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
     <MyTab>
-    </MyTab>
-FILL HERE AFTER TESTING
-    <MyTab>
 <CVENginx2ManualFix />
+    </MyTab>
+    <MyTab>
+
+Ansible steps are coming shortly. Until then, use the manual steps.
+
     </MyTab>
 
 ## `v2026.22-istanbul`

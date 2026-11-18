@@ -22,7 +22,7 @@ use nym_sphinx_types::{DESTINATION_ADDRESS_LENGTH, DestinationAddressBytes};
 
 use crate::asymmetric::x25519;
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngExt};
+use rand::CryptoRng;
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
@@ -58,6 +58,7 @@ pub enum Ed25519RecoveryError {
 }
 
 /// Keypair for usage in ed25519 EdDSA.
+// keypairs stored by older wasm clients carry an `index` field, so never deny unknown fields
 #[derive(Debug, Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KeyPair {
@@ -66,33 +67,16 @@ pub struct KeyPair {
     // nothing secret about public key
     #[zeroize(skip)]
     public_key: PublicKey,
-
-    #[zeroize(skip)]
-    index: u32,
 }
 
-/// All keys will always have an index field populated this is to prevent anyone from figuring out if
-/// the keys are derived or random, and alter their behaviour based on that.
 impl KeyPair {
     #[cfg(feature = "rand")]
     pub fn new<R: CryptoRng>(rng: &mut R) -> Self {
-        let index = rng.random();
         let ed25519_signing_key = ed25519_dalek::SigningKey::generate(rng);
 
         KeyPair {
             private_key: PrivateKey(ed25519_signing_key.to_bytes()),
             public_key: PublicKey(ed25519_signing_key.verifying_key()),
-            index,
-        }
-    }
-
-    pub fn from_secret(secret: ed25519_dalek::SecretKey, index: u32) -> Self {
-        let ed25519_signing_key = ed25519_dalek::SigningKey::from(secret);
-
-        KeyPair {
-            private_key: PrivateKey(ed25519_signing_key.to_bytes()),
-            public_key: PublicKey(ed25519_signing_key.verifying_key()),
-            index,
         }
     }
 
@@ -108,7 +92,6 @@ impl KeyPair {
         Ok(KeyPair {
             private_key: PrivateKey::from_bytes(priv_bytes)?,
             public_key: PublicKey::from_bytes(pub_bytes)?,
-            index: fake_index(pub_bytes),
         })
     }
 
@@ -125,28 +108,12 @@ impl KeyPair {
     }
 }
 
-/// Reduces a byte slice into a u32 value by XOR-ing all its bytes into a 4-byte accumulator.
-/// The process iterates over every byte in the input slice, XOR-ing each one into a slot based on its index modulo 4.
-/// If the input slice contains fewer than 4 bytes, the remaining positions in the accumulator remain zero.
-/// Finally, the accumulator is interpreted in big-endian order to produce the resulting u32.
-/// Index is used to verify deterministic identity key, master key and salt are also requried for verification.
-// SAFETY: array has 4 elements and we're always accessing indexes modulo 4.
-#[allow(clippy::indexing_slicing)]
-fn fake_index(input: &[u8]) -> u32 {
-    let mut accumulator = [0u8; 4];
-    for (i, &byte) in input.iter().enumerate() {
-        accumulator[i % 4] ^= byte;
-    }
-    u32::from_be_bytes(accumulator)
-}
-
 impl From<PrivateKey> for KeyPair {
     fn from(private_key: PrivateKey) -> Self {
         let public_key = (&private_key).into();
         KeyPair {
             public_key,
             private_key,
-            index: fake_index(public_key.to_bytes().as_ref()),
         }
     }
 }
@@ -156,7 +123,6 @@ impl From<(PrivateKey, PublicKey)> for KeyPair {
         KeyPair {
             private_key,
             public_key,
-            index: fake_index(public_key.to_bytes().as_ref()),
         }
     }
 }
@@ -176,7 +142,6 @@ impl PemStorableKeyPair for KeyPair {
         KeyPair {
             private_key,
             public_key,
-            index: fake_index(public_key.to_bytes().as_ref()),
         }
     }
 }

@@ -4,10 +4,7 @@
 use crate::client::key_manager::gateway_keys::{GatewayClientKeys, GatewayKeyDerivation};
 use crate::client::key_manager::persistence::KeyStore;
 use nym_client_core_gateways_storage::GenerationId;
-use nym_crypto::{
-    asymmetric::{ed25519, x25519},
-    hkdf::{DerivationMaterial, InvalidLength},
-};
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_sphinx::acknowledgements::AckKey;
 use rand::CryptoRng;
@@ -16,7 +13,6 @@ use zeroize::ZeroizeOnDrop;
 
 pub mod gateway_keys;
 pub mod persistence;
-mod test;
 
 // Note: to support key rotation in the future, all keys will require adding an extra smart pointer,
 // most likely an AtomicCell, or if it doesn't work as I think it does, a Mutex. Although I think
@@ -48,24 +44,6 @@ impl ClientKeys {
             encryption_keypair: Arc::new(x25519::KeyPair::new(rng)),
             ack_key: Arc::new(AckKey::new(rng)),
         }
-    }
-
-    pub fn from_master_key<R>(
-        rng: &mut R,
-        derivation_material: &DerivationMaterial,
-    ) -> Result<Self, InvalidLength>
-    where
-        R: CryptoRng,
-    {
-        let secret = derivation_material.derive_secret()?;
-        Ok(ClientKeys {
-            identity_keypair: Arc::new(ed25519::KeyPair::from_secret(
-                secret,
-                derivation_material.index(),
-            )),
-            encryption_keypair: Arc::new(x25519::KeyPair::new(rng)),
-            ack_key: Arc::new(AckKey::new(rng)),
-        })
     }
 
     pub fn from_keys(

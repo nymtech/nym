@@ -114,7 +114,7 @@ mod tests {
         );
         assert_eq!(
             se_three_keys,
-            r#"["HmgHDV79LpnEaSUp8QZQwSroxVvS4RewF7yM9e7qu8y3","311xRh859qCd5MVqoPRCoNx26eYhLknGwtjzkkTJFGhf","A5BMp8WJ6Uk91U4JpWRv2Bc6X35AaRaSEy8QEWeAkaBv"]"#
+            r#"["HavkuEW8ZoELQDKNr6Kcj6W5LFPK7YZhj2kkVgyfwUMu","3UUyvxDrFrnSUwAavANwRcG75yhuTjS7BR7N7DXkqAt4","GqF7Hnxg6Ec3fxgrsUKTg2EhPWDeH8vPbTbgv3JveUN8"]"#
         );
 
         let empty_de = serde_json::from_str::<KeysWrapper>(&se_empty)?;

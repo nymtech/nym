@@ -273,6 +273,7 @@ where
         let last_processed_height = persistence.stored_last_processed_height().await?;
         debug!(last_processed_height = %last_processed_height, "setting up block processor...");
 
+        self.last_processed_height = last_processed_height;
         self.persistence = Some(persistence);
         Ok(self)
     }
@@ -610,5 +611,80 @@ where
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ephemeral_storage::{EphemeralStorageError, EphemeralTransaction};
+    use super::*;
+    use crate::rpc_client::test_helpers::client_without_a_node;
+    use crate::storage::NyxdScraperStorageError;
+    use async_trait::async_trait;
+    use tokio::sync::mpsc::{channel, unbounded_channel};
+
+    const STORED_HEIGHT: u32 = 26594016;
+
+    /// A storage that holds nothing but the height it was processed up to.
+    #[derive(Clone)]
+    struct StoredHeight(u32);
+
+    #[async_trait]
+    impl NyxdScraperStorage for StoredHeight {
+        type StorageTransaction = EphemeralTransaction;
+
+        async fn initialise(_: &str, _: &bool) -> Result<Self, NyxdScraperStorageError> {
+            Err(NyxdScraperStorageError::new(EphemeralStorageError))
+        }
+
+        async fn begin_processing_tx(
+            &self,
+        ) -> Result<Self::StorageTransaction, NyxdScraperStorageError> {
+            Err(NyxdScraperStorageError::new(EphemeralStorageError))
+        }
+
+        async fn get_last_processed_height(&self) -> Result<i64, NyxdScraperStorageError> {
+            Ok(self.0 as i64)
+        }
+
+        async fn get_pruned_height(&self) -> Result<i64, NyxdScraperStorageError> {
+            Ok(0)
+        }
+
+        async fn lowest_block_height(&self) -> Result<Option<i64>, NyxdScraperStorageError> {
+            Err(NyxdScraperStorageError::new(EphemeralStorageError))
+        }
+
+        async fn prune_storage(&self, _: u32, _: u32) -> Result<(), NyxdScraperStorageError> {
+            Err(NyxdScraperStorageError::new(EphemeralStorageError))
+        }
+    }
+
+    // A scraper that was down has to pick up where it stopped. Starting from whichever block shows
+    // up first leaves every block produced in the meantime unprocessed for good.
+    #[tokio::test]
+    async fn a_processor_with_storage_resumes_from_its_stored_height() {
+        let (_blocks_tx, blocks_rx) = unbounded_channel();
+        let (requests_tx, _requests_rx) = channel(5);
+
+        let persistence = BlockProcessorPersistence::new(
+            BlockProcessorConfig::default(),
+            Default::default(),
+            StoredHeight(STORED_HEIGHT),
+        )
+        .await
+        .expect("the storage reports its pruned height");
+
+        let processor = BlockProcessor::new(
+            CancellationToken::new(),
+            blocks_rx,
+            requests_tx,
+            client_without_a_node(),
+        )
+        .with_persistence(persistence)
+        .await
+        .expect("the storage reports its last processed height");
+
+        assert_eq!(STORED_HEIGHT, processor.last_process_height());
     }
 }

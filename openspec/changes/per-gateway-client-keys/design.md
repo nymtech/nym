@@ -169,7 +169,7 @@ Alternatives considered: nym-vpn-client's formula, the account private key at th
 
 nym-vpn-client derives its ecash key next to its account mnemonic and supplies only the keypair, so the mnemonic never has to reach the fetcher. Its current call passes seed bytes, and `new_with_keypair` with the keypair from the same seed yields the identical key.
 
-A recovery-only fetcher never deposits and so needs no ecash key at all. Today it passes an empty seed.
+A recovery-only fetcher never deposits and so needs no ecash key at all. Both fetchers are built over a part that holds no key: the chain client, the pending-deposit store, the signing-data fetchers and the steps that complete a deposit already made. Only `NyxdCredentialFetcher` adds the ecash keypair and the lock that serialises its deposits, so the recovery fetcher holds no keypair, not even a placeholder, and has no way to deposit. Before this change it passed an empty seed. Alternative considered: an optional keypair that a deposit checks, which adds an error branch no public constructor can reach.
 
 Not possible cheaply: deriving from the chain client itself with no extra argument. The fetcher is generic over its client, and the signer trait exposes accounts and signing, not the mnemonic.
 
@@ -253,5 +253,5 @@ These need a real gateway and funded accounts, so they belong to the QA pass aga
 
 ## Open Questions
 
-- What a recovery-only fetcher is constructed with, now that it has no seed to fake.
+None remain. What a recovery-only fetcher is constructed with is settled in Decision 12.
 - How `refresh_gateway_keys` and `reset_client_identity` are surfaced through `nym-registration-client`.

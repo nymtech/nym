@@ -3,7 +3,7 @@
 <NetworkTabCallout />
 
 <Callout type="info">
-The first `setupMixTunnel` is slow (a few seconds): it loads the WebAssembly client, registers a new client identity with a gateway, and discovers an IPR exit. Later calls reuse the tunnel.
+The first `setupMixTunnel` is slow (a few seconds): it loads the WebAssembly client, registers a new client identity with a gateway, and connects to the IPR exit: the pinned default, or one it discovers if you tick **Use random IPR**. Later calls reuse the tunnel.
 </Callout>
 
 <Demo name="MixPlayground" />

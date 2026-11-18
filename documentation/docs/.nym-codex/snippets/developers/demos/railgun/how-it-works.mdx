@@ -28,8 +28,7 @@ works if `ethers` is a **single instance** across your bundle. If your app and
 Railgun resolve to different ethers copies, the handler installs on one and the
 engine uses the other. Pin the exact version Railgun peer-depends on.
 
-The block above is the shape of the shim. The real version also handles gzip: browser `fetch` decompresses gzip responses and `mixFetch` does not, so the handler must run a `DecompressionStream` over each response whose `Content-Encoding` is gzip before ethers gets it. The ENS demo has a handler with decompression (`decompressBody`) in
-[`components/demos/ens/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/ens/lib.ts).
+The block above is the shape of the shim. The real version also handles gzip: browser `fetch` decompresses gzip responses and `mixFetch` does not, so the handler must run a `DecompressionStream` over each gzip or deflate response before ethers gets it. The ENS demo has a handler with decompression (`decompressBody`) in [`components/demos/ens/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/ens/lib.ts).
 
 On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@railgun-community/wallet`](https://www.npmjs.com/package/@railgun-community/wallet), and [`ethers`](https://www.npmjs.com/package/ethers).
 

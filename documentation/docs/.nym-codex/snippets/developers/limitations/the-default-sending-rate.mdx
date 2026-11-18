@@ -9,8 +9,4 @@ two packet streams work. By default a client emits, per second:
 
 That is roughly **55 packets per second**. A Sphinx packet carries a 2 KB payload, so the ceiling is on the order of **100 KB/s**. The client sends at this rate when your application is idle too. The constants are `DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY` and `DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY` in [`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs).
 
-All of these are configuration. A client built through the SDK can change every
-one of them. The consequences hold whatever values you choose:
-[it costs the same when idle](snippet:nym/developers/limitations/it-costs-the-same-when-idle),
-[capacity is a budget](snippet:nym/developers/limitations/capacity-is-a-budget), and
-[turning the pacing off has a cost](snippet:nym/developers/limitations/turning-the-pacing-off-has-a-cost).
+These values can be changed only through the client's debug configuration (`DebugConfig`). Changing them can reduce your anonymity, so do not change them. The consequences hold whatever values you choose: [it costs the same when idle](snippet:nym/developers/limitations/it-costs-the-same-when-idle), [capacity is a budget](snippet:nym/developers/limitations/capacity-is-a-budget), and [turning the pacing off has a cost](snippet:nym/developers/limitations/turning-the-pacing-off-has-a-cost).

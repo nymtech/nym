@@ -5,9 +5,9 @@ Work through these questions for each endpoint. One question alone can change th
 | Question | Why it decides the answer |
 |---|---|
 | **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | Route these endpoints first. A destination that sees no application identifier has less to correlate, but it still sees and logs the IP address itself. |
-| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](snippet:nym/developers/exit-security/protect-the-payload)), so if you route an `http://` endpoint, the exit gateway gets the view your network had. |
-| **Does a user wait on it?** A request that blocks a screen, against a background refresh. | The mixnet delay is part of [the protection](snippet:nym/developers/limitations/latency-is-the-mechanism), so do not try to remove it. Only a debug option changes it, and that reduces your anonymity. Background work can wait for the response. A request that blocks a screen makes the user wait. |
-| **Is it called in sequence with others?** | Each dependent request adds a full mixnet round trip. You see the total only when you time the whole user action. See below. |
+| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](snippet:nym/developers/exit-security/protect-the-payload)), so if you route an `http://` endpoint, the exit gateway and the network after it read the request in full. |
+| **Does a user wait on it?** A request that blocks a screen, against a background refresh. | The mixnet delay is part of [the protection](snippet:nym/developers/limitations/latency-is-the-mechanism). The delay can be changed only through the client's debug configuration (`DebugConfig`). Lowering it reduces your anonymity, so do not change it. Background work can wait for the response. A request that blocks a screen makes the user wait. |
+| **Is it called in sequence with others?** | Each dependent request adds a full mixnet round trip. You see the total only when you time the whole user action. See [sequential calls and cold start](snippet:nym/developers/integrating/sequential-calls-and-cold-start). |
 | **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries with their own network code are outside the reach of your routing code. |
 
 Start with the HTTPS endpoints that see a user identifier. Add more endpoints when those work. If you route everything at once, you debug the routing in a UI that is already slow.

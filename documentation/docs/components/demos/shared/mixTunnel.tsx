@@ -137,7 +137,7 @@ export function MixTunnelSetup({
       } else {
         setStatus({ text: 'Failed', colour: 'red' });
         log('tunnel', `Connection failed: ${msg}`, 'red');
-        log('tunnel', "Timeouts and IPR rate-limits are common. Try again, or tick 'Use random IPR' and reload.", 'orange');
+        log('tunnel', "Timeouts and IPR rate-limits are common. Try again, or reload the page and tick 'Use random IPR' before you connect.", 'orange');
       }
     } finally {
       setBusy(false);

@@ -70,12 +70,12 @@
 
 ## 10. Compatibility of existing ticketbooks
 
-- [ ] 10.1 Confirm from the finished diff that nothing under `common/credential-storage` changed and that the serialised forms of `IssuedTicketBook` and `IssuanceTicketBook` are untouched
-- [ ] 10.2 Confirm from the finished diff that the spend path (`prepare_for_spending`, the bandwidth controller's ticket preparation) reads no client key, no mnemonic and no fetcher state
+- [x] 10.1 Confirm from the finished diff that nothing under `common/credential-storage` changed and that the serialised forms of `IssuedTicketBook` and `IssuanceTicketBook` are untouched (checked against `5df0088cce`: no change under `common/credential-storage`, `common/credentials/src/ecash/bandwidth` including its serialiser, `nym_offline_compact_ecash`, `nym-credentials-interface`, or the fetcher's pending-deposit storage and migrations; the one field type from a changed crate is `IssuanceTicketBook`'s `ed25519::PrivateKey`, whose type and serde code are untouched, as only `KeyPair` lost its `index` field; the lockfile changes dependency lists only, no crate versions)
+- [x] 10.2 Confirm from the finished diff that the spend path (`prepare_for_spending`, the bandwidth controller's ticket preparation) reads no client key, no mnemonic and no fetcher state (the bandwidth controller and `IssuedTicketBook` are unchanged; `prepare_ecash_ticket` takes the ticketbook from the credential store, and `prepare_for_spending` uses that ticketbook's own ecash secret, signatures and spent count; published signing data comes from the store or, when missing, through the controller's public-data fetcher, which for `NyxdCredentialFetcher` is its key-free part, never its ecash keypair, pending store or deposit lock; no hunk of the diff touches ticket spending)
 
 ## 11. Verification
 
-- [ ] 11.1 Run `cargo fmt`, then build and run the tests of `nym-crypto`, `nym-client-core`, `nym-client-core-gateways-storage`, `nym-credentials`, `nym-bandwidth-fetcher`, `nym-sdk`, `nym-sdk-session`, `nym-registration-client` and `nym-cli-commands`
-- [ ] 11.2 Check that `nym-wasm-client-core` and the wasm client still build for their wasm target
-- [ ] 11.3 Run `openspec validate per-gateway-client-keys` and fix anything it reports
-- [ ] 11.4 Copy the QA checklist from `design.md` into the PR description
+- [x] 11.1 Run `cargo fmt`, then build and run the tests of `nym-crypto`, `nym-client-core`, `nym-client-core-gateways-storage`, `nym-credentials`, `nym-bandwidth-fetcher`, `nym-sdk`, `nym-sdk-session`, `nym-registration-client` and `nym-cli-commands`
+- [x] 11.2 Check that `nym-wasm-client-core` and the wasm client still build for their wasm target
+- [x] 11.3 Run `openspec validate per-gateway-client-keys` and fix anything it reports
+- [x] 11.4 Copy the QA checklist from `design.md` into the PR description

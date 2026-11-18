@@ -65,8 +65,8 @@
 
 ## 9. Reset: a reply store that cannot be loaded
 
-- [ ] 9.1 In `StoragePaths::reset_client_identity`, when the reply store fails to load with `IncompleteDataFlush` (a flush cut short or never made, the states in which a client start archives the store and begins a fresh one), delete the store's database and journal files and continue; every other load failure, a wrong database key included, still fails the reset; add a sentence on this to design Decision 8
-- [ ] 9.2 Test the reset on a reply store that was created and never flushed: assert first that loading it fails with `IncompleteDataFlush`, then that the reset succeeds, the store's files are gone and the root identity key changed
+- [x] 9.1 In `StoragePaths::reset_client_identity`, when the reply store fails to load with `IncompleteDataFlush` (a flush cut short or never made, the states in which a client start archives the store and begins a fresh one), delete the store's database and journal files and continue; every other load failure, a wrong database key included, still fails the reset; add a sentence on this to design Decision 8
+- [x] 9.2 Test the reset on a reply store that was created and never flushed: assert first that loading it fails with `IncompleteDataFlush`, then that the reset succeeds, the store's files are gone and the root identity key changed
 
 ## 10. Compatibility of existing ticketbooks
 

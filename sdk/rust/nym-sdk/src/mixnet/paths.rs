@@ -200,17 +200,32 @@ impl StoragePaths {
         // loaded directly: the usual setup would create a missing store with default thresholds,
         // which the client would then keep
         if self.reply_surb_database_path.exists() {
-            let reply_store =
-                fs_backend::Backend::try_load(&self.reply_surb_database_path, self.database_key())
-                    .await
-                    .map_err(|source| Error::ReplyStorageError {
+            match fs_backend::Backend::try_load(&self.reply_surb_database_path, self.database_key())
+                .await
+            {
+                Ok(reply_store) => {
+                    let deleted = reply_store.delete_all_reply_data().await;
+                    reply_store.shutdown().await;
+                    deleted.map_err(|source| Error::ReplyStorageError {
                         source: Box::new(source),
                     })?;
-            let deleted = reply_store.delete_all_reply_data().await;
-            reply_store.shutdown().await;
-            deleted.map_err(|source| Error::ReplyStorageError {
-                source: Box::new(source),
-            })?;
+                }
+                // a flush cut short or never made: the client's next start would archive this
+                // store and begin a fresh one, so deleting it loses nothing a start would keep.
+                // Any other failure, a wrong key included, may hide data the client can still read
+                Err(fs_backend::StorageError::IncompleteDataFlush) => {
+                    for path in self.reply_surb_database_paths() {
+                        if path.exists() {
+                            std::fs::remove_file(path)?;
+                        }
+                    }
+                }
+                Err(source) => {
+                    return Err(Error::ReplyStorageError {
+                        source: Box::new(source),
+                    })
+                }
+            }
         }
 
         let mut rng = nym_crypto::rng::os_rng();
@@ -387,6 +402,40 @@ mod tests {
             .registration
             .is_none());
         assert_eq!(stored_reply_data(&paths).await, (0, 0));
+    }
+
+    #[tokio::test]
+    async fn reset_client_identity_deletes_a_reply_store_that_was_never_flushed() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = StoragePaths::new_from_dir(dir.path()).unwrap();
+
+        let key_store = paths.on_disk_key_storage_spec();
+        let old_keys = ClientKeys::generate_new(&mut deterministic_rng());
+        key_store.store_keys(&old_keys).await.unwrap();
+
+        // created and closed without a flush, as by a client that went down before its first one
+        let reply_store = paths.default_persistent_fs_reply_backend().await.unwrap();
+        reply_store.stop_storage_session().await.unwrap();
+        assert!(matches!(
+            fs_backend::Backend::try_load(&paths.reply_surb_database_path, None).await,
+            Err(fs_backend::StorageError::IncompleteDataFlush)
+        ));
+
+        paths.reset_client_identity().await.unwrap();
+
+        assert_ne!(
+            key_store
+                .load_keys()
+                .await
+                .unwrap()
+                .identity_keypair()
+                .public_key(),
+            old_keys.identity_keypair().public_key()
+        );
+        assert!(paths
+            .reply_surb_database_paths()
+            .iter()
+            .all(|path| !path.exists()));
     }
 
     /// The numbers of stored reply keys and of senders with stored reply SURBs.

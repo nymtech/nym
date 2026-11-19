@@ -28,10 +28,11 @@ use nym_sphinx_params::PacketType;
 use nym_sphinx_types::{NymPacket, SphinxPacket};
 use nym_task::ShutdownToken;
 use std::collections::HashMap;
+use std::mem::take;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::pin;
-use tokio::time::{sleep, timeout};
+use tokio::time::{Instant, sleep, timeout, timeout_at};
 use tracing::{debug, error, info, warn};
 
 pub(crate) mod wave;
@@ -184,7 +185,7 @@ impl GatewayMixnetLivenessProbe {
     pub(crate) async fn run(
         self,
         ingest_inbox: TargetInbox,
-        deadline: Option<Duration>,
+        deadline: Duration,
         shutdown: ShutdownToken,
     ) -> anyhow::Result<TestRunResult> {
         let identity = self.target.identity;
@@ -258,6 +259,10 @@ struct GatewayRun {
     /// What the DELIVERY phase is measuring.
     delivery_measured: PacketDelivery,
 
+    /// What the phase in flight has received so far. Held here rather than by the phase, so a phase
+    /// cut off by the deadline can still be counted; one field serves both, since they never overlap.
+    received: Vec<Measured>,
+
     /// Monotonically increasing id stamped into each outgoing packet, shared by both phases so that
     /// no id is issued twice within a run.
     ///
@@ -285,40 +290,57 @@ impl GatewayRun {
             result,
             ingest_measured: PacketDelivery::default(),
             delivery_measured: PacketDelivery::default(),
+            received: Vec::new(),
             packet_counter: 0,
         }
     }
 
-    /// Runs both phases, cut off at `deadline` if one is set.
-    ///
-    /// The deadline wraps the sequence HERE rather than the caller wrapping the whole probe, because a
-    /// dropped future would take its partial result with it: a run cut off during its delivery phase
-    /// still has to report the ingest phase it completed.
-    async fn run_to_deadline(&mut self, deadline: Option<Duration>) {
-        let Some(deadline) = deadline else {
-            self.execute().await;
-            return;
-        };
-
-        let identity = self.probe.target.identity;
-        if timeout(deadline, self.execute()).await.is_err() {
-            let deadline = format_duration(deadline);
-            warn!("the gateway probe of {identity} did not complete within {deadline}");
-            // run-level, because a deadline cuts off whatever was in flight rather than implicating
-            // one interface. whichever phases had already finished keep their own figures
-            self.result
-                .set_error(format!("the probe did not complete within {deadline}"));
-        }
-    }
-
-    /// Runs the two phases in order.
+    /// Runs the two phases in order, cut off at `deadline`.
     ///
     /// Each phase records its own failure rather than returning it: the phases test independent
     /// capabilities, so a gateway with a broken session path may still deliver perfectly and has to be
     /// measured doing it.
-    async fn execute(&mut self) {
-        self.measure_client_ingest().await;
-        self.measure_client_delivery().await;
+    ///
+    /// The deadline wraps each phase HERE rather than the caller wrapping the whole probe, because a
+    /// dropped future would take its partial result with it. The phase it cuts off counts what had
+    /// already arrived, a phase already finished keeps its figures, and one not yet started stays zero.
+    async fn run_to_deadline(&mut self, deadline: Duration) {
+        let cut_off = Instant::now() + deadline;
+
+        if timeout_at(cut_off, self.measure_client_ingest())
+            .await
+            .is_err()
+        {
+            self.collect_ingest_arrivals();
+            summarise(&mut self.ingest_measured, take(&mut self.received));
+            self.report_deadline_exceeded(deadline);
+            return;
+        }
+
+        if timeout_at(cut_off, self.measure_client_delivery())
+            .await
+            .is_err()
+        {
+            // cut off before sending anything, while still connecting, so there is nothing to count
+            if self.delivery_measured.packets_sent > 0 {
+                self.collect_delivery_arrivals();
+                summarise(&mut self.delivery_measured, take(&mut self.received));
+            }
+            self.report_deadline_exceeded(deadline);
+        }
+    }
+
+    /// Records that the deadline cut the run off.
+    fn report_deadline_exceeded(&mut self, deadline: Duration) {
+        let deadline = format_duration(deadline);
+        warn!(
+            "the gateway probe of {} did not complete within {deadline}",
+            self.probe.target.identity
+        );
+        // run-level, because a deadline cuts off whatever was in flight rather than implicating one
+        // interface
+        self.result
+            .set_error(format!("the probe did not complete within {deadline}"));
     }
 
     /// Measures client ingest: forward through the session, receive on the mixnet listener.
@@ -353,8 +375,8 @@ impl GatewayRun {
             ),
         }
 
-        let received = self.drain_ingest_arrivals(expected).await;
-        summarise(&mut self.ingest_measured, received);
+        self.drain_ingest_arrivals(expected).await;
+        summarise(&mut self.ingest_measured, take(&mut self.received));
         self.report_session_treatment();
     }
 
@@ -453,8 +475,8 @@ impl GatewayRun {
             ),
         }
 
-        let received = self.drain_delivery_arrivals(expected).await;
-        summarise(&mut self.delivery_measured, received);
+        self.drain_delivery_arrivals(expected).await;
+        summarise(&mut self.delivery_measured, take(&mut self.received));
 
         // this leg DOES speak Noise, so it has an egress handshake to report. the ingest leg has
         // neither figure, since a websocket authenticated by the registration handshake involves no
@@ -511,20 +533,12 @@ impl GatewayRun {
         interval
     }
 
-    /// Drains the ingest phase's arrivals, waiting out the straggler window for the ones still in
-    /// flight.
-    async fn drain_ingest_arrivals(&mut self, expected: usize) -> Vec<Measured> {
-        let mut received = self
-            .ingest_arrivals
-            .all_available()
-            .into_iter()
-            .map(|packet| Measured {
-                id: packet.id,
-                latency: packet.rtt,
-            })
-            .collect::<Vec<_>>();
+    /// Drains the ingest phase's arrivals into [`Self::received`], waiting out the straggler window
+    /// for the ones still in flight.
+    async fn drain_ingest_arrivals(&mut self, expected: usize) {
+        self.collect_ingest_arrivals();
 
-        if received.len() < expected {
+        if self.received.len() < expected {
             let straggler_wait = sleep(self.probe.profile.waiting_duration);
             pin!(straggler_wait);
 
@@ -533,8 +547,8 @@ impl GatewayRun {
                     _ = &mut straggler_wait => break,
                     next = self.ingest_arrivals.next_packet() => match next {
                         Ok(packet) => {
-                            received.push(Measured { id: packet.id, latency: packet.rtt });
-                            if received.len() >= expected {
+                            self.received.push(Measured { id: packet.id, latency: packet.rtt });
+                            if self.received.len() >= expected {
                                 break;
                             }
                         }
@@ -544,24 +558,31 @@ impl GatewayRun {
                 }
             }
         }
-
-        received
     }
 
-    /// Drains the delivery phase's arrivals, waiting out the straggler window.
+    /// Moves the ingest arrivals already waiting into [`Self::received`].
+    fn collect_ingest_arrivals(&mut self) {
+        let arrived = self
+            .ingest_arrivals
+            .all_available()
+            .into_iter()
+            .map(|packet| Measured {
+                id: packet.id,
+                latency: packet.rtt,
+            });
+        self.received.extend(arrived);
+    }
+
+    /// Drains the delivery phase's arrivals into [`Self::received`], waiting out the straggler
+    /// window.
     ///
     /// No sphinx recovery here: the gateway was the packet's final hop and unwrapped the payload
     /// before pushing it, so what arrives is the test content's bytes and only its round trip has to
     /// be worked out.
-    async fn drain_delivery_arrivals(&mut self, expected: usize) -> Vec<Measured> {
-        let mut received = self
-            .delivery_arrivals
-            .all_available()
-            .into_iter()
-            .filter_map(Measured::from_payload)
-            .collect::<Vec<_>>();
+    async fn drain_delivery_arrivals(&mut self, expected: usize) {
+        self.collect_delivery_arrivals();
 
-        if received.len() < expected {
+        if self.received.len() < expected {
             let straggler_wait = sleep(self.probe.profile.waiting_duration);
             pin!(straggler_wait);
 
@@ -571,8 +592,8 @@ impl GatewayRun {
                     next = self.delivery_arrivals.next_payload() => match next {
                         Ok(payload) => {
                             if let Some(measured) = Measured::from_payload(payload) {
-                                received.push(measured);
-                                if received.len() >= expected {
+                                self.received.push(measured);
+                                if self.received.len() >= expected {
                                     break;
                                 }
                             }
@@ -585,8 +606,16 @@ impl GatewayRun {
                 }
             }
         }
+    }
 
-        received
+    /// Moves the delivery arrivals already waiting into [`Self::received`].
+    fn collect_delivery_arrivals(&mut self) {
+        let arrived = self
+            .delivery_arrivals
+            .all_available()
+            .into_iter()
+            .filter_map(Measured::from_payload);
+        self.received.extend(arrived);
     }
 
     /// Builds the next ingest-phase packet: a sphinx packet whose only hop is this agent, wrapped in
@@ -793,9 +822,10 @@ mod tests {
     async fn a_session_that_cannot_be_established_yields_two_zeroed_measurements() {
         let probe = probe(unreachable_gateway());
         let ingest_inbox = probe.build_ingest_inbox();
+        let deadline = probe.config.per_target_timeout(TestKind::GatewayLiveness);
 
         let result = probe
-            .run(ingest_inbox, None, ShutdownToken::new())
+            .run(ingest_inbox, deadline, ShutdownToken::new())
             .await
             .expect("a gateway that would not take a session was reported as our own failure");
 

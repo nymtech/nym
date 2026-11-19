@@ -7,7 +7,7 @@
 
 - [x] 2.1 End a gateway phase's sending at the profile's send window, interrupting a blocked write; the sent count stays the expected count
 - [x] 2.2 Make every exit from a phase's send step (completed, window ended, send failed) continue into the straggler wait and the count, keeping a send failure as the interface's local error
-- [ ] 2.3 On the run's deadline, count the packets already arrived for the phase in flight, without waiting further: each phase runs under its own `timeout_at` against one deadline instant, arrivals collect in a `received` field on the run (as `ProbeRun::received` does), and `per_target_timeout` returns a `Duration` rather than an `Option`
+- [x] 2.3 On the run's deadline, count the packets already arrived for the phase in flight, without waiting further: each phase runs under its own `timeout_at` against one deadline instant, arrivals collect in a `received` field on the run (as `ProbeRun::received` does), and `per_target_timeout` returns a `Duration` rather than an `Option`
 - [ ] 2.4 Bound the session's close by a fixed limit (a constant, 5s), after which the connection is dropped (design Decision 3)
 - [ ] 2.5 No unit tests: the phase rules live on the run, which needs a live session (design Decision 11). Note the scenarios of "A gateway phase stops sending when its send window ends and counts what arrived" for 7.2
 

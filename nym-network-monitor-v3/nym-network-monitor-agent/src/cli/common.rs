@@ -274,24 +274,6 @@ mod tests {
         );
     }
 
-    // the deadline is the whole of what stops one unresponsive target holding up its wave, or a
-    // back-pressured stress run outliving its lease, so losing it would be silent
-    #[test]
-    fn every_probe_carries_a_per_target_deadline() {
-        let config = parse(&[]);
-
-        assert_eq!(
-            config.per_target_timeout(TestKind::MixnodeStress),
-            Some(Duration::from_secs(120))
-        );
-        for liveness in [TestKind::MixnodeLiveness, TestKind::GatewayLiveness] {
-            assert_eq!(
-                config.per_target_timeout(liveness),
-                Some(Duration::from_secs(30))
-            );
-        }
-    }
-
     // a zero deadline would time out every target of every wave the instant it began, scoring the
     // whole population zero. same class as the existing zero-duration guards, and it has to be
     // caught when the config is built rather than at parse time, since "0s" parses fine

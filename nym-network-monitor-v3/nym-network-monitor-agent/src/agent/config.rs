@@ -156,12 +156,12 @@ impl NodeTesterConfig {
     ///
     /// A stress test needs one as well: a node exerting TCP back-pressure can stall its batch writes
     /// indefinitely, and a result arriving after the orchestrator's lease is no longer accepted.
-    pub(crate) fn per_target_timeout(&self, kind: TestKind) -> Option<Duration> {
+    pub(crate) fn per_target_timeout(&self, kind: TestKind) -> Duration {
         match kind {
             TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {
-                Some(self.liveness_per_target_timeout)
+                self.liveness_per_target_timeout
             }
-            TestKind::MixnodeStress => Some(self.stress_per_target_timeout),
+            TestKind::MixnodeStress => self.stress_per_target_timeout,
         }
     }
 

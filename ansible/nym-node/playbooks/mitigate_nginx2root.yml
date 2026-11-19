@@ -447,12 +447,40 @@
                  | map('regex_replace', ':.*$', '') | first | default('') }}
             n2r_source_pkgs: "{{ n2r_pkgs_q.stdout_lines }}"
 
+        # Bounded on the node itself: if a mirror stops responding, `timeout`
+        # ends apt-get, its fetchers exit with it and the lock is released, so
+        # one slow mirror can't hold up the whole batch. Runs in check mode too,
+        # so a preview sees the upgrades that are waiting.
+        - name: Refresh the package lists
+          ansible.builtin.command:
+            argv:
+              - timeout
+              - --kill-after=10
+              - "{{ nginx2root_refresh_timeout | default(300) }}"
+              - apt-get
+              - update
+              - -q
+              - -o
+              - Acquire::http::Timeout=30
+              - -o
+              - Acquire::https::Timeout=30
+              - -o
+              - Acquire::Retries=2
+          register: n2r_refresh
+          changed_when: false
+          failed_when: false
+          check_mode: false
+          when:
+            - nginx2root_upgrade | default(true) | bool
+            - n2r_owner | length > 0
+
+        # upgrades from the lists as they are, even if the refresh failed: an
+        # earlier refresh may already have brought in the fixed package
         - name: Upgrade nginx if a newer package is available
           ansible.builtin.apt:
             name: "{{ (n2r_source_pkgs + [n2r_owner]) | select | unique }}"
             state: latest
             only_upgrade: true
-            update_cache: true
           register: n2r_apt
           when:
             - nginx2root_upgrade | default(true) | bool
@@ -529,10 +557,18 @@
         # apt reports a change in check mode only when an upgrade is waiting
         n2r_upgrade: >-
           {{ 'skipped' if ((n2r_apt | default({'skipped': true})) is skipped)
-             else ('waiting' if (ansible_check_mode and n2r_apt is changed) else 'none') }}
+             else ('waiting' if (ansible_check_mode and n2r_apt is changed)
+             else ('refresh' if ((n2r_refresh.rc | default(0)) != 0) else 'none')) }}
+        n2r_refresh_why: >-
+          {{ 'a package mirror stopped responding' if (n2r_refresh.rc | default(0)) in [124, 137]
+             else ('another apt process holds the lock - check for a stuck apt-get update'
+                   if 'Could not get lock' in (n2r_refresh.stderr | default(''))
+             else 'apt-get update exited with ' ~ (n2r_refresh.rc | default('?'))) }}
         n2r_fix_line: >-
           {{ 'fix INSTALLED' if n2r_fix == 'found'
-             else ('fix not installed - ' ~ n2r_fix_next[n2r_upgrade]) if n2r_fix == 'absent'
+             else ('fix not installed - ' ~ (n2r_fix_next[n2r_upgrade] if n2r_upgrade != 'refresh'
+                   else 'package lists could not be refreshed (' ~ n2r_refresh_why ~ '), re-run later'))
+             if n2r_fix == 'absent'
              else 'fix status ' ~ n2r_fix }}
         n2r_fix_next:
           waiting: an upgrade is available, the real run installs it and checks again

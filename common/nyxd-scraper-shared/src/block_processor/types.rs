@@ -153,6 +153,7 @@ impl From<block_endpoint::Response> for BlockToProcess {
 
 #[cfg(test)]
 pub(crate) mod test_helpers {
+    use super::BlockToProcess;
     use tendermint_rpc::Response;
     use tendermint_rpc::event::Event;
     use tendermint_rpc::event::v0_38::DeEvent;
@@ -233,6 +234,22 @@ pub(crate) mod test_helpers {
         DeEvent::from_string(message)
             .expect("the message is not a valid event")
             .into()
+    }
+
+    pub(crate) fn recorded_block() -> BlockToProcess {
+        BlockToProcess::try_from(parse_new_block_message(NEW_BLOCK_MESSAGE))
+            .expect("the recorded event must convert")
+    }
+
+    /// The recorded block with its header claiming `height`.
+    pub(crate) fn recorded_block_at(height: u32) -> BlockToProcess {
+        let mut message: serde_json::Value =
+            serde_json::from_str(NEW_BLOCK_MESSAGE).expect("the recorded message is valid json");
+        message["result"]["data"]["value"]["block"]["header"]["height"] =
+            serde_json::json!(height.to_string());
+
+        BlockToProcess::try_from(parse_new_block_message(&message.to_string()))
+            .expect("the rewritten event must convert")
     }
 }
 

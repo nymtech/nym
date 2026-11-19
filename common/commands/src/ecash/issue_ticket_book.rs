@@ -11,7 +11,7 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_bandwidth_fetcher::NyxdCredentialFetcher;
 use nym_client_core::cli_helpers::database_key::DatabaseKeyArgs;
 use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
-use nym_client_core::client::key_manager::persistence::Passphrase;
+use nym_client_core::client::key_manager::persistence::KeySecret;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
@@ -80,7 +80,7 @@ pub struct Args {
 async fn issue_client_ticketbook(
     config_path: PathBuf,
     ticketbook_type: TicketType,
-    key_passphrase: Option<&Passphrase>,
+    key_secret: Option<&KeySecret>,
     database_key: Option<&nym_sqlcipher::DatabaseKey>,
     client: SigningClient,
 ) -> anyhow::Result<()> {
@@ -105,7 +105,7 @@ async fn issue_client_ticketbook(
     let requests_store = loaded.try_get_credential_requests_store()?;
     let persistent_storage = initialise_persistent_storage(credentials_store, database_key).await;
     let private_id_key: ed25519::PrivateKey =
-        nym_pemstore::load_key_with(private_id_key, key_passphrase)?;
+        nym_pemstore::load_key_with(private_id_key, key_secret)?;
 
     let fetcher = NyxdCredentialFetcher::new(
         Arc::new(client),
@@ -206,7 +206,10 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         return issue_client_ticketbook(
             client_config,
             args.ticketbook_type,
-            args.key_passphrase.key_passphrase.as_ref(),
+            args.key_passphrase
+                .key_passphrase
+                .map(KeySecret::from)
+                .as_ref(),
             args.database_key.database_key.as_ref(),
             client,
         )

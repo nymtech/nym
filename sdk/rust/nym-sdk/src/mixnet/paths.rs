@@ -4,7 +4,7 @@
 use crate::error::{Error, Result};
 use nym_client_core::client::base_client::storage::OnDiskGatewaysDetails;
 use nym_client_core::client::base_client::{non_wasm_helpers, storage};
-use nym_client_core::client::key_manager::persistence::{OnDiskKeys, Passphrase};
+use nym_client_core::client::key_manager::persistence::{KeySecret, OnDiskKeys};
 use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
@@ -49,8 +49,9 @@ pub struct StoragePaths {
     /// Details of the used gateways
     pub gateway_registrations: PathBuf,
 
-    /// Passphrase protecting the private keys; plaintext keys get encrypted on first load with it.
-    key_passphrase: Option<Passphrase>,
+    /// Secret (passphrase or raw key) protecting the private keys; plaintext keys get encrypted on
+    /// first load with it.
+    key_secret: Option<KeySecret>,
 
     /// Raw SQLCipher key encrypting the credential, reply SURB and gateway registration databases;
     /// plaintext databases get encrypted on first open with it.
@@ -81,17 +82,18 @@ impl StoragePaths {
             credential_requests_database_path: dir.join(DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME),
             reply_surb_database_path: dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
             gateway_registrations: dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
-            key_passphrase: None,
+            key_secret: None,
             database_key: None,
         })
     }
 
-    /// Protects the private keys with a passphrase; keys still in plaintext are encrypted the first
-    /// time they are loaded. Validating the passphrase (for instance rejecting an empty one) is the
+    /// Protects the private keys with a secret: a passphrase, or a uniformly random 256-bit raw
+    /// key that needs no stretching. Keys still in plaintext are encrypted the first time they
+    /// are loaded. Validating the secret (for instance rejecting an empty passphrase) is the
     /// caller's job.
     #[must_use]
-    pub fn with_key_passphrase(mut self, key_passphrase: Option<Passphrase>) -> Self {
-        self.key_passphrase = key_passphrase;
+    pub fn with_key_secret(mut self, key_secret: Option<KeySecret>) -> Self {
+        self.key_secret = key_secret;
         self
     }
 
@@ -170,7 +172,7 @@ impl StoragePaths {
 
     /// Instantiates default persistent key storage.
     pub fn on_disk_key_storage_spec(&self) -> OnDiskKeys {
-        OnDiskKeys::with_passphrase(self.client_keys_paths(), self.key_passphrase.clone())
+        OnDiskKeys::with_secret(self.client_keys_paths(), self.key_secret.clone())
     }
 
     /// Instantiates gateway registrations storage, encrypted if a database key is set.
@@ -248,7 +250,7 @@ impl From<CommonClientPaths> for StoragePaths {
             credential_requests_database_path: value.credential_requests_database,
             reply_surb_database_path: value.reply_surb_database,
             gateway_registrations: value.gateway_registrations,
-            key_passphrase: None,
+            key_secret: None,
             database_key: None,
         }
     }
@@ -257,7 +259,7 @@ impl From<CommonClientPaths> for StoragePaths {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_client_core::client::key_manager::persistence::KeyStore;
+    use nym_client_core::client::key_manager::persistence::{KeyStore, Passphrase, RawKey};
     use nym_client_core::client::key_manager::ClientKeys;
     use nym_test_utils::helpers::deterministic_rng;
 
@@ -266,7 +268,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let paths = StoragePaths::new_from_dir(dir.path())
             .unwrap()
-            .with_key_passphrase(Some(Passphrase::new("hunter2")));
+            .with_key_secret(Some(Passphrase::new("hunter2").into()));
 
         paths
             .on_disk_key_storage_spec()
@@ -278,6 +280,32 @@ mod tests {
         assert!(nym_pemstore::is_encrypted(&paths.private_encryption).unwrap());
         assert!(nym_pemstore::is_encrypted(&paths.ack_key).unwrap());
         assert!(!nym_pemstore::is_encrypted(&paths.public_identity).unwrap());
+    }
+
+    #[tokio::test]
+    async fn raw_key_reaches_the_key_store() {
+        let dir = tempfile::tempdir().unwrap();
+        let secret = KeySecret::from(RawKey::from_bytes(&[7; nym_pemstore::RAW_KEY_LEN]));
+        let paths = StoragePaths::new_from_dir(dir.path())
+            .unwrap()
+            .with_key_secret(Some(secret.clone()));
+        let keys = ClientKeys::generate_new(&mut deterministic_rng());
+
+        paths
+            .on_disk_key_storage_spec()
+            .store_keys(&keys)
+            .await
+            .unwrap();
+
+        assert!(nym_pemstore::is_encrypted(&paths.private_identity).unwrap());
+        assert!(nym_pemstore::is_encrypted(&paths.private_encryption).unwrap());
+        assert!(nym_pemstore::is_encrypted(&paths.ack_key).unwrap());
+        assert!(!nym_pemstore::is_encrypted(&paths.public_identity).unwrap());
+        let loaded = paths.on_disk_key_storage_spec().load_keys().await.unwrap();
+        assert_eq!(
+            loaded.identity_keypair().private_key().to_bytes(),
+            keys.identity_keypair().private_key().to_bytes()
+        );
     }
 
     #[tokio::test]

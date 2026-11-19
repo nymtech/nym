@@ -16,10 +16,10 @@
 #              then verify HTTP/2 is off and WSS still upgrades
 #   optional   upgrade nginx and report whether the package carries the fix
 #
-# Upstream fixed all five in nginx 1.30.7 and 1.31.9 (18 Nov 2026). Debian and
-# Ubuntu had not shipped backports yet, so on distro packages HTTP/2 off is the
-# protection until they do. Re-run this playbook after they land: the upgrade
-# step installs the fix and the report confirms it from the package changelog.
+# Upstream fixed all five in nginx 1.30.7 and 1.31.9 (18 Nov 2026). By 19 Nov,
+# Ubuntu had shipped fixed packages for 22.04, 24.04 and 26.04; Debian 12 and 13
+# had not. The upgrade step installs the fix where it exists and the report
+# confirms it from the package changelog. Re-run once Debian ships it.
 #
 # Hosts without nginx (mixnodes) only get the SCTP block. Before any change, each
 # file is copied to /root/nginx-h2-backup/original (kept from the first run on)
@@ -417,14 +417,46 @@
 
         # ---------------------------------------------------- package update --
 
+        # The binary isn't always in the `nginx` package: on Ubuntu 22.04 it is
+        # in nginx-core, and nginx / nginx-full are metapackages on top of it.
+        - name: Find the package that owns the nginx binary
+          ansible.builtin.command: dpkg-query -S /usr/sbin/nginx
+          register: n2r_owner_q
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+        # The binary, its metapackages, nginx-common and the modules pin each
+        # other's versions, so every installed package built from the nginx
+        # source is upgraded together.
+        - name: List the installed packages built from nginx
+          ansible.builtin.shell: |
+            set -o pipefail
+            dpkg-query -W -f='${db:Status-Abbrev} ${Package} ${source:Package}\n' | awk '$1=="ii" && $3=="nginx" {print $2}'
+          args:
+            executable: /bin/bash
+          register: n2r_pkgs_q
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+        - name: Work out the nginx packages
+          ansible.builtin.set_fact:
+            n2r_owner: >-
+              {{ n2r_owner_q.stdout_lines | reject('match', '^diversion by') | select('search', ': /usr/sbin/nginx$')
+                 | map('regex_replace', ':.*$', '') | first | default('') }}
+            n2r_source_pkgs: "{{ n2r_pkgs_q.stdout_lines }}"
+
         - name: Upgrade nginx if a newer package is available
           ansible.builtin.apt:
-            name: [nginx, nginx-common]
+            name: "{{ (n2r_source_pkgs + [n2r_owner]) | select | unique }}"
             state: latest
             only_upgrade: true
             update_cache: true
           register: n2r_apt
-          when: nginx2root_upgrade | default(true) | bool
+          when:
+            - nginx2root_upgrade | default(true) | bool
+            - n2r_owner | length > 0
 
         - name: Restart nginx onto the new binary
           ansible.builtin.service:
@@ -433,24 +465,30 @@
           when: n2r_apt is changed and not ansible_check_mode
 
         - name: Read the installed nginx package version
-          ansible.builtin.command: dpkg-query -W -f=${Version} nginx
+          ansible.builtin.command:
+            argv: [dpkg-query, -W, '-f=${Version}', "{{ n2r_owner }}"]
           register: n2r_pkg
           changed_when: false
           failed_when: false
           check_mode: false
+          when: n2r_owner | length > 0
 
-        # distro packages list backported CVEs in changelog.Debian.gz, nginx.org
-        # packages in the upstream changelog.gz. A failed check reports as
-        # unknown, never as "not fixed".
+        # Read from the package that owns the binary. Distro packages list
+        # backported CVEs in changelog.Debian.gz, nginx.org packages in the
+        # upstream changelog.gz. A failed check reports as unknown, never as
+        # "not fixed".
         - name: Check whether the package carries the fix
           ansible.builtin.shell: |
             shopt -s nullglob
-            set -- /usr/share/doc/nginx/changelog*.gz
-            if [ "$#" -eq 0 ]; then echo "unknown: no changelog in /usr/share/doc/nginx"; exit 0; fi
+            if [ -z "$N2R_PKG" ]; then echo "unknown: nginx was not installed from a package"; exit 0; fi
+            set -- /usr/share/doc/"$N2R_PKG"/changelog*.gz
+            if [ "$#" -eq 0 ]; then echo "unknown: no changelog in /usr/share/doc/$N2R_PKG"; exit 0; fi
             zgrep -qs CVE-2026-123007 "$@"; rc=$?
             case $rc in 0) echo found ;; 1) echo absent ;; *) echo "unknown: zgrep exit $rc" ;; esac
           args:
             executable: /bin/bash
+          environment:
+            N2R_PKG: "{{ n2r_owner }}"
           register: n2r_fixed
           changed_when: false
           failed_when: false
@@ -502,7 +540,7 @@
           - "config     : {{ 'http2 still ENABLED' if (n2r_conf_h2.stdout | default('')) == 'enabled' else (n2r_conf_h2.stdout | default('n/a')) }}"
           - "HTTP/2     : {{ n2r_http2 }}"
           - "WSS check  : {{ n2r_wss_line }}"
-          - "package    : {{ n2r_pkg.stdout | default('n/a') }} - {{ n2r_fix_line }}"
+          - "package    : {{ (n2r_owner ~ ' ' ~ (n2r_pkg.stdout | default(''))) if (n2r_owner | default('')) else 'not from a package' }} - {{ n2r_fix_line }}"
           - "backups    : {{ (n2r_backup_dir | default('/root/nginx-h2-backup')) ~ '/original' if (n2r_backup_files | default([])) else 'none needed' }}"
 
     # one check at the end, so nginx is mitigated even where SCTP needs a reboot

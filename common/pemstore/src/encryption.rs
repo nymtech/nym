@@ -16,6 +16,7 @@ use pkcs8::EncryptedPrivateKeyInfoOwned;
 use pkcs8::der::asn1::OctetString;
 use pkcs8::der::{Decode, Encode};
 use pkcs8::pkcs5::{EncryptionScheme, pbes2, scrypt};
+use rand::CryptoRng;
 use std::fmt;
 use std::io;
 use std::sync::Arc;
@@ -71,15 +72,13 @@ impl RawKey {
     /// Copies the key from a borrowed buffer straight into the shared allocation, without
     /// intermediate copies. The caller stays responsible for wiping its own buffer.
     pub fn from_bytes(key: &[u8; RAW_KEY_LEN]) -> Self {
-        RawKey::from_fn(|buf| buf.copy_from_slice(key))
+        RawKey(with_heap_key_buf(|buf| buf.copy_from_slice(key)))
     }
 
-    /// Fills the key in place, e.g. from an RNG, so it only ever exists in the shared allocation.
-    pub fn from_fn(fill: impl FnOnce(&mut [u8; RAW_KEY_LEN])) -> Self {
-        let mut key = Arc::new(Zeroizing::new([0u8; RAW_KEY_LEN]));
-        // the Arc isn't shared yet, so this doesn't clone
-        fill(&mut *Arc::make_mut(&mut key));
-        RawKey(key)
+    /// Generates a new uniformly random key, filled straight into the shared allocation so it never
+    /// exists anywhere else.
+    pub fn generate<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
+        RawKey(with_heap_key_buf(|buf| rng.fill_bytes(buf)))
     }
 
     pub(crate) fn as_bytes(&self) -> &[u8; RAW_KEY_LEN] {
@@ -93,11 +92,27 @@ impl TryFrom<&[u8]> for RawKey {
     type Error = InvalidRawKeyLength;
 
     fn try_from(key: &[u8]) -> Result<Self, Self::Error> {
-        if key.len() != RAW_KEY_LEN {
-            return Err(InvalidRawKeyLength { len: key.len() });
+        if key.len() == RAW_KEY_LEN {
+            Ok(RawKey(with_heap_key_buf(|buf| buf.copy_from_slice(key))))
+        } else {
+            Err(InvalidRawKeyLength { len: key.len() })
         }
-        Ok(RawKey::from_fn(|buf| buf.copy_from_slice(key)))
     }
+}
+
+/// Allocates zeroed storage on heap and passes it to `initialize` for initialization which must fill in the buffer.
+/// Returns initialized key buffer stored on heap
+fn with_heap_key_buf(
+    initialize: impl FnOnce(&mut [u8; RAW_KEY_LEN]),
+) -> Arc<Zeroizing<[u8; RAW_KEY_LEN]>> {
+    let mut storage = Arc::new(Zeroizing::new([0u8; RAW_KEY_LEN]));
+
+    // It's safe because only one instance of Arc exists
+    #[allow(clippy::expect_used)]
+    let buf = Arc::get_mut(&mut storage).expect("failed to Arc::get_mut()");
+
+    initialize(buf);
+    storage
 }
 
 /// Returned by `RawKey::try_from(&[u8])` when the input isn't exactly [`RAW_KEY_LEN`] bytes.
@@ -244,12 +259,12 @@ mod tests {
 
     #[test]
     fn raw_key_constructors_agree() {
-        let filled = RawKey::from_fn(|key| key.fill(7));
+        let expected = [7; RAW_KEY_LEN];
 
-        assert_eq!(filled.as_bytes(), &[7; RAW_KEY_LEN]);
+        assert_eq!(RawKey::from_bytes(&expected).as_bytes(), &expected);
         assert_eq!(
-            RawKey::from_bytes(&[7; RAW_KEY_LEN]).as_bytes(),
-            filled.as_bytes()
+            RawKey::try_from(&expected[..]).unwrap().as_bytes(),
+            &expected
         );
     }
 
@@ -263,6 +278,15 @@ mod tests {
             pbes2::EncryptionScheme::Aes256Gcm { .. }
         ));
         params.kdf
+    }
+
+    #[test]
+    fn generated_raw_keys_are_random() {
+        let first = RawKey::generate(&mut rand::rng());
+        let second = RawKey::generate(&mut rand::rng());
+
+        assert_ne!(first.as_bytes(), second.as_bytes());
+        assert_ne!(first.as_bytes(), &[0; RAW_KEY_LEN]);
     }
 
     #[test]

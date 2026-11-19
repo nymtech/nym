@@ -25,6 +25,7 @@ use futures::Stream;
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_client_core_gateways_storage::GenerationId;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::rng::os_rng;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownTracker;
@@ -343,8 +344,9 @@ where
 
         let gateway = choose_gateway(&topology_accessor, self.gateway)?;
 
-        // no stored registration to keep a generation in, so the fixed one; see `GenerationId::LP`
-        let gateway_keys = client_keys.gateway_keys(gateway, Some(GenerationId::LP));
+        // an LP client keeps no registration, so it draws a new generation, and identity, at every start
+        let gateway_keys =
+            client_keys.gateway_keys(gateway, Some(GenerationId::new_random(&mut os_rng())));
         let encryption_keys = gateway_keys.encryption_keypair();
         let identity_keys = gateway_keys.identity_keypair();
         let self_address = Recipient::new(

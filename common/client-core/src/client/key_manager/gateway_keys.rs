@@ -23,15 +23,15 @@ pub struct GatewayClientKeys {
 
 impl GatewayClientKeys {
     pub fn identity_keypair(&self) -> Arc<ed25519::KeyPair> {
-        Arc::clone(&self.identity_keypair)
+        self.identity_keypair.clone()
     }
 
     pub fn encryption_keypair(&self) -> Arc<x25519::KeyPair> {
-        Arc::clone(&self.encryption_keypair)
+        self.encryption_keypair.clone()
     }
 
     pub fn ack_key(&self) -> Arc<AckKey> {
-        Arc::clone(&self.ack_key)
+        self.ack_key.clone()
     }
 }
 
@@ -125,29 +125,38 @@ mod tests {
     // independent HKDF-BLAKE3, Ed25519 and X25519, not from this implementation
     #[test]
     fn derived_keys_match_their_known_answer() {
-        let derivation =
-            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::LP);
+        let generation_id = GenerationId::new_random(&mut deterministic_rng());
+        // the known answer was computed for this id, so a changed generator fails here, not below
+        assert_eq!(
+            generation_id.as_bytes(),
+            &[
+                152, 25, 31, 70, 229, 131, 2, 22, 68, 84, 54, 151, 136, 3, 105, 122
+            ]
+        );
+
+        let derivation = GatewayKeyDerivation::new(&private_key(1), public_key(2), generation_id);
 
         assert_eq!(
             derivation
                 .identity_keypair()
                 .public_key()
                 .to_base58_string(),
-            "G6NNAq2WQigmFSu4QSDEyG6ddSWSKZjTMed9fJ1Pafwg"
+            "3ER3EXxhWNfUcwvFJGgZrLEzLnty2LK65VicWaGk15P3"
         );
         assert_eq!(
             derivation
                 .diffie_hellman_keypair()
                 .public_key()
                 .to_base58_string(),
-            "EZQ4S5q6FdSsb556N6eNHxmvdxmMSh6trdrYpLpkPCTK"
+            "6gR4medsGLdu8KKCytoZdZsiDwuPMYkYZcUUgL9RbDVt"
         );
     }
 
     #[test]
     fn the_gateway_changes_both_keys() {
-        let first = GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::LP);
-        let second = GatewayKeyDerivation::new(&private_key(1), public_key(3), GenerationId::LP);
+        let generation_id = GenerationId::new_random(&mut deterministic_rng());
+        let first = GatewayKeyDerivation::new(&private_key(1), public_key(2), generation_id);
+        let second = GatewayKeyDerivation::new(&private_key(1), public_key(3), generation_id);
 
         assert_ne!(
             first.identity_keypair().public_key(),
@@ -161,11 +170,16 @@ mod tests {
 
     #[test]
     fn the_generation_id_changes_both_keys() {
-        let first = GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::LP);
+        let mut rng = deterministic_rng();
+        let first = GatewayKeyDerivation::new(
+            &private_key(1),
+            public_key(2),
+            GenerationId::new_random(&mut rng),
+        );
         let second = GatewayKeyDerivation::new(
             &private_key(1),
             public_key(2),
-            GenerationId::new_random(&mut deterministic_rng()),
+            GenerationId::new_random(&mut rng),
         );
 
         assert_ne!(
@@ -180,8 +194,11 @@ mod tests {
 
     #[test]
     fn the_key_type_changes_the_derived_secret() {
-        let derivation =
-            GatewayKeyDerivation::new(&private_key(1), public_key(2), GenerationId::LP);
+        let derivation = GatewayKeyDerivation::new(
+            &private_key(1),
+            public_key(2),
+            GenerationId::new_random(&mut deterministic_rng()),
+        );
 
         assert_ne!(
             *derivation.expand(IDENTITY_KEY_LABEL),

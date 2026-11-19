@@ -331,19 +331,7 @@ pub struct RemoteGatewayDetails {
 pub struct GenerationId([u8; GENERATION_ID_SIZE]);
 
 impl GenerationId {
-    /// The generation an LP client derives its keys at for its home gateway, at every start.
-    ///
-    /// An LP client keeps no registration between starts, so it has nowhere to keep a random
-    /// generation id; a fixed one is what keeps its address the same across restarts at a gateway
-    /// the application requested. Nothing else depends on it: an LP gateway keeps no shared key,
-    /// bandwidth or queued messages per client identity. The cost is that such a gateway can link
-    /// the client's starts by its key, as any gateway can until the client refreshes there.
-    ///
-    /// A stored registration never carries it: every registration and refresh draws a random id,
-    /// so a lost registrations store can never bring back an identity the client has moved away from.
-    pub const LP: GenerationId = GenerationId([0; GENERATION_ID_SIZE]);
-
-    /// A fresh random generation id; every registration and refresh draws it from the OS random generator.
+    /// A fresh random generation id; every registration, refresh and LP start draws it from the OS random generator.
     pub fn new_random<R: CryptoRng>(rng: &mut R) -> GenerationId {
         let mut bytes = [0; GENERATION_ID_SIZE];
         rng.fill_bytes(&mut bytes);

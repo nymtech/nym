@@ -45,7 +45,7 @@ A later change to this construction MUST use a different salt version, so that i
 
 ### Requirement: Each derived registration carries a 16-byte generation id
 
-Every registration that uses derived keys SHALL carry a 16-byte generation id, stored with the registration. A client SHALL draw the generation id as 16 bytes from the operating system's cryptographic random generator for every new registration with a gateway, the first one included, and again at each refresh, which replaces the stored id. A previous generation id MUST NOT be retained once it has been replaced. The all-zero generation id is used only by a client in LP mode, which stores no registration.
+Every registration that uses derived keys SHALL carry a 16-byte generation id, stored with the registration. A client SHALL draw the generation id as 16 bytes from the operating system's cryptographic random generator for every new registration with a gateway, the first one included, and again at each refresh, which replaces the stored id. A previous generation id MUST NOT be retained once it has been replaced. A client in LP mode stores no registration and SHALL draw a new generation id the same way at every start.
 
 The generation id is not secret. It MUST NOT be sent to the gateway.
 
@@ -81,9 +81,9 @@ A custom gateway registration, as used by a service provider embedded in a node,
 
 ### Requirement: A client in LP mode presents keys derived for its gateway
 
-A mixnet client that connects over the Lewes Protocol SHALL register with the gateway it has chosen under the identity keypair derived for that gateway at the zero generation id, and SHALL use the x25519 keypair derived for that gateway in its address and to decrypt the messages it receives. It MUST NOT present its root identity public key to that gateway. An LP client keeps no stored registration, so it SHALL derive at the zero generation id at every start.
+A mixnet client that connects over the Lewes Protocol SHALL register with the gateway it has chosen under the identity keypair derived for that gateway at a newly drawn generation id, and SHALL use the x25519 keypair derived for that gateway in its address and to decrypt the messages it receives. It MUST NOT present its root identity public key to that gateway. An LP client keeps no stored registration, so it draws a new generation id, and has a new identity and address, at every start.
 
-A connect over the Lewes Protocol with the `refresh_gateway_keys` flag set SHALL fail with an error, because the refreshed generation id could not be kept. A full reset SHALL apply to an LP client as to any other client.
+The `refresh_gateway_keys` flag SHALL have no effect over the Lewes Protocol, since every start already uses a new identity. A full reset SHALL apply to an LP client as to any other client.
 
 Sessions with gateways other than the client's home gateway are not covered by this requirement.
 
@@ -91,17 +91,13 @@ Sessions with gateways other than the client's home gateway are not covered by t
 - **WHEN** a client connects over LP
 - **THEN** the identity public key it registers with its gateway differs from its root identity public key, and the identity and encryption keys in its address are the ones derived for that gateway
 
-#### Scenario: An LP client keeps its identity at a gateway across starts
+#### Scenario: An LP client has a new identity at every start
 - **WHEN** an LP client with a requested gateway starts twice
-- **THEN** it registers with that gateway under the same identity both times
+- **THEN** it registers with that gateway under a different identity each time
 
 #### Scenario: Two LP gateways see unrelated keys
 - **WHEN** an LP client connects to gateway A on one start and to gateway B on another
 - **THEN** its identity public keys at A and at B differ, and its encryption public keys at A and at B differ
-
-#### Scenario: A refresh is rejected over LP
-- **WHEN** an application sets the refresh flag and connects over LP
-- **THEN** the connect fails with an error before any gateway is dialled
 
 ### Requirement: Keys at a gateway are refreshed only on explicit request
 
@@ -113,7 +109,7 @@ The stored registration MUST be replaced only after the new registration has suc
 
 As part of a refresh the client MUST NOT connect to the gateway as its previous identity.
 
-The flag SHALL be settable on the SDK's mixnet client builder and through `nym-registration-client`. The native and socks5 clients offer the same refresh as their `refresh-gateway-keys` command, which refreshes without starting the client. The wasm client does not expose it. This requirement applies to clients that keep stored registrations; over LP the flag is rejected, as required for LP clients.
+The flag SHALL be settable on the SDK's mixnet client builder and through `nym-registration-client`. The native and socks5 clients offer the same refresh as their `refresh-gateway-keys` command, which refreshes without starting the client. The wasm client does not expose it. This requirement applies to clients that keep stored registrations; over LP the flag has no effect, as required for LP clients.
 
 #### Scenario: A refresh gives the gateway a new client
 - **WHEN** an application connects with the refresh flag to a gateway it has a derived registration for
@@ -147,7 +143,7 @@ The flag SHALL be settable on the SDK's mixnet client builder and through `nym-r
 
 The SDK SHALL provide an explicit reset operation, `reset_client_identity`, also reachable through `nym-registration-client` and as the `reset-client-identity` command of the native and socks5 clients. A reset SHALL generate new random root keys, remove every stored gateway registration and clear the reply store of its reply SURBs and reply keys. A reset MUST NOT modify the credential store, MUST NOT contact any gateway and MUST NOT happen implicitly. The caller MUST NOT run a reset while a client is using the same storage: the reset cannot detect one.
 
-A reset replaces the root because an LP client derives its keys from the root at the zero generation id at every start, so removing registrations alone would not give an LP client a fresh identity.
+A reset replaces the root because custom registrations use the root keys, so removing registrations alone would leave a client presenting its old identity at its next custom registration.
 
 #### Scenario: A reset makes a brand-new client
 - **WHEN** an application resets a client and then connects to a gateway it was registered with before

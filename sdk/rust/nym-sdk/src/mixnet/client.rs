@@ -272,8 +272,8 @@ where
     /// for instance for lack of bandwidth, still leaves the client on the new identity, and a
     /// retry with the flag set registers yet another one. The gateway drops the old
     /// identity only if the previous session disconnected with
-    /// [`with_forget_me`](Self::with_forget_me) set. Over LP the connect fails, as an LP client
-    /// stores no registration to keep the new identity in.
+    /// [`with_forget_me`](Self::with_forget_me) set. Over LP it changes nothing, as an LP client
+    /// already uses a new identity at every start.
     #[must_use]
     pub fn refresh_gateway_keys(mut self, refresh_gateway_keys: bool) -> Self {
         self.refresh_gateway_keys = refresh_gateway_keys;
@@ -895,12 +895,6 @@ where
             return Err(Error::ReregisteringGatewayNotSupported);
         }
 
-        // an LP client stores no registration, so a refreshed generation id could not be kept and
-        // its next start would silently return to `GenerationId::LP`
-        if self.refresh_gateway_keys {
-            return Err(Error::RefreshOverLp);
-        }
-
         let requested_gateway = self
             .config
             .user_chosen_gateway
@@ -1233,26 +1227,6 @@ mod tests {
                 .await
                 .is_err());
             assert_eq!(std::fs::read(&encrypted.private_identity).unwrap(), before);
-        }
-
-        #[tokio::test]
-        async fn refresh_over_lp_fails_before_any_gateway_is_dialled() {
-            let dir = tempfile::tempdir().unwrap();
-            let paths = StoragePaths::new_from_dir(dir.path()).unwrap();
-
-            let result = MixnetClientBuilder::new_with_default_storage(paths.clone())
-                .await
-                .unwrap()
-                .with_lp(true)
-                .refresh_gateway_keys(true)
-                .build()
-                .unwrap()
-                .connect_to_mixnet()
-                .await;
-
-            assert!(matches!(result, Err(Error::RefreshOverLp)));
-            // the LP client stores its keys before it looks for a gateway, so it never started
-            assert!(!paths.private_identity.exists());
         }
     }
 }

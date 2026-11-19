@@ -43,7 +43,7 @@ The full investigation, with line references and the reasoning behind each decis
 - Moving nym-vpn-client onto the shared ecash helper. It supplies its own ecash keypair.
 - Renaming the existing `encryption_keypair` items, or re-enabling the wasm client's use of the reuse-connection path.
 - Per-gateway keys for LP sessions with gateways other than the client's home gateway. Nothing opens such sessions yet, and what they register and how traffic arriving through them is decrypted is not decided.
-- A key refresh over LP, which would need a stored generation id that an LP client does not keep.
+- A stable LP identity across starts, which would need a stored generation id that an LP client does not keep.
 - The LP dialer's handshake keypair, which is fresh at every start and shared by the sessions of that run.
 
 ## Decisions
@@ -86,7 +86,7 @@ The construction is pinned by a known-answer test. Once clients have registered,
 
 ### Decision 4: Every stored registration draws a random generation id
 
-The generation id (`GenerationId`) is 16 bytes from the OS random generator, drawn for a client's first registration with a gateway and again at each refresh. The previous value is overwritten, not kept. The all-zero id is used only by the LP client, which stores no registration (Decision 16).
+The generation id (`GenerationId`) is 16 bytes from the OS random generator, drawn for a client's first registration with a gateway and again at each refresh. The previous value is overwritten, not kept. The LP client, which stores no registration, draws a new one at every start (Decision 16).
 
 Why random from the first registration: a client knows a gateway only through its stored registration. With a fixed first id, a client that lost or deleted its registrations store would register at that id again and show the gateway its first identity, also at a gateway where it had since refreshed, and it could not tell the two cases apart. With a random id, a lost store is a fresh start at every gateway, and no stored registration ever presents an identity the client has moved away from.
 
@@ -108,7 +108,7 @@ Why: existing registrations keep their identity, shared key, address and credite
 
 ### Decision 6: The keys in use with a gateway have their own type
 
-A new type, `GatewayClientKeys`, holds the identity keypair, the x25519 keypair and the acknowledgement key that a client uses with one gateway. `ClientKeys` resolves it from a gateway identity and an optional generation id: derived keys when an id is given, the root keys when none is, and the root acknowledgement key in every case. A stored registration supplies its gateway and its id, which is absent for a legacy or custom registration; the LP client, which stores no registration, supplies its chosen gateway and the all-zero id, `GenerationId::LP`, which no stored registration carries. `InitialisationResult` carries a `GatewayClientKeys`, and the gateway client, the address, the received-message decryption and the statistics id read from it.
+A new type, `GatewayClientKeys`, holds the identity keypair, the x25519 keypair and the acknowledgement key that a client uses with one gateway. `ClientKeys` resolves it from a gateway identity and an optional generation id: derived keys when an id is given, the root keys when none is, and the root acknowledgement key in every case. A stored registration supplies its gateway and its id, which is absent for a legacy or custom registration; the LP client, which stores no registration, supplies its chosen gateway and a generation id drawn at that start. `InitialisationResult` carries a `GatewayClientKeys`, and the gateway client, the address, the received-message decryption and the statistics id read from it.
 
 `ClientKeys` remains the root type, and the only type a key store loads or saves.
 
@@ -137,7 +137,7 @@ Alternatives considered: refreshing automatically at every connect, which costs 
 
 `reset_client_identity` generates new random root keys, removes every gateway registration and clears the reply store, and leaves the credential store alone. It is available on a client that is not connected, it contacts no gateway, and it is exposed by the SDK, by `nym-registration-client` and as the `reset-client-identity` command of the native and socks5 clients. For on-disk storage it works from `StoragePaths`, which already holds the database key the registration and reply stores are opened with. The reply store's files are deleted without opening it, so a store that cannot be loaded cannot fail the reset, and the client's next start creates a fresh one from its own reply SURB configuration. A wrong database key is still caught by the registrations store when that database exists, since it is opened with the same key before anything is removed; when it does not exist, the reset creates it under the key it was given.
 
-Why replace the root: removing the registrations alone would give a fresh identity at every gateway with a stored registration, since each new registration draws a random generation id, but not to an LP client, which derives at the zero id from the root at every start. A new root covers both and needs no bookkeeping.
+Why replace the root: removing the registrations alone would give a fresh identity at every gateway with a stored registration, since each new registration draws a random generation id, but a later custom registration would still present the old root identity. A new root covers both and needs no bookkeeping.
 
 Because the ecash key no longer derives from the root (Decision 11), a reset does not change it.
 
@@ -200,17 +200,16 @@ Why: nothing in this repository or in nym-vpn-client uses the option, and keepin
 
 Cost: an application outside those two repositories that uses the option breaks at compile time. And `KeyPair::new` draws a random number for the `index` field before it generates the key, so removing the field changes what a seeded test generator produces afterwards. Tests elsewhere in the workspace that pin keys or addresses may need new values.
 
-### Decision 16: An LP client derives the keys for its home gateway at generation zero
+### Decision 16: An LP client derives the keys for its home gateway at a new generation at every start
 
-After `LpBaseClient` has chosen its gateway, it resolves the `GatewayClientKeys` for that gateway at the zero generation id and uses them for its address, for the registration its dialer sends, and for decrypting the messages it receives. It does so at every start, since it stores no registration.
+After `LpBaseClient` has chosen its gateway, it draws a random generation id, resolves the `GatewayClientKeys` for that gateway at it, and uses them for its address, for the registration its dialer sends, and for decrypting the messages it receives. It does so at every start, since it stores no registration.
 
-- `refresh_gateway_keys` set on a connect over LP fails that connect with an error. A refreshed id could not be kept, so the next start would silently return to generation zero.
+- `refresh_gateway_keys` has no effect over LP: every start already uses a new identity.
 - A full reset applies to an LP client like any other, because it replaces the root.
-- The dialer holds the home gateway's derived keys. A comment on its `request()`, which would open sessions with further gateways and which nothing calls yet, records that each such session needs keys derived for its own gateway first.
 
-Why: an LP client that requests no gateway picks a random one at every start, so under its root identity it shows one identity to a different gateway each run, which is the strongest form of the link this change removes.
+Why: an LP client that requests no gateway picks a random one at every start, so under its root identity it shows one identity to a different gateway each run, which is the strongest form of the link this change removes. A new generation at every start was chosen in review over a fixed all-zero one: LP has no persistent identity or per-identity bandwidth tracking yet, so a stable LP address buys nothing today, while a fixed id needed a reserved value and a refresh that could not be kept.
 
-Cost: an LP client's identity at its gateway changes once on upgrade, and a client with a requested LP gateway changes address once. Bandwidth an LP gateway credited to the root identity, if any, is not reachable under the derived identity.
+Cost: an LP client's identity and address change at every start, including at a requested gateway. Bandwidth an LP gateway credited to the root identity, if any, is not reachable under a derived identity.
 
 Alternatives considered: leaving LP on the root keys as a non-goal, rejected for the reason above; and deriving per dialled gateway, deferred because the meaning of a session with a further gateway is not decided.
 
@@ -228,8 +227,8 @@ Alternatives considered: leaving LP on the root keys as a non-goal, rejected for
 - **Pinned test values may change** across the workspace, because of the removed `index` field.
 - **One-time ecash key change** for nym-sdk, nym-cli and `nym-sdk-session` clients. Existing ticketbooks are unaffected.
 - **No downgrade.** The registrations database is migrated without ignore-missing, so an older binary refuses a database that carries the new migration. This is true of every earlier migration of that database. The wasm store has no such guard: an older wasm build drops the generation id it does not know and treats a derived registration as legacy, so it authenticates with the root identity against a shared key held under the derived one, which fails and shows the gateway the root identity.
-- **LP-mode clients change identity once on upgrade**, and one with a requested LP gateway changes address once (Decision 16).
-- **Further LP sessions would share the home identity.** If the dialer starts opening sessions with further gateways before per-dial derivation exists, those gateways see the home gateway's derived identity. The comment on `request()` is the only guard.
+- **LP-mode clients change identity and address at every start**, including at a requested gateway (Decision 16).
+- **Further LP sessions would share the home identity.** If the dialer starts opening sessions with further gateways before per-dial derivation exists, those gateways see the identity the client uses at its home gateway for that start. Nothing guards against it.
 - **Live wiring is first exercised at QA.** No unit test reaches a real gateway, so a mistake between the derivation and the handshake would be found by the QA pass after merge.
 - **The wasm stores were located but not read** during the investigation. The wasm registration is stored as one serde struct with an existing defaulted field, so an added optional field is expected to read old data.
 
@@ -249,7 +248,7 @@ These need a real gateway and funded accounts, so they belong to the QA pass aga
 - **Upgrade from the released version.** A client with an existing registration and existing ticketbooks is upgraded. It connects with that registration without registering again, and spends a ticket from a ticketbook issued before the upgrade.
 - **Fresh client.** A new client registers with a gateway, restarts and authenticates again. The identity the gateway sees differs from the client's root identity.
 - **Refresh.** A connect with `refresh_gateway_keys` registers under a new identity, and the next connect without the flag keeps that identity.
-- **LP mode.** A client connecting with `with_lp(true)` registers with its LP gateway under an identity that differs from its root identity, receives a message sent to its address, and presents the same identity to the same requested gateway on its next start.
+- **LP mode.** A client connecting with `with_lp(true)` registers with its LP gateway under an identity that differs from its root identity, receives a message sent to its address, and presents a different identity to the same requested gateway on its next start.
 
 ## Open Questions
 

@@ -95,7 +95,7 @@ pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
 pub use config::Config;
 pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
-/// Secrets for [`StoragePaths::with_key_passphrase`] and [`StoragePaths::with_key_secret`].
+/// Secrets for [`StoragePaths::with_key_secret`].
 #[cfg(feature = "fs-storage")]
 pub use nym_client_core::client::key_manager::persistence::{KeySecret, Passphrase, RawKey};
 /// Database key for [`StoragePaths::with_database_key`].

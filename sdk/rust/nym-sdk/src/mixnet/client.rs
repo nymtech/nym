@@ -1189,7 +1189,7 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             let encrypted = StoragePaths::new_from_dir(dir.path())
                 .unwrap()
-                .with_key_passphrase(Some(Passphrase::new("hunter2")));
+                .with_key_secret(Some(Passphrase::new("hunter2").into()));
             encrypted
                 .on_disk_key_storage_spec()
                 .store_keys(&ClientKeys::generate_new(&mut deterministic_rng()))
@@ -1199,7 +1199,7 @@ mod tests {
 
             let wrong_passphrase = StoragePaths::new_from_dir(dir.path())
                 .unwrap()
-                .with_key_passphrase(Some(Passphrase::new("hunter3")));
+                .with_key_secret(Some(Passphrase::new("hunter3").into()));
             let no_passphrase = StoragePaths::new_from_dir(dir.path()).unwrap();
 
             assert!(client_with(wrong_passphrase)

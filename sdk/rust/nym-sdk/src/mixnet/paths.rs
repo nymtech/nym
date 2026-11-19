@@ -4,7 +4,7 @@
 use crate::error::{Error, Result};
 use nym_client_core::client::base_client::storage::OnDiskGatewaysDetails;
 use nym_client_core::client::base_client::{non_wasm_helpers, storage};
-use nym_client_core::client::key_manager::persistence::{KeySecret, OnDiskKeys, Passphrase};
+use nym_client_core::client::key_manager::persistence::{KeySecret, OnDiskKeys};
 use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
@@ -87,17 +87,10 @@ impl StoragePaths {
         })
     }
 
-    /// Protects the private keys with a passphrase; keys still in plaintext are encrypted the first
-    /// time they are loaded. Validating the passphrase (for instance rejecting an empty one) is the
-    /// caller's job.
-    #[must_use]
-    pub fn with_key_passphrase(self, key_passphrase: Option<Passphrase>) -> Self {
-        self.with_key_secret(key_passphrase.map(KeySecret::from))
-    }
-
     /// Protects the private keys with a secret: a passphrase, or a uniformly random 256-bit raw
     /// key that needs no stretching. Keys still in plaintext are encrypted the first time they
-    /// are loaded. Replaces any passphrase set with [`Self::with_key_passphrase`].
+    /// are loaded. Validating the secret (for instance rejecting an empty passphrase) is the
+    /// caller's job.
     #[must_use]
     pub fn with_key_secret(mut self, key_secret: Option<KeySecret>) -> Self {
         self.key_secret = key_secret;
@@ -266,7 +259,7 @@ impl From<CommonClientPaths> for StoragePaths {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_client_core::client::key_manager::persistence::{KeyStore, RawKey};
+    use nym_client_core::client::key_manager::persistence::{KeyStore, Passphrase, RawKey};
     use nym_client_core::client::key_manager::ClientKeys;
     use nym_test_utils::helpers::deterministic_rng;
 
@@ -275,7 +268,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let paths = StoragePaths::new_from_dir(dir.path())
             .unwrap()
-            .with_key_passphrase(Some(Passphrase::new("hunter2")));
+            .with_key_secret(Some(Passphrase::new("hunter2").into()));
 
         paths
             .on_disk_key_storage_spec()

@@ -60,7 +60,8 @@ const GATEWAY_PACKET_DELAY: Duration = Duration::ZERO;
 /// always measured and a phase that produced nothing is reported as a zero.
 ///
 /// Each phase sends for at most its profile's send window, cutting off a write the gateway is holding
-/// up, and whatever the gateway did not take by then counts as lost.
+/// up, and whatever the gateway did not take by then counts as lost. Sending that stops early, at the
+/// window or on a failed send, still goes on to the straggler wait and the count.
 pub(crate) struct GatewayMixnetLivenessProbe {
     /// Tester configuration controlling timeouts and addressing.
     config: NodeTesterConfig,
@@ -312,25 +313,12 @@ impl GatewayRun {
 
     /// Runs the two phases in order.
     ///
-    /// The ingest phase runs first and its failure is recorded WITHOUT returning: the phases test
-    /// independent capabilities, so a gateway with a broken session path may still deliver perfectly
-    /// and has to be measured doing it.
+    /// Each phase records its own failure rather than returning it: the phases test independent
+    /// capabilities, so a gateway with a broken session path may still deliver perfectly and has to be
+    /// measured doing it.
     async fn execute(&mut self) {
-        if let Err(err) = self.measure_client_ingest().await {
-            warn!(
-                "the client ingest phase against {} failed: {err:#}",
-                self.probe.target.identity
-            );
-            self.ingest_measured.set_error(format!("{err:#}"));
-        }
-
-        if let Err(err) = self.measure_client_delivery().await {
-            warn!(
-                "the client delivery phase against {} failed: {err:#}",
-                self.probe.target.identity
-            );
-            self.delivery_measured.set_error(format!("{err:#}"));
-        }
+        self.measure_client_ingest().await;
+        self.measure_client_delivery().await;
     }
 
     /// Measures client ingest: forward through the session, receive on the mixnet listener.
@@ -339,7 +327,7 @@ impl GatewayRun {
     /// explicitly and the gateway forwards the packet verbatim. A loss on this phase therefore
     /// implicates the session, the bandwidth path or the outbound forwarder, which is exactly what
     /// makes the two phases worth separating.
-    async fn measure_client_ingest(&mut self) -> anyhow::Result<()> {
+    async fn measure_client_ingest(&mut self) {
         let expected = self.probe.packets_per_phase();
         debug!("measuring client ingest with {expected} packet(s)");
 
@@ -350,7 +338,14 @@ impl GatewayRun {
         let window = self.probe.profile.sending_duration;
         let sent = timeout(window, self.send_ingest_load(expected)).await;
         match sent {
-            Ok(sent) => sent?,
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => {
+                warn!(
+                    "the client ingest phase against {} stopped sending: {err:#}",
+                    self.probe.target.identity
+                );
+                self.ingest_measured.set_error(format!("{err:#}"));
+            }
             Err(_) => warn!(
                 "{} did not take all {expected} client ingest packet(s) within the {} send window",
                 self.probe.target.identity,
@@ -361,8 +356,6 @@ impl GatewayRun {
         let received = self.drain_ingest_arrivals(expected).await;
         summarise(&mut self.ingest_measured, received);
         self.report_session_treatment();
-
-        Ok(())
     }
 
     /// Forwards the ingest phase's packets through the session at the profile's pace.
@@ -423,21 +416,36 @@ impl GatewayRun {
     ///
     /// Opening the egress connection is part of THIS phase rather than of the run, so a gateway whose
     /// mixnet listener refuses us still reports the ingest phase it passed.
-    async fn measure_client_delivery(&mut self) -> anyhow::Result<()> {
+    async fn measure_client_delivery(&mut self) {
         let expected = self.probe.packets_per_phase();
         debug!("measuring client delivery with {expected} packet(s)");
 
-        let mut egress = self
-            .establish_egress_connection()
-            .await
-            .context("failed to establish the egress connection to the gateway")?;
+        let mut egress = match self.establish_egress_connection().await {
+            Ok(egress) => egress,
+            Err(err) => {
+                let err = err.context("failed to establish the egress connection to the gateway");
+                warn!(
+                    "the client delivery phase against {} failed: {err:#}",
+                    self.probe.target.identity
+                );
+                self.delivery_measured.set_error(format!("{err:#}"));
+                return;
+            }
+        };
 
         self.delivery_measured.packets_sent = expected;
 
         let window = self.probe.profile.sending_duration;
         let sent = timeout(window, self.send_delivery_load(&mut egress, expected)).await;
         match sent {
-            Ok(sent) => sent?,
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => {
+                warn!(
+                    "the client delivery phase against {} stopped sending: {err:#}",
+                    self.probe.target.identity
+                );
+                self.delivery_measured.set_error(format!("{err:#}"));
+            }
             Err(_) => warn!(
                 "{} did not take all {expected} client delivery packet(s) within the {} send window",
                 self.probe.target.identity,
@@ -452,8 +460,6 @@ impl GatewayRun {
         // neither figure, since a websocket authenticated by the registration handshake involves no
         // Noise at all
         self.delivery_measured.egress_noise_handshake = Some(egress.noise_handshake_duration);
-
-        Ok(())
     }
 
     /// Sends the delivery phase's packets over the egress connection at the profile's pace.

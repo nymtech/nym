@@ -53,24 +53,40 @@ public/code-index.json                            7,788 chunks, GitHub links at 
 ## How embedding works today
 
 ```
-BUILD TIME (each Vercel build of the docs site)
-  for each chunk: key = model + dimension + sha256(text that is embedded)
-    key in node_modules/.cache/nym-docs/*embed-cache.json ?
-      yes ─► reuse the vector                (Vercel keeps this cache between builds)
-      no  ─► Voyage /v1/embeddings, input_type "document"
-               docs: voyage-3-large   code: voyage-code-3   both 1024 dimensions
-               batches of about 80,000 tokens; retry on 429, 5xx and dropped connections
-  each vector goes into the JSON file as decimal text, about 12 bytes for each number
-  no VOYAGE_API_KEY on Vercel (or with REQUIRE_EMBEDDINGS set) ─► the build fails
-
-REQUEST TIME (/docs/api/mcp, each search_docs or search_code call)
-  query text ─► Voyage /v1/embeddings, input_type "query", the model of that index
-             ─► cosine similarity with every chunk vector in memory
-                (Voyage vectors are unit length; a test chunk loses 0.05)
-             ─► top K: default 6, at most 20
+                     Nym side                       │  third party: Voyage AI
+                                                    │  POST https://api.voyageai.com/v1/embeddings
+                                                    │  (hosted service; its region is not stated)
+BUILD TIME (Vercel build of the docs site)          │
+  for each chunk:                                   │
+    key = model + dimension + sha256(embed text)    │
+    key in node_modules/.cache/nym-docs/            │
+           *embed-cache.json ?                      │
+      yes ─► reuse the vector                       │
+             (Vercel keeps the cache between builds)│
+      no  ─► request ───────────────────────────────┼─► sends: the chunk texts, the model,
+               batches of about 80,000 tokens;      │          input_type "document"
+               retry on 429, 5xx, dropped           │   docs: voyage-3-large
+               connections                          │   code: voyage-code-3
+             vectors ◄──────────────────────────────┼── returns: one vector of 1024
+                                                    │            numbers for each text
+  vectors go into the JSON as decimal text          │
+  (about 12 bytes for each number)                  │
+  no VOYAGE_API_KEY on Vercel ─► the build fails    │
+                                                    │
+REQUEST TIME (/docs/api/mcp, a Vercel function      │
+  in the project's region; Vercel's default is      │
+  iad1, Washington, D.C.)                           │
+  search_docs / search_code ─► request ─────────────┼─► sends: the agent's query text,
+                                                    │          the model of that index,
+                                                    │          input_type "query"
+             query vector ◄─────────────────────────┼── returns: one vector of 1024 numbers
+  cosine similarity with every chunk vector         │
+  in memory (vectors are unit length;               │
+  a test chunk loses 0.05)                          │
+  top K: default 6, at most 20 ─► the agent         │
 ```
 
-The index and the query must use the same model, because vectors from two models are not comparable. The same `VOYAGE_API_KEY` serves the build and the route. The live tools (`network_summary`, `list_gateways` and the others) call the Nym API directly and use no index.
+The index and the query must use the same model, because vectors from two models are not comparable. The same `VOYAGE_API_KEY` serves the build and the route. So two kinds of text leave the Nym side: every changed chunk of the public docs and code at build time, and the query text of every search. Both are public or come from the agent; no private content is indexed on this side. The private side has its own embedding service and never calls Voyage (see "The private side"). The live tools (`network_summary`, `list_gateways` and the others) call the Nym API directly and use no index.
 
 ## How an agent uses the tools today
 

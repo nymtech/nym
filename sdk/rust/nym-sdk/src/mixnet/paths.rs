@@ -187,11 +187,11 @@ impl StoragePaths {
     /// Gives the client a new identity: new random root keys, no gateway registrations and no
     /// reply SURBs or reply keys. It contacts no gateway and leaves the credential store unopened,
     /// so ticketbooks are kept. No client may be using these paths while it runs. It fails before
-    /// changing anything when the key passphrase does not open the existing keys.
+    /// changing anything when the key secret does not open the existing keys.
     pub async fn reset_client_identity(&self) -> Result<()> {
         Ok(non_wasm_helpers::reset_client_identity(
             &self.common_client_paths(),
-            self.key_passphrase.clone(),
+            self.key_secret.clone(),
             self.database_key(),
         )
         .await?)
@@ -378,7 +378,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let paths = StoragePaths::new_from_dir(dir.path())
             .unwrap()
-            .with_key_passphrase(Some(Passphrase::new("hunter2")));
+            .with_key_secret(Some(KeySecret::from(Passphrase::new("hunter2"))));
 
         let old_keys = ClientKeys::generate_new(&mut deterministic_rng());
         paths
@@ -394,10 +394,10 @@ mod tests {
             .await
             .unwrap();
 
-        for key_passphrase in [None, Some(Passphrase::new("hunter3"))] {
+        for key_secret in [None, Some(KeySecret::from(Passphrase::new("hunter3")))] {
             let reset = paths
                 .clone()
-                .with_key_passphrase(key_passphrase)
+                .with_key_secret(key_secret)
                 .reset_client_identity()
                 .await;
             assert!(matches!(

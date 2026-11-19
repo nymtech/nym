@@ -7,7 +7,7 @@ use crate::block_processor::types::{
 use crate::error::ScraperError;
 use crate::helpers::tx_hash;
 use crate::{Any, MessageRegistry, ParsedTransactionDetails, default_message_registry};
-use futures::future::join;
+use futures::future::{BoxFuture, join};
 use std::collections::BTreeMap;
 use std::future::Future;
 use tendermint::Block;
@@ -212,6 +212,27 @@ impl RpcClient {
         })
     }
 
+    /// The first answer to `query` in endpoint order, or the last endpoint's failure.
+    async fn first_answer<T>(
+        &self,
+        query: impl for<'a> Fn(&'a HttpClient) -> BoxFuture<'a, Result<T, tendermint_rpc::Error>>,
+    ) -> Result<T, tendermint_rpc::Error> {
+        let mut failure = None;
+        for endpoint in &self.endpoints {
+            match query(&endpoint.client).await {
+                Ok(answer) => return Ok(answer),
+                Err(err) => {
+                    debug!("{} failed the query: {err}", endpoint.url);
+                    failure = Some(err);
+                }
+            }
+        }
+
+        // SAFETY: the client is never built without an endpoint, so at least one query has failed
+        #[allow(clippy::unwrap_used)]
+        Err(failure.unwrap())
+    }
+
     #[instrument(skip(self))]
     pub async fn get_basic_block_details(
         &self,
@@ -219,21 +240,12 @@ impl RpcClient {
     ) -> Result<block::Response, ScraperError> {
         debug!("getting basic block details");
 
-        // always replaced, as there is at least one endpoint to fail the query
-        let mut failure = ScraperError::NoRpcEndpoints;
-        for endpoint in self.endpoints.iter() {
-            match endpoint.client.block(height).await {
-                Ok(block) => return Ok(block),
-                Err(source) => {
-                    debug!("{} failed the query: {source}", endpoint.url);
-                    failure = ScraperError::BlockQueryFailure {
-                        height,
-                        source: Box::new(source),
-                    }
-                }
-            }
-        }
-        Err(failure)
+        self.first_answer(|client| client.block(height))
+            .await
+            .map_err(|source| ScraperError::RpcQueryFailure {
+                query: format!("basic block information at height {height}"),
+                source: Box::new(source),
+            })
     }
 
     #[instrument(skip(self))]
@@ -243,20 +255,12 @@ impl RpcClient {
     ) -> Result<block_results::Response, ScraperError> {
         debug!("getting block results");
 
-        let mut failure = ScraperError::NoRpcEndpoints;
-        for endpoint in self.endpoints.iter() {
-            match endpoint.client.block_results(height).await {
-                Ok(results) => return Ok(results),
-                Err(source) => {
-                    debug!("{} failed the query: {source}", endpoint.url);
-                    failure = ScraperError::BlockResultsQueryFailure {
-                        height,
-                        source: Box::new(source),
-                    }
-                }
-            }
-        }
-        Err(failure)
+        self.first_answer(|client| client.block_results(height))
+            .await
+            .map_err(|source| ScraperError::RpcQueryFailure {
+                query: format!("block results at height {height}"),
+                source: Box::new(source),
+            })
     }
 
     #[instrument(skip(self))]
@@ -285,37 +289,27 @@ impl RpcClient {
     pub(crate) async fn current_block_height(&self) -> Result<u64, ScraperError> {
         debug!("getting current block height");
 
-        let mut failure = ScraperError::NoRpcEndpoints;
-        for endpoint in self.endpoints.iter() {
-            match endpoint.client.abci_info().await {
-                Ok(info) => return Ok(info.last_block_height.value()),
-                Err(source) => {
-                    debug!("{} failed the query: {source}", endpoint.url);
-                    failure = ScraperError::AbciInfoQueryFailure {
-                        source: Box::new(source),
-                    }
-                }
-            }
-        }
-        Err(failure)
+        let info = self
+            .first_answer(|client| client.abci_info())
+            .await
+            .map_err(|source| ScraperError::RpcQueryFailure {
+                query: "current abci info".to_string(),
+                source: Box::new(source),
+            })?;
+        Ok(info.last_block_height.value())
     }
 
     pub(crate) async fn earliest_available_block_height(&self) -> Result<u64, ScraperError> {
         debug!("getting earliest available block height");
 
-        let mut failure = ScraperError::NoRpcEndpoints;
-        for endpoint in self.endpoints.iter() {
-            match endpoint.client.status().await {
-                Ok(status) => return Ok(status.sync_info.earliest_block_height.value()),
-                Err(source) => {
-                    debug!("{} failed the query: {source}", endpoint.url);
-                    failure = ScraperError::AbciInfoQueryFailure {
-                        source: Box::new(source),
-                    }
-                }
-            }
-        }
-        Err(failure)
+        let status = self
+            .first_answer(|client| client.status())
+            .await
+            .map_err(|source| ScraperError::RpcQueryFailure {
+                query: "node status".to_string(),
+                source: Box::new(source),
+            })?;
+        Ok(status.sync_info.earliest_block_height.value())
     }
 
     #[instrument(skip(self))]
@@ -325,20 +319,12 @@ impl RpcClient {
     ) -> Result<validators::Response, ScraperError> {
         debug!("getting validators set");
 
-        let mut failure = ScraperError::NoRpcEndpoints;
-        for endpoint in self.endpoints.iter() {
-            match endpoint.client.validators(height, Paging::All).await {
-                Ok(validators) => return Ok(validators),
-                Err(source) => {
-                    debug!("{} failed the query: {source}", endpoint.url);
-                    failure = ScraperError::ValidatorsQueryFailure {
-                        height,
-                        source: Box::new(source),
-                    }
-                }
-            }
-        }
-        Err(failure)
+        self.first_answer(|client| client.validators(height, Paging::All))
+            .await
+            .map_err(|source| ScraperError::RpcQueryFailure {
+                query: format!("validators at height {height}"),
+                source: Box::new(source),
+            })
     }
 
     #[instrument(skip(self))]
@@ -371,6 +357,8 @@ mod tests {
     use crate::block_processor::types::test_helpers::{
         NEW_BLOCK_MESSAGE, TX_GAS_USED, TX_HASH, parse_new_block_message,
     };
+    use futures::FutureExt;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
 
     const TRANSACTIONS_ONLY: RetrievalConfig = RetrievalConfig {
@@ -434,6 +422,36 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    // A fallback is only there for when the endpoints before it fail, and once one has answered
+    // there is nothing left to ask the rest.
+    #[tokio::test]
+    async fn endpoints_are_asked_in_turn_until_one_answers() {
+        let url: Url = "http://127.0.0.1:1".parse().expect("the url is valid");
+        let client = RpcClient::new(&[url.clone(), url.clone(), url])
+            .expect("building the client opens no connection");
+
+        let asked = AtomicUsize::new(0);
+        let answer = client
+            .first_answer(|_| {
+                let call = asked.fetch_add(1, Ordering::Relaxed);
+                async move {
+                    if call == 0 {
+                        Err(tendermint_rpc::Error::client_internal(
+                            "the first endpoint fails".to_string(),
+                        ))
+                    } else {
+                        Ok(call)
+                    }
+                }
+                .boxed()
+            })
+            .await
+            .expect("the second endpoint answered");
+
+        assert_eq!(1, answer);
+        assert_eq!(2, asked.load(Ordering::Relaxed));
     }
 
     // A failed query is reported once its last attempt has failed: there is nothing left to wait for.

@@ -44,23 +44,9 @@ pub enum ScraperError {
         source: Box<tendermint_rpc::Error>,
     },
 
-    #[error("could not obtain basic block information at height: {height}: {source}")]
-    BlockQueryFailure {
-        height: u32,
-        #[source]
-        source: Box<tendermint_rpc::Error>,
-    },
-
-    #[error("could not obtain block results information at height: {height}: {source}")]
-    BlockResultsQueryFailure {
-        height: u32,
-        #[source]
-        source: Box<tendermint_rpc::Error>,
-    },
-
-    #[error("could not obtain validators information at height: {height}: {source}")]
-    ValidatorsQueryFailure {
-        height: u32,
+    #[error("could not obtain {query}: {source}")]
+    RpcQueryFailure {
+        query: String,
         #[source]
         source: Box<tendermint_rpc::Error>,
     },
@@ -72,12 +58,6 @@ pub enum ScraperError {
         height: u32,
         transactions: usize,
         results: usize,
-    },
-
-    #[error("could not obtain current abci info: {source}")]
-    AbciInfoQueryFailure {
-        #[source]
-        source: Box<tendermint_rpc::Error>,
     },
 
     #[error("could not parse tx {hash}: {source}")]

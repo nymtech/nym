@@ -184,6 +184,7 @@ impl HttpArgs {
 #[derive(clap::Args, Debug)]
 pub(crate) struct NyxArgs {
     /// Addresses to nyxd chain endpoint which the node will use for chain interactions.
+    /// Without `--nyxd-fallback-urls` alongside, they also clear the stored fallback addresses.
     #[clap(
         long,
         value_delimiter = ',',
@@ -216,7 +217,9 @@ impl NyxArgs {
 
     pub(crate) fn override_config_section(self, mut section: config::Nyx) -> config::Nyx {
         if let Some(nyxd_urls) = self.nyxd_urls {
-            section.nyxd_urls = nyxd_urls
+            section.nyxd_urls = nyxd_urls;
+            // the stored fallbacks were chosen for the replaced urls, possibly on another chain
+            section.nyxd_fallback_urls = Vec::new();
         }
 
         if let Some(nyxd_fallback_urls) = self.nyxd_fallback_urls {
@@ -747,5 +750,40 @@ impl DirectoryArgs {
         }
 
         section
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn urls(urls: &[&str]) -> Vec<Url> {
+        urls.iter()
+            .map(|url| url.parse().expect("the url is valid"))
+            .collect()
+    }
+
+    // The stored fallbacks were chosen for the urls being replaced and may be on another chain,
+    // whose blocks the watcher would then take for this one's.
+    #[test]
+    fn overriding_the_nyxd_urls_alone_clears_the_stored_fallbacks() {
+        let stored = config::Nyx {
+            nyxd_websocket_url: "wss://primary.example/websocket"
+                .parse()
+                .expect("the url is valid"),
+            nyxd_urls: urls(&["https://primary.example"]),
+            nyxd_fallback_urls: urls(&["https://fallback.example"]),
+        };
+
+        let args = NyxArgs {
+            nyxd_urls: Some(urls(&["https://other-chain.example"])),
+            nyxd_fallback_urls: None,
+            nyxd_websocket_url: None,
+        };
+
+        let overridden = args.override_config_section(stored);
+
+        assert_eq!(urls(&["https://other-chain.example"]), overridden.nyxd_urls);
+        assert!(overridden.nyxd_fallback_urls.is_empty());
     }
 }

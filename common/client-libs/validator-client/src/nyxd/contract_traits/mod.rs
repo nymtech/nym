@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::error::NyxdError;
 use cosmrs::AccountId;
 use nym_network_defaults::NymContracts;
 use std::str::FromStr;
@@ -46,7 +47,7 @@ pub use group_query_client::{GroupQueryClient, PagedGroupQueryClient};
 pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient, PinnedMixnetQueryClient};
 pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
 pub use network_monitors_query_client::{
-    NetworkMonitorsQueryClient, PagedNetworkMonitorsQueryClient,
+    NetworkMonitorsQueryClient, PagedNetworkMonitorsQueryClient, PinnedNetworkMonitorsQueryClient,
 };
 pub use node_families_query_client::{NodeFamiliesQueryClient, PagedNodeFamiliesQueryClient};
 pub use performance_query_client::{PagedPerformanceQueryClient, PerformanceQueryClient};
@@ -156,7 +157,7 @@ impl TryFrom<NymContracts> for TypedNymContracts {
 ///
 /// These reads feed a digest recompute, so they treat the queried node as untrusted, and the
 /// digest check that would catch a lie only runs once the loop has ended. A repeated cursor
-/// is rejected directly at each call site; this bound is the residual guard against a node
+/// is rejected by [`check_pinned_read_progress`]; this bound is the residual guard against a node
 /// that keeps returning *fresh* fabricated records under advancing cursors, which no cursor
 /// check can detect.
 ///
@@ -166,6 +167,29 @@ impl TryFrom<NymContracts> for TypedNymContracts {
 /// at ~11 sources per node. It is deliberately far above any plausible honest state, because
 /// tripping it on real data would break a verified read in production.
 pub(crate) const MAX_PINNED_READ_RECORDS: usize = 250_000;
+
+/// Fails a height-pinned paged read whose cursor did not advance past `requested_from`, or that
+/// has gathered more than [`MAX_PINNED_READ_RECORDS`].
+pub(crate) fn check_pinned_read_progress<C: PartialEq>(
+    contract: &str,
+    requested_from: Option<&C>,
+    next: &C,
+    collected: usize,
+) -> Result<(), NyxdError> {
+    if requested_from == Some(next) {
+        return Err(NyxdError::extension_query_failure(
+            contract,
+            "pagination cursor did not advance",
+        ));
+    }
+    if collected > MAX_PINNED_READ_RECORDS {
+        return Err(NyxdError::extension_query_failure(
+            contract,
+            "paginated read exceeded the maximum record count",
+        ));
+    }
+    Ok(())
+}
 
 // a simple helper macro to define to repeatedly call a paged query until a full response is constructed
 #[macro_export]

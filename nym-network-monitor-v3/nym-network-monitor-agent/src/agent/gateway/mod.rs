@@ -58,6 +58,9 @@ const GATEWAY_PACKET_DELAY: Duration = Duration::ZERO;
 ///
 /// Neither phase may abort the other. A gateway needs both capabilities to be useful, so both are
 /// always measured and a phase that produced nothing is reported as a zero.
+///
+/// Each phase sends for at most its profile's send window, cutting off a write the gateway is holding
+/// up, and whatever the gateway did not take by then counts as lost.
 pub(crate) struct GatewayMixnetLivenessProbe {
     /// Tester configuration controlling timeouts and addressing.
     config: NodeTesterConfig,
@@ -344,6 +347,26 @@ impl GatewayRun {
         // is penalised rather than flattered
         self.ingest_measured.packets_sent = expected;
 
+        let window = self.probe.profile.sending_duration;
+        let sent = timeout(window, self.send_ingest_load(expected)).await;
+        match sent {
+            Ok(sent) => sent?,
+            Err(_) => warn!(
+                "{} did not take all {expected} client ingest packet(s) within the {} send window",
+                self.probe.target.identity,
+                format_duration(window)
+            ),
+        }
+
+        let received = self.drain_ingest_arrivals(expected).await;
+        summarise(&mut self.ingest_measured, received);
+        self.report_session_treatment();
+
+        Ok(())
+    }
+
+    /// Forwards the ingest phase's packets through the session at the profile's pace.
+    async fn send_ingest_load(&mut self, expected: usize) -> anyhow::Result<()> {
         let batches = self.plan_batches(expected);
         let mut interval = self.dispatch_interval();
 
@@ -356,10 +379,6 @@ impl GatewayRun {
             }
             self.session.forward_batch(batch).await?;
         }
-
-        let received = self.drain_ingest_arrivals(expected).await;
-        summarise(&mut self.ingest_measured, received);
-        self.report_session_treatment();
 
         Ok(())
     }
@@ -415,6 +434,34 @@ impl GatewayRun {
 
         self.delivery_measured.packets_sent = expected;
 
+        let window = self.probe.profile.sending_duration;
+        let sent = timeout(window, self.send_delivery_load(&mut egress, expected)).await;
+        match sent {
+            Ok(sent) => sent?,
+            Err(_) => warn!(
+                "{} did not take all {expected} client delivery packet(s) within the {} send window",
+                self.probe.target.identity,
+                format_duration(window)
+            ),
+        }
+
+        let received = self.drain_delivery_arrivals(expected).await;
+        summarise(&mut self.delivery_measured, received);
+
+        // this leg DOES speak Noise, so it has an egress handshake to report. the ingest leg has
+        // neither figure, since a websocket authenticated by the registration handshake involves no
+        // Noise at all
+        self.delivery_measured.egress_noise_handshake = Some(egress.noise_handshake_duration);
+
+        Ok(())
+    }
+
+    /// Sends the delivery phase's packets over the egress connection at the profile's pace.
+    async fn send_delivery_load(
+        &mut self,
+        egress: &mut EgressConnection,
+        expected: usize,
+    ) -> anyhow::Result<()> {
         let batches = self.plan_batches(expected);
         let mut interval = self.dispatch_interval();
 
@@ -427,14 +474,6 @@ impl GatewayRun {
             }
             egress.send_packet_batch(batch).await?;
         }
-
-        let received = self.drain_delivery_arrivals(expected).await;
-        summarise(&mut self.delivery_measured, received);
-
-        // this leg DOES speak Noise, so it has an egress handshake to report. the ingest leg has
-        // neither figure, since a websocket authenticated by the registration handshake involves no
-        // Noise at all
-        self.delivery_measured.egress_noise_handshake = Some(egress.noise_handshake_duration);
 
         Ok(())
     }

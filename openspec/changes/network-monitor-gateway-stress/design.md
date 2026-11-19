@@ -53,6 +53,8 @@ The bound has to interrupt a write, not only be checked between batches. Under b
 
 The bound sits in the phase loop both gateway kinds share. For `gateway_liveness` this is a behaviour change only under back-pressure: 50 forwards that do not go out inside the one-second window are no longer given until the 30 second deadline.
 
+An abandoned write leaves the rest of its batch queued on the session. The egress phase only reads the session, so it is unaffected. The session's close sends that queue first and would block on a gateway that has stopped reading, which can already happen after a deadline today, so the close is bounded by a fixed limit after which the connection is dropped.
+
 Alternatives considered: bounding the stress kind only (a kind-conditional inside the loop, and two sequences again); no bound, relying on the run's deadline (a slow ingress path then zeroes the egress measurement too).
 
 ### 4. A phase cut short still counts what arrived
@@ -110,7 +112,7 @@ The probe resolves its profile, its deadline and its result variant from the kin
 
 Orchestrator behaviour is covered against the in-memory database as the existing kinds are: per-kind table isolation, eligibility, the switch and tie order, the stress fold, coverage and the submission plan. On the agent, profile and deadline selection by kind are covered.
 
-The phase rules of Decisions 3 and 4 are tested wherever that needs neither a live socket nor a test-only seam on production code. The one run-level test today covers a session that cannot be established; nothing fakes a session's write half. Scenarios that cannot be exercised under those constraints are listed in task 7.2 when the implementation is read through, not forced with a new seam. No test pins a default to its literal.
+The phase rules of Decisions 3 and 4 are not unit-tested: they live on the run, which needs a live client session, and the repository allows neither a live socket in a unit test nor a test-only seam on production code. The one run-level test covers a session that cannot be established. The untested scenarios are listed in task 7.2, not forced with a new seam. No test pins a default to its literal.
 
 ## Risks / Trade-offs
 
@@ -121,7 +123,7 @@ The phase rules of Decisions 3 and 4 are tested wherever that needs neither a li
 - [One rate serves both interfaces] → the websocket ingest loop and the mix-port delivery path probably have different ceilings, so the rate has to suit the slower one. Per-phase rates are not introduced.
 - [The egress phase follows the ingress phase] → a gateway still working through an ingress backlog is measured on delivery under that load. Not designed around: a gateway in that state is not sustaining the profile.
 - [Gateway liveness changes under back-pressure and on a mid-phase failure] → intended, and stated in the spec delta and the PR description.
-- [A write abandoned at the window] → the session has to stay readable for the egress phase and has to close afterwards without hanging. To be confirmed during implementation (see Open Questions).
+- [A write abandoned at the window] → the egress phase only reads the session, so it is unaffected; the close, which would otherwise wait on a gateway that stopped reading, is bounded by a fixed limit (Decision 3).
 - [Two scenario titles are renamed] → `openspec archive` treats a renamed scenario as a dropped one and aborts, so the main specs are synced by hand and the change is archived with `--skip-specs` (task 7.5).
 
 ## Migration Plan
@@ -135,4 +137,3 @@ Rollback: set `--gateway-stress-enabled false` to stop assigning the kind; its a
 ## Open Questions
 
 - How fast, and to what values, the profile is raised. Decided from the measurements of task 7.3, outside this change.
-- Whether abandoning a blocked websocket write at the window leaves the session's write half in a state that lets the session close promptly. If it does not, the close needs a bound of its own.

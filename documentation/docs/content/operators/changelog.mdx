@@ -35,7 +35,7 @@ This page displays a full list of all the changes during our release cycle from 
 
 ## CVE `nginx2root` Mitigation
 
-Five critical nginx vulnerabilities were published on 18 November 2026, plus a Linux kernel bug that can be chained with them to get root. Two of the vulnerabilities affect gateways set up from our docs or `setup-nginx-proxy-wss.sh`, because that setup enables HTTP/2. nginx fixed them in 1.30.7 and 1.31.9 on 18 November. By 19 November, Ubuntu had shipped fixed packages for 22.04, 24.04 and 26.04, but Debian 12 and 13 had not, so on Debian disabling HTTP/2 is the protection until they do.
+Five critical nginx vulnerabilities were published on 18 November 2026, plus a Linux kernel bug that can be chained with them to get root. Two of the vulnerabilities affect gateways set up from our docs or `setup-nginx-proxy-wss.sh`, because that setup enables HTTP/2. nginx fixed them in 1.30.7 and 1.31.9 on 18 November. Distributions ship their own fixed packages on their own schedule, and until yours has, disabling HTTP/2 is the protection.
 
 Disabling HTTP/2 closes both. You lose nothing: WSS runs over HTTP/1.1 anyway.
 

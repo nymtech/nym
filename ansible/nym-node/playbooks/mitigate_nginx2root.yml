@@ -16,10 +16,10 @@
 #              then verify HTTP/2 is off and WSS still upgrades
 #   optional   upgrade nginx and report whether the package carries the fix
 #
-# Upstream fixed all five in nginx 1.30.7 and 1.31.9 (18 Nov 2026). By 19 Nov,
-# Ubuntu had shipped fixed packages for 22.04, 24.04 and 26.04; Debian 12 and 13
-# had not. The upgrade step installs the fix where it exists and the report
-# confirms it from the package changelog. Re-run once Debian ships it.
+# Upstream fixed all five in nginx 1.30.7 and 1.31.9 (18 Nov 2026); distributions
+# ship their own fixed packages on their own schedule. The upgrade step installs
+# the fix wherever this node's package sources have it, and the report says
+# whether the installed package carries it. Re-run until it shows fix INSTALLED.
 #
 # Hosts without nginx (mixnodes) only get the SCTP block. Before any change, each
 # file is copied to /root/nginx-h2-backup/original (kept from the first run on)
@@ -526,22 +526,41 @@
           {{ 'skipped - no hostname' if not n2r_wss_code
              else (n2r_wss_code ~ (' (ok)' if n2r_wss_code == '101'
                    else ' - expected 101, check nym-node is running and listening on :9000')) }}
+        # apt reports a change in check mode only when an upgrade is waiting
+        n2r_upgrade: >-
+          {{ 'skipped' if ((n2r_apt | default({'skipped': true})) is skipped)
+             else ('waiting' if (ansible_check_mode and n2r_apt is changed) else 'none') }}
         n2r_fix_line: >-
           {{ 'fix INSTALLED' if n2r_fix == 'found'
-             else ('fix not yet available, keep HTTP/2 off' if n2r_fix == 'absent'
-             else 'fix status ' ~ n2r_fix) }}
+             else ('fix not installed - ' ~ n2r_fix_next[n2r_upgrade]) if n2r_fix == 'absent'
+             else 'fix status ' ~ n2r_fix }}
+        n2r_fix_next:
+          waiting: an upgrade is available, the real run installs it and checks again
+          skipped: upgrade skipped (nginx2root_upgrade=false), keep HTTP/2 off
+          none: not in the packages available to this node yet, keep HTTP/2 off and re-run later
+        n2r_would: "{{ 'would ' if ansible_check_mode else '' }}"
+        n2r_edited_line: >-
+          {{ ((n2r_would ~ 'change: ' if ansible_check_mode else '') ~ (n2r_edited | join(', ')))
+             if n2r_edited else 'nothing - HTTP/2 already off' }}
+        n2r_legacy_line: >-
+          {{ ('would remove' if ansible_check_mode else 'removed')
+             if ((n2r_legacy | default({})) is changed) else 'none' }}
+        n2r_backup_line: >-
+          {{ (n2r_would ~ ('back up to ' if ansible_check_mode else '')
+              ~ (n2r_backup_dir | default('/root/nginx-h2-backup')) ~ '/original')
+             if (n2r_backup_files | default([])) else 'none needed' }}
         n2r_head:
           - "{{ n2r_mode }}"
           - "SCTP       : {{ n2r_sctp_line }}"
           - "nginx      : {{ 'present' if n2r_nginx_bin.stat.exists else 'not installed - SCTP block only' }}"
         n2r_nginx_lines:
-          - "edited     : {{ (n2r_edited | join(', ')) or 'nothing - HTTP/2 already off' }}"
-          - "legacy WSS : {{ 'removed' if ((n2r_legacy | default({})) is changed) else 'none' }}"
+          - "edited     : {{ n2r_edited_line }}"
+          - "legacy WSS : {{ n2r_legacy_line }}"
           - "config     : {{ 'http2 still ENABLED' if (n2r_conf_h2.stdout | default('')) == 'enabled' else (n2r_conf_h2.stdout | default('n/a')) }}"
           - "HTTP/2     : {{ n2r_http2 }}"
           - "WSS check  : {{ n2r_wss_line }}"
           - "package    : {{ (n2r_owner ~ ' ' ~ (n2r_pkg.stdout | default(''))) if (n2r_owner | default('')) else 'not from a package' }} - {{ n2r_fix_line }}"
-          - "backups    : {{ (n2r_backup_dir | default('/root/nginx-h2-backup')) ~ '/original' if (n2r_backup_files | default([])) else 'none needed' }}"
+          - "backups    : {{ n2r_backup_line }}"
 
     # one check at the end, so nginx is mitigated even where SCTP needs a reboot
     - name: Fail if the node is not fully mitigated

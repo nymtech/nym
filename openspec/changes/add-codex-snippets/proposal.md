@@ -4,7 +4,7 @@ codex is a push-only aggregation target. Its README says that source repositorie
 
 The retrieval index has a related problem. It cuts pages with one chunker and source files with a second one. Each new consumer of the same content adds its own cut.
 
-A third need is more than one documentation site from the same content, with no copy of the prose.
+A third need is more than one documentation site from the same content, with no copy of the prose. codex is not one of those sites. It is the archive that the sites, the indexer, and other readers read from.
 
 A fourth need is a checked form for procedures. The operator guides and the Rust SDK tutorials in the docs have no written rules for their form, and no tool checks them. 253 step headings hold a number that `Steps` also shows, shell has three fence names, and the public IPv4 address of a node has at least six placeholder names.
 
@@ -27,15 +27,16 @@ This change defines one unit, the snippet, and one typed record format. It defin
 - Add `.nym-codex/edges.json` for edges on generated records, a coverage report, and a check of inline source paths.
 - Add archetypes for two Diataxis types: `runbook` (how-to) and `tutorial`. An archetype maps the sections of a page to mdast nodes with constraints. The runbook lint checks each operator guide and Rust tutorial against its archetype, on the docs pages as they are now. A page states its type in a `diataxis` frontmatter field. A placeholder list in JSON gives one name to each value that a reader fills in. Its first entries come from `data/csv/variables.csv`, and `operators/variables.mdx` renders its table from the JSON.
 - Add a migration tool, `split`. It cuts a page at its headings into snippet files and a page that imports them.
+- Make codex an archive, not a site (design D20). It holds records, snippet files, link maps, manifests, viewpoints, and generated Markdown views, and no pages. Checks of the data replace the site build. A reader reads a pinned commit, and the MCP servers read stores, not codex (D21). codex is public once it is ready, and Cryptex is the private archive (D11).
 - Add a CI check on each PR. It posts a comment with each changed code excerpt and the pages that show it, and it fails on an error. Add a push job on merge to `develop`. It replaces the paths that this repository owns in codex.
 - Split the Nym network specification pages from codex into `.nym-codex/` and replace their Rust fences with citations.
-- Split the docs site pages into snippets in two steps. Step 1 is `network/` and `developers/`. A review of step 1 decides step 2: `operators/`, `apis/`, and the root pages. The docs site is the second site: its pages import the same snippet files, through the `@snippets` alias, with no push. A snippet takes its components from the `mdx-components` of each site, and the docs build scripts that read pages as text resolve snippet imports.
+- Split the docs site pages into snippets in two steps. Step 1 is `network/` and `developers/`. A review of step 1 decides step 2: `operators/`, `apis/`, and the root pages. The docs site renders these snippets: its pages import the snippet files through the `@snippets` alias, with no push. A snippet takes its components from the `mdx-components` of each site, and the docs build scripts that read pages as text resolve snippet imports.
 
 In codex (a separate repository, listed here because the format is its contract):
 
-- Add `snippets/<repo>/` with the snippet files and `{prose,code,diagram,model}.jsonl`. The pages of the repository go under `content/` at the paths its manifest lists.
-- Delete the codex copy of the threat-model data and the older codex view components. codex took them from the docs before later updates. Both sites use the docs components.
-- Add the `@snippets` import alias for Turbopack and webpack, and one remark plugin, `remarkSnippet`. It renders code, diagram, and model citations and resolves `snippet:` links when Nextra compiles a file.
+- Add `snippets/<repo>/` with the snippet files, `{prose,code,diagram,model}.jsonl`, the link map, and the manifest. codex holds no pages of the repository.
+- Remove the Nextra app, with the codex copy of the threat-model data and the older codex view components. Keep the data.
+- Add checks next to `check-push-paths` that replace the site build: owned paths, public repositories only, records, edges, link map, and manifest.
 
 ## Capabilities
 
@@ -64,7 +65,7 @@ Owners, dates, baseline numbers, and some design values are not known yet. A `TB
 
 ## Non-Goals
 
-- The private flow. A private repository pushes to a private target that holds codex and private content. This change states that boundary and builds no part of it.
+- Cryptex, the private archive. A private repository pushes to Cryptex. This change states that boundary and builds no part of it.
 - `nym-vpn-client` and other source repositories.
 - A docs page split before its step. Step 2 of the docs site split starts only after the review of step 1.
 - Viewpoints after the first one.

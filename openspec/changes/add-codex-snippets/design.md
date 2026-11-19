@@ -4,7 +4,7 @@
 
 Three things exist today, and no link exists between them:
 
-- codex (`nymtech/codex`), a Nextra 4 site whose content is a hand copy. It builds with Turbopack. Its sidebar, table of contents, and search index come from the `.mdx` files under `content/` at compile time.
+- codex (`nymtech/codex`), a Nextra 4 site whose content is a hand copy. This change makes codex an archive with no site (D20).
 - The docs retrieval layer in `documentation/docs/lib/retrieval/`: a heading chunker for Markdown (`chunker.mjs`), a line-regex chunker for code (`code-chunker.mjs`), and the `Chunk` type.
 - The `add-shared-retrieval-index` change, which moves the code chunker to tree-sitter (decision 10) and has each producer repository upsert its own shard.
 
@@ -49,7 +49,7 @@ The heading level is part of the snippet, so a snippet has the same level on eac
 
 One snippet is one retrieval chunk if its body does not pass 2,400 characters, the indexer's split size. A body that passes it gets a warning. 59 of the 2,198 sections in the Nym network pages pass it today. A snippet with a heading and no text is legal, for a heading that groups the sections below it.
 
-A link names a snippet id (`[text](snippet:<id>)`) and no route. The `remarkSnippet` plugin resolves it to the route and anchor of the page that imports the target on the site it builds. It fails on a target that no page of that site lists. The record keeps the id form. This design rejects a route in the body. 1,845 links in the Nym network pages start with a codex route. That route is wrong on a second site and has no meaning in the index. The tools add a `relates-to` edge for each link.
+A link names a snippet id (`[text](snippet:<id>)`) and no route. The site resolves it to the route and anchor of the page that imports the target on that site (D9). It fails on a target that no page of that site lists. The record keeps the id form. This design rejects a route in the body. 1,845 links in the Nym network pages start with a codex route. That route is wrong on any other site and has no meaning in the index. The tools add a `relates-to` edge for each link.
 
 Each prose and diagram snippet is in use in its own repository. Either a page imports it, or a prose snippet that a page imports cites it. A diagram is in use through the second path. This rule gives each snippet a page on codex, and no unused file stays in the repository.
 
@@ -67,7 +67,7 @@ The source stays TypeScript. This design rejects a move to JSON files. The type 
 
 The projection extends `lib/retrieval/projections.mjs`, which already projects the actors, vectors, properties, and the generic scenarios. It adds the route hops, the worked examples (their scenarios, L1 actors, and invariants), and the comparison matrix. The record builder replaces the regex in `mdx.mjs` that finds one generic scenario on each page.
 
-This repository holds the one source. codex holds an older copy of the data and of some view components. codex took them from the docs before later updates. codex deletes `lib/privacy-model/threat-model.ts` and renders from `model.jsonl`. Both sites use the docs view components as one set. The older codex `NetworkDiagram` takes a `topology`, and codex deletes it. A small server component reads the record by id with `node:fs`. It passes `meta.data` to the client view, so the compiled page does not hold the data.
+This repository holds the one source. codex holds an older copy of the data and of some view components. codex took them from the docs before later updates. codex deletes `lib/privacy-model/threat-model.ts`, the older `NetworkDiagram`, and its other view components with its app (D20), and holds `model.jsonl`. A site renders a model record with the docs view components. A small server component reads the record by id with `node:fs`. It passes `meta.data` to the client view, so the compiled page does not hold the data.
 
 An integrity check runs with the record builder. It has three rules. Each referenced id exists. Each scenario has an assessment for each spine actor or is on an exception list in the adapter. A verdict has one source. A measurement today shows that no verdict contradicts another. The matrix has 16 verdicts that are absent from the per-actor assessment, and `end-to-end` has no L2 assessment. The last one goes on the exception list with a note. This change does not alter the model content.
 
@@ -87,7 +87,7 @@ A code record and an adapter record have no frontmatter, so their authored edges
 
 The tools write a coverage report. For each requirement, the report shows if it has an edge to a property, actor, or vector. It also shows if a code item has an edge to that requirement. A consumer that judges a statement needs to know where the graph is empty.
 
-An edge to an id with no snippet fails the check in the source repository. The codex build checks an edge to a second repository, because all records are present there.
+An edge to an id with no snippet fails the check in the source repository. The codex checks (D20) check an edge to a second repository, because all records are present there.
 
 ### D4d: Removed (aspect descoped)
 
@@ -135,8 +135,9 @@ In this repository the directory is `documentation/docs/.nym-codex/` (P22, D18),
   manifest.json
   edges.json
   snippets/**/<name>.mdx | <name>.mmd     authored
-  pages/**/<page>.mdx, _meta.json         authored
 ```
+
+The pages that import the snippets are the pages of the docs site, under `documentation/docs/content/` (D18).
 
 The PR check runs the extractor and posts one comment on the PR. The comment shows each code excerpt that changes, as a diff, and the pages that show it. A reviewer sees the excerpt change in the PR that changes the code. The check fails on an error, such as a citation that does not resolve. The push job extracts the bodies again at the merged commit, and `code.jsonl` in codex keeps their history.
 
@@ -152,29 +153,27 @@ No committed file and no record holds the source commit. The push job writes it 
 
 ### D8: The push replaces the repository's paths in full
 
-The push job runs the extractor at the merged commit, builds the records, and writes the commit to `snippets/<repo>/manifest.json`. It replaces `snippets/<repo>/` in codex with the snippet files and the records. It replaces each page directory under `content/` that the manifest lists (for this repository, `content/specifications/nym-network/`) with the pages, writes a `_meta.js` next to each `_meta.json`, and sets `lastUpdated` in each page (D9). Git computes the diff. An append-only push leaves deleted and renamed snippets behind.
+The push job runs the extractor at the merged commit, builds the records, and writes the commit to `snippets/<repo>/manifest.json`. It replaces `snippets/<repo>/` in codex with the snippet files, the records, and the link map. It writes no other path: codex holds no pages (D20). Git computes the diff. An append-only push leaves deleted and renamed snippets behind.
 
 Records in codex are JSON Lines: `prose.jsonl`, `code.jsonl`, `diagram.jsonl`, `model.jsonl`, one record on each line, sorted by id. A changed snippet is a one-line diff, and `JSON.parse` on each line is the whole loader. Limit: one file holds all prose for a repository, a few megabytes at the present size. Split by top-level directory if a file passes about 20 MB.
 
-The job pushes a branch in codex and merges it when the codex build passes. An import or a citation that codex cannot resolve fails that build, so a broken push does not reach the default branch.
+The job pushes a branch in codex and merges it when the codex checks pass (D20). A record with a wrong id prefix, an edge to an id that no repository provides, or a path outside the pusher's directory fails the checks, so a broken push does not reach the default branch.
 
-Three rules cover the failure cases. The job runs one at a time (a concurrency group), so two merges cannot interleave. It reads the commit in the codex manifest. It stops if that commit is not an ancestor of the commit it pushes. So the content of an older commit cannot replace the content of a newer one. The PR check in this repository runs the same record build, page check, link resolution, and per-snippet compile as the codex build. So a fault shows before the merge.
+Three rules cover the failure cases. The job runs one at a time (a concurrency group), so two merges cannot interleave. It reads the commit in the codex manifest. It stops if that commit is not an ancestor of the commit it pushes. So the content of an older commit cannot replace the content of a newer one. The PR check in this repository runs the record build, the page check, link resolution, and the per-snippet compile. So a fault in this repository shows before the merge, and the codex checks find only faults across repositories.
 
-A rename or a delete here can break a page of a second site, and this repository cannot see that page. The codex build finds it. An alias list for moved ids is a follow-up for the time when a second site exists.
+A rename or a delete here can break a page of a rendering site that reads codex, and this repository cannot see that page. The rendering site reads a pinned commit (D21), so its deployed pages do not change. Its build finds the fault when it moves its pin. An alias list for moved ids is a follow-up for the time when such a site exists.
 
-### D9: Nextra builds the pages as they are, and one remark plugin renders citations
+### D9: A site builds the pages as they are, and a server component renders citations
 
-codex builds each page from its file. A page imports snippet files with the alias `@snippets`, which points to `snippets/` in codex. codex sets the alias as a `tsconfig.json` `paths` entry, which Next applies under Turbopack and under webpack. The docs site learnt this the hard way: a `turbopack.resolveAlias` key did not reach the subpaths of the alias. Nextra 4.6.1 compiles any imported `.mdx` file with its own loader under both bundlers. It adds the headings of each imported file to the table of contents of the page (`remark-headings`). The search index (Pagefind) reads the built HTML. So codex needs no step that writes pages, and no generated directory. The snippet files are outside `content/`, so Nextra does not route them as pages.
+A site builds each page from its file. The docs site is the site of this repository (D18). A page imports snippet files with the alias `@snippets`, which points to the snippet files: `.nym-codex/snippets/` in this repository, or `snippets/` in a codex checkout for a site that reads codex (D21). The site sets the alias as a `tsconfig.json` `paths` entry, which Next applies under Turbopack and under webpack. A `turbopack.resolveAlias` key did not reach the subpaths of the alias. Nextra 4.6.1 compiles any imported `.mdx` file with its own loader under both bundlers. It adds the headings of each imported file to the table of contents of the page (`remark-headings`). The search index reads the built HTML. So a site needs no step that writes pages, and no generated directory. The snippet files are outside the page root, so Nextra does not route them as pages.
 
-One remark plugin in codex, `remarkSnippet`, runs when Nextra compiles each page and each snippet. It replaces a code citation with a fenced block and a caption that links to the GitHub permalink (manifest commit, `path`, `lines`). It replaces a diagram citation with a `mermaid` block, and a model citation with the component of its view. It resolves each `snippet:` link from the link map, and fails on a target that is not in the map. The push job writes the map for each repository (`snippets/<repo>/pages.json`: snippet id to page path and anchor) from the import lines of its pages. codex merges the maps of all repositories. The merged map is also the data for the check of edges to a second repository (task 6c.3). Nextra puts the remark plugins of a site before its own (`compile.js`). So its Mermaid step, its custom heading id step, and its table of contents see the output of `remarkSnippet`. Turbopack passes loader options as data, and the default codex build uses Turbopack. So a function plugin under that build is to verify (task 1.9). The fallback needs no plugin: a server component `<Snippet id>` reads the record and renders the code block, the Mermaid diagram, or the view, and an `a` override in `mdx-components.tsx` resolves `snippet:` links. Citations hold no headings, so the table of contents does not need a compile-time step for them.
+A server component, `<Snippet id>`, reads the record by id and renders it. A code citation becomes a fenced block with a caption that links to the GitHub permalink (manifest commit, `path`, `lines`). A diagram citation becomes a Mermaid diagram, and a model citation becomes the component of its view. An `a` override in `mdx-components` resolves each `snippet:` link from the link map, and fails on a target that is not in the map. The link map maps each snippet id to a page path and anchor, from the import lines of the pages. In codex, the push job writes the map of each repository as `snippets/<repo>/pages.json`. The merged maps are also the data for the check of edges to a second repository (task 6c.3). Citations hold no headings, so the table of contents needs no compile-time step for them. The design rejects a remark plugin for this job: Turbopack passes loader options as data, so a function remark plugin does not run under the Turbopack build, which is the build that CI and the deploy run.
 
-The page frontmatter keeps the SEO fields of the docs pages (`title`, `description`, `schemaType`, `section`, `lastUpdated`), which `app/(docs)/seo.ts` reads on both sites, and a page can add more. Nextra reads metadata from the page file alone, so snippet frontmatter does not reach the page metadata. An edit to a snippet does not change the page file, so the push job sets `lastUpdated` in the pushed copy of each page to the newest commit date of the page file and the snippet files it imports. It changes no other frontmatter field, and the source repository commits no change. Without this step, `lastUpdated` and the JSON-LD `dateModified` go stale.
+The page frontmatter keeps the SEO fields of the docs pages (`title`, `description`, `schemaType`, `section`, `lastUpdated`), which `app/(docs)/seo.ts` reads, and a page can add more. Nextra reads metadata from the page file alone, so snippet frontmatter does not reach the page metadata. An edit to a snippet does not change the page file, so `lastUpdated` and the JSON-LD `dateModified` go stale unless the site build takes the newest commit date of the page file and the snippet files it imports. That step belongs to the site build, because codex holds no pages.
 
 The page check fails on a page that holds content other than frontmatter, one `# ` line, import lines, and tags of those imports. Content with no snippet has no id and does not reach the index. The check also fails on two snippets with one anchor on one page. The anchor is the last part of the id, and a page that imports snippets from two directories can repeat it.
 
 The design rejects a JSON recipe for each page and a build step that writes `.mdx` pages from recipes and records. That step adds a generated directory, a watch mode for `next dev`, and a second form of each page that a reviewer must print to read. Imports give the same pages with none of these. The cost is that a snippet has the same heading level on each hand-made page, and a site needs the snippet files to import them. A generated view (D16) composes records and sets its own heading levels.
-
-No codex code reads `content/` as text: `lib/mdx-data.ts` and `lib/summary/` read `data/`. So no codex consumer has to follow the imports.
 
 ### D10: A tool does the migration, and a round trip checks it
 
@@ -186,13 +185,24 @@ The 363 Nym network pages have no JSX element, no `import` outside a code fence,
 
 `split` does not change a section so that a reader can understand it without the rest of its page. Task 4b.1 adds a lint for backward references, as a warning until stage 3 ends (D13), and people fix sections over time. A split page that nobody has fixed yet renders as it did before.
 
-### D11: The target decides visibility
+### D11: The target decides visibility: codex is public, Cryptex is private
 
-A snippet has no visibility field. A public repository pushes to codex. A private repository pushes to the private target and holds no codex credential. The private target takes codex in full. This design rejects a flag on each record, because one wrong value publishes private content. The two-store decision of the shared index already makes the boundary physical.
+A snippet has no visibility field. A public repository pushes to codex. A private repository pushes to Cryptex, the private archive, and holds no codex credential. This design rejects a flag on each record, because one wrong value publishes private content. The two-store decision of the shared index makes the boundary physical: the indexer writes the shards of a codex repository to the public store and the shards of a Cryptex repository to the private store (D21). It decides by producer repository, not by record.
+
+codex is a private repository until it is ready, and then it becomes public. Its full history becomes public with it. So no private record enters codex while it is private. The codex checks (D20) reject a push from a repository that is not on the list of public repositories, from the first push. Before codex becomes public, a person audits its full history for private content.
+
+Open question: the layout of Cryptex (TBD(Max)).
+
+| Option | Reader of private content | Cost |
+|---|---|---|
+| A. Cryptex mirrors codex and adds the private records | Reads one checkout | Two copies of the public records, and a sync job. The mirror can lag behind codex or drift from it |
+| B. Cryptex holds the private records only | Reads codex and Cryptex, each at its own pinned commit | Two checkouts. An edge from a private record to a public one crosses two repositories. An edge from a public record to a private one is not allowed, because a public reader cannot resolve it |
+
+Option B keeps one copy of the public records, so nothing can drift. Option A keeps each reader to one checkout.
 
 ### D12: The tools are `.mjs` next to the retrieval modules
 
-`split` and the extractor reuse `mdx.mjs` (frontmatter) and the fence-aware heading scan from `chunker.mjs`. They are plain `.mjs` with types in `types.ts`, as the retrieval modules are. They stay in this repository for the pilot. Both sites run `remarkSnippet` at build time (D18). The recommendation is to write it once in this repository, next to the other tools, and to give codex a copy until a shared package exists (P17). A shared package is a decision for the second source repository.
+`split` and the extractor reuse `mdx.mjs` (frontmatter) and the fence-aware heading scan from `chunker.mjs`. They are plain `.mjs` with types in `types.ts`, as the retrieval modules are. They stay in this repository for the pilot. The citation renderer (D9) is part of each site that renders snippets. A shared package for the tools and the renderer is a decision for the second source repository or the second rendering site (P17).
 
 ### D13: The corpus reaches the target form in stages, and each stage has a measure
 
@@ -220,13 +230,13 @@ This change stores `status` and builds no agent that reviews code against statem
 
 ### D16: Viewpoints generate views from records
 
-A viewpoint is a data file in the target site. It names a stakeholder and the concerns, and for each page it gives the records to select (kind, facets), the edges to follow and their direction, the order, and the template. The terms come from ISO/IEC/IEEE 42010 and ArchiMate. The design does not use "observer", because the threat model uses that word for an adversary and `observes` is an edge relation.
+A viewpoint is a data file in the archive (D20). It names a stakeholder and the concerns, and for each page it gives the records to select (kind, facets), the edges to follow and their direction, the order, and the template. The terms come from ISO/IEC/IEEE 42010 and ArchiMate. The design does not use "observer", because the threat model uses that word for an adversary and `observes` is an edge relation.
 
-The generator writes the `.mdx` pages of each view into a generated directory under `content/` before `next build`, so Nextra builds the table of contents and the search index as for any page. A view composes records, not snippet files. A record `body` has no heading, so the template sets each heading level. Hand-made pages import snippet files. Both use the same ids, citations, and link map.
+The generator writes the pages of each view as Markdown files under `views/<viewpoint>/` in the archive. GitHub shows them, and renders their Mermaid blocks, so a person can read a view with no site. A model citation becomes its text projection or a Mermaid diagram in a view, because a Markdown file cannot hold a component. A rendering site, for example auditor docs, shows the files of a view as its pages, or renders the same selection with its own templates. A view composes records, not snippet files. A record `body` has no heading, so the template sets each heading level. Hand-made pages import snippet files. Both use the same ids, citations, and link map.
 
-The generator uses three levels of text, and each level only where the one before it cannot do the job: deterministic selection and rendering, template sentences from record fields, and prompted prose. Prompted prose has four rules. The prompt is in the viewpoint, in git. The output is a prose record with `meta.generated` (the viewpoint, the input ids, and their hashes). The generator makes it again only when an input hash changes, and the target site keeps the records in git so that a person reviews each new version once. A section with no input states that the corpus has no evidence, and the generator writes no text for it.
+The generator uses three levels of text, and each level only where the one before it cannot do the job: deterministic selection and rendering, template sentences from record fields, and prompted prose. Prompted prose has four rules. The prompt is in the viewpoint, in git. The output is a prose record with `meta.generated` (the viewpoint, the input ids, and their hashes). The generator makes it again only when an input hash changes, and the archive keeps the records in git so that a person reviews each new version once. A section with no input states that the corpus has no evidence, and the generator writes no text for it.
 
-A viewpoint that reads private records lives in the private target. The first viewpoint is TBD(Max) (P27). Its measure is a regeneration test: generate a view that matches one hand-made audit page, and compare the claims, specs, and links in each, and the share that levels 0 and 1 make.
+A viewpoint that reads private records lives in Cryptex (D11). The first viewpoint is TBD(Max) (P27). Who runs the generator, and where its code lives, is decided with it. Its measure is a regeneration test: generate a view that matches one hand-made audit page, and compare the claims, specs, and links in each, and the share that levels 0 and 1 make.
 
 The design rejects views written by an agent from a free prompt at each build. Such text has no provenance, changes with no input change, and needs a new review each time.
 
@@ -270,9 +280,9 @@ Implementation details. Where a detail is not here, the implementer picks the si
 
 The design rejects rules for procedures in prose, applied in review. No such rule exists for the form of a guide today, and a rule in prose cannot fail a build.
 
-### D18: The docs site is the second site, and its pages are split in two steps
+### D18: The docs site renders the snippets of this repository, and its pages are split in two steps
 
-The docs site (`documentation/docs/`) is in this change. It is the second site of P11, and the first test of reuse. Its pages are split in two steps:
+The docs site (`documentation/docs/`) is in this change. It is the site that builds the pages of this repository from imports (P11). Its pages are split in two steps:
 
 | Step | Pages | Condition to start |
 |---|---|---|
@@ -280,20 +290,19 @@ The docs site (`documentation/docs/`) is in this change. It is the second site o
 | Review | | The team reads the result of step 1 and decides on step 2 (see the measures) |
 | 2 | `content/operators/` (68), `content/apis/` (5), and the 2 root pages | The review passes, and each operator page passes the runbook lint (stage 8) |
 
-The snippet files go in `.nym-codex/snippets/`, with the other snippets of this repository. The id of a docs snippet is its path, as for each prose snippet. The directory of a docs snippet follows the route of its page (`nym/developers/rust/...`). A duplicate id fails the record builder, so a collision with a codex snippet path shows at once. The pages stay in `documentation/docs/content/`, because Nextra routes the docs site from there. `.nym-codex/manifest.json` lists a page root for each site:
+The snippet files go in `.nym-codex/snippets/`, with the other snippets of this repository. The id of a docs snippet is its path, as for each prose snippet. The directory of a docs snippet follows the route of its page (`nym/developers/rust/...`). A duplicate id fails the record builder, so a collision of two snippet paths shows at once. The pages stay in `documentation/docs/content/`, because Nextra routes the docs site from there. `.nym-codex/manifest.json` lists a page root for each site of this repository:
 
 ```json
 "sites": {
-  "codex": { "pages": ".nym-codex/pages", "owns": ["specifications/nym-network"] },
   "docs": { "pages": "documentation/docs/content" }
 }
 ```
 
-The record builder, the page check, the in-use rule, and the link map read each page root. A link map is per site. The push job pushes the codex pages alone, and pushes all snippets and records, so codex can import a docs snippet.
+The record builder, the page check, the in-use rule, and the link map read each page root. A link map is per site. The push job pushes all snippets and records, and the link map of the docs site, so a reader of codex can link a snippet to its page on the docs site.
 
-The docs site sets the `@snippets/nym/*` alias to `.nym-codex/snippets/*` as a `tsconfig.json` `paths` entry, which both bundlers apply, as codex does (task 1.9). A `turbopack.resolveAlias` key `@snippets/nym` did not reach the subpaths (build 2, 1,110 errors). The Turbopack `build` is the one that must pass, because CI and the Vercel deploy run it; `build:webpack` is a fallback and optional. The directory is inside the docs package, at `documentation/docs/.nym-codex/`. A first build with the directory at the repository root failed: Next.js 15.5 needs `turbopack.root` to equal `outputFileTracingRoot`, it kept the docs package as the root, and Turbopack reads no file outside its root, so each `@snippets` import failed to resolve (1,110 errors). `outputFileTracingRoot` stays at the docs package, because the MCP tracing paths and the Vercel function bundle resolve against it. The extractor and the adapters still read Rust source and OpenSpec specs from the repository root: they are Node scripts and not part of the bundle. Only a docs page that imports a monorepo package directly would need both roots at the repository root, and that limit applies to the docs site with or without snippets.
+The docs site sets the `@snippets/nym/*` alias to `.nym-codex/snippets/*` as a `tsconfig.json` `paths` entry, which both bundlers apply. A `turbopack.resolveAlias` key `@snippets/nym` did not reach the subpaths (build 2, 1,110 errors). The Turbopack `build` is the one that must pass, because CI and the Vercel deploy run it; `build:webpack` is a fallback and optional. The directory is inside the docs package, at `documentation/docs/.nym-codex/`. A first build with the directory at the repository root failed: Next.js 15.5 needs `turbopack.root` to equal `outputFileTracingRoot`, it kept the docs package as the root, and Turbopack reads no file outside its root, so each `@snippets` import failed to resolve (1,110 errors). `outputFileTracingRoot` stays at the docs package, because the MCP tracing paths and the Vercel function bundle resolve against it. The extractor and the adapters still read Rust source and OpenSpec specs from the repository root: they are Node scripts and not part of the bundle. Only a docs page that imports a monorepo package directly would need both roots at the repository root, and that limit applies to the docs site with or without snippets.
 
-A snippet imports no file (D4). Today a docs page imports its components: `nextra/components` in 62 pages, `components/client-demos` in 14, the threat-model views, and the version components. After the split, each component that a snippet uses comes from the `mdx-components` of the site. The record builder writes the names of the JSX elements in a body to `meta.components`. The page check of a site fails when a page imports a snippet that uses a component the site does not give. So a snippet with a docs demo works on the docs site, and fails on codex only if a codex page imports it. The comment in the docs `mdx-components.jsx` says that each page imports its own components. That rule changes.
+A snippet imports no file (D4). Today a docs page imports its components: `nextra/components` in 62 pages, `components/client-demos` in 14, the threat-model views, and the version components. After the split, each component that a snippet uses comes from the `mdx-components` of the site. The record builder writes the names of the JSX elements in a body to `meta.components`. The page check of a site fails when a page imports a snippet that uses a component the site does not give. So a snippet with a docs demo works on the docs site, and fails on another site only if a page of that site imports it. The comment in the docs `mdx-components.jsx` says that each page imports its own components. That rule changes.
 
 An `export` that needs an import cannot move into a snippet. 16 pages of step 1 export scenario data (`export const scenario = requireGenericScenario(...)`): the configuration pages, the worked examples, the two-layer model, the two mode pages, and two developer pages. Those pages wait for the model citations of stage 4 on the docs site (task 6b.5), and are split after it.
 
@@ -332,7 +341,7 @@ The plan for the three scripts:
 2. **Strict.** An import or a citation that does not resolve throws, with the page file and the line. The silent skip goes. The function reads no import line inside a code fence (no page has one today, but a code example could). Nextra already fails the site build on such an import, so a strict check rejects no page that builds today.
 3. **The mirror composes too.** `generate-page-markdown.mjs` calls `inlineMdxPartials` before `stripMdx`. This change lands before the first split, on its own, so that its diff (the partial text that the mirror gets) is not mixed with the diff of a split.
 4. **Explicit anchors.** `splitByHeadings` reads `[#id]` as well as `{#id}`. The chunk id and URL then use the anchor of the snippet, and a heading edit does not change them. `llms-full.txt` and the mirror remove `[#id]` from each heading, because a reader of the text has no use for it.
-5. **The link map is one function.** `pageLinks(site)` reads the import lines of the page root of a site and returns snippet id to page path and anchor. The generators, `remarkSnippet`, and the push job call it.
+5. **The link map is one function.** `pageLinks(site)` reads the import lines of the page root of a site and returns snippet id to page path and anchor. The generators, the `a` override of D9, and the push job call it.
 6. **Acceptance for each batch.** Run the three scripts before the split of a batch and after it, with no embedding key. `llms-full.txt` and the `.md` mirror must be identical, apart from the `@generated` date. In `docs-index.json`, the `id`, `url`, `heading`, and `text` of each chunk must be identical. This is a round trip for the whole site, and it is stricter than the `git diff` of D10, because it also checks link resolution and the composition of nested imports.
 
 Until stage 6, the docs index reads composed pages. Stage 6 moves it to records (task 6.1), and `llms-full.txt` and the mirror keep the compose function.
@@ -354,18 +363,20 @@ The plan has the full table. These are the ones that change this design when an 
 | TBD(stage 0 owner): the baseline numbers | D4e and D13. |
 | TBD(Max): the facet vocabulary (P10), apart from the Diataxis type, which D17 decides | D16. Candidates come from the hand-made audit blocks. |
 | TBD(Max): the first-section `title` check against a second site (P26) | D4. The check blocks reuse of a first-section snippet on a page with a different title. |
-| TBD(Max): the first viewpoint and its target site (P27) | D16. |
+| TBD(Max): the first viewpoint, the site that renders it, and who runs the generator (P27) | D16. |
+| TBD(Max): the layout of Cryptex, a mirror of codex or the private records only | D11. |
 | TBD(Max): the owner of the placeholder list (P28). Task 9.4 chooses the name for each value with more than one. The rest of P28 is decided | D17. |
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| A push credential for codex in this repository's CI | Scope it to the codex repository alone. codex CI rejects a push that touches a path outside the pusher's two directories. |
+| A push credential for codex in this repository's CI | Scope it to the codex repository alone. codex CI rejects a push that touches a path outside the pusher's directory. |
+| A private record enters codex while codex is private, and becomes public with its history | The codex checks reject a push from a repository that is not public, from the first push. A person audits the full history before codex becomes public (D11). |
 | About 2,600 authored files in a hidden directory are hard to find | The tools take the directory from one constant (`CODEX_DIR` in `lib/snippets/repo.mts`). A move to a visible directory is one rename. |
-| Split sections are hard to read alone, and a second site shows that | Stage 3 rewrites them, with a measured share. The codex pages render as before in the meantime. |
+| Split sections are hard to read alone, and a second site shows that | Stage 3 rewrites them, with a measured share. The docs pages render as before in the meantime. |
 | Stage 5 needs people who know why each requirement exists, and it has no owner | Name an owner before stage 5 starts. The coverage report shows the gap until then. |
-| A reviewer sees fragments | The page file shows the order and the ids. A local command prints a page with the text of each snippet in place of its import. A codex preview for each PR is a follow-up. |
+| A reviewer sees fragments | The page file shows the order and the ids. A local command prints a page with the text of each snippet in place of its import, and the docs preview of each PR shows the page. |
 | tree-sitter grammars add a dependency and WASM files | The shared index needs the same ones. Add them once. |
 | Content that is not in codex today enters this repository | The split takes the pages that codex holds and takes content from no other source. If codex is not public at that time, this repository shows the pages first. |
 | An archetype that is too strict makes authors work around it | Most sections are optional. A rule joins only with a count from the present pages. If more than one how-to page in five needs an exception after the archetype stage, the archetype changes before the split of the guides. |
@@ -377,11 +388,11 @@ The plan has the full table. These are the ones that change this design when an 
 - The round trip and the per-snippet compile of D10 on the pilot section, then on all Nym network pages.
 - For each replaced Rust fence, a comparison of the extracted body with the fence. List each difference in the PR as a stale hand copy or an extractor fault.
 - The record build is stable: two runs on one commit give identical bytes.
-- codex builds from the pushed paths, and an import or a citation with a wrong id fails that build.
+- The codex checks pass on the pushed paths, and a record with a wrong id prefix, an edge to an id that no repository provides, or a path outside the pusher's directory fails them.
 - Lint fixture tests: one passing page and one failing page for each archetype rule, and a procedure in a nested `.mdx` import.
 - For the index (tasks section 6): recall at 6 on the labelled developer set is not lower than the baseline of task 0.2.
 
-The agent sandbox has no network and no git, so the user runs `pnpm install`, the tests, the codex build, and each push.
+The agent sandbox has no network and no git, so the user runs `pnpm install`, the tests, the builds, and each push.
 
 ### D19: The tools are TypeScript
 
@@ -399,10 +410,48 @@ Order: `lib/archetypes/` first, then `lib/snippets/`, then their tests as `.test
 
 The Next app imports no tool. Next's webpack setup gives SWC only `.ts` and `.tsx` files as TypeScript, so a tool module in the site bundle fails the webpack build. The site reads what the tools write into `.nym-codex/build/`: `model.jsonl` (`threat-model.mts`) and `links-docs.json` (`links.mts`, the route of each snippet). This is the form codex has already, where `push.mts` writes the link map as `pages.json`.
 
+### D20: codex is an archive, not a site
+
+codex holds data that producers push to and readers read from. It has no site build and no deployment. A site is one rendering of the records, and each site builds from its own repository or from a codex checkout (D21). The layout:
+
+```
+snippets/<repo>/
+  manifest.json                                  repo, github, the source commit
+  prose.jsonl code.jsonl diagram.jsonl model.jsonl   the records; the edges are in refs
+  pages.json                                     snippet id to page path and anchor on the producer's site
+  **/<name>.mdx | <name>.mmd                     the snippet files, for a site that imports them
+viewpoints/<viewpoint>.json                      stakeholder, concerns, selections, template (D16)
+views/<viewpoint>/**/<page>.md                   generated views (D16)
+.github/snippet-owners.json                      the paths that each pusher owns
+```
+
+codex holds no pages. A split page is part of the site that shows it: the pages of this repository are the docs site pages (D18). Content in codex that no producer pushes, for example papers and summary data, stays as data files. This change does not move it.
+
+Checks replace the site build. On each push branch and on the default branch, codex CI checks that:
+
+| Check | Fails on |
+|---|---|
+| Owned paths | A push that changes a path outside the pusher's `snippets/<repo>/` |
+| Public repository | A push from a repository that is not on the public list (D11) |
+| Records | A line that is not a record of its file's kind, or an id that does not start with `<repo>/` |
+| Edges | An edge to an id that no `snippets/*/` provides (task 6c.3) |
+| Link map | A `pages.json` entry for an id with no record |
+| Manifest | A manifest with no source commit |
+
+The checks are a small toolchain with no app. The design rejects a codex site next to the archive. Such a site is a second rendering of content that the docs site already shows, and a site build is a weak check of data: it fails on a missing import, but it passes a record with a wrong id prefix or an edge to nothing.
+
+### D21: Readers read a pinned commit, and the MCP servers read stores
+
+A reader reads a checkout of the archive at a pinned commit. The readers are the retrieval indexer, the coherence agent, rendering sites (for example auditor docs built from the assurance viewpoint), and people on GitHub. A pin makes the build of a reader repeatable, and a push to codex cannot change a page that a reader has already deployed. The reader moves its pin, and its build then finds a renamed or deleted id. A rendering site selects records through a viewpoint. codex holds no list of its readers and no fact about any reader.
+
+A producer writes to the archive and does not read from it. The docs site of this repository builds from `.nym-codex/` in this repository.
+
+The MCP servers do not read the archive. Each one reads one store: the public MCP reads the public store, and the private MCP reads the private store. Both run the same route code. The retrieval indexer reads the records and writes each shard to the store for the visibility of its producer repository (D11). The indexer fails on a repository whose visibility it does not know, and writes nothing for it.
+
 ## Follow-ups (not this change)
 
 - `nym-vpn-client` as a source, with its 210 `file.rs:NN` citations.
-- The private target and the private repositories.
+- Cryptex and the private repositories.
 - Viewpoints after the first one.
 - The missing L2 assessment in the `end-to-end` scenario, and the 16 verdicts that the per-actor assessments do not state.
 - The 10 NymVPN threat diagrams in `codex/lib/privacy-model/nymvpn-diagrams.ts`. `nym-vpn-client` owns them. Each states its claim in a code comment today, so the claim needs a data field before a tool can project it.

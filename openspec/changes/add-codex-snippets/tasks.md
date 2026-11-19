@@ -17,6 +17,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 | 7. First viewpoint | 8 |
 | 8. Archetypes | 9 |
 | 9. Docs site split | 10 |
+| codex as an archive (design D20, D21) | 13 |
 | Adapters and clean-up (the statement records feed stage 5) | 7 |
 
 ## 0. Baseline (no file moves)
@@ -36,9 +37,9 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 - [x] 1.6 Local push script: write `snippets/nym/` (snippet files and records) and the owned page directories under `content/` into a codex checkout, and replace each in full. Write `_meta.js` from each `_meta.json`, and write the link map `snippets/nym/pages.json` from the import lines of the pages. Set `lastUpdated` in each pushed page to the newest commit date of the page file and the snippet files it imports, and change no other frontmatter field. Status: `lib/snippets/push.mts --target <dir>`. Until every page in an owned directory is split, it replaces only the directories that hold split pages, so it cannot delete the pages that are not split
 - [x] 1.7 Run `split` on `technical-details/discovery-urls` from codex. Round trip: put the text of each snippet in place of its import, put each diagram back as a `mermaid` fence in place of its citation, and write each `snippet:` link back as the route it replaced. Then run `git diff` against the codex page. Expected result: the pages match apart from whitespace and the added anchors. The pilot has 11 route links and 2 `mermaid` blocks, so the reverse steps are needed for this result
 - [x] 1.8 Write fixture tests for `split`, the record builder, and the page check, with one test for each failure in 1.4 and 1.5
-- [ ] 1.9 codex: add the `@snippets` alias as a `tsconfig.json` `paths` entry (`"@snippets/*": ["snippets/*"]`), which both bundlers apply. Check that an imported snippet compiles, and that its headings and anchors reach the page table of contents, under the Turbopack `build` (required). `build:webpack` is optional: it checks the fallback build only. Check that a function remark plugin in `mdxOptions.remarkPlugins` runs under Turbopack. If it does not, use the fallback of D9 (a server component and an `a` override) in 1.11, 2.6, and 6b.5. The user runs the builds
+- [x] 1.9 Superseded (design D20): codex has no site, so it needs no `@snippets` alias and no build check. A site that imports snippet files sets the alias itself, as the docs site does (D18)
 - [x] 1.10 Add a compile check in this repository (the docs package has `nextra`). It compiles each prose body alone with `compileMdx` and fails on an error. It runs in the PR check of 4.1 and in the codex build
-- [ ] 1.11 codex: write `remarkSnippet` and add it to the Nextra `mdxOptions.remarkPlugins`. First job: resolve each `snippet:` link from the merged link map, and fail on a target that is not in the map
+- [x] 1.11 Superseded (design D9, D20): codex renders nothing. The codex checks check the link map (13.2), and each site resolves `snippet:` links with the `a` override of D9
 
 ## 2. Code extractor
 
@@ -47,7 +48,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 - [x] 2.3 Parser module (the same function as `add-shared-retrieval-index` task 3.5.1; the change that starts first writes it, for Rust first, and the other one extends it): `items(text, lang)` returns `{ name, qualifiedName, kind, startLine, endLine }` for each item, with doc comments and attributes inside the range. Methods use the form `Type::method`. Set the qualifier rules from the cases in 2.1. The cases are module path, two trait impls with one method name, and `cfg` variants. They are also the `const`/`static`/`type`/`impl` kinds and items that a macro generates (not citable as items)
 - [x] 2.4 Write fixture tests for 2.3: whole item, method, trait method, nested module, missing symbol, ambiguous symbol
 - [x] 2.5 Extractor: scan prose snippets for code citations and resolve each one. Add `code.jsonl` to the record builder. Fail with file and line on a missing or ambiguous symbol
-- [ ] 2.6 `remarkSnippet`: replace a code citation with a fenced block and a caption. The caption links to the GitHub permalink (manifest commit, `path`, `lines`). Replace a diagram citation with a `mermaid` block
+- [ ] 2.6 Docs site citation renderer (D9): render a code citation as a fenced block with a caption. The caption links to the GitHub permalink (manifest commit, `path`, `lines`). The diagram citation renders already (10.6)
 - [x] 2.7 Determinism test: two runs give identical bytes
 - [ ] 2.8 Depends on 6.0. Exclude `.nym-codex` from the root walk and the plain Markdown walk of the shared indexer. No file in this repository or on `max/shared-mcp` holds that walk yet: it is in the private spike today, and `add-shared-retrieval-index` task 3.1 has to move it into the package. `generate-code-index.mjs` walks `ROOTS` alone and needs no change
 - [x] 2.9 Replace the Rust fences in the pilot section with citations. Compare each extracted body with the fence it replaces. List each difference in the PR as a stale hand copy or an extractor fault
@@ -63,13 +64,13 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 
 - [ ] 3.1 Run `split` on the other Nym network specification pages. The user repeats the round trip of 1.7 and the compile check of 1.10
 - [ ] 3.2 Replace the other Rust fences with citations
-- [ ] 3.3 From now on, only the push job writes `content/specifications/nym-network/` in codex
+- [ ] 3.3 From now on, only the push job writes `snippets/nym/` in codex (D20: codex holds no pages)
 
 ## 4. CI
 
 - [ ] 4.1 PR check: run the record builder, the page check, the extractor, link resolution, and the compile check of 1.10. Post one PR comment with each changed code excerpt as a diff and the pages that show it. Update the comment on each new push to the PR. Fail on an error. Set the path filter to `.nym-codex/**` and `**/*.rs`. A workflow path filter is static, so it cannot follow the citation list. Status: written (`.github/workflows/ci-codex-snippets.yml`, `lib/snippets/excerpt-diff.mts`); it has not run on GitHub yet, so the first PR is its test. The path filter also covers `documentation/docs/content/**`, the snippet tools, the threat model, and `openspec/specs/**`, because each of them changes records
-- [ ] 4.2 Push job on merge to `develop`: write the commit to `snippets/nym/manifest.json` and push a branch to codex. Merge the branch when the codex build passes. Run only one job at a time (concurrency group). Stop when the commit in the codex manifest is not an ancestor of this one. Check out with full history (`fetch-depth: 0`), because the ancestor check and the `lastUpdated` dates of 1.6 both read it
-- [ ] 4.3 codex CI: reject a push that changes a path outside the paths that the pusher owns
+- [ ] 4.2 Push job on merge to `develop`: write the commit to `snippets/nym/manifest.json` and push a branch to codex. Merge the branch when the codex checks pass (13.2). Run only one job at a time (concurrency group). Stop when the commit in the codex manifest is not an ancestor of this one. Check out with full history (`fetch-depth: 0`), because the ancestor check and the `lastUpdated` dates of 1.6 both read it
+- [ ] 4.3 codex CI: reject a push that changes a path outside the paths that the pusher owns (`snippets/<repo>/` only, D20)
 - [ ] 4.4 Create the codex write credential and add it to this repository's CI secrets. Kind of credential: TBD(infra)
 
 ## 4b. Standalone pass
@@ -121,7 +122,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 - [ ] 6c.0 `creates`: TBD(Max). Add it to `RefRel` when it has a meaning and one real edge
 - [x] 6c.1 Record builder: read `refs` from prose frontmatter (plain id or `{ id, rel }`) and add `cites` edges from citations. Then normalise, remove duplicates, and sort
 - [x] 6c.2 Fail on a relation that is not in `RefRel`. Also fail on an edge to an id with no snippet in this repository Status 2026-10-16: 6c.1 and 6c.2 are in `records.mts` (frontmatter `refs` as an id or `{ id, rel }`, `cites` from citations, `normaliseRefs`, a fault on an unknown relation and on an edge to an unknown id)
-- [ ] 6c.3 codex build: fail on an edge to an id that no repository provides
+- [ ] 6c.3 codex checks: fail on an edge to an id that no repository provides (part of 13.2)
 
 ## 6e. Requirement linkage
 
@@ -140,9 +141,9 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 ## 8. First viewpoint
 
 - [ ] 8.1 Decide the facet vocabulary (P10) as closed lists. Start from the facets of the hand-made audit blocks. TBD(Max)
-- [ ] 8.2 Decide the first viewpoint, its owner, and its target site (P27). TBD(Max)
+- [ ] 8.2 Decide the first viewpoint, its owner, the site that renders it, and who runs the generator (P27). TBD(Max)
 - [ ] 8.3 Write the viewpoint file format and its validation: stakeholder, concerns, pages with selections, edge traversals, coverage sections, and generated sections
-- [ ] 8.4 Write the generator: read viewpoint files, records, and the link map. Write the `.mdx` pages of each view into a generated directory under `content/` before `next build`. Set each heading from the template
+- [ ] 8.4 Write the generator: read viewpoint files, records, and the link map. Write the pages of each view as Markdown files under `views/<viewpoint>/` in the archive (D16). Set each heading from the template
 - [ ] 8.5 Generated prose: store each output as a prose record with `meta.generated` (viewpoint, input ids, input hashes). Generate again only on an input hash change. Write "no evidence in the corpus" for a section with no input
 - [ ] 8.6 Regeneration test: generate a view that matches one hand-made audit page. Write down the claims, specs, and links in one version and not the other, and the share that levels 0 and 1 make
 
@@ -195,11 +196,12 @@ D18 gives the design. Step 1 is `content/network/` and `content/developers/`. St
 
 - [x] 7.1b Statement fields: `meta.level` from the strongest RFC 2119 keyword, `meta.status` from the enforced list in `.nym-codex/manifest.json` (default `approved`). Fail on two requirements with one slug in one spec
 - [ ] 7.1c Who promotes a statement to `enforced`, and the rule: TBD(Max)
-- [ ] 7.1 Write an adapter for `openspec/specs`. This repository has 42 specs, and codex holds 35 pages from an older copy. Derive one prose record for each requirement and one page for each spec. Apply the MDX sanitisation that `codex/scripts/migrate-openspec.py` does. Then delete that script's `nym` entry. Status: the records are done (`lib/snippets/openspec.mts`: 492 requirements from 42 specs, MUST 313, SHALL 179, no slug collision). Open: one codex page for each spec, the MDX sanitisation, and the removal of the script entry
+- [ ] 7.1 Write an adapter for `openspec/specs`. This repository has 42 specs, and codex holds 35 pages from an older copy. Derive one prose record for each requirement and one page for each spec. Then delete the `nym` entry of `codex/scripts/migrate-openspec.py`, because the records replace its pages (D20). Status: the records are done (`lib/snippets/openspec.mts`: 492 requirements from 42 specs, MUST 313, SHALL 179, no slug collision). Open: the removal of the script entry. A page for each spec belongs to a site that renders the records, not to codex
 - [x] 7.2 Delete or convert `documentation/docs/code-examples/sdk/typescript/*.mdx` (7 files, no importer). Status 2026-10-16: deleted (decided by the user: delete them if no live page and no component uses them). A search of the docs, the components, the scripts, CI, and codex found no reference. The code stays in git history, last changed in `77a34fe3bf`
 - [ ] 7.3 Remove the untracked copy of the codex site at `nym/codex/` after the user confirms that nobody needs it
-- [ ] 7.4 Update the codex README "Structure" section with the `snippets/` contract, the owned `content/` paths, and the `@snippets` alias
+- [ ] 7.4 Update the codex README "Structure" section with the archive layout of D20, the owned paths, the checks, and how a reader pins a commit (D21)
 - [ ] 7.5 Remove the aspect and aspect_review fields (descoped 2026-10-21): dropped from the record type, the adapters, split, the 1161 snippet frontmatters, the specs, and the plan docs.
+
 
 ## 11. Tools in TypeScript (design D19)
 
@@ -216,3 +218,14 @@ Asked by the user, 2026-10-20. `documentation/scripts/next-scripts/python-prebui
 - [ ] 12.2 Replace `documentation/scripts/api-scraping/api_targets.py` (requests): the network numbers in `components/outputs/api-scraping-outputs/` (circulating supply, the reward parameters, `nodes-count.json`, `time-now.md`, the staking target). Write them with a TypeScript tool (`.mts`, D19) in `build:data`, or read them live as the deferral plan proposes (nym-api and the `nym-docs` MCP serve them)
 - [ ] 12.3 The `--help` captures of `scripts/node_api_check.py` and `scripts/nym-node-setup/nym-node-cli.py` run those tools, which are Python products, not docs code. Move the captures to the autodoc job (`ci-docs-autodoc`, `workflow_dispatch` only), which commits the outputs, so the docs build does not run Python
 - [ ] 12.4 Delete `documentation/scripts/rewards_version_graph.py` (no file uses it), then `python-prebuild.sh` (rename what is left, if anything), and the Python install in the docs workflows and on Vercel
+
+## 13. codex as an archive (design D20, D21)
+
+- [ ] 13.1 Move the 5 pages under `.nym-codex/pages/specifications/nym-network/` to the docs site page root (the route: TBD(Max)). Remove `sites.codex` from `.nym-codex/manifest.json`, and remove the codex page root from the record builder, the page check, the in-use rule, and the link map
+- [ ] 13.2 codex checks, in codex CI next to `check-push-paths`, on push branches and on the default branch: records of the right kind on each line, an id prefix of `<repo>/`, edge targets in some `snippets/*/` (6c.3), link map targets, a source commit in each manifest, and pushes from public repositories only (D11). Each check gets a fixture that fails it
+- [ ] 13.3 Push (`push.mts`, 1.6, 4.2): write `snippets/nym/` only, with `pages.json` from the docs site pages. Stop writing page directories under `content/`, `_meta.js`, and `lastUpdated`. Set `.github/snippet-owners.json` in codex to `snippets/nym/` for nym
+- [ ] 13.4 Docs site: set `lastUpdated` of a split page at build time from the newest commit date of the page file and the snippet files it imports (D9), if the pages show a date that goes stale
+- [ ] 13.5 codex repository: remove the Nextra app (`app/`, `components/`, `mdx-components*.tsx`, `next.config.mjs`, the app scripts and dependencies in `package.json`, the search index step) and the rendering code of the snippet consumer. For each directory under `content/` that no producer pushes, decide to keep it as data or to delete it before the removal. Keep the check toolchain
+- [ ] 13.6 Retrieval indexer (section 6 and `add-shared-retrieval-index`): read the records from a codex checkout at a pinned commit, write each shard to the store for its producer repository's visibility, and write nothing for a repository whose visibility is not known (D21)
+- [ ] 13.7 Decide the layout of Cryptex: a mirror of codex, or the private records only (D11). TBD(Max)
+- [ ] 13.8 Before codex becomes public: a person audits its full history for private content and records the result (D11). Owner: TBD(Max)

@@ -3,7 +3,7 @@
 
 use crate::cli_helpers::{CliClient, CliClientConfig};
 use crate::client::base_client::non_wasm_helpers;
-use crate::client::key_manager::persistence::Passphrase;
+use crate::client::key_manager::persistence::{KeySecret, Passphrase};
 
 #[derive(clap::Args, Debug, Clone)]
 pub struct CommonClientResetClientIdentityArgs {
@@ -22,7 +22,11 @@ where
     C: CliClient,
 {
     let config = C::try_load_current_config(&args.as_ref().id).await?;
-    non_wasm_helpers::reset_client_identity(config.common_paths(), key_passphrase, database_key)
-        .await?;
+    non_wasm_helpers::reset_client_identity(
+        config.common_paths(),
+        key_passphrase.map(KeySecret::from),
+        database_key,
+    )
+    .await?;
     Ok(())
 }

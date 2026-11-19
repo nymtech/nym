@@ -242,7 +242,7 @@ The source repository SHALL commit no extracted code body and no other generated
 
 ### Requirement: The push replaces the repository's paths in codex
 
-On merge to the branch that the push follows (`develop` for the pilot; P18 can change it to release tags), a job SHALL build the records at the merged commit. The job SHALL write that commit to `snippets/<repo>/manifest.json`. The job SHALL replace `snippets/<repo>/` in codex in full, with the snippet files, the records, and a link map, `snippets/<repo>/pages.json`, from snippet id to page path and anchor, from the import lines of the pages of the repository's site. The job SHALL write no other path in codex. The job SHALL merge its branch only when the codex checks pass. Two runs SHALL NOT overlap. A run SHALL stop when the commit in the codex manifest is not an ancestor of the commit it pushes.
+On merge to the branch that the push follows (`develop` for the pilot; P18 can change it to release tags), a job SHALL build the records at the merged commit. The job SHALL write that commit to `snippets/<repo>/manifest.json`. The job SHALL replace `snippets/<repo>/` in codex in full, with the snippet files, the records, and a link map, `snippets/<repo>/pages.json`, from snippet id to page path and anchor, from the import lines of the pages of the repository's site. The job SHALL write no other path in codex. Before it pushes, the job SHALL read `.github/snippet-owners.json` from the codex default branch, and SHALL stop with no push when its repository is not on it as public. The job SHALL open no pull request in codex. The job SHALL merge its branch only when the codex checks pass, and SHALL delete the branch when they fail. Two runs SHALL NOT overlap. A run SHALL stop when the commit in the codex manifest is not an ancestor of the commit it pushes.
 
 #### Scenario: A deleted snippet leaves codex
 
@@ -253,6 +253,16 @@ On merge to the branch that the push follows (`develop` for the pilot; P18 can c
 
 - **WHEN** a site renders a code citation
 - **THEN** the caption links to a GitHub permalink built from the manifest commit, the record `path`, and the record `lines`
+
+#### Scenario: A repository that is not public runs the push job
+
+- **WHEN** the push job runs in a repository that is not on `snippet-owners.json` as public
+- **THEN** the job stops before it pushes, and codex gets no branch, ref, or object from it
+
+#### Scenario: The codex checks fail on a push branch
+
+- **WHEN** a push branch fails the codex checks
+- **THEN** the job deletes the branch, and no pull request ref holds it
 
 #### Scenario: An older run finishes last
 
@@ -443,12 +453,22 @@ A page MAY state its Diataxis type in a `diataxis` frontmatter field, with one o
 
 ### Requirement: Private content does not reach codex
 
-A public repository SHALL push to codex. No other repository SHALL push to codex. A private repository SHALL push to Cryptex, the private archive, and SHALL hold no credential that can write to codex. The codex checks SHALL reject a push from a repository that is not on the list of public repositories, also while codex is a private repository.
+A public repository SHALL push to codex. No other repository SHALL push to codex. A private repository SHALL push to Cryptex, the private archive, and SHALL hold no credential that can write to codex. `.github/snippet-owners.json` in codex SHALL be the one list of public repositories. The codex checks SHALL reject a push from a repository that is not on that list, also while codex is a private repository. The codex write credential SHALL name one repository, and the codex checks SHALL reject a branch, path, or manifest that names another repository. A public record SHALL NOT have an edge to a private record. Derived text SHALL take the most restrictive visibility of its inputs.
 
 #### Scenario: A private repository adopts the flow
 
 - **WHEN** a private repository adds a `.nym-codex/` directory and the push job
-- **THEN** its snippets go to Cryptex, and codex receives nothing from it
+- **THEN** the job stops before it pushes to codex, because the repository is not on `snippet-owners.json` as public, and codex receives nothing from it
+
+#### Scenario: A push names another repository
+
+- **WHEN** the credential of `nym-vpn-client` pushes a branch that changes `snippets/nym/`
+- **THEN** the codex checks fail, and the branch does not merge
+
+#### Scenario: A view has a private input
+
+- **WHEN** a view or a generated record in codex names an input id that no public `snippets/*/` provides
+- **THEN** the codex checks fail
 
 #### Scenario: codex is still private
 
@@ -458,6 +478,21 @@ A public repository SHALL push to codex. No other repository SHALL push to codex
 ### Requirement: codex holds data and no site
 
 codex SHALL hold the records, snippet files, link maps, and manifests of each repository under `snippets/<repo>/`, the viewpoints under `viewpoints/`, and the generated views under `views/`. codex SHALL hold no pages and no site build. On each push branch and on the default branch, the codex checks SHALL fail on a change to a path outside the pusher's `snippets/<repo>/`, on a line that is not a record of its file's kind, on a record id that does not start with `<repo>/`, on an edge to an id that no `snippets/*/` provides, on a link map entry for an id with no record, and on a manifest with no source commit.
+
+#### Scenario: A push outside the owned path
+
+- **WHEN** the nym push branch changes a file under `snippets/nym-vpn-client/` or `views/`
+- **THEN** the codex checks fail and name the path
+
+#### Scenario: A link map entry with no record
+
+- **WHEN** `snippets/nym/pages.json` holds an id that no record in `snippets/nym/` has
+- **THEN** the codex checks fail and name the id
+
+#### Scenario: A manifest with no source commit
+
+- **WHEN** a push branch holds a `manifest.json` with no source commit
+- **THEN** the codex checks fail
 
 #### Scenario: An edge to nothing
 
@@ -471,12 +506,27 @@ codex SHALL hold the records, snippet files, link maps, and manifests of each re
 
 ### Requirement: Readers read a pinned commit, and the MCP servers read stores
 
-A reader of codex SHALL read a checkout at a pinned commit. A rendering site SHALL select records through a viewpoint or through the imports of its pages. codex SHALL hold no list of its readers. The MCP servers SHALL NOT read codex or Cryptex. Each MCP server SHALL read one store. The retrieval indexer SHALL write each shard to the store for the visibility of its producer repository, and SHALL write nothing for a repository whose visibility it does not know.
+A software reader of codex SHALL read a checkout at a pinned commit. A rendering site SHALL select records through a viewpoint or through the imports of its pages. codex SHALL hold no list of its readers. The MCP servers SHALL NOT read codex or Cryptex. Each MCP server SHALL read one store. The retrieval indexer SHALL be the one writer of both stores. It SHALL write the shards of a private repository to the private store only, and the shards of a public repository to the public store and to the private store. It SHALL write nothing for a repository whose visibility it does not know.
 
 #### Scenario: A push renames a snippet that a site uses
 
 - **WHEN** a push to codex renames a snippet that a rendering site imports
 - **THEN** the deployed pages of that site stay as they are, and the build of the site fails when it moves its pin to the new commit
+
+#### Scenario: A public shard reaches both stores
+
+- **WHEN** the indexer runs for a public repository in its CI, and the private pipeline runs over the same commit
+- **THEN** the public store and the private store hold the same shard for that repository
+
+#### Scenario: A private shard stays private
+
+- **WHEN** the private pipeline indexes a private repository
+- **THEN** the private store holds its shard, and the public store holds no row of it
+
+#### Scenario: An MCP server answers a query
+
+- **WHEN** the public or the private MCP server answers a search
+- **THEN** it reads only its own store, and it opens no checkout of codex or Cryptex
 
 #### Scenario: A repository with no known visibility
 

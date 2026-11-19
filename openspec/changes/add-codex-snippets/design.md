@@ -6,11 +6,11 @@ Three things exist today, and no link exists between them:
 
 - codex (`nymtech/codex`), a Nextra 4 site whose content is a hand copy. This change makes codex an archive with no site (D20).
 - The docs retrieval layer in `documentation/docs/lib/retrieval/`: a heading chunker for Markdown (`chunker.mjs`), a line-regex chunker for code (`code-chunker.mjs`), and the `Chunk` type.
-- The `add-shared-retrieval-index` change, which moves the code chunker to tree-sitter (decision 10) and has each producer repository upsert its own shard.
+- The `add-shared-retrieval-index` change, which moves the code chunker to tree-sitter (decision 10). In it, each public producer repository upserts its own shard to the public store, and a pipeline on private infrastructure fills the private store with the public and the private repositories (decision 3).
 
 The author measured codex on 2026-10-13: it has 363 Nym network pages. Those pages hold 83 `mermaid` blocks, 24 Rust fences on 12 pages, and 1,845 links to a codex route. The fences hold whole items, methods in `impl` and `trait` blocks, parts of a function body, and one formula.
 
-`add-shared-retrieval-index` is on the branch `max/shared-mcp` and is not in this branch. Tasks 2.2 and section 6 depend on it.
+`add-shared-retrieval-index` is on the branch `max/shared-mcp` and is not in this branch. Tasks 2.2, section 6, and 13.6 depend on it.
 
 ## Decisions
 
@@ -51,7 +51,7 @@ One snippet is one retrieval chunk if its body does not pass 2,400 characters, t
 
 A link names a snippet id (`[text](snippet:<id>)`) and no route. The site resolves it to the route and anchor of the page that imports the target on that site (D9). It fails on a target that no page of that site lists. The record keeps the id form. This design rejects a route in the body. 1,845 links in the Nym network pages start with a codex route. That route is wrong on any other site and has no meaning in the index. The tools add a `relates-to` edge for each link.
 
-Each prose and diagram snippet is in use in its own repository. Either a page imports it, or a prose snippet that a page imports cites it. A diagram is in use through the second path. This rule gives each snippet a page on codex, and no unused file stays in the repository.
+Each prose and diagram snippet is in use in its own repository. Either a page imports it, or a prose snippet that a page imports cites it. A diagram is in use through the second path. This rule gives each snippet a page on the docs site (D18), and no unused file stays in the repository.
 
 ### D4b: A `model` kind for typed data models. The threat model is the first, and a diagram is a view of a scenario
 
@@ -61,7 +61,7 @@ The rest of this decision describes the threat model.
 
 The threat model is typed data in `documentation/docs/lib/privacy-model/`: actors, vectors, properties, scenarios, invariants, with references by id. Each entity becomes one record of kind `model`. The record builder evaluates the TypeScript modules with `lib/retrieval/ts-data.mjs`. It writes a text projection into `body`, the evaluated entity into `meta.data`, and the references in the data into `refs`. The id comes from the id in the data: `<repo>/threat-model/<entity type>/<id>`.
 
-An animated network diagram renders from the `paths` or `topology` of a scenario. The same scenario holds the verdict matrix and the per-actor assessment. This design rejects a record for the diagram alone. Such a record separates the picture from the claims, and a reader searches for the claims. A citation names the view, `<Snippet id view="diagram">`, and `remarkSnippet` maps each view to the existing component.
+An animated network diagram renders from the `paths` or `topology` of a scenario. The same scenario holds the verdict matrix and the per-actor assessment. This design rejects a record for the diagram alone. Such a record separates the picture from the claims, and a reader searches for the claims. A citation names the view, `<Snippet id view="diagram">`, and the `<Snippet>` server component (D9) maps each view to the existing component.
 
 The source stays TypeScript. This design rejects a move to JSON files. The type checker covers the modules today, and three topology builders in `topologies.ts` are functions. A measurement shows that all 14 scenarios serialise to JSON after evaluation with no loss.
 
@@ -89,15 +89,15 @@ The tools write a coverage report. For each requirement, the report shows if it 
 
 An edge to an id with no snippet fails the check in the source repository. The codex checks (D20) check an edge to a second repository, because all records are present there.
 
-### D4d: Removed (aspect descoped)
+### D4d: Removed
 
-Removed. The aspect field was descoped on 2026-10-21; the graph keeps kind and the typed edges.
+Records have no aspect field. The graph uses the kind and the typed edges.
 
 ### D4e: The index uses the edges in two ways, and a labelled query set judges them
 
 The present embedding models read the text of one chunk alone, so an edge has an effect on a vector only if the text holds it. Two mechanisms use the structure:
 
-1. Context in the embedded text. The chunker puts the page title and the heading in front of each chunk today. The indexer adds the titles of the snippets that this one `realises` or is `assessed-against`.
+1. Context in the embedded text. The chunker puts the page title and the heading in front of each chunk today. The indexer adds the titles of the snippets that this one `realises` or is `assessed-against`. A public record has no edge to a private record (D11), so a chunk in the public store gets public titles only.
 2. Edge expansion at query time. After the vector search, the server follows `realises`, `mitigates`, and `assessed-against` edges from each hit and returns the linked requirement and motivation snippets with it.
 
 This design does not assume that either mechanism helps. Task 0.1 labels a set of "why" questions and a set of developer questions against the chunks that exist before any file moves. Task 0.2 records the baseline. Task 6.5 measures each mechanism on and off against the same sets. The measure is recall of labelled chunks. A cosine score does not work as the measure, because a prefix changes cosine scores by itself.
@@ -157,7 +157,7 @@ The push job runs the extractor at the merged commit, builds the records, and wr
 
 Records in codex are JSON Lines: `prose.jsonl`, `code.jsonl`, `diagram.jsonl`, `model.jsonl`, one record on each line, sorted by id. A changed snippet is a one-line diff, and `JSON.parse` on each line is the whole loader. Limit: one file holds all prose for a repository, a few megabytes at the present size. Split by top-level directory if a file passes about 20 MB.
 
-The job pushes a branch in codex and merges it when the codex checks pass (D20). A record with a wrong id prefix, an edge to an id that no repository provides, or a path outside the pusher's directory fails the checks, so a broken push does not reach the default branch.
+Before it pushes, the job reads `.github/snippet-owners.json` from the codex default branch. It stops with no push when its repository is not on that file as public (D11). So records of a repository that is not public never reach codex, not even on a branch. The job then pushes a branch in codex and merges it when the codex checks pass (D20). It opens no pull request, because GitHub keeps the `refs/pull/*` ref of a pull request after its branch is deleted. When the checks fail, the job deletes the branch. A record with a wrong id prefix, an edge to an id that no repository provides, or a path outside the pusher's directory fails the checks, so a broken push does not reach the default branch.
 
 Three rules cover the failure cases. The job runs one at a time (a concurrency group), so two merges cannot interleave. It reads the commit in the codex manifest. It stops if that commit is not an ancestor of the commit it pushes. So the content of an older commit cannot replace the content of a newer one. The PR check in this repository runs the record build, the page check, link resolution, and the per-snippet compile. So a fault in this repository shows before the merge, and the codex checks find only faults across repositories.
 
@@ -179,7 +179,7 @@ The design rejects a JSON recipe for each page and a build step that writes `.md
 
 `split` takes an existing page and writes the snippet files and a page that imports them. It cuts at `##` to `####` (the cut `chunker.mjs` makes). It writes the content before the first heading as a snippet with no heading and with a frontmatter `title` from the page title. It moves each `mermaid` block into a `.mmd` file and puts a citation in its place. It names each file from the `github-slugger` slug of its heading, and writes that slug as the explicit anchor of the heading. It keeps a heading with no text below it as a snippet with a heading alone. The heading split in `chunker.mjs` drops those, so `split` cannot call it unchanged. Last, `split` converts each link to a codex route into a `snippet:` link.
 
-There are two checks. The first is a round trip: put the text of each snippet in place of its import, write the result over the page that codex has in git, and run `git diff`. `split` also moves each `mermaid` block and rewrites each route link, so the round trip reverses both: it puts each `.mmd` file back as a fence in place of its citation, and it writes each `snippet:` link back as its route from the link map. The anchors that `split` adds are the one expected difference. An empty diff, apart from whitespace, proves the split lost nothing. The second compiles each snippet body alone with Nextra's `compileMdx`. The round trip cannot see a cut through a JSX element, because the broken parts join back to a correct page. The compile can. Rust fences stay in place through this step. D5 replaces them after.
+There are two checks. The first is a round trip: put the text of each snippet in place of its import, write the result over the original page in a codex checkout at the commit before the split, and run `git diff`. `split` also moves each `mermaid` block and rewrites each route link, so the round trip reverses both: it puts each `.mmd` file back as a fence in place of its citation, and it writes each `snippet:` link back as its route from the link map. The anchors that `split` adds are the one expected difference. An empty diff, apart from whitespace, proves the split lost nothing. The second compiles each snippet body alone with Nextra's `compileMdx`. The round trip cannot see a cut through a JSX element, because the broken parts join back to a correct page. The compile can. Rust fences stay in place through this step. D5 replaces them after.
 
 The 363 Nym network pages have no JSX element, no `import` outside a code fence, no heading below level 4, and no frontmatter. Each page has its title as a `# ` line, and the line stays in the page. `split` copies the frontmatter of a page unchanged, so a docs page keeps its SEO fields. So the heading cut is safe for the pilot. The docs site pages hold JSX elements, imports, and exports. D18 gives the rules for them.
 
@@ -187,16 +187,20 @@ The 363 Nym network pages have no JSX element, no `import` outside a code fence,
 
 ### D11: The target decides visibility: codex is public, Cryptex is private
 
-A snippet has no visibility field. A public repository pushes to codex. A private repository pushes to Cryptex, the private archive, and holds no codex credential. This design rejects a flag on each record, because one wrong value publishes private content. The two-store decision of the shared index makes the boundary physical: the indexer writes the shards of a codex repository to the public store and the shards of a Cryptex repository to the private store (D21). It decides by producer repository, not by record.
+A snippet has no visibility field. A public repository pushes to codex. A private repository pushes to Cryptex, the private archive, and holds no codex credential. This design rejects a flag on each record, because one wrong value publishes private content. The two-store decision of the shared index makes the boundary physical: the shards of a public repository go to the public store and to the private store, and the shards of a private repository go to the private store only (D21). The indexer decides by producer repository, not by record.
 
-codex is a private repository until it is ready, and then it becomes public. Its full history becomes public with it. So no private record enters codex while it is private. The codex checks (D20) reject a push from a repository that is not on the list of public repositories, from the first push. Before codex becomes public, a person audits its full history for private content.
+One file holds the list of public repositories: `.github/snippet-owners.json` in codex (D20). Each entry gives an owned path, its owner, and `visibility: public`. The push job, the codex checks, and the indexer read this one file. The codex write credential of a producer names one repository (task 4.4). The codex checks fail when the repository in the branch name, the path, or the manifest differs from the repository of the credential that pushed the branch. So a pusher cannot claim the path of another repository.
+
+Derived text takes the most restrictive visibility of its inputs. Derived text is prompted prose (D16) and the title prefix of a chunk (D4e). An edge from a public record to a private record is not allowed, in either layout of Cryptex below, because a public reader cannot resolve it and derived text would carry the private side into public output.
+
+codex is a private repository until it is ready, and then it becomes public. Its full history becomes public with it. So no private record enters codex while it is private. From the first push, the push job checks the public list before it pushes (D8), and the codex checks (D20) reject a branch from a repository that is not on the list. Before codex becomes public, a person audits each ref (branches, tags, and `refs/pull/*`) and its full history for private content.
 
 Open question: the layout of Cryptex (TBD(Max)).
 
 | Option | Reader of private content | Cost |
 |---|---|---|
 | A. Cryptex mirrors codex and adds the private records | Reads one checkout | Two copies of the public records, and a sync job. The mirror can lag behind codex or drift from it |
-| B. Cryptex holds the private records only | Reads codex and Cryptex, each at its own pinned commit | Two checkouts. An edge from a private record to a public one crosses two repositories. An edge from a public record to a private one is not allowed, because a public reader cannot resolve it |
+| B. Cryptex holds the private records only | Reads codex and Cryptex, each at its own pinned commit | Two checkouts. An edge from a private record to a public one crosses two repositories |
 
 Option B keeps one copy of the public records, so nothing can drift. Option A keeps each reader to one checkout.
 
@@ -236,7 +240,7 @@ The generator writes the pages of each view as Markdown files under `views/<view
 
 The generator uses three levels of text, and each level only where the one before it cannot do the job: deterministic selection and rendering, template sentences from record fields, and prompted prose. Prompted prose has four rules. The prompt is in the viewpoint, in git. The output is a prose record with `meta.generated` (the viewpoint, the input ids, and their hashes). The generator makes it again only when an input hash changes, and the archive keeps the records in git so that a person reviews each new version once. A section with no input states that the corpus has no evidence, and the generator writes no text for it.
 
-A viewpoint that reads private records lives in Cryptex (D11). The first viewpoint is TBD(Max) (P27). Who runs the generator, and where its code lives, is decided with it. Its measure is a regeneration test: generate a view that matches one hand-made audit page, and compare the claims, specs, and links in each, and the share that levels 0 and 1 make.
+Each input of a view in codex is a public record. The codex checks fail on a view or a generated record whose `meta.generated` names an input id that no public `snippets/*/` provides. A viewpoint that reads private records lives in Cryptex (D11). The first viewpoint is TBD(Max) (P27). Who runs the generator, and where its code lives, is decided with it. Its measure is a regeneration test: generate a view that matches one hand-made audit page, and compare the claims, specs, and links in each, and the share that levels 0 and 1 make.
 
 The design rejects views written by an agent from a free prompt at each build. Such text has no provenance, changes with no input change, and needs a new review each time.
 
@@ -248,8 +252,8 @@ The main runbook constraints:
 
 | Constraint | Reason |
 |---|---|
-| One `Steps` element for each procedure, and a page with more than one procedure puts each under its own section heading (depth 2 to 4) or in its own tab panel | 25 pages hold 75 `Steps` elements today. Changed 2026-10-16 with the step depth: a procedure under a depth 3 section has its own heading, and tabs hold alternative procedures under one label each. |
-| Each step is a heading inside `Steps`, one level below the section that holds the `Steps` (depth 3 under the title or a depth 2 section, depth 4 under a depth 3 section, never deeper), with no number in the text and an explicit anchor | `Steps` numbers each heading from depth 2 to 6 with a CSS counter, so a number in the text shows twice. The depth keeps the outline of the page: a step under a depth 3 section is not its sibling in the table of contents. A step deeper than 4 is not a cut for split, so a section at depth 4 moves to depth 3 first (changed 2026-10-16: 37 of the 66 operator `Steps` elements sit under a depth 3 or 4 section). An explicit anchor keeps each link when a step is added above it, and the split keeps the same anchor. |
+| One `Steps` element for each procedure, and a page with more than one procedure puts each under its own section heading (depth 2 to 4) or in its own tab panel | 25 pages hold 75 `Steps` elements today. A procedure under a depth 3 section has its own heading, and tabs hold alternative procedures under one label each. |
+| Each step is a heading inside `Steps`, one level below the section that holds the `Steps` (depth 3 under the title or a depth 2 section, depth 4 under a depth 3 section, never deeper), with no number in the text and an explicit anchor | `Steps` numbers each heading from depth 2 to 6 with a CSS counter, so a number in the text shows twice. The depth keeps the outline of the page: a step under a depth 3 section is not its sibling in the table of contents. A step deeper than 4 is not a cut for split, so a section at depth 4 moves to depth 3 first (37 of the 66 operator `Steps` elements sit under a depth 3 or 4 section). An explicit anchor keeps each link when a step is added above it, and the split keeps the same anchor. |
 | A code block has a `lang` from a closed list (`sh`, `bash`, `toml`, `ini`, `json`, `yaml`, `nginx`, `csv`, `xml`, `html`, `rust`, `ts`, `text`, `ascii`), and only the meta keys that Nextra and `rehype-pretty-code` read. `shell` fails with `sh` as the fix | Shell has three names today. `bash` stays for scripts that use bash syntax. |
 | A `<...>` token in a `code` or `inlineCode` node is a name in the placeholder list, unless it is a tag (see the token grammar below) | One value has at least six names today. The list is `placeholders.json`. Each entry holds the aliases of its value, so the linter names the fix for an alias. The first entries come from `data/csv/variables.csv`, and `variables.mdx` renders its table from the JSON, so the site and the linter read one list. |
 
@@ -337,7 +341,7 @@ Three build scripts read the docs pages as text. A fourth, `generate-typedoc-met
 
 The plan for the three scripts:
 
-1. **One compose function.** `inlineMdxPartials` in `lib/retrieval/mdx.mjs` stays the one function that turns a page file into the text of the page. It also resolves `@snippets/<repo>/` (to `.nym-codex/snippets/` for this repository), and it puts the text of each `<Snippet>` citation in place of its tag: a diagram as a `mermaid` fence, a code item as a fenced block with its `lang`, and a model entity as its text projection. It writes each `snippet:` link as the route and anchor of its target, from the link map of the site. The record builder, this function, and `remarkSnippet` resolve a citation with the same resolver, so the three cannot disagree. The round trip of D10 and the print command of task 5.1 call the same function.
+1. **One compose function.** `inlineMdxPartials` in `lib/retrieval/mdx.mjs` stays the one function that turns a page file into the text of the page. It also resolves `@snippets/<repo>/` (to `.nym-codex/snippets/` for this repository), and it puts the text of each `<Snippet>` citation in place of its tag: a diagram as a `mermaid` fence, a code item as a fenced block with its `lang`, and a model entity as its text projection. It writes each `snippet:` link as the route and anchor of its target, from the link map of the site. The record builder, this function, and the `<Snippet>` server component (D9) resolve a citation with the same resolver, so the three cannot disagree. The round trip of D10 and the print command of task 5.1 call the same function.
 2. **Strict.** An import or a citation that does not resolve throws, with the page file and the line. The silent skip goes. The function reads no import line inside a code fence (no page has one today, but a code example could). Nextra already fails the site build on such an import, so a strict check rejects no page that builds today.
 3. **The mirror composes too.** `generate-page-markdown.mjs` calls `inlineMdxPartials` before `stripMdx`. This change lands before the first split, on its own, so that its diff (the partial text that the mirror gets) is not mixed with the diff of a split.
 4. **Explicit anchors.** `splitByHeadings` reads `[#id]` as well as `{#id}`. The chunk id and URL then use the anchor of the snippet, and a heading edit does not change them. `llms-full.txt` and the mirror remove `[#id]` from each heading, because a reader of the text has no use for it.
@@ -371,8 +375,8 @@ The plan has the full table. These are the ones that change this design when an 
 
 | Risk | Mitigation |
 |---|---|
-| A push credential for codex in this repository's CI | Scope it to the codex repository alone. codex CI rejects a push that touches a path outside the pusher's directory. |
-| A private record enters codex while codex is private, and becomes public with its history | The codex checks reject a push from a repository that is not public, from the first push. A person audits the full history before codex becomes public (D11). |
+| A push credential for codex in this repository's CI | Scope it to the codex repository alone, and bind it to one producer repository. codex CI rejects a push that touches a path outside the pusher's directory, or that names another repository. |
+| A private record enters codex while codex is private, and becomes public with its history | The push job checks the public list before it pushes, and the codex checks reject a branch from a repository that is not public, from the first push. A rejected branch is deleted, and the job opens no pull request. A person audits each ref and the full history before codex becomes public (D11). |
 | About 2,600 authored files in a hidden directory are hard to find | The tools take the directory from one constant (`CODEX_DIR` in `lib/snippets/repo.mts`). A move to a visible directory is one rename. |
 | Split sections are hard to read alone, and a second site shows that | Stage 3 rewrites them, with a measured share. The docs pages render as before in the meantime. |
 | Stage 5 needs people who know why each requirement exists, and it has no owner | Name an owner before stage 5 starts. The coverage report shows the gap until then. |
@@ -388,7 +392,7 @@ The plan has the full table. These are the ones that change this design when an 
 - The round trip and the per-snippet compile of D10 on the pilot section, then on all Nym network pages.
 - For each replaced Rust fence, a comparison of the extracted body with the fence. List each difference in the PR as a stale hand copy or an extractor fault.
 - The record build is stable: two runs on one commit give identical bytes.
-- The codex checks pass on the pushed paths, and a record with a wrong id prefix, an edge to an id that no repository provides, or a path outside the pusher's directory fails them.
+- The codex checks pass on the pushed paths, and a record with a wrong id prefix, an edge to an id that no repository provides, a path outside the pusher's directory, a repository that is not public, or a view with a private input fails them.
 - Lint fixture tests: one passing page and one failing page for each archetype rule, and a procedure in a nested `.mdx` import.
 - For the index (tasks section 6): recall at 6 on the labelled developer set is not lower than the baseline of task 0.2.
 
@@ -422,17 +426,20 @@ snippets/<repo>/
   **/<name>.mdx | <name>.mmd                     the snippet files, for a site that imports them
 viewpoints/<viewpoint>.json                      stakeholder, concerns, selections, template (D16)
 views/<viewpoint>/**/<page>.md                   generated views (D16)
-.github/snippet-owners.json                      the paths that each pusher owns
+.github/snippet-owners.json                      each owned path, its owner, and visibility: public
 ```
 
-codex holds no pages. A split page is part of the site that shows it: the pages of this repository are the docs site pages (D18). Content in codex that no producer pushes, for example papers and summary data, stays as data files. This change does not move it.
+`snippet-owners.json` gives `snippets/<repo>/` to each public producer, and `viewpoints/` and `views/` to the owner of the view generator (P27). It is the one list of public repositories (D11).
+
+codex holds no pages. A split page is part of the site that shows it: the pages of this repository are the docs site pages (D18). The Nym network specification pages that codex holds today move to the docs site page root when they are split (tasks 3.1 and 13.1). Content in codex that no producer pushes, for example papers and summary data, stays as data files. This change does not move it.
 
 Checks replace the site build. On each push branch and on the default branch, codex CI checks that:
 
 | Check | Fails on |
 |---|---|
-| Owned paths | A push that changes a path outside the pusher's `snippets/<repo>/` |
-| Public repository | A push from a repository that is not on the public list (D11) |
+| Owned paths | A push that changes a path that `snippet-owners.json` does not give to the pusher |
+| Public repository | A push from a repository that is not on `snippet-owners.json` as public, or a branch, path, or manifest that names a repository other than the credential's (D11) |
+| View inputs | A view or a generated record with an input id that no public `snippets/*/` provides (D16) |
 | Records | A line that is not a record of its file's kind, or an id that does not start with `<repo>/` |
 | Edges | An edge to an id that no `snippets/*/` provides (task 6c.3) |
 | Link map | A `pages.json` entry for an id with no record |
@@ -442,16 +449,17 @@ The checks are a small toolchain with no app. The design rejects a codex site ne
 
 ### D21: Readers read a pinned commit, and the MCP servers read stores
 
-A reader reads a checkout of the archive at a pinned commit. The readers are the retrieval indexer, the coherence agent, rendering sites (for example auditor docs built from the assurance viewpoint), and people on GitHub. A pin makes the build of a reader repeatable, and a push to codex cannot change a page that a reader has already deployed. The reader moves its pin, and its build then finds a renamed or deleted id. A rendering site selects records through a viewpoint. codex holds no list of its readers and no fact about any reader.
+A software reader reads a checkout of the archive at a pinned commit. The software readers are the retrieval indexer, the coherence agent, and rendering sites (for example auditor docs built from the assurance viewpoint). People also read codex on GitHub, with no pin. A pin makes the build of a reader repeatable, and a push to codex cannot change a page that a reader has already deployed. The reader moves its pin, and its build then finds a renamed or deleted id. A rendering site selects records through a viewpoint. codex holds no list of its readers and no fact about any reader.
 
 A producer writes to the archive and does not read from it. The docs site of this repository builds from `.nym-codex/` in this repository.
 
-The MCP servers do not read the archive. Each one reads one store: the public MCP reads the public store, and the private MCP reads the private store. Both run the same route code. The retrieval indexer reads the records and writes each shard to the store for the visibility of its producer repository (D11). The indexer fails on a repository whose visibility it does not know, and writes nothing for it.
+The MCP servers do not read the archive. Each one reads one store: the public MCP reads the public store, and the private MCP reads the private store. Both run the same route code. The retrieval indexer is the one writer of both stores (`add-shared-retrieval-index` decision 3). It reads records from a producer checkout, a codex checkout, or a Cryptex checkout, each at a pinned commit. Each public producer runs it in its own CI and upserts its shard to the public store. A pipeline on private infrastructure runs it over the public and the private repositories and upserts the private store, so the private store holds all public shards as well. The rule is: the shards of a private repository go to the private store only, and the shards of a public repository go to the public store and to the private store. The indexer reads visibility from `snippet-owners.json` (D11) and the private list. It writes nothing for a repository whose visibility it does not know, and reports it.
 
 ## Follow-ups (not this change)
 
 - `nym-vpn-client` as a source, with its 210 `file.rs:NN` citations.
 - Cryptex and the private repositories.
+- `add-shared-retrieval-index` Q4 option 2 has the MCP server read the edges from `prose.jsonl`. D21 forbids an MCP read of the archive, so that change resolves Q4 with the edges in each store (option 1) or changes D21.
 - Viewpoints after the first one.
 - The missing L2 assessment in the `end-to-end` scenario, and the 16 verdicts that the per-actor assessments do not state.
 - The 10 NymVPN threat diagrams in `codex/lib/privacy-model/nymvpn-diagrams.ts`. `nym-vpn-client` owns them. Each states its claim in a code comment today, so the claim needs a data field before a tool can project it.

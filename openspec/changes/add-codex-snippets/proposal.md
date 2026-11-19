@@ -35,8 +35,8 @@ This change defines one unit, the snippet, and one typed record format. It defin
 In codex (a separate repository, listed here because the format is its contract):
 
 - Add `snippets/<repo>/` with the snippet files, `{prose,code,diagram,model}.jsonl`, the link map, and the manifest. codex holds no pages of the repository.
-- Remove the Nextra app, with the codex copy of the threat-model data and the older codex view components. Keep the data.
-- Add checks next to `check-push-paths` that replace the site build: owned paths, public repositories only, records, edges, link map, and manifest.
+- Remove the Nextra app, its copy of the threat-model data, and the older view components. Keep the data files that no producer pushes, such as papers and summary data (task 13.5).
+- Add checks next to `check-push-paths` that replace the site build: owned paths, public repositories only, view inputs, records, edges, link map, and manifest. `.github/snippet-owners.json` is the one list of public repositories.
 
 ## Capabilities
 
@@ -46,7 +46,7 @@ In codex (a separate repository, listed here because the format is its contract)
 
 ### Modified Capabilities
 
-None in this change. `add-shared-retrieval-index` changes the indexer input to snippet records later (tasks section 6).
+None in this change. The indexer is a capability of `add-shared-retrieval-index`. That change makes the indexer read snippet records (tasks section 6) and applies the store routing rule of design D21 (task 13.6 here tracks it).
 
 ## Impact
 

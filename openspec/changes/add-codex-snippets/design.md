@@ -453,7 +453,44 @@ A software reader reads a checkout of the archive at a pinned commit. The softwa
 
 A producer writes to the archive and does not read from it. The docs site of this repository builds from `.nym-codex/` in this repository.
 
-The MCP servers do not read the archive. Each one reads one store: the public MCP reads the public store, and the private MCP reads the private store. Both run the same route code. The retrieval indexer is the one writer of both stores (`add-shared-retrieval-index` decision 3). It reads records from a producer checkout, a codex checkout, or a Cryptex checkout, each at a pinned commit. Each public producer runs it in its own CI and upserts its shard to the public store. A pipeline on private infrastructure runs it over the public and the private repositories and upserts the private store, so the private store holds all public shards as well. The rule is: the shards of a private repository go to the private store only, and the shards of a public repository go to the public store and to the private store. The indexer reads visibility from `snippet-owners.json` (D11) and the private list. It writes nothing for a repository whose visibility it does not know, and reports it.
+The MCP servers do not read the archive. Each one reads one store: the public MCP reads the public store, and the private MCP reads the private store. Both serve the same search tools. The retrieval indexer is the one writer of both stores (`add-shared-retrieval-index` decision 3). It reads records from a producer checkout, a codex checkout, or a Cryptex checkout, each at a pinned commit. Each public producer runs it in its own CI and upserts its shard to the public store. A pipeline on private infrastructure runs it over the public and the private repositories and upserts the private store, so the private store holds all public shards as well. The rule is: the shards of a private repository go to the private store only, and the shards of a public repository go to the public store and to the private store. The indexer reads visibility from `snippet-owners.json` (D11) and the private list. It writes nothing for a repository whose visibility it does not know, and reports it.
+
+How the parts connect:
+
+```
+PRODUCERS (each writes only its own part)
+
+public repositories (nym, nym-vpn-client)          private repositories
+┌──────────────────────────────┐                  ┌────────────────────────┐
+│ CI: retrieval indexer        │                  │ CI: snippets push job  │
+│ CI: snippets push job        │                  └───────────┬────────────┘
+│   reads snippet-owners.json  │                              │ private records
+│   and stops before the push  │                              ▼
+│   if its repository is not   │                  ┌────────────────────────┐
+│   public                     │                  │ Cryptex (private)      │
+└──┬─────────────────┬─────────┘                  │ codex + private records│
+   │ public shards   │ records, edges,            └───────────┬────────────┘
+   │                 │ manifests                              │
+   │                 ▼                                        │
+   │   ┌────────────────────────────┐   taken in full         │
+   │   │ codex (public archive)     │ ───────────────► Cryptex│
+   │   │ snippets/<repo>/           │                         │
+   │   │ viewpoints/, views/        │                         │
+   │   │ .github/snippet-owners.json│ (visibility, one file)  │
+   │   └─────────────┬──────────────┘                         │
+   │                 │ read at a pinned commit                │
+   ▼                 │                                        ▼
+public store         │                  private pipeline (private infrastructure)
+   │                 │                    retrieval indexer + embedding service
+   ▼                 │                    reads public and private sources
+public MCP           │                    writes every shard ──► private store
+                     │                                              │
+                     │                                              ▼
+                     │                                         private MCP
+                     ▼
+READERS OF THE ARCHIVES (pinned commit, records chosen through a viewpoint)
+  rendering sites (for example auditor docs), the coherence agent, people on GitHub
+```
 
 ## Follow-ups (not this change)
 

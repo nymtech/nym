@@ -1,53 +1,201 @@
 # The public retrieval store
 
-This page explains the planned move of the MCP server's index from files in the function bundle to a Postgres store. It is for contributors who change the retrieval pipeline or the `/api/mcp` route, and for whoever runs the store.
+This page explains the planned move of the MCP server's index from files in the function bundle to a Postgres store. It also explains what the index holds today, how embedding works, how an agent uses the tools, and why the move needs a database. It is for contributors who change the retrieval pipeline or the `/api/mcp` route, and for whoever runs the store.
 
 Status (2026-11-18): the read path (`/api/mcp` behind `MCP_RETRIEVAL_SOURCE`) and the write path (`cd-retrieval-store.yml` behind `RETRIEVAL_STORE_ENABLED`) are built, and both are off by default, so the route reads the bundled files. Not done: creating the store and switching both on (tasks 4.1, 5.2 and 5.3 of the OpenSpec change `add-shared-retrieval-index`). Until task 5.3, [`MCP-SERVER.md`](MCP-SERVER.md) describes the system that runs by default. To create the public store, follow [`MCP-STORE-SETUP.md`](MCP-STORE-SETUP.md). To run a store on your machine, follow [`MCP-STORE-LOCAL.md`](MCP-STORE-LOCAL.md).
 
+## What goes into the index today
+
+Each docs build runs two generators. `generate-index.mjs` makes the docs index from the pages, and `generate-code-index.mjs` makes the code index from the source.
+
+### Docs: pages, with their snippets inlined
+
+```
+documentation/docs/content/**/*.mdx               211 pages; 194 import snippets
+  │   import X from '@snippets/...'
+  ▼
+pages-source.mjs  collectPages
+  inlineMdxPartials, for each page:
+    @snippets import         ─► the text of the snippet .mdx, in place
+                                (.nym-codex/snippets/, 1,172 files)
+    <Snippet id="...#item"/> ─► a code fence with the code item, which
+                                extractCode reads from the source tree
+    <Snippet id="..."/>      ─► a mermaid fence, for a diagram (.mmd, 11 files)
+    ](snippet:<id>)          ─► ](/docs/<route>#<anchor>)
+  stripMdx: components become text, or are dropped
+  │   one PageRecord for each page: title, url, body (plain Markdown)
+  ▼
+chunkPages (package chunker)
+  cuts at the depth 2 to 4 headings; splits a section longer than 2,400 characters
+  │   chunk: id, title, heading, url (page + #anchor), text
+  ▼
+public/docs-index.json                            2,039 chunks
+```
+
+So the MCP sees a snippet only as text inside a page section. A snippet has no row of its own, and a hit is always a page section with the page URL and the heading anchor. The snippet records (`lib/snippets/records.mts`: `prose.jsonl`, `code.jsonl` and the others) feed the codex push, the `ci-codex-snippets` checks and `benchmark.mts`. The MCP does not read them. `generate-page-markdown.mjs` inlines the snippets in the same way for the Markdown copy of each page (`/docs/<route>.md`), so an agent that fetches a page directly also sees the snippet text.
+
+Decision 12 of `add-shared-retrieval-index` changes this after the cutover: each snippet that has a record becomes one chunk, and the chunker keeps only the text that no record covers.
+
+### Code: the source tree
+
+```
+documentation/indexed-sources.mjs  ROOTS
+  ▼
+collectSourceFiles: skips build output, dependencies and files over the size cap
+chunkCodeFile:      tree-sitter for Rust, TypeScript, JavaScript, Go and Python
+                    (one chunk for each top-level item); a line rule for Kotlin and Swift
+assertNoSilentDrops, assertRootsYieldChunks: the build fails on an unknown
+                    language or on a root that gives no chunks
+  ▼
+public/code-index.json                            7,788 chunks, GitHub links at develop
+```
+
+## How embedding works today
+
+```
+BUILD TIME (each Vercel build of the docs site)
+  for each chunk: key = model + dimension + sha256(text that is embedded)
+    key in node_modules/.cache/nym-docs/*embed-cache.json ?
+      yes ─► reuse the vector                (Vercel keeps this cache between builds)
+      no  ─► Voyage /v1/embeddings, input_type "document"
+               docs: voyage-3-large   code: voyage-code-3   both 1024 dimensions
+               batches of about 80,000 tokens; retry on 429, 5xx and dropped connections
+  each vector goes into the JSON file as decimal text, about 12 bytes for each number
+  no VOYAGE_API_KEY on Vercel (or with REQUIRE_EMBEDDINGS set) ─► the build fails
+
+REQUEST TIME (/docs/api/mcp, each search_docs or search_code call)
+  query text ─► Voyage /v1/embeddings, input_type "query", the model of that index
+             ─► cosine similarity with every chunk vector in memory
+                (Voyage vectors are unit length; a test chunk loses 0.05)
+             ─► top K: default 6, at most 20
+```
+
+The index and the query must use the same model, because vectors from two models are not comparable. The same `VOYAGE_API_KEY` serves the build and the route. The live tools (`network_summary`, `list_gateways` and the others) call the Nym API directly and use no index.
+
+## How an agent uses the tools today
+
+```
+agent ──search_docs {query, topK}──► /docs/api/mcp
+        ◄── for each hit: "## <page title> - <heading>", the URL, the chunk text
+agent ──get_section {ref: chunk id or URL}──► the whole section of that chunk
+agent ──search_code {query, topK}──► code chunks, each with a GitHub link at develop
+```
+
+An agent usually calls `search_docs`, then `get_section` on a hit whose text it needs in full, and `search_code` for a question about the implementation. A hit on a split page holds the inlined snippet text and the inlined code, so the agent gets the same text that a reader sees on the page.
+
 ## How the MCP reads today
 
-The index files are not in git: `documentation/docs/.gitignore` excludes `public/docs-index.json` and `public/code-index.json`. Each docs build makes them.
+The index files are not in git: `documentation/docs/.gitignore` excludes `public/docs-index.json` and `public/code-index.json`.
 
 ```
 Vercel docs build (production builds from develop)
-  generate-index.mjs, generate-code-index.mjs
-    embed the changed chunks with Voyage (VOYAGE_API_KEY in the Vercel env;
-    a content-hash cache skips the unchanged ones)
-    write public/docs-index.json and public/code-index.json, vectors inside
+  generate-index.mjs, generate-code-index.mjs (above)
   next.config.js traces both files into the /api/mcp function
 
 /api/mcp, at cold start: readFileSync both files, parse them into memory
 /api/mcp, per request:   embed the query with Voyage, scan the arrays in memory
 ```
 
-`MCP-SERVER.md` puts the two files at about 120 MB of the function bundle: the docs index measured, the code index estimated from an earlier measurement.
+## Why the MCP needs a database
 
-## Why the index moves
+The bundle works for one repository. The plan needs more than one producer and a private side, and the bundle cannot serve either.
 
-- The bundle carries about 120 MB before any code, and each cold start parses it.
-- One deployment can serve only the index that its own build made. Other repositories (`nym-vpn-client` first) cannot add their docs and code to it without being part of the nym docs build.
-- Every docs build is also an embedding run.
+Measured on a local build of 2026-11-18, with the four shards that the local store holds:
 
-A store separates the index from the deployment. Each repository writes its own part of the index from its own CI, and the MCP route reads all of it.
+| Content | Chunks | Size in the bundle (JSON) |
+|---|---|---|
+| nym docs | 2,039 | 28.1 MB |
+| nym code | 7,788 | 107.6 MB |
+| nym-vpn-client code | 11,954 | about 165 MB (estimated from the nym code size for each chunk) |
+| nym-vpn-client docs | 238 | about 3 MB (estimated) |
+| Total | 22,019 | about 304 MB |
+
+The local store holds the same four shards in 143 MB, with the vectors as binary.
+
+The reasons, most important first:
+
+1. **More than one producer writes the index.** A bundle holds only the index that its own build made. For `nym-vpn-client` to be searchable, its chunks must be in the nym docs build, so the nym build must check out, chunk and embed another repository. A store lets each repository write its own shard from its own CI, at its own time, and the route reads all of them.
+2. **Private content needs a store of its own.** Decision 2 of `add-shared-retrieval-index` keeps the public/private boundary physical: the public store holds no private row. Private content cannot go in a bundle that a public deployment serves. The private store runs the same schema and package on private infrastructure.
+3. **The bundle does not grow with the corpus.** With the vpn shards, the JSON is about 304 MB, which is more than the 250 MB that Vercel allows for an uncompressed function. In memory, each number is an 8-byte double, so 22,019 vectors take about 180 MB of heap on each warm instance, and each cold start parses all of it again.
+4. **A docs build stops being an embedding run.** Today each build needs the Voyage key and embeds the changed chunks. A PR preview builds and serves its own index.
+
+The cheaper fixes solve some of this, but not all of it:
+
+| Fix | What it solves | What it leaves |
+|---|---|---|
+| Vectors as base64 float32 (5.4 KB for each chunk) or int8 (1 KB) in the JSON (see `MCP-SERVER.md`) | The bundle size, for a time | Reasons 1, 2 and 4 |
+| One JSON file for each shard in object storage, which the route downloads | Reason 1 in part | Each cold start downloads and parses every shard. A writer has no transaction, no role of its own and no skip of unchanged rows |
+| Postgres with pgvector | All four | A service to run, and a network hop for each query |
+
+Postgres also gives three properties that the plan depends on:
+
+- **Roles.** Each producer writes with the writer role. The route reads with a role that cannot change a row.
+- **Transactions.** A run replaces a shard in one transaction, so a reader never sees half a shard.
+- **The scan runs next to the data.** The function holds no vectors: it sends one query vector and gets back K rows.
+
+The cost: one more service (Exoscale Postgres behind PgBouncer), one network hop for each search, and a PR preview answers from the develop index, not from the PR's content.
 
 ## How the MCP reads after the cutover
 
 ```
-producer CI (nym on pushes to develop; later nym-vpn-client)
-  chunk and embed with @nymproject/retrieval-indexer
-  write one shard per (repository, modality) to the public store   writer role
-
-public Postgres + pgvector
-  tables: shards, chunks
-
-/api/mcp, per request:
-  embed the query with Voyage (unchanged)
-  SQL over TLS, through a pooler                                   reader role
+nym CI (push to develop)                 nym-vpn-client CI (push to develop)
+cd-retrieval-store.yml                   cd-retrieval-store.yml
+  @nymproject/retrieval-indexer            @nymproject/retrieval-indexer
+  chunk; embed only changed chunks         chunk; embed only changed chunks
+  (Voyage, input_type "document")          (Voyage, input_type "document")
+     │ writer role                              │ writer role
+     │ nym/docs, nym/code                       │ nym-vpn-client/code,
+     │                                          │ nym-vpn-client/docs
+     ▼                                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│ public store: Postgres + pgvector (Exoscale)                 │
+│ shards: one row for each (repository, modality), with model  │
+│ chunks: text, URL, content hash, vector                      │
+│ one model for each modality: docs voyage-3-large,            │
+│                              code voyage-code-3              │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ PgBouncer, TLS, reader role
+                               ▼
+/docs/api/mcp on Vercel   (MCP_RETRIEVAL_SOURCE=store)
+  embed the query (Voyage, input_type "query")
+  SQL: cosine over every shard of the modality, top K
+                               ▲
+                     agent (MCP client)
 ```
 
 The route uses the package's read side: `search` and `getSection` from `@nymproject/retrieval-indexer/search`. These load no parser. A `search` call runs two queries: one reads the model of the modality, one scans its rows. `getSection` runs one, or two when it falls back from the chunk id to the URL. The query embedding does not change.
 
 The route reads the store when `MCP_RETRIEVAL_SOURCE` is `store`, with the reader connection string in `RETRIEVAL_STORE_READ_URL`. When the variable is unset, empty, or `bundle`, it reads the bundled files as before. Each search names the model the route embedded its query with, and the package refuses rows of another model, because such a query would return confident, wrong neighbours. In store mode `search_code` is always listed; with no code shard, it returns an error.
+
+## The private side (planned)
+
+Decisions 2, 3, 6 and 8 of `add-shared-retrieval-index`, with its tasks 4.2, 6.2 and 6.3, add a second store that the public side never touches.
+
+```
+public repositories (nym, nym-vpn-client)        private repositories
+        │                                                │
+        │ CI, as above                                   │
+        ▼                                                │
+  public store ──► public MCP (/docs/api/mcp, Vercel)    │
+                                                         │
+private infrastructure                                   │
+┌────────────────────────────────────────────────────────┼──────┐
+│ private pipeline: the same indexer package             │      │
+│   reads the private repositories ◄─────────────────────┘      │
+│   and the public ones                                         │
+│   embeds with the private model, through the                  │
+│   embedding service (self-hosted, next to Postgres)           │
+│   writes every shard: the private store is a superset         │
+│        ▼                                                      │
+│ private store: Postgres + pgvector                            │
+│        ▼                                                      │
+│ private MCP (Go): search_docs, search_code                    │
+│   embeds the query with the same embedding service            │
+│   per-person tokens, stored hashed, with an expiry            │
+└───────────────────────────────────────────────────────────────┘
+```
+
+Each MCP reads one store. The private MCP needs neither the public store nor Voyage, because its store holds the public content too. No credential for the private store or the private repositories leaves the private infrastructure. Which model the private store uses is open question Q1.
 
 ## What changes for contributors
 

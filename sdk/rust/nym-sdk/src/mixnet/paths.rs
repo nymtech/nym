@@ -96,7 +96,7 @@ impl StoragePaths {
     }
 
     /// Protects the private keys with a secret: a passphrase, or a uniformly random 256-bit raw
-    /// key used without key derivation. Keys still in plaintext are encrypted the first time they
+    /// key that needs no stretching. Keys still in plaintext are encrypted the first time they
     /// are loaded. Replaces any passphrase set with [`Self::with_key_passphrase`].
     #[must_use]
     pub fn with_key_secret(mut self, key_secret: Option<KeySecret>) -> Self {

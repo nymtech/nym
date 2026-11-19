@@ -8950,7 +8950,6 @@ dependencies = [
 name = "nym-pemstore"
 version = "2.0.1"
 dependencies = [
- "aes-gcm 0.11.1",
  "pem 0.8.3",
  "pkcs8 0.11.0",
  "rand 0.10.2",

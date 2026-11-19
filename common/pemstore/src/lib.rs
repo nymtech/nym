@@ -155,7 +155,7 @@ where
         return decode_key(&key_pem, path.as_ref());
     }
 
-    let plaintext = encryption::decrypt(secret, &key_pem.contents, &tag).map_err(|source| {
+    let plaintext = encryption::decrypt(secret, &key_pem.contents).map_err(|source| {
         io::Error::new(
             io::ErrorKind::InvalidData,
             PassphraseError::Rejected {
@@ -188,7 +188,7 @@ where
 
     let tag = encrypted_tag::<T>();
     let plaintext = Zeroizing::new(key.to_bytes());
-    let ciphertext = encryption::encrypt(secret, &plaintext, &tag)?;
+    let ciphertext = encryption::encrypt(secret, &plaintext)?;
     write_pem_file(path, ciphertext, &tag)
 }
 

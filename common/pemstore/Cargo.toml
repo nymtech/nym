@@ -14,7 +14,6 @@ readme.workspace = true
 publish = true
 
 [dependencies]
-aes-gcm = { workspace = true, features = ["zeroize"], optional = true }
 pem = { workspace = true }
 pkcs8 = { workspace = true, features = ["encryption"], optional = true }
 rand = { workspace = true, optional = true }
@@ -27,7 +26,7 @@ tempfile = { workspace = true }
 
 [features]
 default = []
-encryption = ["dep:aes-gcm", "dep:pkcs8", "dep:rand"]
+encryption = ["dep:pkcs8", "dep:rand"]
 
 [lints]
 workspace = true

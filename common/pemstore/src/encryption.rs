@@ -3,21 +3,19 @@
 
 //! Encryption of private key files at rest, under either a passphrase or a raw 256-bit key.
 //!
-//! Both kinds of encrypted files share the `ENCRYPTED <TYPE>` PEM tag and are told apart by the
-//! first byte of their contents:
+//! Both kinds of secret produce the same format: a DER `EncryptedPrivateKeyInfo` using PBES2 with
+//! AES-256-GCM, under the `ENCRYPTED <TYPE>` PEM tag. They differ only in how the AES key is
+//! derived, which the KDF recorded in the file tells apart:
 //!
-//! - passphrase: DER `EncryptedPrivateKeyInfo` (PBES2: scrypt + AES-256-GCM), which always
-//!   starts with the DER `SEQUENCE` tag, `0x30`.
-//! - raw key: `0x01 || nonce (12 bytes) || AES-256-GCM ciphertext and tag`, with the version byte
-//!   and the PEM tag as associated data. The key is used as is, without key derivation, so it
-//!   must be uniformly random, e.g. generated and kept by the platform keychain.
+//! - passphrase: scrypt, at the OWASP-recommended cost.
+//! - raw key: PBKDF2-HMAC-SHA256 with a single iteration. The raw key must already be uniformly
+//!   random, e.g. generated and kept by the platform keychain, so it needs no stretching. The
+//!   single HMAC over a fresh salt just gives every file its own AES key.
 
-use aes_gcm::aead::{Aead, KeyInit, Payload};
-use aes_gcm::{Aes256Gcm, Nonce};
 use pkcs8::EncryptedPrivateKeyInfoOwned;
 use pkcs8::der::asn1::OctetString;
 use pkcs8::der::{Decode, Encode};
-use pkcs8::pkcs5::{pbes2, scrypt};
+use pkcs8::pkcs5::{EncryptionScheme, pbes2, scrypt};
 use std::fmt;
 use std::io;
 use std::sync::Arc;
@@ -26,20 +24,14 @@ use zeroize::Zeroizing;
 /// Length of a [`RawKey`] in bytes.
 pub const RAW_KEY_LEN: usize = 32;
 
-/// 128-bit scrypt salt, fresh for every encrypted file.
-const SCRYPT_SALT_LEN: usize = 16;
+/// 128-bit KDF salt, fresh for every encrypted file.
+const KDF_SALT_LEN: usize = 16;
 
-/// 96-bit AES-GCM nonce, for both formats.
+/// 96-bit AES-GCM nonce.
 const GCM_NONCE_LEN: usize = 12;
 
-/// 128-bit AES-GCM authentication tag.
-const GCM_TAG_LEN: usize = 16;
-
-/// First byte of a DER `SEQUENCE`, i.e. of a passphrase-encrypted `EncryptedPrivateKeyInfo`.
-const DER_SEQUENCE_TAG: u8 = 0x30;
-
-/// First byte of a raw-key-encrypted file, versioning its layout.
-const RAW_KEY_FORMAT_V1: u8 = 0x01;
+/// PBKDF2 iterations for a raw key, which is already uniformly random and needs no stretching.
+const RAW_KEY_PBKDF2_ITERATIONS: u32 = 1;
 
 /// Passphrase protecting private key files on disk.
 #[derive(Clone)]
@@ -67,8 +59,8 @@ impl fmt::Debug for Passphrase {
     }
 }
 
-/// Raw 256-bit key protecting private key files on disk. It is used as is, without passphrase
-/// key derivation, so it must be uniformly random.
+/// Raw 256-bit key protecting private key files on disk. It isn't stretched like a passphrase,
+/// so it must be uniformly random.
 ///
 /// The key is kept in a single shared heap allocation, so moving a `RawKey` doesn't leave copies
 /// of it behind, and clones share it. It's zeroized when the last clone is dropped.
@@ -127,7 +119,7 @@ pub enum KeySecret {
     /// Human-chosen passphrase, stretched with scrypt.
     Passphrase(Passphrase),
 
-    /// Uniformly random 256-bit key, used without key derivation.
+    /// Uniformly random 256-bit key, used without key stretching.
     RawKey(RawKey),
 }
 
@@ -143,48 +135,33 @@ impl From<RawKey> for KeySecret {
     }
 }
 
-/// Encrypts raw key bytes into the contents of an encrypted PEM file labelled `pem_tag`.
-pub(crate) fn encrypt(secret: &KeySecret, plaintext: &[u8], pem_tag: &str) -> io::Result<Vec<u8>> {
-    match secret {
-        KeySecret::Passphrase(passphrase) => encrypt_with_passphrase(passphrase, plaintext),
-        KeySecret::RawKey(key) => encrypt_with_raw_key(key, plaintext, pem_tag),
-    }
-}
-
-/// Decrypts the contents of an encrypted PEM file labelled `pem_tag`, produced by [`encrypt`],
-/// back into raw key bytes.
-pub(crate) fn decrypt(
-    secret: &KeySecret,
-    contents: &[u8],
-    pem_tag: &str,
-) -> io::Result<Zeroizing<Vec<u8>>> {
-    match (secret, contents.first()) {
-        (KeySecret::Passphrase(passphrase), Some(&DER_SEQUENCE_TAG)) => {
-            decrypt_with_passphrase(passphrase, contents)
-        }
-        (KeySecret::RawKey(key), Some(&RAW_KEY_FORMAT_V1)) => {
-            decrypt_with_raw_key(key, contents, pem_tag)
-        }
-        (KeySecret::Passphrase(_), Some(&RAW_KEY_FORMAT_V1)) => Err(invalid_data(
-            "the key is encrypted with a raw key, not a passphrase",
-        )),
-        (KeySecret::RawKey(_), Some(&DER_SEQUENCE_TAG)) => Err(invalid_data(
-            "the key is encrypted with a passphrase, not a raw key",
-        )),
-        _ => Err(invalid_data("unrecognised encrypted key format")),
-    }
-}
-
-/// Encrypts into a DER `EncryptedPrivateKeyInfo` (PBES2: scrypt + AES-256-GCM).
-fn encrypt_with_passphrase(passphrase: &Passphrase, plaintext: &[u8]) -> io::Result<Vec<u8>> {
-    let salt: [u8; SCRYPT_SALT_LEN] = rand::random();
+/// Encrypts raw key bytes into a DER `EncryptedPrivateKeyInfo` (PBES2 + AES-256-GCM).
+pub(crate) fn encrypt(secret: &KeySecret, plaintext: &[u8]) -> io::Result<Vec<u8>> {
+    let salt: [u8; KDF_SALT_LEN] = rand::random();
     let nonce: [u8; GCM_NONCE_LEN] = rand::random();
 
-    // OWASP-recommended cost (N = 2^17, r = 8, p = 1, about 128 MiB per derivation)
-    let params = pbes2::Parameters::scrypt_aes256gcm(scrypt::Params::RECOMMENDED, &salt, nonce)
-        .map_err(io::Error::other)?;
+    let (kdf, password): (pbes2::Kdf, &[u8]) = match secret {
+        // OWASP-recommended cost (N = 2^17, r = 8, p = 1, about 128 MiB per derivation)
+        KeySecret::Passphrase(passphrase) => (
+            pbes2::ScryptParams::from_params_and_salt(scrypt::Params::RECOMMENDED, &salt)
+                .map_err(io::Error::other)?
+                .into(),
+            passphrase.as_bytes(),
+        ),
+        // already uniformly random: a single HMAC is enough to give each file its own key
+        KeySecret::RawKey(key) => (
+            pbes2::Pbkdf2Params::hmac_sha256(RAW_KEY_PBKDF2_ITERATIONS, &salt)
+                .map_err(io::Error::other)?
+                .into(),
+            key.as_bytes(),
+        ),
+    };
+    let params = pbes2::Parameters {
+        kdf,
+        encryption: pbes2::EncryptionScheme::Aes256Gcm { nonce },
+    };
     let ciphertext = params
-        .encrypt(passphrase.as_bytes(), plaintext)
+        .encrypt(password, plaintext)
         .map_err(io::Error::other)?;
 
     let info = EncryptedPrivateKeyInfoOwned {
@@ -194,72 +171,44 @@ fn encrypt_with_passphrase(passphrase: &Passphrase, plaintext: &[u8]) -> io::Res
     info.to_der().map_err(io::Error::other)
 }
 
-fn decrypt_with_passphrase(passphrase: &Passphrase, der: &[u8]) -> io::Result<Zeroizing<Vec<u8>>> {
+/// Decrypts a DER `EncryptedPrivateKeyInfo` produced by [`encrypt`] back into raw key bytes.
+pub(crate) fn decrypt(secret: &KeySecret, der: &[u8]) -> io::Result<Zeroizing<Vec<u8>>> {
     let info = EncryptedPrivateKeyInfoOwned::from_der(der)
         .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
+    let EncryptionScheme::Pbes2(params) = &info.encryption_algorithm else {
+        return Err(invalid_data("unrecognised encrypted key format"));
+    };
+    if !matches!(params.encryption, pbes2::EncryptionScheme::Aes256Gcm { .. }) {
+        return Err(invalid_data("unrecognised encrypted key format"));
+    }
+
+    // checked before deriving anything, so a raw key never runs the passphrase's scrypt
+    let password: &[u8] = match (secret, &params.kdf) {
+        (KeySecret::Passphrase(passphrase), pbes2::Kdf::Scrypt(_)) => passphrase.as_bytes(),
+        (KeySecret::RawKey(key), pbes2::Kdf::Pbkdf2(kdf))
+            if kdf.prf == pbes2::Pbkdf2Prf::HmacWithSha256
+                && kdf.iteration_count == RAW_KEY_PBKDF2_ITERATIONS =>
+        {
+            key.as_bytes()
+        }
+        (KeySecret::Passphrase(_), pbes2::Kdf::Pbkdf2(_)) => {
+            return Err(invalid_data(
+                "the key is encrypted with a raw key, not a passphrase",
+            ));
+        }
+        (KeySecret::RawKey(_), pbes2::Kdf::Scrypt(_)) => {
+            return Err(invalid_data(
+                "the key is encrypted with a passphrase, not a raw key",
+            ));
+        }
+        _ => return Err(invalid_data("unrecognised encrypted key format")),
+    };
 
     // not `info.decrypt()`: that insists the plaintext is itself DER, and ours is raw bytes
-    info.encryption_algorithm
-        .decrypt(passphrase.as_bytes(), info.encrypted_data.as_bytes())
+    params
+        .decrypt(password, info.encrypted_data.as_bytes())
         .map(Zeroizing::new)
         .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
-}
-
-/// Encrypts into `version || nonce || ciphertext and tag`.
-fn encrypt_with_raw_key(key: &RawKey, plaintext: &[u8], pem_tag: &str) -> io::Result<Vec<u8>> {
-    let nonce: [u8; GCM_NONCE_LEN] = rand::random();
-
-    let ciphertext = raw_key_cipher(key)
-        .encrypt(
-            &Nonce::from(nonce),
-            Payload {
-                msg: plaintext,
-                aad: &raw_key_aad(pem_tag),
-            },
-        )
-        .map_err(|_| io::Error::other("failed to encrypt the key"))?;
-
-    let mut contents = Vec::with_capacity(1 + GCM_NONCE_LEN + ciphertext.len());
-    contents.push(RAW_KEY_FORMAT_V1);
-    contents.extend_from_slice(&nonce);
-    contents.extend_from_slice(&ciphertext);
-    Ok(contents)
-}
-
-fn decrypt_with_raw_key(
-    key: &RawKey,
-    contents: &[u8],
-    pem_tag: &str,
-) -> io::Result<Zeroizing<Vec<u8>>> {
-    if contents.len() < 1 + GCM_NONCE_LEN + GCM_TAG_LEN {
-        return Err(invalid_data("the encrypted key is truncated"));
-    }
-    let (nonce, ciphertext) = contents[1..].split_at(GCM_NONCE_LEN);
-    let nonce = Nonce::try_from(nonce).map_err(|_| invalid_data("invalid nonce"))?;
-
-    raw_key_cipher(key)
-        .decrypt(
-            &nonce,
-            Payload {
-                msg: ciphertext,
-                aad: &raw_key_aad(pem_tag),
-            },
-        )
-        .map(Zeroizing::new)
-        .map_err(|_| invalid_data("authentication failed"))
-}
-
-fn raw_key_cipher(key: &RawKey) -> Aes256Gcm {
-    Aes256Gcm::new(key.as_bytes().into())
-}
-
-/// Binds the ciphertext to its format version and PEM tag, so it can't be relabelled as
-/// another kind of key.
-fn raw_key_aad(pem_tag: &str) -> Vec<u8> {
-    let mut aad = Vec::with_capacity(1 + pem_tag.len());
-    aad.push(RAW_KEY_FORMAT_V1);
-    aad.extend_from_slice(pem_tag.as_bytes());
-    aad
 }
 
 fn invalid_data(message: &'static str) -> io::Error {
@@ -269,8 +218,6 @@ fn invalid_data(message: &'static str) -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    const TAG: &str = "ENCRYPTED DUMMY KEY";
 
     fn passphrase(passphrase: &str) -> KeySecret {
         Passphrase::new(passphrase).into()
@@ -306,90 +253,116 @@ mod tests {
         );
     }
 
+    fn kdf_of(encrypted: &[u8]) -> pbes2::Kdf {
+        let info = EncryptedPrivateKeyInfoOwned::from_der(encrypted).unwrap();
+        let EncryptionScheme::Pbes2(params) = info.encryption_algorithm else {
+            panic!("not PBES2");
+        };
+        assert!(matches!(
+            params.encryption,
+            pbes2::EncryptionScheme::Aes256Gcm { .. }
+        ));
+        params.kdf
+    }
+
     #[test]
     fn round_trips_under_the_same_passphrase() {
         let secret = passphrase("hunter2");
 
-        let encrypted = encrypt(&secret, b"raw key bytes", TAG).unwrap();
+        let encrypted = encrypt(&secret, b"raw key bytes").unwrap();
 
-        assert_eq!(encrypted[0], DER_SEQUENCE_TAG);
+        assert!(kdf_of(&encrypted).is_scrypt());
         assert_eq!(
-            decrypt(&secret, &encrypted, TAG).unwrap().as_slice(),
+            decrypt(&secret, &encrypted).unwrap().as_slice(),
             b"raw key bytes"
         );
     }
 
     #[test]
     fn fails_under_a_different_passphrase() {
-        let encrypted = encrypt(&passphrase("hunter2"), b"raw key bytes", TAG).unwrap();
+        let encrypted = encrypt(&passphrase("hunter2"), b"raw key bytes").unwrap();
 
-        assert!(decrypt(&passphrase("hunter3"), &encrypted, TAG).is_err());
+        assert!(decrypt(&passphrase("hunter3"), &encrypted).is_err());
     }
 
     #[test]
     fn round_trips_under_the_same_raw_key() {
         let secret = raw_key(1);
 
-        let encrypted = encrypt(&secret, b"raw key bytes", TAG).unwrap();
+        let encrypted = encrypt(&secret, b"raw key bytes").unwrap();
 
-        assert_eq!(encrypted[0], RAW_KEY_FORMAT_V1);
+        let kdf = kdf_of(&encrypted);
+        let pbkdf2 = kdf.pbkdf2().expect("raw keys use PBKDF2");
+        assert_eq!(pbkdf2.prf, pbes2::Pbkdf2Prf::HmacWithSha256);
+        assert_eq!(pbkdf2.iteration_count, RAW_KEY_PBKDF2_ITERATIONS);
         assert_eq!(
-            encrypted.len(),
-            1 + GCM_NONCE_LEN + b"raw key bytes".len() + GCM_TAG_LEN
-        );
-        assert_eq!(
-            decrypt(&secret, &encrypted, TAG).unwrap().as_slice(),
+            decrypt(&secret, &encrypted).unwrap().as_slice(),
             b"raw key bytes"
         );
     }
 
     #[test]
-    fn raw_key_encryption_uses_a_fresh_nonce() {
+    fn raw_key_encryption_uses_a_fresh_salt_and_nonce() {
         let secret = raw_key(1);
 
-        let first = encrypt(&secret, b"raw key bytes", TAG).unwrap();
-        let second = encrypt(&secret, b"raw key bytes", TAG).unwrap();
+        let first = encrypt(&secret, b"raw key bytes").unwrap();
+        let second = encrypt(&secret, b"raw key bytes").unwrap();
 
         assert_ne!(first, second);
     }
 
     #[test]
     fn fails_under_a_different_raw_key() {
-        let encrypted = encrypt(&raw_key(1), b"raw key bytes", TAG).unwrap();
+        let encrypted = encrypt(&raw_key(1), b"raw key bytes").unwrap();
 
-        assert!(decrypt(&raw_key(2), &encrypted, TAG).is_err());
+        assert!(decrypt(&raw_key(2), &encrypted).is_err());
     }
 
     #[test]
-    fn raw_key_ciphertext_is_bound_to_its_pem_tag() {
+    fn rejects_tampered_or_truncated_contents() {
         let secret = raw_key(1);
-        let encrypted = encrypt(&secret, b"raw key bytes", TAG).unwrap();
-
-        assert!(decrypt(&secret, &encrypted, "ENCRYPTED OTHER KEY").is_err());
-    }
-
-    #[test]
-    fn raw_key_rejects_tampered_or_truncated_contents() {
-        let secret = raw_key(1);
-        let encrypted = encrypt(&secret, b"raw key bytes", TAG).unwrap();
+        let encrypted = encrypt(&secret, b"raw key bytes").unwrap();
 
         let mut tampered = encrypted.clone();
         *tampered.last_mut().unwrap() ^= 1;
-        assert!(decrypt(&secret, &tampered, TAG).is_err());
+        assert!(decrypt(&secret, &tampered).is_err());
 
-        assert!(decrypt(&secret, &encrypted[..1 + GCM_NONCE_LEN], TAG).is_err());
-        assert!(decrypt(&secret, &[], TAG).is_err());
+        assert!(decrypt(&secret, &encrypted[..encrypted.len() - 1]).is_err());
+        assert!(decrypt(&secret, &[]).is_err());
+    }
+
+    #[test]
+    fn raw_key_rejects_unexpected_pbkdf2_parameters() {
+        let key = RawKey::from_bytes(&[1; RAW_KEY_LEN]);
+        let params = pbes2::Parameters {
+            kdf: pbes2::Pbkdf2Params::hmac_sha256(2, &[0; KDF_SALT_LEN])
+                .unwrap()
+                .into(),
+            encryption: pbes2::EncryptionScheme::Aes256Gcm {
+                nonce: [0; GCM_NONCE_LEN],
+            },
+        };
+        let ciphertext = params.encrypt(key.as_bytes(), b"raw key bytes").unwrap();
+        let encrypted = EncryptedPrivateKeyInfoOwned {
+            encryption_algorithm: params.into(),
+            encrypted_data: OctetString::new(ciphertext).unwrap(),
+        }
+        .to_der()
+        .unwrap();
+
+        let err = decrypt(&key.into(), &encrypted).unwrap_err();
+        assert!(err.to_string().contains("unrecognised"), "{err}");
     }
 
     #[test]
     fn rejects_the_other_kind_of_secret() {
-        let by_passphrase = encrypt(&passphrase("hunter2"), b"raw key bytes", TAG).unwrap();
-        let by_raw_key = encrypt(&raw_key(1), b"raw key bytes", TAG).unwrap();
+        let by_passphrase = encrypt(&passphrase("hunter2"), b"raw key bytes").unwrap();
+        let by_raw_key = encrypt(&raw_key(1), b"raw key bytes").unwrap();
 
-        let err = decrypt(&raw_key(1), &by_passphrase, TAG).unwrap_err();
+        let err = decrypt(&raw_key(1), &by_passphrase).unwrap_err();
         assert!(err.to_string().contains("not a raw key"), "{err}");
 
-        let err = decrypt(&passphrase("hunter2"), &by_raw_key, TAG).unwrap_err();
+        let err = decrypt(&passphrase("hunter2"), &by_raw_key).unwrap_err();
         assert!(err.to_string().contains("not a passphrase"), "{err}");
     }
 }

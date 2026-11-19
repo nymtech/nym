@@ -34,6 +34,10 @@ const MISSING_BLOCKS_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 const MAX_MISSING_BLOCKS_DELAY: Duration = Duration::from_secs(15);
 const MAX_RANGE_SIZE: usize = 30;
 
+/// How long a processor told to give up may go without processing a block while a newer one is
+/// known to exist.
+const MAX_STALL: Duration = Duration::from_secs(120);
+
 #[derive(Debug, Default)]
 struct PendingSync {
     request_in_flight: HashSet<u32>,
@@ -216,6 +220,10 @@ pub struct BlockProcessor<S = Ephemeral> {
     pending_sync: PendingSync,
     queued_blocks: BTreeMap<u32, BlockToProcess>,
 
+    /// Cancel itself once stalled, so that its owner can start afresh. A persisting scraper must
+    /// not: moving past a block would leave a hole in its storage.
+    give_up_when_stalled: bool,
+
     /// Specifies how much data to actually retrieve per block
     retrieval_config: RetrievalConfig,
 
@@ -249,6 +257,7 @@ where
             last_processed_at: Instant::now(),
             pending_sync: Default::default(),
             queued_blocks: Default::default(),
+            give_up_when_stalled: false,
             retrieval_config: RetrievalConfig::default(),
             rpc_client,
             incoming: incoming.into(),
@@ -271,6 +280,13 @@ where
     #[must_use]
     pub fn with_start_after(mut self, height: u32) -> Self {
         self.last_processed_height = height;
+        self
+    }
+
+    /// Give up once stalled: see [`MAX_STALL`].
+    #[must_use]
+    pub fn with_stall_give_up(mut self) -> Self {
+        self.give_up_when_stalled = true;
         self
     }
 
@@ -373,6 +389,27 @@ where
 
     pub(super) fn last_process_height(&self) -> u32 {
         self.last_processed_height
+    }
+
+    /// Whether nothing was processed for [`MAX_STALL`] although a newer block is known to exist.
+    // technically we're not mutating self here,
+    // but we need it to help the compiler figure out the future is `Send`
+    async fn has_stalled(&mut self) -> bool {
+        if !self.give_up_when_stalled || self.last_processed_at.elapsed() < MAX_STALL {
+            return false;
+        }
+
+        if !self.queued_blocks.is_empty() {
+            return true;
+        }
+
+        match self.rpc_client.current_block_height().await {
+            Ok(height) => height > self.last_processed_height as u64,
+            Err(err) => {
+                debug!("could not tell whether a newer block exists: {err}");
+                false
+            }
+        }
     }
 
     async fn maybe_request_missing_blocks(&mut self) -> Result<(), ScraperError> {
@@ -605,6 +642,14 @@ where
                     break
                 }
                 _ = missing_check_interval.tick() => {
+                    if self.has_stalled().await {
+                        error!(
+                            "nothing was processed after height {} for {MAX_STALL:?} although a newer block is known - giving up",
+                            self.last_processed_height
+                        );
+                        self.cancel.cancel();
+                        break
+                    }
                     if let Err(err) = self.maybe_request_missing_blocks().await {
                         error!("failed to request missing blocks: {err}")
                     }
@@ -657,12 +702,13 @@ mod tests {
         }
     }
 
-    /// A processor that feeds `module` and fetches nothing over rpc, to be handed blocks directly.
-    fn processor_feeding(module: RecordingModule) -> BlockProcessor {
+    /// A processor that fetches nothing over rpc and has nothing on the other ends of its
+    /// channels, to be handed blocks directly.
+    fn detached_processor() -> BlockProcessor {
         let (_, blocks_rx) = unbounded_channel();
         let (requests_tx, _) = channel(5);
 
-        let mut processor = BlockProcessor::new(
+        BlockProcessor::new(
             CancellationToken::new(),
             blocks_rx,
             requests_tx,
@@ -672,7 +718,12 @@ mod tests {
             get_validators: false,
             get_transactions: false,
             get_block_results: false,
-        });
+        })
+    }
+
+    /// A detached processor that feeds `module`.
+    fn processor_feeding(module: RecordingModule) -> BlockProcessor {
+        let mut processor = detached_processor();
         processor.set_block_modules(vec![Box::new(module)]);
         processor
     }
@@ -721,6 +772,61 @@ mod tests {
         processor.next_incoming(fetched).await;
 
         assert_eq!(vec![BLOCK_HEIGHT + 1, BLOCK_HEIGHT + 2], *seen.lock().await);
+    }
+
+    // A watcher held behind a block it cannot obtain would otherwise wait forever, its backlog
+    // growing, while its modules see nothing.
+    #[tokio::test(start_paused = true)]
+    async fn a_stalled_processor_gives_up() {
+        // with the block feed closed, `run()` would stop at once
+        let (_blocks_tx, blocks_rx) = unbounded_channel();
+        let (requests_tx, _requests_rx) = channel(5);
+
+        let mut processor: BlockProcessor = BlockProcessor::new(
+            CancellationToken::new(),
+            blocks_rx,
+            requests_tx,
+            client_without_a_node(),
+        )
+        .with_start_after(BLOCK_HEIGHT)
+        .with_stall_give_up();
+
+        let block_after_next = recorded_block_at(BLOCK_HEIGHT + 2);
+        processor.next_incoming(block_after_next).await;
+
+        let started = Instant::now();
+        tokio::time::timeout(3 * MAX_STALL, processor.run())
+            .await
+            .expect("the processor did not give up");
+
+        assert!(started.elapsed() >= MAX_STALL);
+        assert!(processor.cancel.is_cancelled());
+    }
+
+    // A persisting scraper must not move past a block it cannot process, however long that takes.
+    #[tokio::test(start_paused = true)]
+    async fn a_processor_not_told_to_give_up_keeps_waiting() {
+        let mut processor = detached_processor().with_start_after(BLOCK_HEIGHT);
+
+        let block_after_next = recorded_block_at(BLOCK_HEIGHT + 2);
+        processor.next_incoming(block_after_next).await;
+        tokio::time::advance(MAX_STALL).await;
+
+        assert!(!processor.has_stalled().await);
+    }
+
+    // With no newer block in sight, as on a halted chain or with every endpoint down, a restart
+    // would have nothing to fetch either, and every watcher in the network would restart at once.
+    #[tokio::test(start_paused = true)]
+    async fn a_processor_with_no_newer_block_in_sight_keeps_waiting() {
+        // nothing is queued, and no endpoint answers for the chain height
+        let mut processor = detached_processor()
+            .with_start_after(BLOCK_HEIGHT)
+            .with_stall_give_up();
+
+        tokio::time::advance(MAX_STALL).await;
+
+        assert!(!processor.has_stalled().await);
     }
 
     /// A storage that holds nothing but the height it was processed up to.

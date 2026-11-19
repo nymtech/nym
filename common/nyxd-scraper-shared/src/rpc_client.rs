@@ -81,7 +81,8 @@ struct RpcEndpoint {
 #[derive(Clone)]
 pub struct RpcClient {
     /// In order of preference: a query moves on to the next endpoint only once the previous one
-    /// has failed it. Never empty.
+    /// has failed it. The exception is the current block height, which every endpoint is asked
+    /// for. Never empty.
     endpoints: Vec<RpcEndpoint>,
 
     // kinda like very limited cosmos sdk codec
@@ -286,17 +287,34 @@ impl RpcClient {
         }
     }
 
+    /// The highest height any endpoint reports, so that one which has stopped advancing cannot
+    /// hide newer blocks.
     pub(crate) async fn current_block_height(&self) -> Result<u64, ScraperError> {
         debug!("getting current block height");
 
-        let info = self
-            .first_answer(|client| client.abci_info())
-            .await
-            .map_err(|source| ScraperError::RpcQueryFailure {
-                query: "current abci info".to_string(),
-                source: Box::new(source),
-            })?;
-        Ok(info.last_block_height.value())
+        let mut highest = None;
+        let mut failure = None;
+        for endpoint in &self.endpoints {
+            match endpoint.client.abci_info().await {
+                Ok(info) => highest = highest.max(Some(info.last_block_height.value())),
+                Err(err) => {
+                    debug!("{} failed the query: {err}", endpoint.url);
+                    failure = Some(err);
+                }
+            }
+        }
+
+        if let Some(height) = highest {
+            return Ok(height);
+        }
+
+        // SAFETY: the client is never built without an endpoint, so with no answer at least one
+        // query has failed
+        #[allow(clippy::unwrap_used)]
+        Err(ScraperError::RpcQueryFailure {
+            query: "current abci info".to_string(),
+            source: Box::new(failure.unwrap()),
+        })
     }
 
     pub(crate) async fn earliest_available_block_height(&self) -> Result<u64, ScraperError> {

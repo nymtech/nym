@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::contract_traits::{collect_pages_at_height, NymContractsProvider, PinnedPage};
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::CosmWasmClient;
+use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
+use cosmrs::AccountId;
 use nym_network_monitors_contract_common::{
     AuthorisedNetworkMonitor, AuthorisedNetworkMonitorOrchestratorsResponse,
     AuthorisedNetworkMonitorsPagedResponse, QueryMsg as NetworkMonitorsQueryMsg,
@@ -62,6 +63,59 @@ pub trait PagedNetworkMonitorsQueryClient: NetworkMonitorsQueryClient {
 
 #[async_trait]
 impl<T> PagedNetworkMonitorsQueryClient for T where T: NetworkMonitorsQueryClient {}
+
+/// Height-pinned reads, for callers that need the agent set exactly as it stood at one height.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait PinnedNetworkMonitorsQueryClient {
+    /// Every authorised agent at exactly `height`.
+    ///
+    /// Unlike [`PagedNetworkMonitorsQueryClient::get_all_network_monitor_agents`], every page is
+    /// requested at the same height, so an authorisation or revocation landing mid-enumeration
+    /// cannot duplicate or drop an agent.
+    async fn get_all_network_monitor_agents_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<AuthorisedNetworkMonitor>, NyxdError>;
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C> PinnedNetworkMonitorsQueryClient for C
+where
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
+{
+    async fn get_all_network_monitor_agents_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<AuthorisedNetworkMonitor>, NyxdError> {
+        collect_pages_at_height::<AuthorisedNetworkMonitorsPagedResponse, _>(self, height, ()).await
+    }
+}
+
+impl PinnedPage for AuthorisedNetworkMonitorsPagedResponse {
+    type QueryMsg = NetworkMonitorsQueryMsg;
+    type QueryArgs = ();
+    type Record = AuthorisedNetworkMonitor;
+    type Cursor = SocketAddr;
+
+    const CONTRACT: &'static str = "network monitors contract";
+
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.network_monitors_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_next_after: Option<SocketAddr>) -> NetworkMonitorsQueryMsg {
+        NetworkMonitorsQueryMsg::NetworkMonitorAgents {
+            start_next_after,
+            limit: None,
+        }
+    }
+
+    fn into_parts(self) -> (Vec<AuthorisedNetworkMonitor>, Option<SocketAddr>) {
+        (self.authorised, self.start_next_after)
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

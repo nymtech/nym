@@ -8,6 +8,7 @@
 //! Storages open their databases encrypted by first calling [`encrypt_database_if_needed`], and
 //! then connecting with options passed through [`connect_options_with_key`].
 
+use rand::CryptoRng;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
 use sqlx::{AssertSqlSafe, ConnectOptions, Connection};
 use std::io;
@@ -30,19 +31,30 @@ pub type Key = [u8; KEY_LEN];
 #[derive(Clone)]
 pub struct DatabaseKey(Arc<Zeroizing<Key>>);
 
+/// Allocates zeroed storage on heap and passes it to `initialize` for initialization which must fill in the buffer.
+/// Returns initialized key buffer stored on heap
+fn with_heap_key_buf(initialize: impl FnOnce(&mut Key)) -> Arc<Zeroizing<Key>> {
+    let mut storage = Arc::new(Zeroizing::new([0u8; KEY_LEN]));
+
+    // It's safe because only one instance of Arc exists
+    #[allow(clippy::expect_used)]
+    let buf = Arc::get_mut(&mut storage).expect("failed to Arc::get_mut()");
+
+    initialize(buf);
+    storage
+}
+
 impl DatabaseKey {
     /// Copies the key from a borrowed buffer straight into the shared allocation, without
     /// intermediate copies. The caller stays responsible for wiping its own buffer.
     pub fn from_bytes(key: &Key) -> Self {
-        DatabaseKey::from_fn(|buf| buf.copy_from_slice(key))
+        DatabaseKey(with_heap_key_buf(|buf| buf.copy_from_slice(key)))
     }
 
-    /// Fills the key in place, e.g. from an RNG, so it only ever exists in the shared allocation.
-    pub fn from_fn(fill: impl FnOnce(&mut Key)) -> Self {
-        let mut key = Arc::new(Zeroizing::new([0u8; KEY_LEN]));
-        // the Arc isn't shared yet, so this doesn't clone
-        fill(&mut *Arc::make_mut(&mut key));
-        DatabaseKey(key)
+    /// Generates a new uniformly random key, filled straight into the shared allocation so it never
+    /// exists anywhere else.
+    pub fn generate<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
+        DatabaseKey(with_heap_key_buf(|buf| rng.fill_bytes(buf)))
     }
 
     /// Parses a key from its hex encoding: exactly [`KEY_LEN`] bytes, i.e. 64 hex characters.
@@ -50,11 +62,11 @@ impl DatabaseKey {
     /// The key is decoded straight into the shared allocation. The error doesn't include the
     /// input, so that it can't leak the key.
     pub fn from_hex(hex_key: &str) -> Result<Self, InvalidHexKey> {
-        let mut result = Ok(());
-        let key = DatabaseKey::from_fn(|buf| {
-            result = hex::decode_to_slice(hex_key.trim(), buf.as_mut_slice());
-        });
-        result.map(|_| key).map_err(|_| InvalidHexKey)
+        let mut decoded = Ok(());
+        let key = DatabaseKey(with_heap_key_buf(|buf| {
+            decoded = hex::decode_to_slice(hex_key.trim(), buf);
+        }));
+        decoded.map(|()| key).map_err(|_| InvalidHexKey)
     }
 
     pub fn as_bytes(&self) -> &Key {
@@ -73,10 +85,13 @@ impl TryFrom<&[u8]> for DatabaseKey {
     type Error = InvalidKeyLength;
 
     fn try_from(key: &[u8]) -> Result<Self, Self::Error> {
-        if key.len() != KEY_LEN {
-            return Err(InvalidKeyLength { len: key.len() });
+        if key.len() == KEY_LEN {
+            Ok(DatabaseKey(with_heap_key_buf(|buf| {
+                buf.copy_from_slice(key)
+            })))
+        } else {
+            Err(InvalidKeyLength { len: key.len() })
         }
-        Ok(DatabaseKey::from_fn(|buf| buf.copy_from_slice(key)))
     }
 }
 
@@ -449,19 +464,28 @@ mod tests {
     }
 
     #[test]
-    fn database_key_constructors_agree() {
-        let filled = DatabaseKey::from_fn(|key| key.fill(0x42));
+    fn generated_database_keys_are_random() {
+        let first = DatabaseKey::generate(&mut rand::rng());
+        let second = DatabaseKey::generate(&mut rand::rng());
 
-        assert_eq!(filled.as_bytes(), &[0x42; KEY_LEN]);
+        assert_ne!(first.as_bytes(), second.as_bytes());
+        assert_ne!(first.as_bytes(), &[0; KEY_LEN]);
+    }
+
+    #[test]
+    fn database_key_constructors_agree() {
+        let expected = [0x42; KEY_LEN];
+
+        assert_eq!(DatabaseKey::from_bytes(&expected).as_bytes(), &expected);
         assert_eq!(
-            DatabaseKey::from_bytes(&[0x42; KEY_LEN]).as_bytes(),
-            filled.as_bytes()
+            DatabaseKey::try_from(&expected[..]).unwrap().as_bytes(),
+            &expected
         );
         assert_eq!(
             DatabaseKey::from_hex(&"42".repeat(KEY_LEN))
                 .unwrap()
                 .as_bytes(),
-            filled.as_bytes()
+            &expected
         );
     }
 

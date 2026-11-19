@@ -9620,6 +9620,7 @@ version = "2.0.1"
 dependencies = [
  "hex",
  "libsqlite3-sys",
+ "rand 0.10.2",
  "sqlx",
  "tempfile",
  "thiserror 2.0.21",

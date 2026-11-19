@@ -1,7 +1,7 @@
 {
   "sort": ["kind"],
   "entryPoints": ["./src/index.ts"],
-  "out": "../../../../documentation/docs/pages/developers/mix-dns/api",
+  "out": "../../../../documentation/docs/content/developers/mix-dns/api",
   "plugin": ["typedoc-plugin-markdown"],
   "entryFileName": "globals",
   "kindSortOrder": [

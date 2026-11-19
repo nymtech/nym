@@ -29,6 +29,9 @@ pub enum BadGateway {
     #[error("could not find any valid shared keys for gateway {gateway_id}")]
     MissingSharedKey { gateway_id: String },
 
+    #[error("the generation id stored for gateway {gateway_id} has {length} bytes instead of 16")]
+    MalformedGenerationId { gateway_id: String, length: usize },
+
     #[error(
         "the listening address of gateway {gateway_id} ({raw_listener}) is malformed: {source}"
     )]

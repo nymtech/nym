@@ -6874,7 +6874,6 @@ dependencies = [
  "nym-validator-client",
  "nym-wasm-utils",
  "rand 0.10.2",
- "rand_chacha 0.10.0",
  "semver 1.0.28",
  "serde",
  "serde_json",
@@ -6921,6 +6920,8 @@ dependencies = [
  "nym-gateway-client",
  "nym-gateway-requests",
  "nym-sqlcipher",
+ "nym-test-utils",
+ "rand 0.10.2",
  "serde",
  "sqlx",
  "thiserror 2.0.21",
@@ -7357,6 +7358,7 @@ dependencies = [
  "nym-validator-client",
  "rand 0.10.2",
  "serde",
+ "sha2 0.10.9",
  "thiserror 2.0.21",
  "time",
  "tokio",
@@ -9120,7 +9122,6 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
- "zeroize",
 ]
 
 [[package]]
@@ -9159,14 +9160,12 @@ dependencies = [
  "semver 1.0.28",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "thiserror 2.0.21",
  "time",
  "tokio",
  "tokio-util",
  "tracing",
  "url",
- "zeroize",
 ]
 
 [[package]]

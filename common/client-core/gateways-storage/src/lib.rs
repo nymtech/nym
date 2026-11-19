@@ -6,7 +6,9 @@
 
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use std::error::Error;
+use std::sync::Arc;
 
 pub mod backend;
 pub mod error;
@@ -64,6 +66,14 @@ pub trait GatewaysDetailsStore: Send + Sync {
         &self,
         gateway_id: &ed25519::PublicKey,
         published_data: &GatewayPublishedData,
+    ) -> Result<(), Self::StorageError>;
+
+    /// Replaces the shared key and generation id of a remote gateway registration.
+    async fn update_gateway_keys(
+        &self,
+        gateway_id: &ed25519::PublicKey,
+        generation_id: GenerationId,
+        shared_key: Arc<SharedSymmetricKey>,
     ) -> Result<(), Self::StorageError>;
 
     /// Remove given gateway details from the underlying store.

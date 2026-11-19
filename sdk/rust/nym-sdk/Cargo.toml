@@ -146,7 +146,6 @@ nym-task = { workspace = true }
 nym-topology = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }
 bytes = { workspace = true }
-zeroize = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
@@ -222,7 +221,7 @@ dirs = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-service-providers-common = { workspace = true }
 nym-pemstore = { workspace = true }
-nym-test-utils = { workspace = true }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }

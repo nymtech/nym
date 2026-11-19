@@ -24,7 +24,6 @@ comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
 humantime = { workspace = true }
 rand = { workspace = true }
-rand_chacha = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
@@ -40,7 +39,7 @@ zeroize = { workspace = true }
 nym-id = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bandwidth-fetcher = { workspace = true }
-nym-crypto = { workspace = true, features = ["rand"] }
+nym-crypto = { workspace = true, features = ["hashing", "rand"] }
 nym-gateway-client = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-http-api-client = { workspace = true, features = ["network-defaults"] }
@@ -135,7 +134,7 @@ workspace = true
 features = ["full"]
 
 [dev-dependencies]
-nym-test-utils = { workspace = true }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 tempfile = { workspace = true }
 # `SessionsMock`, to stand in for a handshake the LP round-trip test does not perform
 nym-lp = { workspace = true, features = ["mock"] }

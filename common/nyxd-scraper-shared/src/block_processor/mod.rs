@@ -266,6 +266,14 @@ where
         self
     }
 
+    /// Start at the block after `height`, which the modules' state already reflects, rather than
+    /// at the first block observed.
+    #[must_use]
+    pub fn with_start_after(mut self, height: u32) -> Self {
+        self.last_processed_height = height;
+        self
+    }
+
     pub async fn with_persistence(
         mut self,
         persistence: BlockProcessorPersistence<S>,
@@ -456,7 +464,9 @@ where
         let mut next = height + 1;
         while let Some(next_block) = self.queued_blocks.remove(&next) {
             if let Err(err) = self.process_block(next_block).await {
-                error!("failed to process queued-up block at height {next}: {err}")
+                // out of the backlog, so the missing-block check fetches it again by height
+                error!("failed to process queued-up block at height {next}: {err}");
+                return;
             }
             next += 1;
         }
@@ -617,13 +627,101 @@ where
 #[cfg(test)]
 mod tests {
     use super::ephemeral_storage::{EphemeralStorageError, EphemeralTransaction};
+    use super::types::test_helpers::{BLOCK_HEIGHT, recorded_block_at};
     use super::*;
     use crate::rpc_client::test_helpers::client_without_a_node;
     use crate::storage::NyxdScraperStorageError;
     use async_trait::async_trait;
+    use tokio::sync::Mutex;
     use tokio::sync::mpsc::{channel, unbounded_channel};
 
     const STORED_HEIGHT: u32 = 26594016;
+
+    /// Records every height it is handed, and fails the one it is told to.
+    struct RecordingModule {
+        seen: Arc<Mutex<Vec<u32>>>,
+        fail_at: Option<u32>,
+    }
+
+    #[async_trait]
+    impl BlockModule for RecordingModule {
+        async fn handle_block(&mut self, block: &FullBlockInformation) -> Result<(), ScraperError> {
+            let height = block.block.header.height.value() as u32;
+            self.seen.lock().await.push(height);
+
+            if self.fail_at == Some(height) {
+                // any error will do
+                return Err(ScraperError::NoModulesConfigured);
+            }
+            Ok(())
+        }
+    }
+
+    /// A processor that feeds `module` and fetches nothing over rpc, to be handed blocks directly.
+    fn processor_feeding(module: RecordingModule) -> BlockProcessor {
+        let (_, blocks_rx) = unbounded_channel();
+        let (requests_tx, _) = channel(5);
+
+        let mut processor = BlockProcessor::new(
+            CancellationToken::new(),
+            blocks_rx,
+            requests_tx,
+            client_without_a_node(),
+        )
+        .with_retrieval_config(RetrievalConfig {
+            get_validators: false,
+            get_transactions: false,
+            get_block_results: false,
+        });
+        processor.set_block_modules(vec![Box::new(module)]);
+        processor
+    }
+
+    // Moving past a block that failed loses it for good: a hole in a scraper's storage, and an
+    // event a watcher's modules never see.
+    #[tokio::test]
+    async fn a_failed_block_holds_back_the_blocks_queued_behind_it() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let mut processor = processor_feeding(RecordingModule {
+            seen: seen.clone(),
+            fail_at: Some(BLOCK_HEIGHT + 2),
+        });
+
+        // the two blocks after the gap wait in the backlog until it is filled
+        for offset in [0, 2, 3, 1] {
+            let block = recorded_block_at(BLOCK_HEIGHT + offset);
+            processor.next_incoming(block).await;
+        }
+
+        assert_eq!(BLOCK_HEIGHT + 1, processor.last_process_height());
+        assert_eq!(
+            vec![BLOCK_HEIGHT, BLOCK_HEIGHT + 1, BLOCK_HEIGHT + 2],
+            *seen.lock().await
+        );
+    }
+
+    // State loaded at a height already reflects every block up to it. Taking the first block that
+    // shows up as the starting point instead would leave the blocks in between unseen.
+    #[tokio::test]
+    async fn a_processor_given_a_start_height_waits_for_the_block_after_it() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let mut processor = processor_feeding(RecordingModule {
+            seen: seen.clone(),
+            fail_at: None,
+        })
+        .with_start_after(BLOCK_HEIGHT);
+
+        let first_delivered = recorded_block_at(BLOCK_HEIGHT + 2);
+        processor.next_incoming(first_delivered).await;
+
+        assert_eq!(BLOCK_HEIGHT, processor.last_process_height());
+        assert!(seen.lock().await.is_empty());
+
+        let fetched = recorded_block_at(BLOCK_HEIGHT + 1);
+        processor.next_incoming(fetched).await;
+
+        assert_eq!(vec![BLOCK_HEIGHT + 1, BLOCK_HEIGHT + 2], *seen.lock().await);
+    }
 
     /// A storage that holds nothing but the height it was processed up to.
     #[derive(Clone)]

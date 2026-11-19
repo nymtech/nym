@@ -355,9 +355,7 @@ impl RpcClient {
 mod tests {
     use super::test_helpers::client_without_a_node;
     use super::*;
-    use crate::block_processor::types::test_helpers::{
-        NEW_BLOCK_MESSAGE, TX_GAS_USED, TX_HASH, parse_new_block_message,
-    };
+    use crate::block_processor::types::test_helpers::{TX_GAS_USED, TX_HASH, recorded_block};
     use futures::FutureExt;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
@@ -376,11 +374,6 @@ mod tests {
             RpcClient::new(&[]),
             Err(ScraperError::NoRpcEndpoints)
         ));
-    }
-
-    fn recorded_block() -> BlockToProcess {
-        BlockToProcess::try_from(parse_new_block_message(NEW_BLOCK_MESSAGE))
-            .expect("the recorded event must convert")
     }
 
     // A live block carries everything its transactions need. Looking any of it up again brings

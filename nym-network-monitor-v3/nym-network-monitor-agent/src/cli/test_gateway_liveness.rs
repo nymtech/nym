@@ -1,16 +1,16 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::gateway::wave::GatewayLivenessWave;
+use crate::agent::gateway::wave::GatewayWave;
 use crate::cli::manual::ManualTargetArgs;
+use nym_network_monitor_orchestrator_requests::models::TestKind;
 use nym_task::ShutdownToken;
 use tracing::info;
 
 /// Arguments for the `test-gateway-liveness` subcommand.
 ///
-/// Named for the kind as well as the role, and kept in its own module rather than folded in beside
-/// the mixnode commands, because liveness is the ONLY kind a gateway is probed for: a gateway stress
-/// test would not resemble this one, and nothing here would be reusable if one were ever added.
+/// Kept apart from the mixnode commands because a gateway is probed by a wave of its own, over a
+/// client session rather than a Noise connection.
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
     #[clap(flatten)]
@@ -27,8 +27,9 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
         gateway.mixnet.address, gateway.clients_ws_port
     );
 
-    GatewayLivenessWave::new(
+    GatewayWave::new(
         args.target.build_tester_config()?,
+        TestKind::GatewayLiveness,
         keys.client_identity.clone(),
         keys.noise_key.clone(),
         vec![gateway],

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::agent::config::NodeTesterConfig;
-use crate::agent::gateway::GatewayMixnetLivenessProbe;
+use crate::agent::gateway::GatewayMixnetProbe;
 use crate::agent::tested_node::TestedGatewayDetails;
 use crate::agent::wave::{ProbeReport, WaveListener, report_outcome};
 use crate::mixnet::inbox::TargetInbox;
@@ -16,7 +16,7 @@ use std::future::Future;
 use std::sync::Arc;
 use tracing::info;
 
-/// One gateway liveness assignment's targets, probed CONCURRENTLY.
+/// One gateway assignment's targets, probed CONCURRENTLY.
 ///
 /// The same bargain as [`MixnetWave`](crate::agent::wave::MixnetWave): one wave is one concurrent
 /// batch, so the lease the orchestrator stamps is bounded by the slowest single target rather than by
@@ -25,8 +25,11 @@ use tracing::info;
 ///
 /// It shares the mixnet listener machinery with the mixnode wave, because the ingest phase's packets
 /// arrive over exactly that listener, attributed by the forwarding gateway's source address.
-pub(crate) struct GatewayLivenessWave {
+pub(crate) struct GatewayWave {
     config: NodeTesterConfig,
+
+    /// What every probe of the wave measures, which selects their profile and per-target deadline.
+    kind: TestKind,
 
     noise_key: Arc<x25519::KeyPair>,
 
@@ -46,13 +49,14 @@ pub(crate) struct GatewayLivenessWave {
 
 /// A probe and the inbox the wave's ingress will route its ingest-phase arrivals to.
 struct WaveProbe {
-    probe: GatewayMixnetLivenessProbe,
+    probe: GatewayMixnetProbe,
     ingest_inbox: TargetInbox,
 }
 
-impl GatewayLivenessWave {
+impl GatewayWave {
     pub(crate) fn new(
         config: NodeTesterConfig,
+        kind: TestKind,
         client_identity: Arc<ed25519::KeyPair>,
         noise_key: Arc<x25519::KeyPair>,
         targets: Vec<TestedGatewayDetails>,
@@ -61,7 +65,7 @@ impl GatewayLivenessWave {
         // an empty wave is a bug on the orchestrator's side rather than something to run vacuously:
         // "no work" is an absent assignment
         if targets.is_empty() {
-            bail!("was handed an empty gateway liveness wave, which is not a valid assignment")
+            bail!("was handed an empty {kind} wave, which is not a valid assignment")
         }
 
         // one identity across the wave is only safe because its targets are distinct gateways, and
@@ -76,15 +80,16 @@ impl GatewayLivenessWave {
         identities.dedup();
         if identities.len() != targets.len() {
             bail!(
-                "was handed a gateway liveness wave listing the same gateway more than once, which cannot be probed under one client identity"
+                "was handed a {kind} wave listing the same gateway more than once, which cannot be probed under one client identity"
             )
         }
 
         let probes = targets
             .into_iter()
             .map(|target| {
-                let probe = GatewayMixnetLivenessProbe::new(
+                let probe = GatewayMixnetProbe::new(
                     config,
+                    kind,
                     client_identity.clone(),
                     noise_key.clone(),
                     target,
@@ -97,8 +102,9 @@ impl GatewayLivenessWave {
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
 
-        Ok(GatewayLivenessWave {
+        Ok(GatewayWave {
             config,
+            kind,
             noise_key,
             probes,
             shutdown,
@@ -115,17 +121,14 @@ impl GatewayLivenessWave {
         F: Fn(ProbeReport) -> Fut,
         Fut: Future<Output = anyhow::Result<()>>,
     {
-        let GatewayLivenessWave {
+        let GatewayWave {
             config,
+            kind,
             noise_key,
             probes,
             shutdown,
-            ..
         } = self;
-        info!(
-            "beginning a gateway liveness wave of {} target(s)",
-            probes.len()
-        );
+        info!("beginning a {kind} wave of {} target(s)", probes.len());
 
         // 1 and 2. the ingress and the one listener serving it. this wave needs both for exactly the
         // reason the mixnode wave does: the INGEST phase's packets are forwarded by the gateway to
@@ -142,7 +145,7 @@ impl GatewayLivenessWave {
             WaveListener::start(&config, noise_key, &wave_targets, shutdown.clone()).await?;
 
         // 3. every target at once, each opening its own client session and reporting as it finishes
-        let deadline = config.per_target_timeout(TestKind::GatewayLiveness);
+        let deadline = config.per_target_timeout(kind);
         join_all(probes.into_iter().map(|probed| {
             let report = &report;
             // a child per target, so one session closing at the end of its run stops only its own
@@ -165,7 +168,7 @@ impl GatewayLivenessWave {
         // 4. drain the ingress, which finishes the connection handlers
         listener.drain().await;
 
-        info!("finished the gateway liveness wave");
+        info!("finished the {kind} wave");
         Ok(())
     }
 }

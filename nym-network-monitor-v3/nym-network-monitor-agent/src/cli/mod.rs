@@ -51,8 +51,7 @@ impl Cli {
 
 /// The manual `test-*` commands are named for the (kind, role) pair they exercise, matching the
 /// [`TestRunAssignment`](nym_network_monitor_orchestrator_requests::models::TestRunAssignment)
-/// variants an orchestrator would hand out. There are exactly three, since a gateway is probed only
-/// for liveness.
+/// variants an orchestrator would hand out.
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     /// Show build information of this binary

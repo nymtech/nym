@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::agent::config::NodeTesterConfig;
-use crate::agent::gateway::wave::GatewayLivenessWave;
+use crate::agent::gateway::wave::GatewayWave;
 use crate::agent::helpers::derive_client_identity;
 use crate::agent::tested_node::{TestedGatewayDetails, TestedNodeDetails};
 use crate::agent::wave::{MixnetWave, ProbeReport};
@@ -138,14 +138,16 @@ impl NetworkMonitorAgent {
         .await
     }
 
-    /// Probes every target of a gateway liveness wave, submitting each result as that target finishes.
+    /// Probes every target of a gateway wave, submitting each result as that target finishes.
     ///
-    /// A separate path from [`run_mixnet_wave`](Self::run_mixnet_wave) rather than a third kind
+    /// A separate path from [`run_mixnet_wave`](Self::run_mixnet_wave) rather than the gateway kinds
     /// flowing through it: the two share a listener and a reporting shape, but a gateway target is a
     /// client session measuring two interfaces where a mixnode target is a Noise connection measuring
-    /// one, so folding them together would mean a probe that is two probes behind one name.
-    async fn run_gateway_liveness_wave(
+    /// one, so folding them together would mean a probe that is two probes behind one name. The kind
+    /// selects the profile and the per-target deadline, and is echoed onto every result.
+    async fn run_gateway_wave(
         &self,
+        kind: TestKind,
         targets: Vec<GatewayProbeTarget>,
     ) -> anyhow::Result<()> {
         let targets = targets
@@ -153,8 +155,9 @@ impl NetworkMonitorAgent {
             .map(TestedGatewayDetails::from_probe_target)
             .collect();
 
-        GatewayLivenessWave::new(
+        GatewayWave::new(
             self.tester_config,
+            kind,
             self.client_identity.clone(),
             self.noise_key.clone(),
             targets,
@@ -228,7 +231,8 @@ impl NetworkMonitorAgent {
                     .await
             }
             TestRunAssignment::GatewayLiveness(targets) => {
-                self.run_gateway_liveness_wave(targets).await
+                self.run_gateway_wave(TestKind::GatewayLiveness, targets)
+                    .await
             }
         }
     }

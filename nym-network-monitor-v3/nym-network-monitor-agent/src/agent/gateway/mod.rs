@@ -1,13 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The gateway liveness probe: one indivisible run measuring two interfaces over one client session.
+//! The gateway probe: one indivisible run measuring two interfaces over one client session. Both
+//! gateway kinds run it, liveness and stress differing only in their profile.
 //!
 //! Named for the mixnet capability it measures, because `GatewayProbe` already means something else in
 //! this repository: the prober that walks a gateway's VPN and exit path. Nothing here touches that.
 
 use crate::agent::config::{NodeTesterConfig, ProbeProfile};
-use crate::agent::result::{LatencyDistribution, PacketDelivery, ProbeMeasurements, TestRunResult};
+use crate::agent::result::{LatencyDistribution, PacketDelivery, TestRunResult};
 use crate::agent::tested_node::{TestedGatewayDetails, TestedNodeDetails};
 use crate::mixnet::client_session::events::ReceivedPayload;
 use crate::mixnet::client_session::inbox::GatewaySessionInbox;
@@ -63,12 +64,15 @@ const GATEWAY_PACKET_DELAY: Duration = Duration::ZERO;
 /// Each phase sends for at most its profile's send window, cutting off a write the gateway is holding
 /// up, and whatever the gateway did not take by then counts as lost. Sending that stops early, at the
 /// window or on a failed send, still goes on to the straggler wait and the count.
-pub(crate) struct GatewayMixnetLivenessProbe {
+pub(crate) struct GatewayMixnetProbe {
     /// Tester configuration controlling timeouts and addressing.
     config: NodeTesterConfig,
 
-    /// The liveness sending knobs, resolved once at construction. A gateway probe has no stress
-    /// profile: there is no gateway stress assignment, and the two would not resemble each other.
+    /// What this run measures. It selects the profile, the session's receive timeout and the result
+    /// variant; the two phases are the same for both gateway kinds.
+    kind: TestKind,
+
+    /// The kind's sending knobs, resolved once at construction.
     profile: ProbeProfile,
 
     /// The identity this agent presents when registering, which is also the destination the delivery
@@ -96,21 +100,25 @@ pub(crate) struct GatewayMixnetLivenessProbe {
     target: TestedGatewayDetails,
 }
 
-impl GatewayMixnetLivenessProbe {
+impl GatewayMixnetProbe {
     pub(crate) fn new(
         config: NodeTesterConfig,
+        kind: TestKind,
         client_identity: Arc<ed25519::KeyPair>,
         noise_key: Arc<x25519::KeyPair>,
         target: TestedGatewayDetails,
     ) -> anyhow::Result<Self> {
-        let profile = config.profile_for(TestKind::GatewayLiveness);
+        let profile = config.profile_for(kind);
 
         // an ephemeral sphinx key, needed only to build the ingest header below and deliberately not
         // retained: the header carries the payload key derived from it, and that is what recovers a
         // returning packet, so nothing afterwards needs the private half
         let sphinx_key: x25519::KeyPair = x25519::PrivateKey::new(&mut os_rng()).into();
 
-        debug!("probing gateway {} under {profile:?}", target.identity);
+        debug!(
+            "probing gateway {} for {kind} under {profile:?}",
+            target.identity
+        );
         debug!("{target:#?}");
 
         let client_address = client_identity.public_key().derive_destination_address();
@@ -135,8 +143,9 @@ impl GatewayMixnetLivenessProbe {
         )
         .context("failed to build the delivery leg's sphinx header")?;
 
-        Ok(GatewayMixnetLivenessProbe {
+        Ok(GatewayMixnetProbe {
             config,
+            kind,
             profile,
             client_identity,
             noise_key,
@@ -189,17 +198,17 @@ impl GatewayMixnetLivenessProbe {
         shutdown: ShutdownToken,
     ) -> anyhow::Result<TestRunResult> {
         let identity = self.target.identity;
-        info!("beginning the gateway probe of {identity}");
+        let kind = self.kind;
+        info!("beginning the {kind} probe of {identity}");
 
         // stamped BEFORE the session is established, so the reported duration includes getting one.
         // seeded with both interfaces, so it is already submittable as a pair of zeros
-        let mut result = TestRunResult::new(TestKind::GatewayLiveness, GATEWAY_PACKET_DELAY);
+        let mut result = TestRunResult::new(kind, GATEWAY_PACKET_DELAY);
 
         let (session, delivery_arrivals) = match GatewaySession::establish(
             self.session_target(),
             &self.client_identity,
-            self.config
-                .gateway_session_config(TestKind::GatewayLiveness),
+            self.config.gateway_session_config(kind),
             shutdown,
         )
         .await
@@ -219,9 +228,9 @@ impl GatewayMixnetLivenessProbe {
 
         let mut run = GatewayRun::new(self, session, delivery_arrivals, ingest_inbox, result);
         run.run_to_deadline(deadline).await;
-        let result = run.finish().await;
+        let result = run.finish().await?;
 
-        info!("finished the gateway probe of {identity}");
+        info!("finished the {kind} probe of {identity}");
         Ok(result)
     }
 
@@ -233,11 +242,11 @@ impl GatewayMixnetLivenessProbe {
 
 /// One gateway run in flight: the live resources, plus the state that only exists while it runs.
 ///
-/// Separate from [`GatewayMixnetLivenessProbe`] for the same reason `ProbeRun` is separate from
+/// Separate from [`GatewayMixnetProbe`] for the same reason `ProbeRun` is separate from
 /// `NodeProbe`: the session is established during the run and can fail, so it cannot be a field
 /// without becoming an `Option` that every send path has to unwrap.
 struct GatewayRun {
-    probe: GatewayMixnetLivenessProbe,
+    probe: GatewayMixnetProbe,
 
     /// The live session. Both phases share it, and it stays open across both and their drain windows.
     session: GatewaySession,
@@ -277,7 +286,7 @@ struct GatewayRun {
 
 impl GatewayRun {
     fn new(
-        probe: GatewayMixnetLivenessProbe,
+        probe: GatewayMixnetProbe,
         session: GatewaySession,
         delivery_arrivals: GatewaySessionInbox,
         ingest_arrivals: TargetInbox,
@@ -404,7 +413,7 @@ impl GatewayRun {
     /// The only thing worth distinguishing, and the reason it is worth logging: a session refused for
     /// want of bandwidth means this gateway does not hold our announced identity, so the phase's zero
     /// is ours to explain rather than the gateway's. HOW a gateway came to accept a packet is not
-    /// examined, because a liveness probe measures only whether the packet got through.
+    /// examined, because a gateway probe measures only whether the packet got through.
     fn report_session_treatment(&self) {
         let identity = self.probe.target.identity;
 
@@ -510,8 +519,8 @@ impl GatewayRun {
     /// How many packets each dispatch of a phase sends.
     ///
     /// Both phases pace identically, so the plan is derived once from the profile rather than each
-    /// phase deciding: a burst is the one thing a liveness probe must not do, since it measures
-    /// delivery and would then be measuring the target under load.
+    /// phase deciding: a burst would put the target under a load other than the one the profile
+    /// specifies.
     fn plan_batches(&self, expected: usize) -> Vec<usize> {
         let batch = self.probe.profile.sending_batch_size.max(1);
         let mut batches = Vec::new();
@@ -698,7 +707,7 @@ impl GatewayRun {
     ///
     /// Whatever happened, this yields both measurements: a phase that never ran is still holding its
     /// zeroed default, so it is reported as a zero rather than an absence.
-    async fn finish(self) -> TestRunResult {
+    async fn finish(self) -> anyhow::Result<TestRunResult> {
         let GatewayRun {
             session,
             mut result,
@@ -709,11 +718,10 @@ impl GatewayRun {
 
         session.close().await;
 
-        result.measurements = ProbeMeasurements::GatewayLiveness {
-            client_ingest: ingest_measured,
-            client_delivery: delivery_measured,
-        };
         result
+            .measurements
+            .record_client_interfaces(ingest_measured, delivery_measured)?;
+        Ok(result)
     }
 }
 
@@ -804,11 +812,12 @@ mod tests {
         }
     }
 
-    fn probe(target: TestedGatewayDetails) -> GatewayMixnetLivenessProbe {
+    fn probe(kind: TestKind, target: TestedGatewayDetails) -> GatewayMixnetProbe {
         let mut rng = deterministic_rng();
 
-        GatewayMixnetLivenessProbe::new(
+        GatewayMixnetProbe::new(
             NodeTesterConfig::new_test(),
+            kind,
             Arc::new(ed25519::KeyPair::new(&mut rng)),
             Arc::new(x25519::KeyPair::new(&mut rng)),
             target,
@@ -821,9 +830,9 @@ mod tests {
     // orchestrator would hold its lease and the gateway would keep its turn instead of being scored
     #[tokio::test]
     async fn a_session_that_cannot_be_established_yields_two_zeroed_measurements() {
-        let probe = probe(unreachable_gateway());
+        let probe = probe(TestKind::GatewayLiveness, unreachable_gateway());
         let ingest_inbox = probe.build_ingest_inbox();
-        let deadline = probe.config.per_target_timeout(TestKind::GatewayLiveness);
+        let deadline = probe.config.per_target_timeout(probe.kind);
 
         let result = probe
             .run(ingest_inbox, deadline, ShutdownToken::new())

@@ -15,7 +15,7 @@
 
 - [x] 3.1 Config: add the gateway stress profile and its per-target timeout to `NodeTesterConfig`, give `profile_for` and `per_target_timeout` their `GatewayStress` arms, and take the session's receive timeout from the profile of the kind being run
 - [x] 3.2 CLI: add the five `--gateway-stress-*` flags and environment variables with the initial values (200 packets/second, 30s, batches of 10, 5s wait, 3m timeout), and rename the five existing stress flags and their environment variables to `--mixnode-stress-*` / `NYM_NETWORK_MONITOR_AGENT_MIXNODE_STRESS_*` (code fields to match), with no aliases and no check for the old names
-- [ ] 3.3 Make the gateway probe and its wave take the kind (profile, deadline, result variant); add `ProbeMeasurements::GatewayStress` with its `unmeasured` and wire-conversion arms and its arm in the mixnet probe's refusal of gateway kinds; rename the types so they no longer say liveness; rewrite the comments claiming a gateway stress test would not resemble the liveness probe
+- [x] 3.3 Make the gateway probe and its wave take the kind (profile, deadline, result variant); add `ProbeMeasurements::GatewayStress` with its `unmeasured` and wire-conversion arms and its arm in the mixnet probe's refusal of gateway kinds; rename the types so they no longer say liveness; rewrite the comments claiming a gateway stress test would not resemble the liveness probe
 - [ ] 3.4 Dispatch `TestRunAssignment::GatewayStress` as a gateway wave of one
 - [ ] 3.5 Add the manual `test-gateway-stress` command beside `test-gateway-liveness`
 - [ ] 3.6 Unit tests: the kind selects the gateway stress profile and deadline; a gateway stress run that cannot establish its session reports two zeroed measurements under the gateway stress variant

@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use anyhow::bail;
 use nym_network_monitor_orchestrator_requests::models::{
     InterfaceMeasurement, RunMeasurements, TestKind,
 };
@@ -111,6 +112,10 @@ pub(crate) enum ProbeMeasurements {
     MixnodeStress {
         mix_forwarding: PacketDelivery,
     },
+    GatewayStress {
+        client_ingest: PacketDelivery,
+        client_delivery: PacketDelivery,
+    },
 }
 
 impl ProbeMeasurements {
@@ -128,7 +133,48 @@ impl ProbeMeasurements {
             TestKind::MixnodeStress => ProbeMeasurements::MixnodeStress {
                 mix_forwarding: PacketDelivery::default(),
             },
+            TestKind::GatewayStress => ProbeMeasurements::GatewayStress {
+                client_ingest: PacketDelivery::default(),
+                client_delivery: PacketDelivery::default(),
+            },
         }
+    }
+
+    /// Records the mixnet probe's one interface; errs for a gateway kind's measurements.
+    pub(crate) fn record_mix_forwarding(&mut self, measured: PacketDelivery) -> anyhow::Result<()> {
+        match self {
+            ProbeMeasurements::MixnodeLiveness { mix_forwarding }
+            | ProbeMeasurements::MixnodeStress { mix_forwarding } => *mix_forwarding = measured,
+            ProbeMeasurements::GatewayLiveness { .. } | ProbeMeasurements::GatewayStress { .. } => {
+                bail!("a mixnet probe was run for a gateway assignment")
+            }
+        }
+        Ok(())
+    }
+
+    /// Records the gateway probe's two interfaces; errs for a mixnode kind's measurements.
+    pub(crate) fn record_client_interfaces(
+        &mut self,
+        client_ingest: PacketDelivery,
+        client_delivery: PacketDelivery,
+    ) -> anyhow::Result<()> {
+        match self {
+            ProbeMeasurements::GatewayLiveness {
+                client_ingest: ingest_slot,
+                client_delivery: delivery_slot,
+            }
+            | ProbeMeasurements::GatewayStress {
+                client_ingest: ingest_slot,
+                client_delivery: delivery_slot,
+            } => {
+                *ingest_slot = client_ingest;
+                *delivery_slot = client_delivery;
+            }
+            ProbeMeasurements::MixnodeLiveness { .. } | ProbeMeasurements::MixnodeStress { .. } => {
+                bail!("a gateway probe was run for a mixnode assignment")
+            }
+        }
+        Ok(())
     }
 
     /// Projects every delivery onto the measurement it is submitted as.
@@ -148,6 +194,13 @@ impl ProbeMeasurements {
             },
             ProbeMeasurements::MixnodeStress { mix_forwarding } => RunMeasurements::MixnodeStress {
                 mix_forwarding: mix_forwarding.into_measurement(sphinx_packet_delay),
+            },
+            ProbeMeasurements::GatewayStress {
+                client_ingest,
+                client_delivery,
+            } => RunMeasurements::GatewayStress {
+                client_ingest: client_ingest.into_measurement(sphinx_packet_delay),
+                client_delivery: client_delivery.into_measurement(sphinx_packet_delay),
             },
         }
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::agent::config::{NodeTesterConfig, ProbeProfile};
-use crate::agent::result::{LatencyDistribution, PacketDelivery, ProbeMeasurements, TestRunResult};
+use crate::agent::result::{LatencyDistribution, PacketDelivery, TestRunResult};
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::mixnet::egress::EgressConnection;
 use crate::mixnet::inbox::TargetInbox;
@@ -11,7 +11,7 @@ use crate::mixnet::sphinx::helpers::{
 };
 use crate::mixnet::sphinx::payload::ProcessedPacket;
 use crate::mixnet::sphinx::test_packet::{TestPacketContent, TestPacketHeader};
-use anyhow::{Context, bail};
+use anyhow::Context;
 use humantime::format_duration;
 use nym_crypto::asymmetric::x25519;
 use nym_network_monitor_orchestrator_requests::models::TestKind;
@@ -408,14 +408,7 @@ impl ProbeRun {
             }
         }
 
-        // a mixnet probe measures the one interface both mixnode kinds exercise
-        match &mut result.measurements {
-            ProbeMeasurements::MixnodeLiveness { mix_forwarding }
-            | ProbeMeasurements::MixnodeStress { mix_forwarding } => *mix_forwarding = measured,
-            ProbeMeasurements::GatewayLiveness { .. } => {
-                bail!("a mixnet probe was run for a gateway liveness assignment")
-            }
-        }
+        result.measurements.record_mix_forwarding(measured)?;
         Ok(result)
     }
 

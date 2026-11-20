@@ -166,6 +166,35 @@ impl AuthorisedAgentsView {
         nodes.remove_all_agents();
         self.noise_view.swap_view(update_permit, nodes);
     }
+
+    /// Replace the whole authorised set with `agents`, as loaded from the contract.
+    ///
+    /// Each structure is built aside and published with a single swap, so none is ever seen empty
+    /// or half-built. The noise map's update permit is held throughout.
+    pub(crate) async fn replace_all(&self, agents: Vec<AuthorisedAgent>) {
+        info!(
+            "replacing the authorised NM agent set with {} agent(s)",
+            agents.len()
+        );
+        let update_permit = self.noise_view.get_update_permit().await;
+
+        self.routing
+            .replace_known(agents.iter().map(|agent| agent.mixnet_address.ip()));
+        self.identities.replace_all(
+            agents
+                .iter()
+                .map(|agent| (agent.mixnet_address, agent.ed25519_identity))
+                .collect(),
+        );
+
+        // nym-node entries stay: they come from the nym-api topology refresher
+        let mut nodes = self.noise_view.all_nodes();
+        nodes.remove_all_agents();
+        for agent in agents {
+            nodes.add_agent(agent.mixnet_address, agent.noise_key);
+        }
+        self.noise_view.swap_view(update_permit, nodes);
+    }
 }
 
 #[cfg(test)]
@@ -230,6 +259,23 @@ mod tests {
 
     fn address(port: u16) -> SocketAddr {
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), port)
+    }
+
+    fn host(n: u8) -> IpAddr {
+        IpAddr::V4(Ipv4Addr::new(10, 0, 0, n))
+    }
+
+    /// An agent alone on `host(n)`, announcing `identity(n)`.
+    fn agent_on_host(n: u8) -> AuthorisedAgent {
+        agent_announcing(SocketAddr::new(host(n), 39322), Some(identity(n as u64)))
+    }
+
+    /// Make `ip` the noise map's only nym-node, as the topology refresher would.
+    async fn put_nym_node(view: &AuthorisedAgentsView, ip: IpAddr) {
+        let permit = view.noise_view.get_update_permit().await;
+        let mut nodes = view.noise_view.all_nodes();
+        nodes.replace_nym_nodes(HashMap::from([(ip, noise_key(9))]));
+        view.noise_view.swap_view(permit, nodes);
     }
 
     // An unusable noise key means the agent cannot be registered at all, so parsing must reject it
@@ -461,11 +507,7 @@ mod tests {
 
         view.add_agent(agent_announcing(address(39322), Some(identity)))
             .await;
-
-        let permit = view.noise_view.get_update_permit().await;
-        let mut nodes = view.noise_view.all_nodes();
-        nodes.replace_nym_nodes(HashMap::from([(node_ip, noise_key(2))]));
-        view.noise_view.swap_view(permit, nodes);
+        put_nym_node(&view, node_ip).await;
 
         view.remove_all().await;
 
@@ -474,5 +516,33 @@ mod tests {
         assert!(stored.get(node_ip).is_some_and(NoiseNode::is_nym_node));
         assert!(!view.routing.is_known(&agent_ip));
         assert!(!view.identities.is_announced(&identity));
+    }
+
+    // A reload has to leave exactly the loaded set: an agent revoked while no watcher was running
+    // goes, one authorised meanwhile arrives, and the topology refresher's entries stay.
+    #[tokio::test]
+    async fn replacing_the_set_drops_what_is_gone_and_adds_what_is_new() {
+        let view = view();
+        let [a, b, c, d] = [1, 2, 3, 4];
+        let node_ip = IpAddr::V4(Ipv4Addr::new(5, 6, 7, 8));
+
+        for n in [a, b, c] {
+            view.add_agent(agent_on_host(n)).await;
+        }
+        put_nym_node(&view, node_ip).await;
+
+        view.replace_all(vec![agent_on_host(a), agent_on_host(b), agent_on_host(d)])
+            .await;
+
+        let noise = view.noise_view.all_nodes();
+        for n in [a, b, d] {
+            assert!(view.routing.is_known(&host(n)));
+            assert!(noise.contains(host(n)));
+            assert!(view.identities.is_announced(&identity(n as u64)));
+        }
+        assert!(!view.routing.is_known(&host(c)));
+        assert!(!noise.contains(host(c)));
+        assert!(!view.identities.is_announced(&identity(c as u64)));
+        assert!(noise.get(node_ip).is_some_and(NoiseNode::is_nym_node));
     }
 }

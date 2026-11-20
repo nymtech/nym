@@ -26,7 +26,7 @@ use crate::node::nym_apis_client::NymApisClient;
 use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use crate::node::shared_network::{CachedFullTopology, CachedNetwork, NymTopologyBuilder};
 use nym_node_metrics::prometheus_wrapper::{PROMETHEUS_METRICS, PrometheusMetric};
-use nym_noise::config::{NoiseNetworkView, NoiseNode};
+use nym_noise::config::NoiseNetworkView;
 use nym_task::ShutdownToken;
 use nym_topology::EpochRewardedSet;
 use nym_topology::provider_trait::ToTopologyMetadata;
@@ -223,37 +223,26 @@ impl NetworkRefresher {
 
     async fn update_noise_view(&mut self, nodes: &[SemiSkimmedNodeV1]) {
         let noise_update_permit = self.network.noise_view.get_update_permit().await;
-        let current_nodes = self.network.noise_view.all_nodes();
 
-        let mut new_noise_nodes = HashMap::new();
-
-        // Rebuild the noise map in two passes to respect the two independent data sources:
-        //
-        // 1. Preserve existing NM agent entries — these come from blockchain events processed
-        //    by `NetworkMonitorAgentsModule` and are NOT available from nym-api. Dropping them
-        //    here would leave agents unable to perform noise handshakes until their
-        //    registration is renewed.
-        // Keys are canonicalised so the map matches what supports_noise/get_noise_key look up.
-        for (ip, node) in current_nodes {
-            if !node.is_nym_node() {
-                new_noise_nodes.insert(ip.to_canonical(), node);
-            }
-        }
-
-        // 2. Replace all nym-node entries with fresh data from nym-api.
-        //    (Stale nym-node keys are safe to overwrite — the source of truth is always nym-api)
+        // nym-api is the source of truth for nym-node keys, so all of them are replaced. NM agent
+        // entries come from blockchain events processed by `NetworkMonitorAgentsModule` and are
+        // NOT available from nym-api, so they stay.
+        let mut fresh = HashMap::new();
         for node in nodes {
             let Some(noise_key) = node.x25519_noise_versioned_key else {
                 continue;
             };
-            let entry = NoiseNode::new_nym_node(noise_key);
             for ip_addr in &node.basic.ip_addresses {
-                new_noise_nodes.insert(ip_addr.to_canonical(), entry.clone());
+                // canonical here, so an address listed in two forms resolves in nym-api's order
+                fresh.insert(ip_addr.to_canonical(), noise_key);
             }
         }
+
+        let mut noise_nodes = self.network.noise_view.all_nodes();
+        noise_nodes.replace_nym_nodes(fresh);
         self.network
             .noise_view
-            .swap_view(noise_update_permit, new_noise_nodes);
+            .swap_view(noise_update_permit, noise_nodes);
     }
 
     /// Replace the LP directory wholesale: nym-api is its only source, so nothing is preserved.

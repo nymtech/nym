@@ -8,7 +8,7 @@ use crate::nym_node::Role;
 use crate::reward_params::{ActiveSetUpdate, IntervalRewardParams, IntervalRewardingParamsUpdate};
 use crate::rewarding::RewardDistribution;
 use crate::{BlockHeight, ContractStateParamsUpdate, EpochId, IdentityKeyRef, Interval, NodeId};
-use cosmwasm_std::{Addr, Coin, Decimal, Event, attr};
+use cosmwasm_std::{attr, Addr, Coin, Decimal, Event};
 pub use nym_contracts_common::events::*;
 use std::fmt::Display;
 
@@ -44,6 +44,9 @@ pub enum MixnetEventType {
     Delegation,
     DelegationOnUnbonding,
     Undelegation,
+    PendingRedelegation,
+    Redelegation,
+    RedelegationFailed,
     ContractSettingsUpdate,
     NymNodeSemverUpdate,
     RewardingValidatorUpdate,
@@ -97,6 +100,9 @@ impl Display for MixnetEventType {
             MixnetEventType::PendingUndelegation => "pending_undelegation",
             MixnetEventType::Delegation => "delegation",
             MixnetEventType::Undelegation => "undelegation",
+            MixnetEventType::PendingRedelegation => "pending_redelegation",
+            MixnetEventType::Redelegation => "redelegation",
+            MixnetEventType::RedelegationFailed => "redelegation_failed",
             MixnetEventType::ContractSettingsUpdate => "settings_update",
             MixnetEventType::NymNodeSemverUpdate => "nym_node_semver_update",
             MixnetEventType::RewardingValidatorUpdate => "rewarding_validator_address_update",
@@ -126,6 +132,7 @@ pub const ERROR_MESSAGE_KEY: &str = "error_message";
 // delegation/undelegation
 pub const DELEGATOR_KEY: &str = "delegator";
 pub const DELEGATION_TARGET_KEY: &str = "delegation_target";
+pub const REDELEGATION_SOURCE_KEY: &str = "redelegation_source";
 pub const UNIT_REWARD_KEY: &str = "unit_reward";
 
 // bonding/unbonding
@@ -208,6 +215,42 @@ pub fn new_pending_delegation_event(delegator: &Addr, amount: &Coin, mix_id: Nod
         .add_attribute(DELEGATOR_KEY, delegator)
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
+}
+
+pub fn new_pending_redelegation_event(delegator: &Addr, from_node_id: NodeId) -> Event {
+    Event::new(MixnetEventType::PendingRedelegation)
+        .add_attribute(DELEGATOR_KEY, delegator)
+        .add_attribute(REDELEGATION_SOURCE_KEY, from_node_id.to_string())
+}
+
+/// Emitted for each target share.
+pub fn new_redelegation_event(
+    created_at: BlockHeight,
+    delegator: &Addr,
+    from_node_id: NodeId,
+    to_node_id: NodeId,
+    amount: &Coin,
+) -> Event {
+    Event::new(MixnetEventType::Redelegation)
+        .add_attribute(EVENT_CREATION_HEIGHT_KEY, created_at.to_string())
+        .add_attribute(DELEGATOR_KEY, delegator)
+        .add_attribute(REDELEGATION_SOURCE_KEY, from_node_id.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, to_node_id.to_string())
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
+/// Emitted when a queued redelegation does not move the source delegation.
+pub fn new_redelegation_failed_event(
+    created_at: BlockHeight,
+    delegator: &Addr,
+    from_node_id: NodeId,
+    reason: &str,
+) -> Event {
+    Event::new(MixnetEventType::RedelegationFailed)
+        .add_attribute(EVENT_CREATION_HEIGHT_KEY, created_at.to_string())
+        .add_attribute(DELEGATOR_KEY, delegator)
+        .add_attribute(REDELEGATION_SOURCE_KEY, from_node_id.to_string())
+        .add_attribute(ERROR_MESSAGE_KEY, reason)
 }
 
 pub fn new_withdraw_operator_reward_event(owner: &Addr, amount: Coin, mix_id: NodeId) -> Event {

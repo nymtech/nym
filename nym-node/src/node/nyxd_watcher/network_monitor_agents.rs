@@ -19,11 +19,15 @@
 //! Only transactions executed against the configured Network Monitors contract address are
 //! processed.
 
+use crate::error::NymNodeError;
 use crate::node::authorised_agents::{AuthorisedAgent, AuthorisedAgentsView};
 use async_trait::async_trait;
+use nym_validator_client::nyxd;
+use nym_validator_client::nyxd::contract_traits::PinnedNetworkMonitorsQueryClient;
 use nym_validator_client::nyxd::cosmwasm::MsgExecuteContract;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::ExecuteMsg;
-use nym_validator_client::nyxd::{AccountId, Any, Msg, Name};
+use nym_validator_client::nyxd::{AccountId, Any, Height, Msg, Name};
 use nyxd_scraper_shared::error::ScraperError;
 use nyxd_scraper_shared::{DecodedMessage, MsgModule, ParsedTransactionDetails, parse_msg};
 use tracing::error;
@@ -32,25 +36,57 @@ use tracing::error;
 ///
 /// Watches for `MsgExecuteContract` messages targeting the Network Monitors smart contract
 /// and updates the runtime view of authorised agents accordingly.
+///
+/// Cloning is cheap and every clone updates the same view.
+#[derive(Clone)]
 pub(crate) struct NetworkMonitorAgentsModule {
     /// The on-chain address of the Network Monitors smart contract.
     /// Only messages to this contract are processed.
-    pub(crate) contract_address: AccountId,
+    contract_address: AccountId,
 
     /// Shared handle to every structure derived from the authorised-agent set.
     /// Updates are immediately visible to all packet processing threads.
-    pub(crate) authorised_agents: AuthorisedAgentsView,
+    authorised_agents: AuthorisedAgentsView,
 }
 
 impl NetworkMonitorAgentsModule {
     pub(crate) fn new(
-        contract_address: AccountId,
+        nyxd_config: &nyxd::Config,
         authorised_agents: AuthorisedAgentsView,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, NymNodeError> {
+        let contract_address = nyxd_config
+            .contracts()
+            .network_monitors_contract_address
+            .clone()
+            .ok_or(NymNodeError::MissingNetworkMonitorsContractAddress)?;
+
+        Ok(NetworkMonitorAgentsModule {
             contract_address,
             authorised_agents,
-        }
+        })
+    }
+
+    /// The authorised set as the contract held it at `height`.
+    pub(crate) async fn load_at<C>(
+        &self,
+        client: &C,
+        height: Height,
+    ) -> Result<Vec<AuthorisedAgent>, NyxdError>
+    where
+        C: PinnedNetworkMonitorsQueryClient + Sync,
+    {
+        let entries = client
+            .get_all_network_monitor_agents_at_height(height)
+            .await?;
+        Ok(entries
+            .into_iter()
+            .filter_map(AuthorisedAgent::parse_contract_entry)
+            .collect())
+    }
+
+    /// Make `agents` the node's whole authorised set.
+    pub(crate) async fn publish(&self, agents: Vec<AuthorisedAgent>) {
+        self.authorised_agents.replace_all(agents).await
     }
 }
 

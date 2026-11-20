@@ -5,7 +5,7 @@ use self::helpers::load_x25519_wireguard_keypair;
 use crate::config::helpers::gateway_tasks_config;
 use crate::config::{Config, DEFAULT_MIXNET_PORT, GatewayTasksConfig, NodeModes, Wireguard};
 use crate::error::{EntryGatewayError, NymNodeError, ServiceProvidersError};
-use crate::node::authorised_agents::{AuthorisedAgent, AuthorisedAgentsView};
+use crate::node::authorised_agents::AuthorisedAgentsView;
 use crate::node::description::save_node_description;
 use crate::node::helpers::{
     DisplayDetails, DisplayLpDetails, get_current_rotation_id, load_ed25519_identity_keypair,
@@ -39,6 +39,7 @@ use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::nyx_client::NyxClient;
 use crate::node::nyxd_watcher::network_monitor_agents::NetworkMonitorAgentsModule;
+use crate::node::nyxd_watcher::supervisor::NyxWatcherSupervisor;
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
@@ -70,13 +71,11 @@ use nym_node_metrics::events::MetricEventsSender;
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
 use nym_validator_client::UserAgent;
+use nym_validator_client::nyxd;
 use nym_validator_client::nyxd::AccountId;
-use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
-use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
-use nyxd_scraper_shared::watcher::{NyxdWatcher, WatcherConfig};
 use rand::SeedableRng;
 use std::net::SocketAddr;
 use std::ops::Deref;
@@ -208,6 +207,9 @@ pub struct NymNode {
     upgrade_mode_state: UpgradeModeState,
 
     nyx_client: NyxClient,
+
+    /// Start even when the first nyx watcher cannot be started.
+    allow_nyx_watcher_startup_failure: bool,
 
     wireguard: Option<WireguardData>,
 
@@ -428,6 +430,7 @@ impl NymNode {
                 config.gateway_tasks.upgrade_mode.attester_public_key,
             ),
             nyx_client,
+            allow_nyx_watcher_startup_failure: false,
             wireguard: Some(wireguard_data),
             config,
             shutdown_manager: ShutdownManager::build_new_default()
@@ -436,6 +439,12 @@ impl NymNode {
             network,
             public_details: node_details,
         })
+    }
+
+    #[must_use]
+    pub(crate) fn with_allowed_nyx_watcher_startup_failure(mut self, allowed: bool) -> Self {
+        self.allow_nyx_watcher_startup_failure = allowed;
+        self
     }
 
     pub(crate) fn shutdown_tracker(&self) -> &ShutdownTracker {
@@ -1127,49 +1136,34 @@ impl NymNode {
         Ok(())
     }
 
-    async fn known_network_monitors(&self) -> Result<Vec<AuthorisedNetworkMonitor>, NymNodeError> {
-        info!("obtaining the list of known network monitors");
-
-        Ok(self
-            .nyx_client
-            .read()
-            .await
-            .get_all_network_monitor_agents()
-            .await?)
-    }
-
-    async fn setup_nyx_chain_watcher(
+    async fn setup_nyx_watcher_supervisor(
         &self,
         authorised_agents: AuthorisedAgentsView,
     ) -> Result<(), NymNodeError> {
         info!("setting up nyx chain watcher");
 
-        // START: module creation
-        let Some(Ok(contract_address)) = self
-            .network
-            .contracts
-            .network_monitors_contract_address
-            .as_ref()
-            .map(|addr| addr.parse())
-        else {
-            // **THEORETICALLY** this should be impossible, for we have already created a nyxd client and
-            // queried this very contract before
-            return Err(NymNodeError::MissingNetworkMonitorsContractAddress);
-        };
-        let nm_agents = NetworkMonitorAgentsModule::new(contract_address, authorised_agents);
+        let nyxd_config = nyxd::Config::try_from_nym_network_details(&self.network)?;
 
-        // END: module creation
-        let cancellation = self.shutdown_manager.clone_shutdown_token();
+        // ===== START: module setup =====
 
-        let config = WatcherConfig {
-            websocket_url: self.config.nyx.nyxd_websocket_url.clone(),
-            rpc_urls: self.config.nyx.nyxd_urls_with_fallbacks(),
-        };
-        let watcher = NyxdWatcher::builder(config)
-            .with_msg_module(nm_agents)
-            .with_custom_shutdown(cancellation.to_cancellation_token());
+        // network monitors
+        let network_monitors = NetworkMonitorAgentsModule::new(&nyxd_config, authorised_agents)?;
+        // ===== END: module setup =====
 
-        watcher.build_and_start().await?;
+        let mut supervisor = NyxWatcherSupervisor::new(
+            (&self.config.nyx).into(),
+            nyxd_config,
+            network_monitors,
+            self.shutdown_manager.clone_shutdown_token(),
+        )?;
+        supervisor
+            .boot(self.allow_nyx_watcher_startup_failure)
+            .await?;
+
+        self.shutdown_tracker().try_spawn_named(
+            async move { supervisor.run().await },
+            "NyxWatcherSupervisor",
+        );
         Ok(())
     }
 
@@ -1246,17 +1240,13 @@ impl NymNode {
         let monitor_identities = AuthorisedMonitorIdentities::default();
         let lp_nodes = LpNodes::new_empty();
 
-        // fold the initial list of known network monitors into the structures derived from it
+        // every structure derived from the authorised network monitor agents, filled in by the nyx
+        // watcher supervisor below
         let authorised_agents = AuthorisedAgentsView::new(
             routing_filter.known_network_monitors_handle(),
             noise_view.clone(),
             monitor_identities.clone(),
         );
-        for agent in self.known_network_monitors().await? {
-            if let Some(agent) = AuthorisedAgent::parse_contract_entry(agent) {
-                authorised_agents.add_agent(agent).await;
-            }
-        }
 
         // retrieve the initial view of the network and update the known set of nym nodes in the routing filter
         let network_refresher = self
@@ -1268,8 +1258,8 @@ impl NymNode {
             )
             .await?;
 
-        // setup nyx chain watcher (currently only used for updating the network monitors view)
-        self.setup_nyx_chain_watcher(authorised_agents).await?;
+        // load the authorised network monitor agents and keep them current through the nyx chain watcher
+        self.setup_nyx_watcher_supervisor(authorised_agents).await?;
 
         let active_clients_store = ActiveClientsStore::new();
 

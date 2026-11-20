@@ -153,14 +153,20 @@ impl NyxdWatcher {
 
     pub async fn stop(self) {
         info!("stopping the chain watcher");
-        assert!(self.task_tracker.is_closed());
 
+        // the tracker may be open here: the subscriber reopens it briefly for every new subscription
         self.cancel_token.cancel();
         self.task_tracker.wait().await
     }
 
-    pub fn cancel_token(&self) -> CancellationToken {
+    fn cancel_token(&self) -> CancellationToken {
         self.cancel_token.clone()
+    }
+
+    /// Resolves once the watcher has begun to end, for whatever reason; [`Self::stop`] then waits
+    /// for its tasks.
+    pub async fn ended(&self) {
+        self.cancel_token.cancelled().await
     }
 
     pub fn is_cancelled(&self) -> bool {

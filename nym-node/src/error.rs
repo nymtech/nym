@@ -268,6 +268,9 @@ pub enum NymNodeError {
     #[error(transparent)]
     ChainWatcherFailure(#[from] ScraperError),
 
+    #[error("no nyx endpoint could provide the chain state at a single height")]
+    NyxStateUnavailable,
+
     #[error("failed to generate randomness: {0}")]
     RngFailure(#[from] getrandom::Error),
 }

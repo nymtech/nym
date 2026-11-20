@@ -34,5 +34,5 @@ No configuration file changes, no new config version, and the websocket URL in e
 - **`common/client-libs/validator-client`**: a height-pinned variant of the paged network-monitor agents query.
 - **`nym-node`**: a supervisor task owning the watcher, startup wiring, the new CLI flag and env variable, a replace-everything method on the authorised-agents view, one metric.
 - **`common/authorised-network-monitors`**, **`common/nymnoise`** (read only), **`nym-node` routing filter**: whole-structure replacement of the announced identities and of the routing set.
-- **Operators**: a node that today would fail to start on a transient RPC failure now retries for about ten seconds first. A node started with the new flag and no reachable chain endpoint rejects every monitor agent until its first successful load.
+- **Operators**: a node that today would fail to start on a transient RPC failure now retries for about twenty seconds first. A node started with the new flag and no reachable chain endpoint rejects every monitor agent until its first successful load.
 - **No contract, wire format or config changes.**

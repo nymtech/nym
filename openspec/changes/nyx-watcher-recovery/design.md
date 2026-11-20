@@ -100,7 +100,7 @@ Alternatives considered: adding the new agents and then removing the stale ones 
 
 ### 9. Boot keeps today's rule, with an opt-out flag
 
-Without a working watcher the node refuses to start, as today. Pinning adds a new way for the first load to fail (a lagging backend), so boot makes 3 attempts 5 seconds apart, about one block.
+Without a working watcher the node refuses to start, as today. Pinning adds a new way for the first load to fail (a lagging backend), so boot makes 3 attempts 10 seconds apart. Each attempt reads a fresh height, so the pause does not wait out a lagging backend; it gives a briefly unavailable endpoint time to come back.
 
 `--allow-nyx-watcher-startup-failure` (`NYMNODE_ALLOW_NYX_WATCHER_STARTUP_FAILURE`) makes a single attempt and, on failure, starts the node with an empty agent set and lets the supervisor keep trying. It is a run-only flag like `--deny-init` and `--local`, not a config field, and it is visible in `--help`: it is an operator's escape hatch, not a tuning knob.
 
@@ -112,7 +112,7 @@ A failure to decode the `MsgExecuteContract` envelope itself still fails the blo
 
 ### 11. Timings are constants
 
-The stall limit (2 minutes) lives beside the processor's existing constants. The supervisor's first wait (30 seconds), cap (15 minutes), boot attempts (3) and boot pause (5 seconds) live in the supervisor. None is a config field. They can become fields later without touching the design.
+The stall limit (2 minutes) lives beside the processor's existing constants. The supervisor's first wait (30 seconds), cap (15 minutes), boot attempts (3) and boot pause (10 seconds) live in the supervisor. None is a config field. They can become fields later without touching the design.
 
 ### 12. Naming
 

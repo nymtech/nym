@@ -13,8 +13,8 @@
 
 ## 3. Agent: gateway stress
 
-- [ ] 3.1 Config: add the gateway stress profile and its per-target timeout to `NodeTesterConfig`, give `profile_for` and `per_target_timeout` their `GatewayStress` arms, and take the session's receive timeout from the profile of the kind being run
-- [ ] 3.2 CLI: add the five `--gateway-stress-*` flags and environment variables with the initial values (200 packets/second, 30s, batches of 10, 5s wait, 3m timeout), and reword the existing stress flags' help text as the mixnode stress profile, names unchanged
+- [x] 3.1 Config: add the gateway stress profile and its per-target timeout to `NodeTesterConfig`, give `profile_for` and `per_target_timeout` their `GatewayStress` arms, and take the session's receive timeout from the profile of the kind being run
+- [x] 3.2 CLI: add the five `--gateway-stress-*` flags and environment variables with the initial values (200 packets/second, 30s, batches of 10, 5s wait, 3m timeout), and rename the five existing stress flags and their environment variables to `--mixnode-stress-*` / `NYM_NETWORK_MONITOR_AGENT_MIXNODE_STRESS_*` (code fields to match), with no aliases and no check for the old names
 - [ ] 3.3 Make the gateway probe and its wave take the kind (profile, deadline, result variant); add `ProbeMeasurements::GatewayStress` with its `unmeasured` and wire-conversion arms and its arm in the mixnet probe's refusal of gateway kinds; rename the types so they no longer say liveness; rewrite the comments claiming a gateway stress test would not resemble the liveness probe
 - [ ] 3.4 Dispatch `TestRunAssignment::GatewayStress` as a gateway wave of one
 - [ ] 3.5 Add the manual `test-gateway-stress` command beside `test-gateway-liveness`
@@ -46,5 +46,5 @@
 - [ ] 7.1 `cargo fmt`; `cargo check --all-targets` and the tests of the agent, the requests crate (also with `--features openapi`) and the orchestrator
 - [ ] 7.2 Read the diff against every scenario of the three delta specs, and record in design Decision 11 which scenarios are left untested and why
 - [ ] 7.3 Run `test-gateway-stress` against real gateways and record the rate each sustains, as the input for raising the profile. Not a gate on the first deploy
-- [ ] 7.4 PR description: the new kind, the gateway liveness behaviour change (send window, partial credit), the lenient initial values with the note that they will be raised progressively, the reward effect on gateways, and that orchestrator and agents deploy together
+- [ ] 7.4 PR description: the new kind, the gateway liveness behaviour change (send window, partial credit), the lenient initial values with the note that they will be raised progressively, the reward effect on gateways, that orchestrator and agents deploy together, and a section of its own on the renamed mixnode stress flags and environment variables: a table of every old name to its new one, and the warning that a deployment script still setting an old variable silently gets the default
 - [ ] 7.5 Sync the main specs by hand (two scenario titles are renamed, so `openspec archive` would abort), check `git diff openspec/specs` line by line, and archive the change in the PR with `--skip-specs`

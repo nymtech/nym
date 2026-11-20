@@ -198,7 +198,8 @@ impl GatewayMixnetLivenessProbe {
         let (session, delivery_arrivals) = match GatewaySession::establish(
             self.session_target(),
             &self.client_identity,
-            self.config.gateway_session_config(),
+            self.config
+                .gateway_session_config(TestKind::GatewayLiveness),
             shutdown,
         )
         .await

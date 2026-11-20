@@ -71,9 +71,9 @@ Five agent knobs, each with an environment variable: `--gateway-stress-target-ra
 
 Initial values: 200 packets/second for 30 seconds (6000 packets per phase), batches of 10 (a dispatch every 50 ms, the mixnode stress cadence), a 5 second straggler wait. Gateways have never been tested under load and are expected to be less resilient than mixnodes, so the rate starts at a fifth of the mixnode profile's. It is still four times the liveness rate held thirty times as long. The values are provisional and are raised progressively through deployment configuration as runs against real gateways show what they sustain; the PR description says so.
 
-The existing stress knobs (`--target-rate`, `--sending-duration`, `--sending-batch-size`, `--waiting-duration`, `--stress-per-target-timeout`) keep their names and environment variables. Only their help text changes, to say they are the mixnode stress profile.
+The existing stress knobs (`--target-rate`, `--sending-duration`, `--sending-batch-size`, `--waiting-duration`, `--stress-per-target-timeout`) are renamed `--mixnode-stress-*`, and their environment variables `NYM_NETWORK_MONITOR_AGENT_MIXNODE_STRESS_*`, so that beside the gateway stress knobs neither can be read as the other's. The old names are dropped, not aliased: the deployment scripts are updated in the same redeploy.
 
-Alternatives considered: sharing the mixnode stress profile (no new knobs, but one pass mark for two very different paths); the mixnode values as the starting point (no evidence gateways meet them, and the result is reward-affecting); renaming the existing knobs to `--mixnode-stress-*` (symmetric, but changes every deployed flag and variable).
+Alternatives considered: sharing the mixnode stress profile (no new knobs, but one pass mark for two very different paths); the mixnode values as the starting point (no evidence gateways meet them, and the result is reward-affecting); keeping the existing names (ambiguous beside `--gateway-stress-*`); keeping the old names working (clap aliases a flag but not an environment variable, so each old variable would need a hidden argument of its own).
 
 ### 6. Its own per-target deadline, 3 minutes, unvalidated
 
@@ -119,6 +119,7 @@ The phase rules of Decisions 3 and 4 are not unit-tested: they live on the run, 
 - [The pass mark is a judgement, not a measurement] → lenient initial values, every one tunable by environment, and task 7.3 measures real gateways with the manual command to decide each increase. It is not a gate on the first deploy.
 - [Reward-affecting step in gateway scores when the kind clears the coverage guard] → small for a healthy gateway at the initial values; called out in the PR description.
 - [The kind takes every agent request until each gateway has been tested once] → a consequence of the scheduler's never-tested rule, accepted as it was for the liveness kinds. At single-target runs of about 70 seconds it lasts longer than a liveness first pass, and it is short against the 6 hour liveness window.
+- [Renamed mixnode stress knobs] → a deployment still setting an old variable gets the mixnode stress defaults without an error. The deployment scripts are switched in the same redeploy, and the PR description lists each rename.
 - [Agent and orchestrator must match] → an agent built before this change cannot parse a gateway stress assignment and would leave its target locked for the lease. The two are redeployed together; `--gateway-stress-enabled false` is the fallback.
 - [One rate serves both interfaces] → the websocket ingest loop and the mix-port delivery path probably have different ceilings, so the rate has to suit the slower one. Per-phase rates are not introduced.
 - [The egress phase follows the ingress phase] → a gateway still working through an ingress backlog is measured on delivery under that load. Not designed around: a gateway in that state is not sustaining the profile.
@@ -128,7 +129,7 @@ The phase rules of Decisions 3 and 4 are not unit-tested: they live on the run, 
 
 ## Migration Plan
 
-1. Deploy the orchestrator and the agents together. The migration is additive: one `test_kind` row and one new table.
+1. Deploy the orchestrator and the agents together, with the agents' deployment scripts switched to the renamed mixnode stress variables. The migration is additive: one `test_kind` row and one new table.
 2. Gateway stress starts at once (the switch defaults to on) and is offered on every request until its first pass completes. It enters the contract submission in the first epoch in which half the gateways have a reachable aggregate.
 3. Raise the profile's values through the agents' environment as measurements allow.
 

@@ -11,13 +11,13 @@ use std::time::Duration;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct CommonArgs {
-    /// Specifies for how long the agent should be sending test packets with the specified rate.
-    #[arg(long, value_parser = humantime::parse_duration, default_value = "30s", env = NYM_NETWORK_MONITOR_AGENT_SENDING_DURATION_ARG)]
-    sending_duration: Duration,
+    /// How long a mixnode stress probe sends test packets at its target rate.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "30s", env = NYM_NETWORK_MONITOR_AGENT_MIXNODE_STRESS_SENDING_DURATION_ARG)]
+    mixnode_stress_sending_duration: Duration,
 
-    /// Specifies how long the agent will wait to receive any leftover packets after finishing sending.
-    #[arg(long, value_parser = humantime::parse_duration, default_value = "5s", env = NYM_NETWORK_MONITOR_AGENT_WAITING_DURATION_ARG)]
-    waiting_duration: Duration,
+    /// How long a mixnode stress probe waits for leftover packets after it has finished sending.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "5s", env = NYM_NETWORK_MONITOR_AGENT_MIXNODE_STRESS_WAITING_DURATION_ARG)]
+    mixnode_stress_waiting_duration: Duration,
 
     /// How long the node itself should delay the packet
     /// It shouldn't be set to zero as otherwise the node will not put the packet through
@@ -25,9 +25,9 @@ pub(crate) struct CommonArgs {
     #[arg(long, value_parser = humantime::parse_duration, default_value = "50ms", env = NYM_NETWORK_MONITOR_AGENT_PACKET_DELAY_ARG)]
     packet_delay: Duration,
 
-    /// Specifies the target rate of packets (per second) to be sent.
-    #[arg(long, default_value = "1000", env = NYM_NETWORK_MONITOR_AGENT_TARGET_RATE_ARG)]
-    target_rate: NonZeroUsize,
+    /// Target rate of packets (per second) a mixnode stress probe sends.
+    #[arg(long, default_value = "1000", env = NYM_NETWORK_MONITOR_AGENT_MIXNODE_STRESS_TARGET_RATE_ARG)]
+    mixnode_stress_target_rate: NonZeroUsize,
 
     /// Specifies whether the agent should reuse the same header for all packets.
     /// And consequently replay them
@@ -42,10 +42,11 @@ pub(crate) struct CommonArgs {
     #[arg(long, value_parser = humantime::parse_duration, default_value = "3s", env = NYM_NETWORK_MONITOR_AGENT_NOISE_HANDSHAKE_TIMEOUT_ARG)]
     noise_handshake_timeout: Duration,
 
-    /// Number of packets sent in a single batch. Together with `target_rate` this controls
-    /// how frequently batches are dispatched: one batch every `sending_batch_size / target_rate` seconds.
-    #[arg(long, default_value = "50", env = NYM_NETWORK_MONITOR_AGENT_SENDING_BATCH_SIZE_ARG)]
-    sending_batch_size: NonZeroUsize,
+    /// Number of packets a mixnode stress probe sends in a single batch. Together with the target
+    /// rate this controls how frequently batches are dispatched: one batch every
+    /// `batch size / target rate` seconds.
+    #[arg(long, default_value = "50", env = NYM_NETWORK_MONITOR_AGENT_MIXNODE_STRESS_SENDING_BATCH_SIZE_ARG)]
+    mixnode_stress_sending_batch_size: NonZeroUsize,
 
     /// Specifies the path to the noise key file used for establishing tunnel with the node being tested
     #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_NOISE_KEY_PATH_ARG)]
@@ -55,10 +56,35 @@ pub(crate) struct CommonArgs {
     #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_BIND_ADDRESS_ARG, default_value = "[::]:9000")]
     bind_address: SocketAddr,
 
-    /// Hard deadline for a stress probe. It must sit inside the orchestrator's stress lease, or a
-    /// result held up by a node's TCP back-pressure arrives after the lease and is discarded.
-    #[arg(long, value_parser = humantime::parse_duration, default_value = "2m", env = NYM_NETWORK_MONITOR_AGENT_STRESS_PER_TARGET_TIMEOUT_ARG)]
-    stress_per_target_timeout: Duration,
+    /// Hard deadline for a mixnode stress probe. It must sit inside the orchestrator's stress lease,
+    /// or a result held up by a node's TCP back-pressure arrives after the lease and is discarded.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "2m", env = NYM_NETWORK_MONITOR_AGENT_MIXNODE_STRESS_PER_TARGET_TIMEOUT_ARG)]
+    mixnode_stress_per_target_timeout: Duration,
+
+    /// Target rate of packets (per second) a gateway stress probe sends in EACH of its two phases.
+    /// Provisional and deliberately lenient: gateways have never been tested under load, so it
+    /// starts at a fifth of the mixnode stress rate and is meant to be raised.
+    #[arg(long, default_value = "200", env = NYM_NETWORK_MONITOR_AGENT_GATEWAY_STRESS_TARGET_RATE_ARG)]
+    gateway_stress_target_rate: NonZeroUsize,
+
+    /// How long EACH phase of a gateway stress probe sends test packets at its target rate.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "30s", env = NYM_NETWORK_MONITOR_AGENT_GATEWAY_STRESS_SENDING_DURATION_ARG)]
+    gateway_stress_sending_duration: Duration,
+
+    /// Number of packets a gateway stress probe sends in a single batch: one batch every
+    /// `batch size / target rate` seconds, 50ms at the defaults.
+    #[arg(long, default_value = "10", env = NYM_NETWORK_MONITOR_AGENT_GATEWAY_STRESS_SENDING_BATCH_SIZE_ARG)]
+    gateway_stress_sending_batch_size: NonZeroUsize,
+
+    /// How long EACH phase of a gateway stress probe waits for leftover packets after it has
+    /// finished sending.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "5s", env = NYM_NETWORK_MONITOR_AGENT_GATEWAY_STRESS_WAITING_DURATION_ARG)]
+    gateway_stress_waiting_duration: Duration,
+
+    /// Hard deadline for a gateway stress probe, both phases together. It must sit inside the
+    /// orchestrator's stress lease, which gateway stress shares with mixnode stress.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "3m", env = NYM_NETWORK_MONITOR_AGENT_GATEWAY_STRESS_PER_TARGET_TIMEOUT_ARG)]
+    gateway_stress_per_target_timeout: Duration,
 
     /// Number of test packets a liveness probe sends to EACH target of a wave. This is the primary
     /// knob of the liveness profile: its send window derives from this and the liveness target rate
@@ -117,8 +143,11 @@ impl CommonArgs {
             )
         }
 
-        if self.sending_duration.is_zero() {
-            bail!("attempted to set sending duration to 0s")
+        if self.mixnode_stress_sending_duration.is_zero() {
+            bail!("attempted to set the mixnode stress sending duration to 0s")
+        }
+        if self.gateway_stress_sending_duration.is_zero() {
+            bail!("attempted to set the gateway stress sending duration to 0s")
         }
         if self.egress_connection_timeout.is_zero() {
             bail!("attempted to set egress connection timeout to 0s")
@@ -129,8 +158,11 @@ impl CommonArgs {
         if self.liveness_per_target_timeout.is_zero() {
             bail!("attempted to set the liveness per-target timeout to 0s")
         }
-        if self.stress_per_target_timeout.is_zero() {
-            bail!("attempted to set the stress per-target timeout to 0s")
+        if self.mixnode_stress_per_target_timeout.is_zero() {
+            bail!("attempted to set the mixnode stress per-target timeout to 0s")
+        }
+        if self.gateway_stress_per_target_timeout.is_zero() {
+            bail!("attempted to set the gateway stress per-target timeout to 0s")
         }
         if self.session_connect_timeout.is_zero() {
             bail!("attempted to set the gateway session connect timeout to 0s")
@@ -140,11 +172,17 @@ impl CommonArgs {
         }
 
         Ok(NodeTesterConfig {
-            stress_profile: ProbeProfile::stress(
-                self.target_rate,
-                self.sending_duration,
-                self.waiting_duration,
-                self.sending_batch_size,
+            mixnode_stress_profile: ProbeProfile::stress(
+                self.mixnode_stress_target_rate,
+                self.mixnode_stress_sending_duration,
+                self.mixnode_stress_waiting_duration,
+                self.mixnode_stress_sending_batch_size,
+            ),
+            gateway_stress_profile: ProbeProfile::stress(
+                self.gateway_stress_target_rate,
+                self.gateway_stress_sending_duration,
+                self.gateway_stress_waiting_duration,
+                self.gateway_stress_sending_batch_size,
             ),
             liveness_profile: ProbeProfile::liveness(
                 self.liveness_packets,
@@ -152,7 +190,8 @@ impl CommonArgs {
                 self.liveness_waiting_duration,
             ),
             liveness_per_target_timeout: self.liveness_per_target_timeout,
-            stress_per_target_timeout: self.stress_per_target_timeout,
+            mixnode_stress_per_target_timeout: self.mixnode_stress_per_target_timeout,
+            gateway_stress_per_target_timeout: self.gateway_stress_per_target_timeout,
             session_connect_timeout: self.session_connect_timeout,
             session_registration_timeout: self.session_registration_timeout,
             packet_delay: self.packet_delay,
@@ -218,10 +257,10 @@ mod tests {
         assert_eq!(config.liveness_per_target_timeout, Duration::from_secs(30));
     }
 
-    // splitting the two profiles must not move the stress test, whose values are already deployed
+    // splitting the profiles must not move the mixnode stress test, whose values are already deployed
     #[test]
-    fn the_stress_profile_keeps_its_existing_defaults() {
-        let stress = parse(&[]).stress_profile;
+    fn the_mixnode_stress_profile_keeps_its_existing_defaults() {
+        let stress = parse(&[]).mixnode_stress_profile;
 
         assert_eq!(stress.target_rate, 1000);
         assert_eq!(stress.sending_duration, Duration::from_secs(30));
@@ -281,7 +320,8 @@ mod tests {
     fn a_zero_per_target_timeout_is_rejected() {
         for flag in [
             "--liveness-per-target-timeout",
-            "--stress-per-target-timeout",
+            "--mixnode-stress-per-target-timeout",
+            "--gateway-stress-per-target-timeout",
         ] {
             assert!(try_build(&[flag, "0s"]).is_err(), "{flag} accepted a zero");
         }

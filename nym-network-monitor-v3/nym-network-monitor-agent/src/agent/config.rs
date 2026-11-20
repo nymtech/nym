@@ -98,8 +98,11 @@ impl ProbeProfile {
 /// Configuration for the [`NodeStressTester`], controlling packet sending behaviour during a test run.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NodeTesterConfig {
-    /// The sending knobs applied to a stress assignment.
-    pub(crate) stress_profile: ProbeProfile,
+    /// The sending knobs applied to a mixnode stress assignment.
+    pub(crate) mixnode_stress_profile: ProbeProfile,
+
+    /// The sending knobs applied to each of the two phases of a gateway stress assignment.
+    pub(crate) gateway_stress_profile: ProbeProfile,
 
     /// The sending knobs applied to each target of a liveness assignment.
     pub(crate) liveness_profile: ProbeProfile,
@@ -109,8 +112,11 @@ pub(crate) struct NodeTesterConfig {
     /// sit inside the lease the orchestrator stamped on the whole assignment.
     pub(crate) liveness_per_target_timeout: Duration,
 
-    /// Hard deadline for a stress probe. Must sit inside the orchestrator's stress lease.
-    pub(crate) stress_per_target_timeout: Duration,
+    /// Hard deadline for a mixnode stress probe. Must sit inside the orchestrator's stress lease.
+    pub(crate) mixnode_stress_per_target_timeout: Duration,
+
+    /// Hard deadline for a gateway stress probe. Must sit inside the orchestrator's stress lease.
+    pub(crate) gateway_stress_per_target_timeout: Duration,
 
     /// Timeout for opening a gateway's client websocket.
     pub(crate) session_connect_timeout: Duration,
@@ -148,7 +154,8 @@ impl NodeTesterConfig {
     pub(crate) fn profile_for(&self, kind: TestKind) -> ProbeProfile {
         match kind {
             TestKind::MixnodeLiveness | TestKind::GatewayLiveness => self.liveness_profile,
-            TestKind::MixnodeStress => self.stress_profile,
+            TestKind::MixnodeStress => self.mixnode_stress_profile,
+            TestKind::GatewayStress => self.gateway_stress_profile,
         }
     }
 
@@ -161,20 +168,21 @@ impl NodeTesterConfig {
             TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {
                 self.liveness_per_target_timeout
             }
-            TestKind::MixnodeStress => self.stress_per_target_timeout,
+            TestKind::MixnodeStress => self.mixnode_stress_per_target_timeout,
+            TestKind::GatewayStress => self.gateway_stress_per_target_timeout,
         }
     }
 
-    /// The timeouts a gateway client session is held to.
+    /// The timeouts a gateway client session of this kind is held to.
     ///
-    /// The receive timeout is the liveness profile's straggler wait rather than a knob of its own, so
-    /// that both of a gateway run's legs wait the same length for a late packet as a mixnode probe
+    /// The receive timeout is the straggler wait of the kind's profile rather than a knob of its own,
+    /// so that both of a gateway run's legs wait the same length for a late packet as a mixnode probe
     /// does: the mixnet inbox is built with exactly that value.
-    pub(crate) fn gateway_session_config(&self) -> GatewaySessionConfig {
+    pub(crate) fn gateway_session_config(&self, kind: TestKind) -> GatewaySessionConfig {
         GatewaySessionConfig {
             connect_timeout: self.session_connect_timeout,
             registration_timeout: self.session_registration_timeout,
-            receive_timeout: self.liveness_profile.waiting_duration,
+            receive_timeout: self.profile_for(kind).waiting_duration,
         }
     }
 
@@ -206,11 +214,17 @@ impl NodeTesterConfig {
         let nonzero = |value: usize| NonZeroUsize::new(value).unwrap();
 
         NodeTesterConfig {
-            stress_profile: ProbeProfile::stress(
+            mixnode_stress_profile: ProbeProfile::stress(
                 nonzero(1000),
                 Duration::from_millis(50),
                 Duration::from_millis(50),
                 nonzero(50),
+            ),
+            gateway_stress_profile: ProbeProfile::stress(
+                nonzero(200),
+                Duration::from_millis(50),
+                Duration::from_millis(50),
+                nonzero(10),
             ),
             liveness_profile: ProbeProfile::liveness(
                 nonzero(4),
@@ -218,7 +232,8 @@ impl NodeTesterConfig {
                 Duration::from_millis(50),
             ),
             liveness_per_target_timeout: Duration::from_secs(5),
-            stress_per_target_timeout: Duration::from_secs(5),
+            mixnode_stress_per_target_timeout: Duration::from_secs(5),
+            gateway_stress_per_target_timeout: Duration::from_secs(5),
             session_connect_timeout: Duration::from_millis(200),
             session_registration_timeout: Duration::from_millis(200),
             packet_delay: Duration::from_millis(1),

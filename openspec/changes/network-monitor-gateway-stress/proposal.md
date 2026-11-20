@@ -6,10 +6,11 @@ Mixnodes are tested for liveness and under load; gateways are tested for livenes
 
 - A fourth test kind, `gateway_stress`: the gateway liveness test (one client session, the ingress phase then the egress phase) run under a stress profile of its own, one target per assignment.
 - Both gateway kinds: a phase stops sending when its profile's send window ends, even while a write is blocked, and the packets the gateway did not take count as lost. A phase cut short (by the window, a failed send or the run's deadline) still counts what arrived, against the full expected count. This changes gateway liveness under back-pressure and on a mid-phase failure, where today a phase is unbounded and reports zero received.
-- Agent: five `--gateway-stress-*` knobs (target rate, sending duration, batch size, straggler wait, per-target timeout) with matching environment variables, and a manual `test-gateway-stress` command. The initial values are deliberately lenient (200 packets/second for 30 seconds per phase) and are meant to be raised progressively. The existing stress knobs keep their names and are documented as the mixnode stress profile.
+- Agent: five `--gateway-stress-*` knobs (target rate, sending duration, batch size, straggler wait, per-target timeout) with matching environment variables, and a manual `test-gateway-stress` command. The initial values are deliberately lenient (200 packets/second for 30 seconds per phase) and are meant to be raised progressively. The existing stress knobs and their environment variables are renamed `mixnode-stress-*`, without aliases.
 - Orchestrator: `gateway_stress` is scheduled on the stress interval and lease it shares with `mixnode_stress`, behind its own `--gateway-stress-enabled` switch (on by default). One migration adds the kind and its results table.
 - Aggregation and submission: both stress kinds share the stress window and are reported as one stress figure, combined by sample count as the liveness kinds are. The coverage guard measures gateway stress on its own. A gateway's stress reaches the performance contract as the existing `stress` measurement.
 - **BREAKING** (agent and orchestrator wire types): an agent built before this change cannot parse a gateway stress assignment, so the two are deployed together.
+- **BREAKING** (agent configuration): the five mixnode stress flags and environment variables are renamed, so the agents' deployment scripts change in the same redeploy.
 
 ## Capabilities
 

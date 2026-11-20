@@ -55,6 +55,15 @@ pub(crate) struct Args {
     )]
     pub(crate) local: bool,
 
+    /// Start even if the nyx chain watcher cannot be started. Until a later attempt succeeds,
+    /// the node rejects every network monitor agent.
+    #[clap(
+        long,
+        default_value_t = false,
+        env = NYMNODE_ALLOW_NYX_WATCHER_STARTUP_FAILURE_ARG
+    )]
+    pub(crate) allow_nyx_watcher_startup_failure: bool,
+
     /// Specifies the current mode(s) of this nym-node.
     #[clap(
         long,

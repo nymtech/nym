@@ -6,7 +6,7 @@ use crate::error::NymNodeError;
 use nym_config::defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::TypedNymContracts;
-use nym_validator_client::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient, nyxd};
+use nym_validator_client::{DirectSigningHttpRpcNyxdClient, nyxd};
 use rand::rng;
 use rand::seq::IndexedRandom;
 use std::sync::Arc;
@@ -38,11 +38,6 @@ impl NyxClient {
         Ok(NyxClient {
             inner: Arc::new(RwLock::new(nyxd_client)),
         })
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn clone_query_client(&self) -> QueryHttpRpcNyxdClient {
-        self.inner.read().await.clone_query_client()
     }
 
     pub(crate) async fn write(&self) -> RwLockWriteGuard<'_, DirectSigningHttpRpcNyxdClient> {

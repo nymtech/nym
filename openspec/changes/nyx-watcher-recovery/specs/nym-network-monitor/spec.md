@@ -90,7 +90,7 @@ The noise-key map is shared with the topology refresher, which owns its nym-node
 
 ### Requirement: Node startup fails without a working watcher unless the operator allows it
 
-At boot a node SHALL make up to 3 attempts at the load-and-start sequence, 5 seconds apart, and MUST refuse to start when all of them fail.
+At boot a node SHALL make up to 3 attempts at the load-and-start sequence, 10 seconds apart, and MUST refuse to start when all of them fail.
 
 The node SHALL accept a run-time flag `--allow-nyx-watcher-startup-failure` (environment variable `NYMNODE_ALLOW_NYX_WATCHER_STARTUP_FAILURE`). When it is set the node makes a single attempt, and when that attempt fails it MUST log an error stating that every network-monitor agent is rejected until a load succeeds, MUST start with an empty authorised-agent set, and MUST keep retrying on the supervised schedule of the next requirement. The flag is a run-time argument only: it MUST NOT be written to the node's configuration file.
 

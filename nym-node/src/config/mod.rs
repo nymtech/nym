@@ -596,7 +596,6 @@ pub struct Nyx {
 
     /// Addresses to nyxd tried, in order, only once every one of `nyxd_urls` has failed.
     pub nyxd_fallback_urls: Vec<Url>,
-    // pub watcher: NyxdWatcher,
 }
 
 impl Nyx {

@@ -529,18 +529,33 @@ pub(crate) async fn do_socks5_connectivity_test(
     let disconnected_socks5_client = socks5_client_builder.build()?;
 
     // connect to mixnet via SOCKS5
-    let socks5_client = match disconnected_socks5_client
-        .connect_to_mixnet_via_socks5()
-        .await
+    // bounded: some gateways never complete (or fail) the connection, which
+    // would otherwise hang the probe (and the agent running it) forever
+    let connect_timeout = Duration::from_secs(socks5_args.connect_timeout_sec);
+    let socks5_client = match tokio::time::timeout(
+        connect_timeout,
+        disconnected_socks5_client.connect_to_mixnet_via_socks5(),
+    )
+    .await
     {
-        Ok(client) => {
+        Err(_elapsed) => {
+            error!(
+                "SOCKS5 connection timed out after {}s",
+                connect_timeout.as_secs()
+            );
+            return Ok(Socks5ProbeResults::error_before_connecting(format!(
+                "SOCKS5 connection timed out after {}s",
+                connect_timeout.as_secs()
+            )));
+        }
+        Ok(Ok(client)) => {
             info!(
                 "🌐 Successfully connected to mixnet via SOCKS5 on entry gateway: {}",
                 client.nym_address().gateway().to_base58_string()
             );
             client
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             error!("Failed to establish SOCKS5 connection: {}", e);
             return Ok(Socks5ProbeResults::error_before_connecting(format!(
                 "SOCKS5 connection failed: {}",

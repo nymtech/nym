@@ -1,3 +1,8 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: A stress test is a two-hop self-loop probe with a fixed connectivity, bloomfilter, and load sequence`
+- TO: `### Requirement: A mixnode stress test is a two-hop self-loop probe with a fixed connectivity, bloomfilter, and load sequence`
+
 ## ADDED Requirements
 
 ### Requirement: Gateway stress is the gateway liveness test under its own stress profile, one target per assignment
@@ -219,3 +224,53 @@ Rehydrating that cache from the contract requires recovering which pair of on-ch
 #### Scenario: The two gateway kinds' results are stored apart
 - **WHEN** a gateway has completed runs of both `gateway_liveness` and `gateway_stress`
 - **THEN** each kind's runs are read from that kind's own table, and a gateway stress result submitted for a node dispatched for `gateway_liveness` is rejected although the two share a shape
+
+### Requirement: A mixnode stress test is a two-hop self-loop probe with a fixed connectivity, bloomfilter, and load sequence
+
+A mixnode stress test SHALL route packets over a two-hop path `[tested_node, this_agent]`, so the tested node acts as a forward mix hop relaying each packet straight back to the agent's own listener. Packets MUST be `AckPacket`-sized sphinx packets typed as mix packets, each carrying a 16-byte payload of `{ id: u64, sending_timestamp }`, with per-hop sphinx delay `packet_delay` (default 50 milliseconds). A run MUST proceed through: establishing an outbound Noise egress connection to the node as initiator; spawning an ingress listener that accepts a connection only from an address the tested node is known by and completes a Noise handshake as responder; a connectivity probe (one packet, whose round trip minus `packet_delay` becomes the baseline `approximate_latency`); a bloomfilter probe (only when `reuse_header` is set); the load test; result collection; and teardown. A failure at the egress, connectivity, or bloomfilter step MUST abort the run with the error recorded in the result rather than crashing the agent.
+
+The agent's own hop in the sphinx route MUST carry whichever of its two announced addresses matches the family of the address being tested, so that a run exercises one family in both directions rather than measuring the node's ipv6 ingress against its ipv4 egress.
+
+Ingress acceptance MUST treat EVERY address the node is known by (all of `node_ips`, plus the assigned address) as the node itself, compared on canonical form, because a multi-homed node may return the packets from an address other than the one it was reached on, and because a dual-stack listener reports ipv4 peers in their ipv4-mapped ipv6 form. The tested node's noise key MUST likewise be registered under every one of those addresses, not only the assigned one: the Noise responder handshake looks the initiator up by source ip and silently downgrades to raw TCP on a miss, which the listener then rejects as the node not speaking the protocol. Both gates therefore have to learn the same set, or widening one only moves the failure to the other.
+
+#### Scenario: The tested node loops packets back to the agent
+- **WHEN** a mixnode stress test runs against a node
+- **THEN** each probe packet enters the node as a mix hop and is relayed back to the agent's own ingress listener
+
+#### Scenario: An ipv6 run is measured over ipv6 in both directions
+- **WHEN** the assigned address is the node's ipv6 address
+- **THEN** the sphinx return hop carries the agent's ipv6 address, so the node returns the packets over ipv6 rather than over ipv4
+
+#### Scenario: A node replying from another of its addresses is still accepted
+- **WHEN** the tested node returns the probe packets from an announced address other than the one it was reached on
+- **THEN** the agent accepts the connection and completes the Noise handshake, because that address is one it knows the node by and the node's noise key is registered under it
+
+#### Scenario: A node that never returns the connectivity packet aborts the run
+- **WHEN** the connectivity probe packet does not come back
+- **THEN** the run aborts and the failure is recorded in the result
+
+### Requirement: The per-node result captures counts, handshake and latency statistics, and an optional error
+
+Each test SHALL produce a result carrying `time_taken`, an optional `error`, and measurements SHAPED BY ITS KIND: one named measurement per interface the kind exercises, so that a result can neither omit an interface its kind requires nor carry one it does not. The kind is the tag of that shape rather than a separate field, so the two cannot disagree. Each measurement MUST carry: ingress and egress Noise-handshake durations; the sphinx packet delay; `packets_sent` and `packets_received`; the baseline `approximate_latency`; the per-packet round-trip distribution (minimum, mean, median, maximum, standard deviation); and a `received_duplicates` flag. The latency of the agent's own batch sends is NOT measured: it describes the agent's socket rather than the node, and nothing read it. A `mixnode_stress` or `mixnode_liveness` run carries exactly one measurement (`mix_forwarding`); a `gateway_liveness` or `gateway_stress` run carries one per phase (`client_ingest` and `client_delivery`). Only a critical failure (for example an inability to bind the ingress listener) MUST bubble up as an error return; node-level failures (no response, bloomfilter misconfiguration, a rejected Noise handshake, a refused client session) MUST be recorded inside the returned result so the orchestrator always receives partial data.
+
+The per-interface breakdown MUST be persisted and exposed on the operator read surface even though downstream consumers receive only the averaged score, because a gateway with a healthy ingress and a dead egress is otherwise indistinguishable from one that is uniformly half-lossy.
+
+The submission that carries a result to the orchestrator MUST additionally report WHICH address was tested, and that address MUST be persisted with the run and exposed on the operator read surface. A node may announce several addresses of which only some are healthy, so without it a per-address failure is indistinguishable from a dead node and gets averaged into that node's single result series.
+
+Latency statistics MUST be recorded but MUST NOT contribute to any score. Two confounds make them unsuitable for scoring today: a node defers replay checking in batches bounded by its deferral time and pending-packet count and only defers when its bloomfilter lock is contended, so a low-volume probe measures a busy node as slower than an idle one in a step function; and measurements taken inside a concurrent wave include the agent's own queueing. Consequently liveness latency figures MUST NOT be compared with stress-test latency figures.
+
+#### Scenario: A node-level failure still yields a result
+- **WHEN** a node fails to respond, is misconfigured, or refuses the Noise handshake
+- **THEN** the agent returns a result with the failure recorded in its `error` field rather than failing the job
+
+#### Scenario: A result is attributable to the address it measured
+- **WHEN** a run against one of a node's several announced addresses fails
+- **THEN** the stored run records the tested address, so the failure is attributable to that address rather than to the node as a whole
+
+#### Scenario: A gateway result keeps its per-phase breakdown
+- **WHEN** a gateway liveness run is stored and read back
+- **THEN** the ingress and egress measurements are separately visible, alongside the averaged score submitted downstream
+
+#### Scenario: A rejected handshake scores zero rather than being excluded
+- **WHEN** a node rejects the agent's Noise handshake, so nothing can be measured
+- **THEN** the result records the failure and scores zero, because a node that will not accept a connection is not routable and an unmeasurable node must not score better than a measurably broken one

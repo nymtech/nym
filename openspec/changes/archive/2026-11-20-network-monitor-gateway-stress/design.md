@@ -110,13 +110,22 @@ The probe resolves its profile, its deadline and its result variant from the kin
 
 ### 11. What is tested
 
-Orchestrator behaviour is covered against the in-memory database as the existing kinds are: per-kind table isolation, eligibility, the switch and tie order, the stress fold, coverage and the submission plan. On the agent, a gateway stress run is checked to report under its own kind.
+Orchestrator behaviour is covered against the in-memory database as the existing kinds are: per-kind table isolation, eligibility, the switches and tie order, the stress fold, coverage and the submission plan. On the agent, a gateway stress run is checked to report under its own kind.
 
-The phase rules of Decisions 3 and 4 are not unit-tested: they live on the run, which needs a live client session, and the repository allows neither a live socket in a unit test nor a test-only seam on production code. The one run-level test covers a session that cannot be established. The untested scenarios are listed in task 7.2, not forced with a new seam. No test pins a default to its literal.
+The phase rules of Decisions 3 and 4 are not unit-tested: they live on the run, which needs a live client session, and the repository allows neither a live socket in a unit test nor a test-only seam on production code. The one run-level test covers a session that cannot be established. No test pins a default to its literal.
+
+Every scenario the deltas add or change has a test except these:
+
+- Needing a live client session: "A gateway stress run is the liveness sequence at stress volume", "A phase that returns nothing is measured rather than skipped", and the five scenarios of "A gateway phase stops sending when its send window ends and counts what arrived". The bounded close of Decision 3 is untested for the same reason.
+- Pinning defaults or overrides: "The gateway stress profile is used rather than another" and "Retuning one stress profile leaves the other untouched". By default values a test would pin literals, and with overrides it is a retuning test, which was declined. "Each phase sends the profile's full count" has its derivation tested (`stress_derives_its_packet_count_from_rate_and_duration`); the sending is the run's.
+- Covered by construction: "Gateway stress follows the stress interval", since both stress arms of `Config::schedule` share one schedule value, whose cadence is tested through mixnode stress. "A newly enabled test kind is omitted until it has coverage", since the guard is the same for every kind: absent aggregates count as unreached in the mixnode stress threshold test, and the omission's effect on gateways is tested with a broken gateway stress probe.
+- Untested before this change and unchanged in substance: "Each kind uses its own window" (the materialiser's tests give both windows one length) and "A guard trip is visible" (the per-kind omitted gauge is set in a loop over every kind from `Coverage::for_kind`, whose figures are tested).
+
+A manual run against a local nym-node (task 7.3) exercised by hand the stress sequence at the default profile (6000 packets per phase), "Packets not taken inside the window are lost" and "A slow ingress phase leaves the egress phase its measurement". It did not exercise a blocked write, a send failing part-way, a phase returning nothing or a deadline cut.
 
 ## Risks / Trade-offs
 
-- [The pass mark is a judgement, not a measurement] → lenient initial values, every one tunable by environment, and task 7.3 measures real gateways with the manual command to decide each increase. It is not a gate on the first deploy.
+- [The pass mark is a judgement, not a measurement] → lenient initial values, every one tunable by environment, and real gateways are measured with the manual command to decide each increase. That can only follow the first deploy: a gateway treats only an authorised agent as a monitor, and the authorised agents are the deployed ones.
 - [Reward-affecting step in gateway scores when the kind clears the coverage guard] → small for a healthy gateway at the initial values; called out in the PR description.
 - [The kind takes every agent request until each gateway has been tested once] → a consequence of the scheduler's never-tested rule, accepted as it was for the liveness kinds. At single-target runs of about 70 seconds it lasts longer than a liveness first pass, and it is short against the 6 hour liveness window.
 - [Renamed mixnode stress knobs] → a deployment still setting an old variable gets the mixnode stress defaults without an error. The deployment scripts are switched in the same redeploy, and the PR description lists each rename.
@@ -137,4 +146,4 @@ Rollback: set `--gateway-stress-enabled false` to stop assigning the kind; its a
 
 ## Open Questions
 
-- How fast, and to what values, the profile is raised. Decided from the measurements of task 7.3, outside this change.
+- How fast, and to what values, the profile is raised. Decided from measurements of real gateways taken from the deployed authorised agents, outside this change.

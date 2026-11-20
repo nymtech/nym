@@ -387,6 +387,11 @@ impl GatewayRun {
 
         self.drain_ingest_arrivals(expected).await;
         summarise(&mut self.ingest_measured, take(&mut self.received));
+
+        // the session's acknowledgements, refusals and close are filed only as its channel is read,
+        // and nothing reads it during this phase. anything delivered meanwhile is kept in `received`
+        // for the delivery phase
+        self.collect_delivery_arrivals();
         self.report_session_treatment();
     }
 

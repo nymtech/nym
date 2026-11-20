@@ -12,7 +12,7 @@
 use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_noise::config::{NetworkMonitorAgentNode, NoiseNetworkView, NoiseNode};
+use nym_noise::config::NoiseNetworkView;
 use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use std::net::SocketAddr;
@@ -118,12 +118,8 @@ impl AuthorisedAgentsView {
         let address = agent.mixnet_address;
         debug!("adding NM agent {address}");
 
-        // canonicalise so lookups via supports_noise (which canonicalises) always match
-        let ip = address.ip().to_canonical();
-        let port = address.port();
-
         // add ip to the routing filter (it's a no-op if it already exists)
-        self.routing.add_known(ip);
+        self.routing.add_known(address.ip());
 
         // record what this entry announces, which for an agent re-announcing a changed identity
         // also retires the superseded one
@@ -133,30 +129,7 @@ impl AuthorisedAgentsView {
         // add noise key to the known nodes
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
-
-        match nodes.get_mut(&ip) {
-            None => {
-                nodes.insert(ip, NoiseNode::new_agent(address, agent.noise_key));
-            }
-            Some(existing_entry) => match existing_entry {
-                NoiseNode::NymNode { .. } => {
-                    error!(
-                        "the authorised agent runs on the same host as a known nym-node! ignoring"
-                    );
-                }
-                NoiseNode::NetworkMonitorAgent { nodes } => {
-                    if let Some(existing) = nodes.iter_mut().find(|n| n.port == port) {
-                        existing.key = agent.noise_key;
-                    } else {
-                        nodes.push(NetworkMonitorAgentNode {
-                            port,
-                            key: agent.noise_key,
-                        });
-                    }
-                }
-            },
-        }
-
+        nodes.add_agent(address, agent.noise_key);
         self.noise_view.swap_view(update_permit, nodes);
     }
 
@@ -167,41 +140,14 @@ impl AuthorisedAgentsView {
     pub(crate) async fn remove_agent(&self, address: SocketAddr) {
         debug!("revoking NM agent {address}");
 
-        // canonicalise to match the stored representation
-        let ip = address.ip().to_canonical();
-
         // the identity itself only goes once its last announcing entry has been revoked, since an
         // agent authorises one entry per address family and both carry it
         self.identities.remove(address);
 
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
-
-        let mut final_agent = false;
-        match nodes.get_mut(&ip) {
-            None => {
-                warn!("attempted to revoke a non-existent agent at {address}");
-                return;
-            }
-            Some(node) => match node {
-                NoiseNode::NymNode { .. } => {
-                    error!(
-                        "the revoked agent runs on the same host as a known nym-node! ignoring the revocation"
-                    );
-                    return;
-                }
-                NoiseNode::NetworkMonitorAgent { nodes } => {
-                    nodes.retain(|agent| agent.port != address.port());
-                    if nodes.is_empty() {
-                        final_agent = true;
-                    }
-                }
-            },
-        }
-
-        if final_agent {
-            nodes.remove(&ip);
-            self.routing.remove_known(ip);
+        if nodes.remove_agent(address) {
+            self.routing.remove_known(address.ip());
         }
         self.noise_view.swap_view(update_permit, nodes);
     }
@@ -213,14 +159,11 @@ impl AuthorisedAgentsView {
         self.routing.reset();
         self.identities.reset();
 
-        // remove all noise keys from the known nodes
+        // nym-node entries stay: they come from the nym-api topology refresher and would not
+        // be restored until its next full refresh cycle
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
-
-        // Only remove NM agent entries; nym-node entries must be preserved because they are
-        // managed by a completely separate code path (the nym-api topology refresher) and
-        // would not be restored until the next full topology refresh cycle.
-        nodes.retain(|_, node| node.is_nym_node());
+        nodes.remove_all_agents();
         self.noise_view.swap_view(update_permit, nodes);
     }
 }
@@ -228,7 +171,9 @@ impl AuthorisedAgentsView {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_noise::config::NoiseNode;
     use nym_test_utils::helpers::u64_seeded_rng;
+    use std::collections::HashMap;
     use std::net::{IpAddr, Ipv4Addr};
 
     fn view() -> AuthorisedAgentsView {
@@ -275,7 +220,7 @@ mod tests {
     }
 
     fn agent_ports(view: &AuthorisedAgentsView, ip: IpAddr) -> Vec<u16> {
-        match view.noise_view.all_nodes().get(&ip) {
+        match view.noise_view.all_nodes().get(ip) {
             Some(NoiseNode::NetworkMonitorAgent { nodes }) => {
                 nodes.iter().map(|n| n.port).collect()
             }
@@ -357,9 +302,8 @@ mod tests {
         let stored = view.noise_view.all_nodes();
         // the stored key must be canonical so canonical-form lookups succeed
         assert!(
-            stored.contains_key(&v4),
-            "noise map must contain the canonical IPv4 key, got: {:?}",
-            stored.keys().collect::<Vec<_>>()
+            stored.contains(v4),
+            "noise map must contain the canonical IPv4 key, got: {stored:?}"
         );
     }
 
@@ -373,7 +317,7 @@ mod tests {
 
         view.add_agent(agent(SocketAddr::new(v4, 39322))).await;
 
-        assert!(view.noise_view.all_nodes().contains_key(&v4));
+        assert!(view.noise_view.all_nodes().contains(v4));
     }
 
     // Two agents sharing a host in *different* address forms must collapse onto the one canonical
@@ -520,14 +464,14 @@ mod tests {
 
         let permit = view.noise_view.get_update_permit().await;
         let mut nodes = view.noise_view.all_nodes();
-        nodes.insert(node_ip, NoiseNode::new_nym_node(noise_key(2)));
+        nodes.replace_nym_nodes(HashMap::from([(node_ip, noise_key(2))]));
         view.noise_view.swap_view(permit, nodes);
 
         view.remove_all().await;
 
         let stored = view.noise_view.all_nodes();
         assert_eq!(1, stored.len());
-        assert!(stored[&node_ip].is_nym_node());
+        assert!(stored.get(node_ip).is_some_and(NoiseNode::is_nym_node));
         assert!(!view.routing.is_known(&agent_ip));
         assert!(!view.identities.is_announced(&identity));
     }

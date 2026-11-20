@@ -10,6 +10,11 @@ pub struct Socks5Args {
     #[arg(long, hide = true, env = "PROBE_SOCKS5_MIXNET_CLIENT_TIMEOUT_SEC", default_value_t = Socks5Args::default().mixnet_client_timeout_sec)]
     pub mixnet_client_timeout_sec: u64,
 
+    /// upper bound for connecting the ephemeral SOCKS5 mixnet client to the tested gateway.
+    /// Without it, a gateway that never completes the connection hangs the whole probe.
+    #[arg(long, hide = true, env = "PROBE_SOCKS5_CONNECT_TIMEOUT_SEC", default_value_t = Socks5Args::default().connect_timeout_sec)]
+    pub connect_timeout_sec: u64,
+
     #[arg(long, hide = true, env = "PROBE_SOCKS5_TEST_COUNT", default_value_t = Socks5Args::default().test_count)]
     pub test_count: u64,
 
@@ -39,6 +44,7 @@ impl Default for Socks5Args {
                 "https://ethereum-rpc.publicnode.com".to_string(),
             ],
             mixnet_client_timeout_sec: 20,
+            connect_timeout_sec: 60,
             test_count: 10,
             failure_count_cutoff: 2,
         }

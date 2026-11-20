@@ -3,12 +3,12 @@
 // from (mdast.mts `fileOf`), so a lint fault names the file and line where the
 // text is, not the page that imports it.
 //
-// This is the mdast counterpart of `inlineMdxPartials` in lib/retrieval/mdx.mjs,
+// This is the mdast counterpart of `inlineMdxPartials` in @nymproject/retrieval-indexer (mdx),
 // which works on text and so loses the source position of each line. Both
 // resolve import paths with the same `resolveImport`.
 
 import fs from 'node:fs';
-import { resolveImport } from '../retrieval/mdx.mjs';
+import { resolveImport } from '@nymproject/retrieval-indexer/mdx';
 import type { Content, JsxElement, Node, Root } from './mdast.mts';
 import { isJsx, mdParser, mdxParser, messageOf, setFile } from './mdast.mts';
 import type { LintWarning } from './types.mts';

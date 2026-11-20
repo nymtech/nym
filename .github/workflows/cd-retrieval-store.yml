@@ -1,0 +1,102 @@
+name: cd-retrieval-store
+
+# Writes the nym docs and code shards to the public retrieval store that the
+# docs MCP route reads (documentation/MCP-STORE.md).
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      allow_shrink:
+        description: Let a shard lose more than 20% of its rows in this run (an intended removal)
+        type: boolean
+        default: false
+
+# Two runs on one shard must not overlap: the second fails with "another run
+# changed it while this one was embedding". This queues a new run behind the one
+# in progress, and a newer pending run replaces an older pending one.
+concurrency:
+  group: retrieval-store
+  cancel-in-progress: false
+
+# The job reads the repo and writes only to the store, with its own secret.
+permissions:
+  contents: read
+
+jobs:
+  write:
+    # Only develop writes, because Vercel builds the production docs from develop:
+    # a run from another branch would put unmerged content in the public index.
+    # The repository variable turns writes on once the store exists
+    # (documentation/MCP-STORE-SETUP.md). A job-level `if` can read variables,
+    # not secrets.
+    if: github.ref == 'refs/heads/develop' && vars.RETRIEVAL_STORE_ENABLED == '1'
+    runs-on: arc-linux-latest
+    # A hang anywhere (a generator, the store) frees the concurrency slot after this.
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: documentation/docs
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.9
+        with:
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install project dependencies
+        run: pnpm i
+      # The cd-docs embed cache, which holds real vectors, so only changed chunks
+      # call Voyage.
+      - name: Restore embedding cache
+        uses: actions/cache/restore@v4
+        with:
+          path: documentation/docs/node_modules/.cache/nym-docs
+          key: nym-embed-store-${{ github.sha }}
+          restore-keys: nym-embed-
+      # As in cd-docs, each secret is set only on the step that uses it, not on
+      # the job, so it is not in the environment of `pnpm i` or the third-party
+      # actions, which run code from outside this repo. REQUIRE_EMBEDDINGS makes
+      # the generators fail rather than write files without vectors.
+      - name: Build the docs index
+        run: node ../scripts/next-scripts/generate-index.mjs
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          REQUIRE_EMBEDDINGS: "1"
+      - name: Build the code index
+        run: node ../scripts/next-scripts/generate-code-index.mjs
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          REQUIRE_EMBEDDINGS: "1"
+      # Saved before the write, and also when a generator fails partway (it
+      # checkpoints its cache), so a failed run does not throw away the embeddings
+      # it paid for. The attempt number lets a re-run save under a new key.
+      - name: Save embedding cache
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@v4
+        with:
+          path: documentation/docs/node_modules/.cache/nym-docs
+          key: nym-embed-store-${{ github.sha }}-${{ github.run_attempt }}
+      # A re-run of an older develop run would write older content over newer
+      # content. Write only when this commit is still develop's head: a newer push
+      # has its own run, queued or done.
+      - name: Check that this commit is develop's head
+        id: head
+        run: |
+          head=$(git ls-remote origin refs/heads/develop | cut -f1)
+          if [ -z "$head" ]; then
+            echo "::error::could not read the head of develop"
+            exit 1
+          fi
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::notice::develop is at $head, not $GITHUB_SHA, so this run does not write the store."
+            echo "stale=1" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Write the store
+        if: steps.head.outputs.stale != '1'
+        run: node lib/retrieval/write-store.mts
+        env:
+          RETRIEVAL_STORE_WRITE_URL: ${{ secrets.RETRIEVAL_STORE_WRITE_URL }}
+          ALLOW_SHRINK: ${{ inputs.allow_shrink && '1' || '' }}

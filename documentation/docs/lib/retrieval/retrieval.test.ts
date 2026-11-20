@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { cosineSimilarity, search, getSection } from './retrieval';
-import type { DocIndex, EmbeddedChunk } from './types';
+import type { DocIndex, EmbeddedChunk } from '@nymproject/retrieval-indexer/types';
+import { TEST_SCORE_PENALTY } from '@nymproject/retrieval-indexer/search';
 
 describe('cosineSimilarity', () => {
   it('is 1 for identical direction, 0 for orthogonal', () => {
@@ -22,6 +23,14 @@ function index(chunks: EmbeddedChunk[]): DocIndex {
 }
 
 describe('search', () => {
+  it('ranks a test chunk below a production chunk it would otherwise beat', () => {
+    const prod = chunk('prod', 'nym-code', [0.98, 0.2]);
+    const test = { ...chunk('test', 'nym-code', [1, 0]), test: true as const };
+    const hits = search([1, 0], index([test, prod]), { topK: 2 });
+    expect(hits.map((h) => h.chunk.id)).toEqual(['prod', 'test']);
+  });
+
+
   const idx = index([
     chunk('docs-a', 'nym-docs', [1, 0]),
     chunk('docs-b', 'nym-docs', [0.8, 0.2]),
@@ -45,6 +54,13 @@ describe('search', () => {
     const hits = search([1, 0], idx, { minScore: 0.99 });
     expect(hits.every((h) => h.score >= 0.99)).toBe(true);
     expect(hits.some((h) => h.chunk.id === 'docs-c')).toBe(false); // orthogonal
+  });
+
+  it('applies minScore to the penalised score of a test chunk', () => {
+    const prod = chunk('prod', 'nym-code', [1, 0]);
+    const test = { ...chunk('test', 'nym-code', [1, 0]), test: true as const };
+    const hits = search([1, 0], index([prod, test]), { minScore: 1 - TEST_SCORE_PENALTY / 2 });
+    expect(hits.map((h) => h.chunk.id)).toEqual(['prod']);
   });
 
   it('strips the vector from returned chunks', () => {

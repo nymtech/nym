@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createTools } from './tools';
+import { indexSource } from '../retrieval/retrieval-source';
 import type { ToolDeps } from './tools';
-import type { DocIndex, EmbeddedChunk } from '../retrieval/types';
+import type { DocIndex, EmbeddedChunk } from '@nymproject/retrieval-indexer/types';
 
 function chunk(id: string, vector: number[], text: string): EmbeddedChunk {
   return { id, source: 'nym-docs', title: 'Quick Start', heading: id, url: `https://nym.com/docs/${id}`, text, tokensEst: 1, vector };
@@ -36,7 +37,7 @@ const fakeNym = {
   getGateway: async (identity: string) => ({ gateway_identity_key: identity, bonded: true, performance: 97, routing_score: 0, config_score: 0 }),
 };
 
-const deps: ToolDeps = { index, embedQuery: async () => [1, 0], nym: fakeNym };
+const deps: ToolDeps = { retrieval: indexSource(index), embedQuery: async () => [1, 0], nym: fakeNym };
 const tools = createTools(deps);
 const tool = (name: string) => tools.find((t) => t.name === name)!;
 const runText = async (name: string, args: Record<string, any> = {}) => (await tool(name).handler(args)).content[0].text;
@@ -53,6 +54,32 @@ describe('tool registry', () => {
   it('marks required args', () => {
     expect((tool('search_docs').inputSchema as any).required).toContain('query');
     expect((tool('get_gateway').inputSchema as any).required).toContain('identity');
+  });
+});
+
+describe('search tools and their source', () => {
+  // A source that records the topK each search receives.
+  function recordingSource(withCode: boolean) {
+    const topKs: number[] = [];
+    const hits = async (_v: number[], topK: number) => (topKs.push(topK), []);
+    const retrieval = { searchDocs: hits, getSection: async () => null, ...(withCode ? { searchCode: hits } : {}) };
+    return { retrieval, topKs };
+  }
+
+  it('exposes search_code only when the source can search code and a code embedder is given', () => {
+    const names = (withCode: boolean, embedCode?: () => Promise<number[]>) =>
+      createTools({ ...deps, retrieval: recordingSource(withCode).retrieval, embedCode }).map((t) => t.name);
+    const embedCode = async () => [1, 0];
+    expect(names(true, embedCode)).toContain('search_code');
+    expect(names(false, embedCode)).not.toContain('search_code');
+    expect(names(true)).not.toContain('search_code');
+  });
+
+  it('passes topK as a whole number from 1 to 20, and 6 when it is missing or unusable', async () => {
+    const { retrieval, topKs } = recordingSource(true);
+    const search = createTools({ ...deps, retrieval, embedCode: async () => [1, 0] }).find((t) => t.name === 'search_docs')!;
+    for (const topK of [3, 2.7, 500, 0, -1, 'x', undefined]) await search.handler({ query: 'q', topK });
+    expect(topKs).toEqual([3, 2, 20, 6, 6, 6, 6]);
   });
 });
 

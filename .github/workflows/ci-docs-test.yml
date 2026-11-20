@@ -13,6 +13,8 @@ on:
     paths:
       - "documentation/docs/**"
       - "documentation/scripts/next-scripts/**"
+      - "documentation/scripts/index-coverage-probes.mjs"
+      - "documentation/indexed-sources.mjs"
       - ".github/workflows/ci-docs-test.yml"
 
 jobs:

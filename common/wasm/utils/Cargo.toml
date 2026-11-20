@@ -19,6 +19,8 @@ js-sys = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 getrandom02 = { workspace = true, features = ["js"], optional = true }
+# Not used directly. tungstenite pulls in getrandom 0.4 through rand, and getrandom 0.4 does not build for wasm32 without wasm_js.
+getrandom = { workspace = true, features = ["wasm_js"], optional = true }
 gloo-utils = { workspace = true }
 gloo-net = { workspace = true, features = ["websocket"], optional = true }
 #gloo-net = { workspace = truepath = "../../../../gloo/crates/net", features = ["websocket"], optional = true }
@@ -38,7 +40,7 @@ optional = true
 [features]
 default = ["sleep"]
 sleep = ["web-sys", "web-sys/Window"]
-websocket = ["getrandom02", "tungstenite", "gloo-net"]
+websocket = ["getrandom02", "getrandom", "tungstenite", "gloo-net"]
 crypto = [
     "web-sys",
     "web-sys/Crypto",

@@ -830,28 +830,31 @@ mod tests {
     // orchestrator would hold its lease and the gateway would keep its turn instead of being scored
     #[tokio::test]
     async fn a_session_that_cannot_be_established_yields_two_zeroed_measurements() {
-        let probe = probe(TestKind::GatewayLiveness, unreachable_gateway());
-        let ingest_inbox = probe.build_ingest_inbox();
-        let deadline = probe.config.per_target_timeout(probe.kind);
+        // both gateway kinds, since the orchestrator rejects a result reported under the other one
+        for kind in [TestKind::GatewayLiveness, TestKind::GatewayStress] {
+            let probe = probe(kind, unreachable_gateway());
+            let ingest_inbox = probe.build_ingest_inbox();
+            let deadline = probe.config.per_target_timeout(probe.kind);
 
-        let result = probe
-            .run(ingest_inbox, deadline, ShutdownToken::new())
-            .await
-            .expect("a gateway that would not take a session was reported as our own failure");
+            let result = probe
+                .run(ingest_inbox, deadline, ShutdownToken::new())
+                .await
+                .expect("a gateway that would not take a session was reported as our own failure");
 
-        // run-level, because it is the whole run that could not happen. this is what the orchestrator
-        // reads `was_reachable` off
-        assert!(result.error.is_some(), "{result:#?}");
+            // run-level, because it is the whole run that could not happen. this is what the
+            // orchestrator reads `was_reachable` off
+            assert!(result.error.is_some(), "{kind}: {result:#?}");
 
-        let wire: api::TestRunResult = result.into();
-        assert_eq!(wire.kind(), TestKind::GatewayLiveness);
-        assert!(
-            wire.measurements
-                .all()
-                .iter()
-                .all(|measurement| measurement.received_ratio() == 0.0),
-            "{:#?}",
-            wire.measurements
-        );
+            let wire: api::TestRunResult = result.into();
+            assert_eq!(wire.kind(), kind);
+            assert!(
+                wire.measurements
+                    .all()
+                    .iter()
+                    .all(|measurement| measurement.received_ratio() == 0.0),
+                "{kind}: {:#?}",
+                wire.measurements
+            );
+        }
     }
 }

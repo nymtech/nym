@@ -18,7 +18,7 @@
 - [x] 3.3 Make the gateway probe and its wave take the kind (profile, deadline, result variant); add `ProbeMeasurements::GatewayStress` with its `unmeasured` and wire-conversion arms and its arm in the mixnet probe's refusal of gateway kinds; rename the types so they no longer say liveness; rewrite the comments claiming a gateway stress test would not resemble the liveness probe
 - [x] 3.4 Dispatch `TestRunAssignment::GatewayStress` as a gateway wave of one
 - [x] 3.5 Add the manual `test-gateway-stress` command beside `test-gateway-liveness`
-- [ ] 3.6 Unit tests: the kind selects the gateway stress profile and deadline; a gateway stress run that cannot establish its session reports two zeroed measurements under the gateway stress variant
+- [x] 3.6 Unit test: a gateway stress run that cannot establish its session reports two zeroed measurements under the gateway stress variant (profile and deadline selection are not tested: done by defaults they would pin literals)
 
 ## 4. Orchestrator storage
 

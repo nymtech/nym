@@ -110,7 +110,7 @@ The probe resolves its profile, its deadline and its result variant from the kin
 
 ### 11. What is tested
 
-Orchestrator behaviour is covered against the in-memory database as the existing kinds are: per-kind table isolation, eligibility, the switch and tie order, the stress fold, coverage and the submission plan. On the agent, profile and deadline selection by kind are covered.
+Orchestrator behaviour is covered against the in-memory database as the existing kinds are: per-kind table isolation, eligibility, the switch and tie order, the stress fold, coverage and the submission plan. On the agent, a gateway stress run is checked to report under its own kind.
 
 The phase rules of Decisions 3 and 4 are not unit-tested: they live on the run, which needs a live client session, and the repository allows neither a live socket in a unit test nor a test-only seam on production code. The one run-level test covers a session that cannot be established. The untested scenarios are listed in task 7.2, not forced with a new seam. No test pins a default to its literal.
 

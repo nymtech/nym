@@ -143,7 +143,9 @@ impl NetworkMonitorAgent {
     /// A separate path from [`run_mixnet_wave`](Self::run_mixnet_wave) rather than the gateway kinds
     /// flowing through it: the two share a listener and a reporting shape, but a gateway target is a
     /// client session measuring two interfaces where a mixnode target is a Noise connection measuring
-    /// one, so folding them together would mean a probe that is two probes behind one name. The kind
+    /// one, so folding them together would mean a probe that is two probes behind one name.
+    ///
+    /// Both gateway kinds come through here, a stress assignment as a wave of exactly one. The kind
     /// selects the profile and the per-target deadline, and is echoed onto every result.
     async fn run_gateway_wave(
         &self,
@@ -232,6 +234,10 @@ impl NetworkMonitorAgent {
             }
             TestRunAssignment::GatewayLiveness(targets) => {
                 self.run_gateway_wave(TestKind::GatewayLiveness, targets)
+                    .await
+            }
+            TestRunAssignment::GatewayStress(target) => {
+                self.run_gateway_wave(TestKind::GatewayStress, vec![*target])
                     .await
             }
         }

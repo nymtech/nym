@@ -1,7 +1,7 @@
 {
   "sort": ["kind"],
   "entryPoints": ["./src/index.ts"],
-  "out": "../../../../documentation/docs/pages/developers/mix-tunnel/api",
+  "out": "../../../../documentation/docs/content/developers/mix-tunnel/api",
   "plugin": ["typedoc-plugin-markdown"],
   "entryFileName": "globals",
   "exclude": ["./src/worker/**", "./src/typings.d.ts"],

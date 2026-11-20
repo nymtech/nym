@@ -23,8 +23,9 @@ on:
       - "sdk/typescript/packages/mix-fetch/src/**"
       - "sdk/typescript/packages/mix-dns/src/**"
       - "sdk/typescript/packages/mix-websocket/src/**"
-      - "documentation/docs/pages/developers/**/api/**"
+      - "documentation/docs/content/developers/**/api/**"
       - "documentation/scripts/next-scripts/generate-typedoc.sh"
+      - "documentation/scripts/next-scripts/generate-typedoc-meta.mjs"
       - "sdk/typescript/packages/*/typedoc.json"
       - ".github/workflows/ci-docs-typedoc-fresh.yml"
 
@@ -72,9 +73,11 @@ jobs:
       - name: Regenerate API docs (ordered) and check they match the committed tree
         run: |
           pnpm run docs:typedoc
-          if ! git diff --quiet -- documentation/docs/pages/developers; then
+          # git status, not git diff: a new exported symbol is a new, untracked page.
+          stale="$(git status --porcelain -- documentation/docs/content/developers)"
+          if [ -n "$stale" ]; then
             echo "::error::Committed TypeDoc API reference is stale. Run 'pnpm run docs:typedoc' locally and commit the result."
-            git --no-pager diff --stat -- documentation/docs/pages/developers
+            echo "$stale"
             exit 1
           fi
           echo "TypeDoc API reference is up to date."

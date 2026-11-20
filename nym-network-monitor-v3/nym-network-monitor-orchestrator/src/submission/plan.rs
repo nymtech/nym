@@ -71,7 +71,8 @@ impl TestKindCoverage {
 pub(crate) struct Coverage {
     pub(crate) mixnode_liveness: TestKindCoverage,
     pub(crate) gateway_liveness: TestKindCoverage,
-    pub(crate) stress: TestKindCoverage,
+    pub(crate) mixnode_stress: TestKindCoverage,
+    pub(crate) gateway_stress: TestKindCoverage,
 }
 
 impl Coverage {
@@ -84,7 +85,8 @@ impl Coverage {
         Coverage {
             mixnode_liveness: measure(TestKind::MixnodeLiveness),
             gateway_liveness: measure(TestKind::GatewayLiveness),
-            stress: measure(TestKind::MixnodeStress),
+            mixnode_stress: measure(TestKind::MixnodeStress),
+            gateway_stress: measure(TestKind::GatewayStress),
         }
     }
 
@@ -92,7 +94,8 @@ impl Coverage {
         match kind {
             TestKind::MixnodeLiveness => self.mixnode_liveness,
             TestKind::GatewayLiveness => self.gateway_liveness,
-            TestKind::MixnodeStress => self.stress,
+            TestKind::MixnodeStress => self.mixnode_stress,
+            TestKind::GatewayStress => self.gateway_stress,
         }
     }
 }
@@ -110,7 +113,7 @@ impl EpochPlan {
     /// Builds the plan from the epoch's stored rows and the described nodes' roles.
     ///
     /// The rows of every test kind the guard omits are dropped before the fold, so a dual-role
-    /// node's liveness then comes from its other liveness test kind alone.
+    /// node's liveness or stress then comes from its other test kind of that figure alone.
     pub(crate) fn build(
         config_scores: &[MixnetEpochConfigScore],
         mut aggregates: Vec<MixnetEpochAggregate>,
@@ -327,7 +330,7 @@ pub(super) mod tests {
             &[mixnode(1), mixnode(2), mixnode(3)],
         );
 
-        assert!(plan.coverage.stress.omitted);
+        assert!(plan.coverage.mixnode_stress.omitted);
         assert_eq!(node_ids(&plan), vec![1, 2, 3]);
         assert!(
             plan.nodes
@@ -351,7 +354,7 @@ pub(super) mod tests {
         );
 
         assert_eq!(plan.coverage.mixnode_liveness.coverage, 1.0);
-        assert_eq!(plan.coverage.stress.coverage, 1.0);
+        assert_eq!(plan.coverage.mixnode_stress.coverage, 1.0);
     }
 
     #[test]
@@ -365,7 +368,7 @@ pub(super) mod tests {
             &[mixnode(1), mixnode(2)],
         );
 
-        assert_eq!(plan.coverage.stress.coverage, 0.5);
+        assert_eq!(plan.coverage.mixnode_stress.coverage, 0.5);
     }
 
     // the two liveness probes are separate failure domains: a broken gateway probe must not drag
@@ -394,6 +397,65 @@ pub(super) mod tests {
         assert_eq!(node_ids(&plan), vec![1]);
     }
 
+    // the contract's stress measurement carries no role, so a gateway's stress goes in it as is
+    #[test]
+    fn a_gateways_stress_is_submitted_as_stress() {
+        let plan = plan(
+            &[config_score(1, 1.0)],
+            vec![
+                aggregate(1, TestKind::GatewayLiveness, 0.9),
+                aggregate(1, TestKind::GatewayStress, 0.6),
+            ],
+            &[gateway(1)],
+        );
+
+        assert_eq!(
+            measurements(&plan, 1),
+            Measurements::default()
+                .with_config(pct(1.0))
+                .with_liveness(pct(0.9))
+                .with_stress(pct(0.6))
+        );
+    }
+
+    // the two stress probes are separate failure domains, as the liveness ones are: a broken
+    // gateway stress probe must neither zero the gateways' stress nor drag down the stress a
+    // dual-role node earned through its mixnode runs
+    #[test]
+    fn a_broken_gateway_stress_probe_does_not_reach_gateways_as_zeros() {
+        let plan = plan(
+            &[
+                config_score(1, 1.0),
+                config_score(2, 1.0),
+                config_score(3, 1.0),
+            ],
+            vec![
+                aggregate(1, TestKind::MixnodeLiveness, 1.0),
+                aggregate(1, TestKind::MixnodeStress, 1.0),
+                aggregate(1, TestKind::GatewayStress, 0.0),
+                aggregate(2, TestKind::GatewayLiveness, 0.8),
+                aggregate(2, TestKind::GatewayStress, 0.0),
+                aggregate(3, TestKind::GatewayLiveness, 0.8),
+                aggregate(3, TestKind::GatewayStress, 0.0),
+            ],
+            &[dual_role(1), gateway(2), gateway(3)],
+        );
+
+        assert!(plan.coverage.gateway_stress.omitted);
+        assert!(!plan.coverage.mixnode_stress.omitted);
+        // combined with its failed gateway stress run it would read 0.5
+        assert_eq!(measurements(&plan, 1).stress, Some(pct(1.0)));
+        // the gateway-only nodes keep their liveness and carry no stress
+        for node_id in [2, 3] {
+            assert_eq!(
+                measurements(&plan, node_id),
+                Measurements::default()
+                    .with_config(pct(1.0))
+                    .with_liveness(pct(0.8))
+            );
+        }
+    }
+
     #[test]
     fn every_test_kind_omitted_leaves_an_empty_plan() {
         let plan = plan(
@@ -408,7 +470,8 @@ pub(super) mod tests {
 
         assert!(plan.coverage.mixnode_liveness.omitted);
         assert!(plan.coverage.gateway_liveness.omitted);
-        assert!(plan.coverage.stress.omitted);
+        assert!(plan.coverage.mixnode_stress.omitted);
+        assert!(plan.coverage.gateway_stress.omitted);
         assert!(plan.nodes.is_empty());
     }
 

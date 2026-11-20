@@ -37,9 +37,9 @@
 
 ## 6. Aggregation and submission
 
-- [ ] 6.1 `ReportedAggregates::add_row`: combine the two stress kinds by sample count, as the liveness kinds are
-- [ ] 6.2 `Coverage`: one figure per test kind (`mixnode_stress` in place of `stress`, plus `gateway_stress`), with `measure` and `for_kind` to match
-- [ ] 6.3 Tests: a dual-role node's stress combines both kinds' runs; a gateway-only node's gateway stress is submitted as stress; with gateway stress omitted, a gateway-only node is submitted with liveness alone and a dual-role node with its mixnode stress; a gateway does not count against mixnode stress coverage
+- [x] 6.1 `ReportedAggregates::add_row`: combine the two stress kinds by sample count, as the liveness kinds are
+- [x] 6.2 `Coverage`: one figure per test kind (`mixnode_stress` in place of `stress`, plus `gateway_stress`), with `measure` and `for_kind` to match
+- [x] 6.3 Tests: a dual-role node's stress combines both kinds' runs; a gateway-only node's gateway stress is submitted as stress; with gateway stress omitted, a gateway-only node is submitted with liveness alone and a dual-role node with its mixnode stress; a gateway does not count against mixnode stress coverage
 
 ## 7. Verification and close-out
 

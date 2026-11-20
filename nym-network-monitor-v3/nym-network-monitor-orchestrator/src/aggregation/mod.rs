@@ -91,10 +91,10 @@ pub(crate) fn aggregate_runs(runs: Vec<CompletedTestRun>) -> BTreeMap<i64, Windo
 }
 
 /// One node's aggregates for one epoch as they are reported: both liveness kinds combined into a
-/// single liveness figure, stress on its own.
+/// single liveness figure, and both stress kinds into a single stress figure.
 ///
-/// Combining by sample count gives the mean over both kinds' runs, as if they were one liveness
-/// series. Exact only while the two kinds share one aggregation window, which
+/// Combining by sample count gives the mean over both kinds' runs, as if they were one series.
+/// Exact only while the two kinds of a figure share one aggregation window, which
 /// [`AggregationWindows`](crate::orchestrator::config::AggregationWindows) guarantees.
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub(crate) struct ReportedAggregates {
@@ -115,15 +115,14 @@ impl ReportedAggregates {
     /// Folds one more of the node's stored aggregates into the reported figures.
     fn add_row(&mut self, row: &MixnetEpochAggregate) {
         let aggregate = WindowAggregate::from(row);
-        match row.test_kind {
-            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {
-                self.liveness = Some(match self.liveness {
-                    Some(liveness) => liveness.combine(aggregate),
-                    None => aggregate,
-                });
-            }
-            TestKind::MixnodeStress => self.stress = Some(aggregate),
-        }
+        let figure = match row.test_kind {
+            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => &mut self.liveness,
+            TestKind::MixnodeStress | TestKind::GatewayStress => &mut self.stress,
+        };
+        *figure = Some(match *figure {
+            Some(existing) => existing.combine(aggregate),
+            None => aggregate,
+        });
     }
 }
 
@@ -270,6 +269,24 @@ mod tests {
             })
         );
         assert_eq!(reported.stress, None);
+    }
+
+    // the mean over all four runs, not the mean of the two kinds' means (0.5)
+    #[test]
+    fn stress_combines_both_kinds_by_sample_count() {
+        let reported = ReportedAggregates::from_rows(&[
+            row(TestKind::GatewayStress, 0.0, 1),
+            row(TestKind::MixnodeStress, 1.0, 3),
+        ]);
+
+        assert_eq!(
+            reported.stress,
+            Some(WindowAggregate {
+                score: 0.75,
+                samples: 4
+            })
+        );
+        assert_eq!(reported.liveness, None);
     }
 
     // absent rather than zero, so "not measured" never reads as "measured badly"

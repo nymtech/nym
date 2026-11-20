@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - uses: nymtech/nym/.github/actions/nym-hash-releases@develop

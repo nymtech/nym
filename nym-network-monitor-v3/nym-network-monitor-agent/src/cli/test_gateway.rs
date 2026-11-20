@@ -7,29 +7,32 @@ use nym_network_monitor_orchestrator_requests::models::TestKind;
 use nym_task::ShutdownToken;
 use tracing::info;
 
-/// Arguments for the `test-gateway-liveness` subcommand.
+/// Arguments for the `test-gateway-liveness` and `test-gateway-stress` subcommands.
 ///
-/// Kept apart from the mixnode commands because a gateway is probed by a wave of its own, over a
-/// client session rather than a Noise connection.
+/// One argument set for both, because the two differ only in the profile applied: the session, the
+/// two phases and the keys are identical. Kept apart from the mixnode commands because a gateway is
+/// probed by a wave of its own, over a client session rather than a Noise connection.
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
     #[clap(flatten)]
     target: ManualTargetArgs,
 }
 
-/// Runs a one-shot gateway liveness probe of the specified node and logs both phases.
-pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
+/// Runs a one-shot probe of the specified gateway under `kind` and logs both phases.
+pub(crate) async fn execute(args: Args, kind: TestKind) -> anyhow::Result<()> {
     let keys = args.target.load_keys()?;
     let gateway = args.target.discover().await?.require_gateway()?;
 
     info!(
-        "running a one-shot gateway liveness probe of {}, whose client websocket is on port {}",
+        "running a one-shot {kind} probe of {}, whose client websocket is on port {}",
         gateway.mixnet.address, gateway.clients_ws_port
     );
 
+    // a wave of exactly one, which is the same path a gateway stress assignment takes from the
+    // orchestrator
     GatewayWave::new(
         args.target.build_tester_config()?,
-        TestKind::GatewayLiveness,
+        kind,
         keys.client_identity.clone(),
         keys.noise_key.clone(),
         vec![gateway],

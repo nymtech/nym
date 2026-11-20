@@ -24,38 +24,18 @@ pub struct LocalEmbeddedClientHandle {
     /// Carries **plaintext**: the gateway is the last sphinx hop on the legacy path, so it peels
     /// before handing anything over.
     pub(crate) mix_message_sender: MixMessageSender,
-
-    /// Where sphinx packets go: what arrives for this provider over LP.
-    ///
-    /// A second channel rather than a second use of the one above, because the two carry different
-    /// things: on LP the *provider* is the last sphinx hop, so what arrives is still wrapped. Both
-    /// are live at once - a provider is reachable by legacy clients either way.
-    pub(crate) lp_input_sender: ServiceProviderInputSender,
 }
 
 impl LocalEmbeddedClientHandle {
-    pub(crate) fn new(
-        address: Recipient,
-        mix_message_sender: MixMessageSender,
-        lp_input_sender: ServiceProviderInputSender,
-    ) -> Self {
+    pub(crate) fn new(address: Recipient, mix_message_sender: MixMessageSender) -> Self {
         Self {
             address,
             mix_message_sender,
-            lp_input_sender,
         }
     }
 
     pub(crate) fn client_destination(&self) -> DestinationAddressBytes {
         self.address.identity().derive_destination_address()
-    }
-
-    /// How the LP data plane addresses this client.
-    ///
-    /// Covers the encryption key as well as the identity, unlike [`Self::client_destination`] -
-    /// neither derives from the other, so a client reachable by both has to be indexed under both.
-    pub(crate) fn client_address(&self) -> ClientAddress {
-        ClientAddress::from_keys(self.address.identity(), self.address.encryption_key())
     }
 }
 
@@ -70,10 +50,20 @@ pub struct EmbeddedServiceProviders {
 }
 
 impl EmbeddedServiceProviders {
-    pub(crate) fn new(providers: HashMap<ClientAddress, ServiceProviderInputSender>) -> Self {
+    #[cfg(test)]
+    fn new(providers: HashMap<ClientAddress, ServiceProviderInputSender>) -> Self {
         EmbeddedServiceProviders {
             by_address: providers,
         }
+    }
+
+    /// Index a provider under the address the LP data plane reaches it by.
+    ///
+    /// Covers the encryption key as well as the identity, unlike the legacy path's destination -
+    /// neither derives from the other.
+    pub fn insert(&mut self, address: Recipient, to_provider: ServiceProviderInputSender) {
+        let client = ClientAddress::from_keys(address.identity(), address.encryption_key());
+        self.by_address.insert(client, to_provider);
     }
 
     /// Whether this node hosts `client` itself.

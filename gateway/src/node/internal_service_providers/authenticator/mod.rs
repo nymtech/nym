@@ -41,13 +41,6 @@ pub struct Authenticator {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
 
-    /// What its host gave it.
-    ///
-    /// Not a [`ServiceProviderMode`](nym_service_providers_common::mode::ServiceProviderMode) like
-    /// the other two: the authenticator is inherently a gateway-internal provider, so being
-    /// embedded is a precondition of its existence rather than a mode it runs in.
-    embedded: EmbeddedSetup,
-
     shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
@@ -58,7 +51,6 @@ impl Authenticator {
         peer_registrator: PeerRegistrator,
         upgrade_mode_state: UpgradeModeDetails,
         wireguard_gateway_data: WireguardGatewayData,
-        embedded: EmbeddedSetup,
         shutdown: ShutdownTracker,
     ) -> Self {
         Self {
@@ -69,7 +61,6 @@ impl Authenticator {
             wait_for_topology: false,
             custom_topology_provider: None,
             wireguard_gateway_data,
-            embedded,
             shutdown,
             on_start: None,
         }
@@ -121,22 +112,16 @@ impl Authenticator {
         Ok(self)
     }
 
-    pub async fn run_service_provider(self) -> Result<(), AuthenticatorError> {
-        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
-
-        // the transceiver into its host, and the LP data plane running beside its client
-        let (transceiver, lp_channels) = self.embedded.start(
-            &self.config.storage_paths.common_paths,
-            self.config.base.debug,
-            &self.shutdown,
-            "authenticator",
-        )?;
-
+    /// Run inside the nym-node that handed over `setup`.
+    ///
+    /// There is no standalone authenticator: it is inherently a gateway-internal provider. It only
+    /// runs on the legacy path, and ignores the LP one.
+    pub async fn run_embedded(self, setup: EmbeddedSetup) -> Result<(), AuthenticatorError> {
         // Connect to the mixnet
         let mixnet_client = crate::node::internal_service_providers::authenticator::mixnet_client::create_mixnet_client(
             &self.config.base,
             self.shutdown.clone(),
-            Some(transceiver),
+            Some(setup.legacy),
             self.custom_topology_provider,
             self.wait_for_gateway,
             self.wait_for_topology,
@@ -152,7 +137,6 @@ impl Authenticator {
             mixnet_client,
             self.peer_registrator,
             self.upgrade_mode_state,
-            lp_channels,
         );
 
         tracing::info!("The address of this client is: {self_address}");

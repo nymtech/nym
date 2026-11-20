@@ -21,7 +21,20 @@
 pub mod error;
 pub mod handler;
 
+use std::sync::Arc;
+
+use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_client_core::config::DebugConfig;
+use nym_crypto::asymmetric::x25519;
+use nym_crypto::rng::os_rng;
 use nym_lp_data::packet::LpFrame;
+use nym_pemstore::KeyPairPath;
+use nym_task::ShutdownTracker;
+
+use crate::lp::error::LpProviderError;
+use crate::lp::handler::pipeline::{SpInboundPipeline, SpOutboundPipeline};
+use crate::lp::handler::{ProviderLink, SpLpDataSetup};
+use crate::mode::EmbeddedLp;
 
 /// How much either direction buffers before it starts dropping.
 ///
@@ -78,4 +91,34 @@ pub struct PipelineLink {
 pub struct GatewayLink {
     pub to_provider: ServiceProviderInputSender,
     pub from_provider: ServiceProviderOutputReceiver,
+}
+
+/// Build a hosted provider's LP pipelines, start them, and hand back the provider's ends.
+///
+/// The LP counterpart of building a mixnet client from the host's transceiver. The pipelines are
+/// built by the provider rather than by its host because the key the inbound half peels with is the
+/// provider's own: on the LP path the provider is the final sphinx hop, so nothing else in the
+/// process holds what opens that layer.
+pub fn start_lp_data_plane(
+    lp: EmbeddedLp,
+    paths: &CommonClientPaths,
+    debug_config: DebugConfig,
+    shutdown: &ShutdownTracker,
+    provider: &'static str,
+) -> Result<ProviderLink, LpProviderError> {
+    let encryption_keys: x25519::KeyPair = nym_pemstore::load_keypair(&KeyPairPath::new(
+        paths.keys.private_encryption_key().to_path_buf(),
+        paths.keys.public_encryption_key().to_path_buf(),
+    ))
+    .map_err(|source| LpProviderError::UnreadableKeys { provider, source })?;
+
+    let (plane, channels) = SpLpDataSetup::new(
+        SpInboundPipeline::new(Arc::new(encryption_keys)),
+        SpOutboundPipeline::new(os_rng(), debug_config, lp.topology),
+        lp.link,
+        lp.inbound_workers,
+    );
+    plane.start_tasks(shutdown, provider);
+
+    Ok(channels)
 }

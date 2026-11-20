@@ -72,6 +72,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
                 .gateway_tasks
                 .debug
                 .upgrade_mode_min_staleness_recheck,
+            sp_inbound_workers: config.lp.debug.sp_inbound_worker_count.get(),
         },
     )
 }

@@ -161,7 +161,7 @@ jobs:
             done
             local tflag=()
             if [ -n "$target" ]; then
-              tflag=(--target "$target")
+              tflag=(--target "$target" "${wasm_feature_flags[@]}")
             fi
             echo "Semver-checking ${#checked[@]} crates in the nym-sdk closure ($label)"
             cargo semver-checks "${tflag[@]}" "${args[@]}"
@@ -182,7 +182,19 @@ jobs:
           rc=0
           run_gate host "" "${host_closure[@]}" || rc=1
           if [ "${#wasm_only[@]}" -gt 0 ]; then
-            run_gate wasm32 wasm32-unknown-unknown "${wasm_only[@]}" || rc=1
+            # nym-wasm-utils 2.0.0 on crates.io does not build for wasm32 with its
+            # websocket feature (getrandom 0.4 without wasm_js), so the baseline build
+            # fails. Check without that feature until a release with the fix is the
+            # baseline, then delete this array and its use in run_gate.
+            wasm_feature_flags=(--default-features --features crypto,console_error_panic_hook)
+            # cargo-semver-checks appends --cap-lints=allow to RUSTFLAGS. For a wasm32
+            # --target that hides the rustc warnings cargo reads to learn which crate
+            # types the target drops, and cargo fails with "output of
+            # --print=file-names missing". CARGO_ENCODED_RUSTFLAGS takes precedence
+            # over RUSTFLAGS, so cargo ignores the appended flag. It also replaces the
+            # wasm32 rustflags in .cargo/config.toml, so it repeats them here.
+            CARGO_ENCODED_RUSTFLAGS='--cfg=getrandom_backend="wasm_js"' \
+              run_gate wasm32 wasm32-unknown-unknown "${wasm_only[@]}" || rc=1
           else
             echo "No wasm-only crates in the closure; skipping the wasm32 pass"
           fi

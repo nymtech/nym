@@ -49,6 +49,8 @@ Alternatives considered:
 
 Obtain the current height N, load every consumer's state pinned at N, start the watcher with N as its last processed height. The existing missing-block fetch fills in from N + 1. This closes the startup hole and makes recovery the same code path as boot.
 
+The start height is optional on `WatcherConfig`. Without one the watcher starts at the first block it observes, as before, which suits a caller with no loaded state such as the crate's example. nym-node always passes one.
+
 Alternative considered: subscribe first and buffer blocks while state loads. Rejected: it needs buffering and replay logic that the processor's backlog and fetch-by-height already provide once it knows its start height.
 
 ### 3. The watcher gives up when a newer block is known and nothing was processed for 2 minutes

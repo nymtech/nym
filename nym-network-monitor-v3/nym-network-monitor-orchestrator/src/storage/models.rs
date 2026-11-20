@@ -40,6 +40,7 @@ pub(crate) enum TestKind {
     MixnodeLiveness,
     GatewayLiveness,
     MixnodeStress,
+    GatewayStress,
 }
 
 // The internal enum exists as a separate type so `sqlx::Type` can be derived without leaking sqlx
@@ -50,6 +51,7 @@ impl From<TestKind> for api::TestKind {
             TestKind::MixnodeLiveness => api::TestKind::MixnodeLiveness,
             TestKind::GatewayLiveness => api::TestKind::GatewayLiveness,
             TestKind::MixnodeStress => api::TestKind::MixnodeStress,
+            TestKind::GatewayStress => api::TestKind::GatewayStress,
         }
     }
 }
@@ -60,6 +62,7 @@ impl From<api::TestKind> for TestKind {
             api::TestKind::MixnodeLiveness => TestKind::MixnodeLiveness,
             api::TestKind::GatewayLiveness => TestKind::GatewayLiveness,
             api::TestKind::MixnodeStress => TestKind::MixnodeStress,
+            api::TestKind::GatewayStress => TestKind::GatewayStress,
         }
     }
 }
@@ -181,10 +184,11 @@ impl MixnodeTestRunRow {
     }
 }
 
-/// A row of `gateway_liveness_testrun`: the run-level columns plus the `client_ingest` and
-/// `client_delivery` groups. Flat because `query_as!` cannot flatten.
+/// A row of `gateway_liveness_testrun` or `gateway_stress_testrun`, whose columns are identical: the
+/// run-level columns plus the `client_ingest` and `client_delivery` groups. Flat because `query_as!`
+/// cannot flatten.
 #[derive(Debug, Clone)]
-pub(crate) struct GatewayLivenessTestRunRow {
+pub(crate) struct GatewayTestRunRow {
     pub(crate) id: i64,
     pub(crate) node_id: i64,
     pub(crate) tested_address: String,
@@ -219,11 +223,22 @@ pub(crate) struct GatewayLivenessTestRunRow {
     pub(crate) client_delivery_received_duplicates: bool,
 }
 
-impl GatewayLivenessTestRunRow {
+impl GatewayTestRunRow {
+    /// The row read from `gateway_liveness_testrun`.
     pub(crate) fn into_gateway_liveness(self) -> CompletedTestRun {
         let client_ingest = self.client_ingest();
         let client_delivery = self.client_delivery();
         self.into_completed(RunMeasurements::GatewayLiveness {
+            client_ingest,
+            client_delivery,
+        })
+    }
+
+    /// The row read from `gateway_stress_testrun`.
+    pub(crate) fn into_gateway_stress(self) -> CompletedTestRun {
+        let client_ingest = self.client_ingest();
+        let client_delivery = self.client_delivery();
+        self.into_completed(RunMeasurements::GatewayStress {
             client_ingest,
             client_delivery,
         })
@@ -816,7 +831,7 @@ impl DescribedNodeRoles {
     pub(crate) fn is_tested_by(&self, kind: TestKind) -> bool {
         match kind {
             TestKind::MixnodeLiveness | TestKind::MixnodeStress => self.mixnode_enabled,
-            TestKind::GatewayLiveness => self.gateway_enabled,
+            TestKind::GatewayLiveness | TestKind::GatewayStress => self.gateway_enabled,
         }
     }
 }
@@ -969,6 +984,10 @@ pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
         },
         TestKind::MixnodeStress => RunMeasurements::MixnodeStress {
             mix_forwarding: minimal_measurement(),
+        },
+        TestKind::GatewayStress => RunMeasurements::GatewayStress {
+            client_ingest: minimal_measurement(),
+            client_delivery: minimal_measurement(),
         },
     }
 }

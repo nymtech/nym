@@ -22,9 +22,9 @@
 
 ## 4. Orchestrator storage
 
-- [ ] 4.1 Migration `07_gateway_stress.sql`: insert `gateway_stress` into `test_kind` and create `gateway_stress_testrun` with the columns and indexes of `gateway_liveness_testrun`
-- [ ] 4.2 Storage `TestKind::GatewayStress` (declared last) with its conversions to and from the wire kind; one row struct for both gateway tables with `into_gateway_stress`; the `DescribedNodeRoles::is_tested_by` arm
-- [ ] 4.3 The per-table functions for `gateway_stress_testrun` (insert, by id, page, per-node page, in window, eviction) and their arms in each per-kind dispatch
+- [x] 4.1 Migration `07_gateway_stress.sql`: insert `gateway_stress` into `test_kind` and create `gateway_stress_testrun` with the columns and indexes of `gateway_liveness_testrun`
+- [x] 4.2 Storage `TestKind::GatewayStress` (declared last) with its conversions to and from the wire kind; one row struct for both gateway tables with `into_gateway_stress`; the `DescribedNodeRoles::is_tested_by` arm
+- [x] 4.3 The per-table functions for `gateway_stress_testrun` (insert, by id, page, per-node page, in window, eviction) and their arms in each per-kind dispatch
 - [ ] 4.4 Scheduling predicates: the `select_candidates` arm, the due-count, never-tested-count and measured-head queries, and the facade arms that count candidates, lateness and the testable population
 - [ ] 4.5 Tests: every figure of a gateway stress run round-trips; per-kind table isolation and eviction cover the new table; a gateway stress result for a node dispatched for gateway liveness is rejected; a gateway-only node is a candidate for the gateway kinds only
 

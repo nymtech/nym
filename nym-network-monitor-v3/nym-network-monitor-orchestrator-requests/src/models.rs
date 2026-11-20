@@ -91,7 +91,7 @@ pub struct TestRunAssignmentRequest {
 }
 
 /// What a test run measures: one probe against one role of a node, so a dual-role node is due
-/// separately for each of the two liveness kinds.
+/// separately for the mixnode and the gateway kind of each family.
 ///
 /// Deliberately has no `Default` - the kind decides eligibility, cadence and the expected
 /// measurement set, so a silently defaulted value would measure the wrong thing rather than fail.
@@ -109,6 +109,9 @@ pub enum TestKind {
 
     /// High-volume throughput probe of a node's mix forwarding, one target per assignment.
     MixnodeStress,
+
+    /// The gateway liveness probe at high volume, one target per assignment.
+    GatewayStress,
 }
 
 /// Response from the orchestrator when an agent requests work.
@@ -121,9 +124,9 @@ pub struct TestRunAssignmentResponse {
 
 /// Work handed to an agent, one variant per [`TestKind`].
 ///
-/// `MixnodeStress` and `MixnodeLiveness` carry the same payload because they are the same probe,
-/// differing only in the profile the agent applies, which the agent holds in its own config and
-/// selects from the tag. `GatewayLiveness` additionally carries what is needed to open a client
+/// The stress and liveness variants of one role carry the same payload because they are the same
+/// probe, differing only in the profile the agent applies, which the agent holds in its own config
+/// and selects from the tag. A gateway target additionally carries what is needed to open a client
 /// websocket session.
 ///
 /// A stress assignment is ONE target; a liveness assignment is a WAVE the agent probes
@@ -140,6 +143,7 @@ pub enum TestRunAssignment {
     MixnodeStress(Box<MixnetProbeTarget>),
     MixnodeLiveness(Vec<MixnetProbeTarget>),
     GatewayLiveness(Vec<GatewayProbeTarget>),
+    GatewayStress(Box<GatewayProbeTarget>),
 }
 
 impl TestRunAssignment {
@@ -150,6 +154,7 @@ impl TestRunAssignment {
             TestRunAssignment::MixnodeLiveness(_) => TestKind::MixnodeLiveness,
             TestRunAssignment::GatewayLiveness(_) => TestKind::GatewayLiveness,
             TestRunAssignment::MixnodeStress(_) => TestKind::MixnodeStress,
+            TestRunAssignment::GatewayStress(_) => TestKind::GatewayStress,
         }
     }
 }
@@ -280,6 +285,12 @@ pub enum RunMeasurements {
     MixnodeStress {
         mix_forwarding: InterfaceMeasurement,
     },
+
+    /// The node's client ingest and client delivery under load.
+    GatewayStress {
+        client_ingest: InterfaceMeasurement,
+        client_delivery: InterfaceMeasurement,
+    },
 }
 
 impl RunMeasurements {
@@ -289,6 +300,7 @@ impl RunMeasurements {
             RunMeasurements::MixnodeLiveness { .. } => TestKind::MixnodeLiveness,
             RunMeasurements::GatewayLiveness { .. } => TestKind::GatewayLiveness,
             RunMeasurements::MixnodeStress { .. } => TestKind::MixnodeStress,
+            RunMeasurements::GatewayStress { .. } => TestKind::GatewayStress,
         }
     }
 
@@ -298,6 +310,10 @@ impl RunMeasurements {
             RunMeasurements::MixnodeLiveness { mix_forwarding }
             | RunMeasurements::MixnodeStress { mix_forwarding } => vec![mix_forwarding],
             RunMeasurements::GatewayLiveness {
+                client_ingest,
+                client_delivery,
+            }
+            | RunMeasurements::GatewayStress {
                 client_ingest,
                 client_delivery,
             } => vec![client_ingest, client_delivery],
@@ -561,6 +577,7 @@ pub struct NymNodeWithTestRuns {
     pub latest_mixnode_liveness: Option<TestRunData>,
     pub latest_gateway_liveness: Option<TestRunData>,
     pub latest_mixnode_stress: Option<TestRunData>,
+    pub latest_gateway_stress: Option<TestRunData>,
 }
 
 /// Marker for a test run that has been handed out to an agent but whose result
@@ -656,7 +673,8 @@ pub struct NodeEpochAggregates {
     /// if neither kind has a run for this node in the window.
     pub liveness: Option<KindAggregate>,
 
-    /// The stress aggregate, or `None` if no stress run exists for this node in the window.
+    /// The stress aggregate over the node's mixnode and gateway stress runs together, or `None` if
+    /// neither kind has a run for this node in the window.
     pub stress: Option<KindAggregate>,
 }
 

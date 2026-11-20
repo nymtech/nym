@@ -279,7 +279,7 @@ fn emit_assignment_metrics(kind: TestKind, wave_size: usize) {
     // exhaustive rather than defaulting, so a new kind has to say here whether it has a wave at all
     let has_wave = match kind {
         TestKind::MixnodeLiveness | TestKind::GatewayLiveness => true,
-        TestKind::MixnodeStress => false,
+        TestKind::MixnodeStress | TestKind::GatewayStress => false,
     };
 
     if has_wave {
@@ -324,7 +324,8 @@ impl TestrunManager {
     ///
     /// A node is due at its last test by a kind plus that kind's interval, and one the kind has never
     /// tested outranks every measured one. Equally overdue kinds go in declaration order, which puts
-    /// the liveness kinds ahead of stress, so a cold start begins with liveness. A kind whose nodes a
+    /// the liveness kinds ahead of stress and mixnode stress ahead of gateway stress, so a cold start
+    /// begins with liveness. A kind whose nodes a
     /// concurrent request took between the peek and the assignment yields nothing, and the request
     /// falls through to the next most overdue.
     ///
@@ -397,9 +398,14 @@ impl TestrunManager {
         }
 
         let assignment = match kind {
-            // the stress schedule always asks for a wave of one
+            // the stress schedules always ask for a wave of one
             TestKind::MixnodeStress => TestRunAssignment::MixnodeStress(Box::new(
                 targets[0].mixnet_probe_target().map_err(malformed_target)?,
+            )),
+            TestKind::GatewayStress => TestRunAssignment::GatewayStress(Box::new(
+                targets[0]
+                    .gateway_probe_target()
+                    .map_err(malformed_target)?,
             )),
             TestKind::MixnodeLiveness => TestRunAssignment::MixnodeLiveness(
                 targets
@@ -564,6 +570,9 @@ impl AppState {
                 .await?,
             latest_mixnode_stress: self
                 .get_latest_testrun_for_node(TestKind::MixnodeStress, node_id)
+                .await?,
+            latest_gateway_stress: self
+                .get_latest_testrun_for_node(TestKind::GatewayStress, node_id)
                 .await?,
         }))
     }
@@ -1224,10 +1233,11 @@ mod aggregate_shaping {
 #[cfg(test)]
 mod assignment_tests {
     use super::*;
-    use crate::orchestrator::config::test_config;
+    use crate::orchestrator::config::{Config, test_config};
     use crate::storage::models::{
         FIXTURE_SEEN_AT, NymNode, gateway, minimal_measurements, minimal_test_run, mixnode,
     };
+    use std::collections::{HashMap, HashSet};
     use std::time::Duration;
     use strum::IntoEnumIterator;
 
@@ -1283,14 +1293,16 @@ mod assignment_tests {
     }
 
     // On a cold start every kind's next node reads as never tested, so the kinds tie, and ties go
-    // in declaration order: both liveness kinds are served before stress. Node 3 has a fresh mixnode
-    // liveness result, which gates it out of that kind but leaves it never tested for stress, so
-    // stress has work in each of the first two requests and is passed over both times.
+    // in declaration order: both liveness kinds, then mixnode stress, then gateway stress. Nodes 3
+    // and 4 have a fresh liveness result, which gates each out of its liveness kind but leaves it
+    // never tested for its stress kind, so both stress kinds have work from the first request and
+    // are passed over until the kinds declared before them have none.
     #[tokio::test]
     async fn equally_overdue_kinds_are_served_in_declaration_order() {
         let manager = manager();
-        let storage = storage_with(&[mixnode(1), gateway(2), mixnode(3)]).await;
+        let storage = storage_with(&[mixnode(1), gateway(2), mixnode(3), gateway(4)]).await;
         tested(&storage, TestKind::MixnodeLiveness, 3, Duration::ZERO).await;
+        tested(&storage, TestKind::GatewayLiveness, 4, Duration::ZERO).await;
 
         let mut served = Vec::new();
         while let Some(assignment) = next(&manager, &storage).await {
@@ -1302,7 +1314,8 @@ mod assignment_tests {
             vec![
                 TestKind::MixnodeLiveness,
                 TestKind::GatewayLiveness,
-                TestKind::MixnodeStress
+                TestKind::MixnodeStress,
+                TestKind::GatewayStress
             ]
         );
     }
@@ -1350,20 +1363,78 @@ mod assignment_tests {
         assert_eq!(wave[0].mixnet.node_id, 2);
     }
 
-    // a switched-off kind is not merely deprioritised but absent, so a node only it could test gets
-    // no work at all
+    // A switched-off kind is not merely deprioritised but absent, and switching one off leaves the
+    // others serving as before. Nodes 3 and 4 were just liveness-tested, so every kind has a node of
+    // its own and each kind left on is served before the population runs out.
     #[tokio::test]
-    async fn a_disabled_kind_is_never_chosen() {
+    async fn a_disabled_kind_is_never_chosen_while_the_others_still_are() {
+        for (config, disabled) in [
+            (
+                test_config(false),
+                vec![TestKind::MixnodeLiveness, TestKind::GatewayLiveness],
+            ),
+            (
+                Config {
+                    mixnode_stress_enabled: false,
+                    ..test_config(true)
+                },
+                vec![TestKind::MixnodeStress],
+            ),
+            (
+                Config {
+                    gateway_stress_enabled: false,
+                    ..test_config(true)
+                },
+                vec![TestKind::GatewayStress],
+            ),
+        ] {
+            let manager = TestrunManager {
+                schedules: config.schedules(),
+            };
+            let storage = storage_with(&[mixnode(1), gateway(2), mixnode(3), gateway(4)]).await;
+            tested(&storage, TestKind::MixnodeLiveness, 3, Duration::ZERO).await;
+            tested(&storage, TestKind::GatewayLiveness, 4, Duration::ZERO).await;
+
+            let mut served = HashSet::new();
+            while let Some(assignment) = next(&manager, &storage).await {
+                served.insert(TestKind::from(assignment.kind()));
+            }
+
+            let expected: HashSet<_> = TestKind::iter()
+                .filter(|kind| !disabled.contains(kind))
+                .collect();
+            assert_eq!(served, expected, "with {disabled:?} switched off");
+        }
+    }
+
+    // A stress assignment carries one target by its type, so the schedule must lock only that one:
+    // a wider wave would hold nodes no agent was sent.
+    #[tokio::test]
+    async fn a_gateway_stress_assignment_carries_and_locks_one_target() {
         let manager = TestrunManager {
             schedules: test_config(false).schedules(),
         };
-        let storage = storage_with(&[mixnode(1), gateway(2)]).await;
+        let storage = storage_with(&[gateway(1), gateway(2), gateway(3)]).await;
 
         let assignment = next(&manager, &storage).await.unwrap();
-        assert!(matches!(assignment, TestRunAssignment::MixnodeStress(_)));
+        let TestRunAssignment::GatewayStress(target) = assignment else {
+            panic!("a gateway-only population with liveness off produced {assignment:?}");
+        };
 
-        // the gateway, which only gateway liveness could test, is left alone
-        assert!(next(&manager, &storage).await.is_none());
+        let in_flight = storage
+            .storage_manager
+            .count_testruns_in_progress_by_kind()
+            .await
+            .unwrap();
+        assert_eq!(in_flight, HashMap::from([(TestKind::GatewayStress, 1)]));
+        assert!(
+            storage
+                .storage_manager
+                .get_testrun_in_progress(target.mixnet.node_id as i64)
+                .await
+                .unwrap()
+                .is_some()
+        );
     }
 
     // A kind with nothing eligible must not waste the request: here only a gateway is bonded, so

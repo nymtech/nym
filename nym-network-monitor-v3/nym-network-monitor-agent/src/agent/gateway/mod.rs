@@ -1,13 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The gateway liveness probe: one indivisible run measuring two interfaces over one client session.
+//! The gateway probe: one indivisible run measuring two interfaces over one client session. Both
+//! gateway kinds run it, liveness and stress differing only in their profile.
 //!
 //! Named for the mixnet capability it measures, because `GatewayProbe` already means something else in
 //! this repository: the prober that walks a gateway's VPN and exit path. Nothing here touches that.
 
 use crate::agent::config::{NodeTesterConfig, ProbeProfile};
-use crate::agent::result::{LatencyDistribution, PacketDelivery, ProbeMeasurements, TestRunResult};
+use crate::agent::result::{LatencyDistribution, PacketDelivery, TestRunResult};
 use crate::agent::tested_node::{TestedGatewayDetails, TestedNodeDetails};
 use crate::mixnet::client_session::events::ReceivedPayload;
 use crate::mixnet::client_session::inbox::GatewaySessionInbox;
@@ -28,10 +29,11 @@ use nym_sphinx_params::PacketType;
 use nym_sphinx_types::{NymPacket, SphinxPacket};
 use nym_task::ShutdownToken;
 use std::collections::HashMap;
+use std::mem::take;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::pin;
-use tokio::time::{sleep, timeout};
+use tokio::time::{Instant, sleep, timeout, timeout_at};
 use tracing::{debug, error, info, warn};
 
 pub(crate) mod wave;
@@ -58,12 +60,19 @@ const GATEWAY_PACKET_DELAY: Duration = Duration::ZERO;
 ///
 /// Neither phase may abort the other. A gateway needs both capabilities to be useful, so both are
 /// always measured and a phase that produced nothing is reported as a zero.
-pub(crate) struct GatewayMixnetLivenessProbe {
+///
+/// Each phase sends for at most its profile's send window, cutting off a write the gateway is holding
+/// up, and whatever the gateway did not take by then counts as lost. Sending that stops early, at the
+/// window or on a failed send, still goes on to the straggler wait and the count.
+pub(crate) struct GatewayMixnetProbe {
     /// Tester configuration controlling timeouts and addressing.
     config: NodeTesterConfig,
 
-    /// The liveness sending knobs, resolved once at construction. A gateway probe has no stress
-    /// profile: there is no gateway stress assignment, and the two would not resemble each other.
+    /// What this run measures. It selects the profile, the session's receive timeout and the result
+    /// variant; the two phases are the same for both gateway kinds.
+    kind: TestKind,
+
+    /// The kind's sending knobs, resolved once at construction.
     profile: ProbeProfile,
 
     /// The identity this agent presents when registering, which is also the destination the delivery
@@ -91,21 +100,25 @@ pub(crate) struct GatewayMixnetLivenessProbe {
     target: TestedGatewayDetails,
 }
 
-impl GatewayMixnetLivenessProbe {
+impl GatewayMixnetProbe {
     pub(crate) fn new(
         config: NodeTesterConfig,
+        kind: TestKind,
         client_identity: Arc<ed25519::KeyPair>,
         noise_key: Arc<x25519::KeyPair>,
         target: TestedGatewayDetails,
     ) -> anyhow::Result<Self> {
-        let profile = config.profile_for(TestKind::GatewayLiveness);
+        let profile = config.profile_for(kind);
 
         // an ephemeral sphinx key, needed only to build the ingest header below and deliberately not
         // retained: the header carries the payload key derived from it, and that is what recovers a
         // returning packet, so nothing afterwards needs the private half
         let sphinx_key: x25519::KeyPair = x25519::PrivateKey::new(&mut os_rng()).into();
 
-        debug!("probing gateway {} under {profile:?}", target.identity);
+        debug!(
+            "probing gateway {} for {kind} under {profile:?}",
+            target.identity
+        );
         debug!("{target:#?}");
 
         let client_address = client_identity.public_key().derive_destination_address();
@@ -130,8 +143,9 @@ impl GatewayMixnetLivenessProbe {
         )
         .context("failed to build the delivery leg's sphinx header")?;
 
-        Ok(GatewayMixnetLivenessProbe {
+        Ok(GatewayMixnetProbe {
             config,
+            kind,
             profile,
             client_identity,
             noise_key,
@@ -180,20 +194,21 @@ impl GatewayMixnetLivenessProbe {
     pub(crate) async fn run(
         self,
         ingest_inbox: TargetInbox,
-        deadline: Option<Duration>,
+        deadline: Duration,
         shutdown: ShutdownToken,
     ) -> anyhow::Result<TestRunResult> {
         let identity = self.target.identity;
-        info!("beginning the gateway probe of {identity}");
+        let kind = self.kind;
+        info!("beginning the {kind} probe of {identity}");
 
         // stamped BEFORE the session is established, so the reported duration includes getting one.
         // seeded with both interfaces, so it is already submittable as a pair of zeros
-        let mut result = TestRunResult::new(TestKind::GatewayLiveness, GATEWAY_PACKET_DELAY);
+        let mut result = TestRunResult::new(kind, GATEWAY_PACKET_DELAY);
 
         let (session, delivery_arrivals) = match GatewaySession::establish(
             self.session_target(),
             &self.client_identity,
-            self.config.gateway_session_config(),
+            self.config.gateway_session_config(kind),
             shutdown,
         )
         .await
@@ -213,9 +228,9 @@ impl GatewayMixnetLivenessProbe {
 
         let mut run = GatewayRun::new(self, session, delivery_arrivals, ingest_inbox, result);
         run.run_to_deadline(deadline).await;
-        let result = run.finish().await;
+        let result = run.finish().await?;
 
-        info!("finished the gateway probe of {identity}");
+        info!("finished the {kind} probe of {identity}");
         Ok(result)
     }
 
@@ -227,11 +242,11 @@ impl GatewayMixnetLivenessProbe {
 
 /// One gateway run in flight: the live resources, plus the state that only exists while it runs.
 ///
-/// Separate from [`GatewayMixnetLivenessProbe`] for the same reason `ProbeRun` is separate from
+/// Separate from [`GatewayMixnetProbe`] for the same reason `ProbeRun` is separate from
 /// `NodeProbe`: the session is established during the run and can fail, so it cannot be a field
 /// without becoming an `Option` that every send path has to unwrap.
 struct GatewayRun {
-    probe: GatewayMixnetLivenessProbe,
+    probe: GatewayMixnetProbe,
 
     /// The live session. Both phases share it, and it stays open across both and their drain windows.
     session: GatewaySession,
@@ -254,6 +269,10 @@ struct GatewayRun {
     /// What the DELIVERY phase is measuring.
     delivery_measured: PacketDelivery,
 
+    /// What the phase in flight has received so far. Held here rather than by the phase, so a phase
+    /// cut off by the deadline can still be counted; one field serves both, since they never overlap.
+    received: Vec<Measured>,
+
     /// Monotonically increasing id stamped into each outgoing packet, shared by both phases so that
     /// no id is issued twice within a run.
     ///
@@ -267,7 +286,7 @@ struct GatewayRun {
 
 impl GatewayRun {
     fn new(
-        probe: GatewayMixnetLivenessProbe,
+        probe: GatewayMixnetProbe,
         session: GatewaySession,
         delivery_arrivals: GatewaySessionInbox,
         ingest_arrivals: TargetInbox,
@@ -281,53 +300,57 @@ impl GatewayRun {
             result,
             ingest_measured: PacketDelivery::default(),
             delivery_measured: PacketDelivery::default(),
+            received: Vec::new(),
             packet_counter: 0,
         }
     }
 
-    /// Runs both phases, cut off at `deadline` if one is set.
+    /// Runs the two phases in order, cut off at `deadline`.
     ///
-    /// The deadline wraps the sequence HERE rather than the caller wrapping the whole probe, because a
-    /// dropped future would take its partial result with it: a run cut off during its delivery phase
-    /// still has to report the ingest phase it completed.
-    async fn run_to_deadline(&mut self, deadline: Option<Duration>) {
-        let Some(deadline) = deadline else {
-            self.execute().await;
-            return;
-        };
+    /// Each phase records its own failure rather than returning it: the phases test independent
+    /// capabilities, so a gateway with a broken session path may still deliver perfectly and has to be
+    /// measured doing it.
+    ///
+    /// The deadline wraps each phase HERE rather than the caller wrapping the whole probe, because a
+    /// dropped future would take its partial result with it. The phase it cuts off counts what had
+    /// already arrived, a phase already finished keeps its figures, and one not yet started stays zero.
+    async fn run_to_deadline(&mut self, deadline: Duration) {
+        let cut_off = Instant::now() + deadline;
 
-        let identity = self.probe.target.identity;
-        if timeout(deadline, self.execute()).await.is_err() {
-            let deadline = format_duration(deadline);
-            warn!("the gateway probe of {identity} did not complete within {deadline}");
-            // run-level, because a deadline cuts off whatever was in flight rather than implicating
-            // one interface. whichever phases had already finished keep their own figures
-            self.result
-                .set_error(format!("the probe did not complete within {deadline}"));
+        if timeout_at(cut_off, self.measure_client_ingest())
+            .await
+            .is_err()
+        {
+            self.collect_ingest_arrivals();
+            summarise(&mut self.ingest_measured, take(&mut self.received));
+            self.report_deadline_exceeded(deadline);
+            return;
+        }
+
+        if timeout_at(cut_off, self.measure_client_delivery())
+            .await
+            .is_err()
+        {
+            // cut off before sending anything, while still connecting, so there is nothing to count
+            if self.delivery_measured.packets_sent > 0 {
+                self.collect_delivery_arrivals();
+                summarise(&mut self.delivery_measured, take(&mut self.received));
+            }
+            self.report_deadline_exceeded(deadline);
         }
     }
 
-    /// Runs the two phases in order.
-    ///
-    /// The ingest phase runs first and its failure is recorded WITHOUT returning: the phases test
-    /// independent capabilities, so a gateway with a broken session path may still deliver perfectly
-    /// and has to be measured doing it.
-    async fn execute(&mut self) {
-        if let Err(err) = self.measure_client_ingest().await {
-            warn!(
-                "the client ingest phase against {} failed: {err:#}",
-                self.probe.target.identity
-            );
-            self.ingest_measured.set_error(format!("{err:#}"));
-        }
-
-        if let Err(err) = self.measure_client_delivery().await {
-            warn!(
-                "the client delivery phase against {} failed: {err:#}",
-                self.probe.target.identity
-            );
-            self.delivery_measured.set_error(format!("{err:#}"));
-        }
+    /// Records that the deadline cut the run off.
+    fn report_deadline_exceeded(&mut self, deadline: Duration) {
+        let deadline = format_duration(deadline);
+        warn!(
+            "the gateway probe of {} did not complete within {deadline}",
+            self.probe.target.identity
+        );
+        // run-level, because a deadline cuts off whatever was in flight rather than implicating one
+        // interface
+        self.result
+            .set_error(format!("the probe did not complete within {deadline}"));
     }
 
     /// Measures client ingest: forward through the session, receive on the mixnet listener.
@@ -336,7 +359,7 @@ impl GatewayRun {
     /// explicitly and the gateway forwards the packet verbatim. A loss on this phase therefore
     /// implicates the session, the bandwidth path or the outbound forwarder, which is exactly what
     /// makes the two phases worth separating.
-    async fn measure_client_ingest(&mut self) -> anyhow::Result<()> {
+    async fn measure_client_ingest(&mut self) {
         let expected = self.probe.packets_per_phase();
         debug!("measuring client ingest with {expected} packet(s)");
 
@@ -344,6 +367,36 @@ impl GatewayRun {
         // is penalised rather than flattered
         self.ingest_measured.packets_sent = expected;
 
+        let window = self.probe.profile.sending_duration;
+        let sent = timeout(window, self.send_ingest_load(expected)).await;
+        match sent {
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => {
+                warn!(
+                    "the client ingest phase against {} stopped sending: {err:#}",
+                    self.probe.target.identity
+                );
+                self.ingest_measured.set_error(format!("{err:#}"));
+            }
+            Err(_) => warn!(
+                "{} did not take all {expected} client ingest packet(s) within the {} send window",
+                self.probe.target.identity,
+                format_duration(window)
+            ),
+        }
+
+        self.drain_ingest_arrivals(expected).await;
+        summarise(&mut self.ingest_measured, take(&mut self.received));
+
+        // the session's acknowledgements, refusals and close are filed only as its channel is read,
+        // and nothing reads it during this phase. anything delivered meanwhile is kept in `received`
+        // for the delivery phase
+        self.collect_delivery_arrivals();
+        self.report_session_treatment();
+    }
+
+    /// Forwards the ingest phase's packets through the session at the profile's pace.
+    async fn send_ingest_load(&mut self, expected: usize) -> anyhow::Result<()> {
         let batches = self.plan_batches(expected);
         let mut interval = self.dispatch_interval();
 
@@ -357,10 +410,6 @@ impl GatewayRun {
             self.session.forward_batch(batch).await?;
         }
 
-        let received = self.drain_ingest_arrivals(expected).await;
-        summarise(&mut self.ingest_measured, received);
-        self.report_session_treatment();
-
         Ok(())
     }
 
@@ -369,7 +418,7 @@ impl GatewayRun {
     /// The only thing worth distinguishing, and the reason it is worth logging: a session refused for
     /// want of bandwidth means this gateway does not hold our announced identity, so the phase's zero
     /// is ours to explain rather than the gateway's. HOW a gateway came to accept a packet is not
-    /// examined, because a liveness probe measures only whether the packet got through.
+    /// examined, because a gateway probe measures only whether the packet got through.
     fn report_session_treatment(&self) {
         let identity = self.probe.target.identity;
 
@@ -404,17 +453,58 @@ impl GatewayRun {
     ///
     /// Opening the egress connection is part of THIS phase rather than of the run, so a gateway whose
     /// mixnet listener refuses us still reports the ingest phase it passed.
-    async fn measure_client_delivery(&mut self) -> anyhow::Result<()> {
+    async fn measure_client_delivery(&mut self) {
         let expected = self.probe.packets_per_phase();
         debug!("measuring client delivery with {expected} packet(s)");
 
-        let mut egress = self
-            .establish_egress_connection()
-            .await
-            .context("failed to establish the egress connection to the gateway")?;
+        let mut egress = match self.establish_egress_connection().await {
+            Ok(egress) => egress,
+            Err(err) => {
+                let err = err.context("failed to establish the egress connection to the gateway");
+                warn!(
+                    "the client delivery phase against {} failed: {err:#}",
+                    self.probe.target.identity
+                );
+                self.delivery_measured.set_error(format!("{err:#}"));
+                return;
+            }
+        };
 
         self.delivery_measured.packets_sent = expected;
 
+        let window = self.probe.profile.sending_duration;
+        let sent = timeout(window, self.send_delivery_load(&mut egress, expected)).await;
+        match sent {
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => {
+                warn!(
+                    "the client delivery phase against {} stopped sending: {err:#}",
+                    self.probe.target.identity
+                );
+                self.delivery_measured.set_error(format!("{err:#}"));
+            }
+            Err(_) => warn!(
+                "{} did not take all {expected} client delivery packet(s) within the {} send window",
+                self.probe.target.identity,
+                format_duration(window)
+            ),
+        }
+
+        self.drain_delivery_arrivals(expected).await;
+        summarise(&mut self.delivery_measured, take(&mut self.received));
+
+        // this leg DOES speak Noise, so it has an egress handshake to report. the ingest leg has
+        // neither figure, since a websocket authenticated by the registration handshake involves no
+        // Noise at all
+        self.delivery_measured.egress_noise_handshake = Some(egress.noise_handshake_duration);
+    }
+
+    /// Sends the delivery phase's packets over the egress connection at the profile's pace.
+    async fn send_delivery_load(
+        &mut self,
+        egress: &mut EgressConnection,
+        expected: usize,
+    ) -> anyhow::Result<()> {
         let batches = self.plan_batches(expected);
         let mut interval = self.dispatch_interval();
 
@@ -428,22 +518,14 @@ impl GatewayRun {
             egress.send_packet_batch(batch).await?;
         }
 
-        let received = self.drain_delivery_arrivals(expected).await;
-        summarise(&mut self.delivery_measured, received);
-
-        // this leg DOES speak Noise, so it has an egress handshake to report. the ingest leg has
-        // neither figure, since a websocket authenticated by the registration handshake involves no
-        // Noise at all
-        self.delivery_measured.egress_noise_handshake = Some(egress.noise_handshake_duration);
-
         Ok(())
     }
 
     /// How many packets each dispatch of a phase sends.
     ///
     /// Both phases pace identically, so the plan is derived once from the profile rather than each
-    /// phase deciding: a burst is the one thing a liveness probe must not do, since it measures
-    /// delivery and would then be measuring the target under load.
+    /// phase deciding: a burst would put the target under a load other than the one the profile
+    /// specifies.
     fn plan_batches(&self, expected: usize) -> Vec<usize> {
         let batch = self.probe.profile.sending_batch_size.max(1);
         let mut batches = Vec::new();
@@ -466,20 +548,12 @@ impl GatewayRun {
         interval
     }
 
-    /// Drains the ingest phase's arrivals, waiting out the straggler window for the ones still in
-    /// flight.
-    async fn drain_ingest_arrivals(&mut self, expected: usize) -> Vec<Measured> {
-        let mut received = self
-            .ingest_arrivals
-            .all_available()
-            .into_iter()
-            .map(|packet| Measured {
-                id: packet.id,
-                latency: packet.rtt,
-            })
-            .collect::<Vec<_>>();
+    /// Drains the ingest phase's arrivals into [`Self::received`], waiting out the straggler window
+    /// for the ones still in flight.
+    async fn drain_ingest_arrivals(&mut self, expected: usize) {
+        self.collect_ingest_arrivals();
 
-        if received.len() < expected {
+        if self.received.len() < expected {
             let straggler_wait = sleep(self.probe.profile.waiting_duration);
             pin!(straggler_wait);
 
@@ -488,8 +562,8 @@ impl GatewayRun {
                     _ = &mut straggler_wait => break,
                     next = self.ingest_arrivals.next_packet() => match next {
                         Ok(packet) => {
-                            received.push(Measured { id: packet.id, latency: packet.rtt });
-                            if received.len() >= expected {
+                            self.received.push(Measured { id: packet.id, latency: packet.rtt });
+                            if self.received.len() >= expected {
                                 break;
                             }
                         }
@@ -499,24 +573,31 @@ impl GatewayRun {
                 }
             }
         }
-
-        received
     }
 
-    /// Drains the delivery phase's arrivals, waiting out the straggler window.
+    /// Moves the ingest arrivals already waiting into [`Self::received`].
+    fn collect_ingest_arrivals(&mut self) {
+        let arrived = self
+            .ingest_arrivals
+            .all_available()
+            .into_iter()
+            .map(|packet| Measured {
+                id: packet.id,
+                latency: packet.rtt,
+            });
+        self.received.extend(arrived);
+    }
+
+    /// Drains the delivery phase's arrivals into [`Self::received`], waiting out the straggler
+    /// window.
     ///
     /// No sphinx recovery here: the gateway was the packet's final hop and unwrapped the payload
     /// before pushing it, so what arrives is the test content's bytes and only its round trip has to
     /// be worked out.
-    async fn drain_delivery_arrivals(&mut self, expected: usize) -> Vec<Measured> {
-        let mut received = self
-            .delivery_arrivals
-            .all_available()
-            .into_iter()
-            .filter_map(Measured::from_payload)
-            .collect::<Vec<_>>();
+    async fn drain_delivery_arrivals(&mut self, expected: usize) {
+        self.collect_delivery_arrivals();
 
-        if received.len() < expected {
+        if self.received.len() < expected {
             let straggler_wait = sleep(self.probe.profile.waiting_duration);
             pin!(straggler_wait);
 
@@ -526,8 +607,8 @@ impl GatewayRun {
                     next = self.delivery_arrivals.next_payload() => match next {
                         Ok(payload) => {
                             if let Some(measured) = Measured::from_payload(payload) {
-                                received.push(measured);
-                                if received.len() >= expected {
+                                self.received.push(measured);
+                                if self.received.len() >= expected {
                                     break;
                                 }
                             }
@@ -540,8 +621,16 @@ impl GatewayRun {
                 }
             }
         }
+    }
 
-        received
+    /// Moves the delivery arrivals already waiting into [`Self::received`].
+    fn collect_delivery_arrivals(&mut self) {
+        let arrived = self
+            .delivery_arrivals
+            .all_available()
+            .into_iter()
+            .filter_map(Measured::from_payload);
+        self.received.extend(arrived);
     }
 
     /// Builds the next ingest-phase packet: a sphinx packet whose only hop is this agent, wrapped in
@@ -623,7 +712,7 @@ impl GatewayRun {
     ///
     /// Whatever happened, this yields both measurements: a phase that never ran is still holding its
     /// zeroed default, so it is reported as a zero rather than an absence.
-    async fn finish(self) -> TestRunResult {
+    async fn finish(self) -> anyhow::Result<TestRunResult> {
         let GatewayRun {
             session,
             mut result,
@@ -634,11 +723,10 @@ impl GatewayRun {
 
         session.close().await;
 
-        result.measurements = ProbeMeasurements::GatewayLiveness {
-            client_ingest: ingest_measured,
-            client_delivery: delivery_measured,
-        };
         result
+            .measurements
+            .record_client_interfaces(ingest_measured, delivery_measured)?;
+        Ok(result)
     }
 }
 
@@ -729,11 +817,12 @@ mod tests {
         }
     }
 
-    fn probe(target: TestedGatewayDetails) -> GatewayMixnetLivenessProbe {
+    fn probe(kind: TestKind, target: TestedGatewayDetails) -> GatewayMixnetProbe {
         let mut rng = deterministic_rng();
 
-        GatewayMixnetLivenessProbe::new(
+        GatewayMixnetProbe::new(
             NodeTesterConfig::new_test(),
+            kind,
             Arc::new(ed25519::KeyPair::new(&mut rng)),
             Arc::new(x25519::KeyPair::new(&mut rng)),
             target,
@@ -746,27 +835,31 @@ mod tests {
     // orchestrator would hold its lease and the gateway would keep its turn instead of being scored
     #[tokio::test]
     async fn a_session_that_cannot_be_established_yields_two_zeroed_measurements() {
-        let probe = probe(unreachable_gateway());
-        let ingest_inbox = probe.build_ingest_inbox();
+        // both gateway kinds, since the orchestrator rejects a result reported under the other one
+        for kind in [TestKind::GatewayLiveness, TestKind::GatewayStress] {
+            let probe = probe(kind, unreachable_gateway());
+            let ingest_inbox = probe.build_ingest_inbox();
+            let deadline = probe.config.per_target_timeout(probe.kind);
 
-        let result = probe
-            .run(ingest_inbox, None, ShutdownToken::new())
-            .await
-            .expect("a gateway that would not take a session was reported as our own failure");
+            let result = probe
+                .run(ingest_inbox, deadline, ShutdownToken::new())
+                .await
+                .expect("a gateway that would not take a session was reported as our own failure");
 
-        // run-level, because it is the whole run that could not happen. this is what the orchestrator
-        // reads `was_reachable` off
-        assert!(result.error.is_some(), "{result:#?}");
+            // run-level, because it is the whole run that could not happen. this is what the
+            // orchestrator reads `was_reachable` off
+            assert!(result.error.is_some(), "{kind}: {result:#?}");
 
-        let wire: api::TestRunResult = result.into();
-        assert_eq!(wire.kind(), TestKind::GatewayLiveness);
-        assert!(
-            wire.measurements
-                .all()
-                .iter()
-                .all(|measurement| measurement.received_ratio() == 0.0),
-            "{:#?}",
-            wire.measurements
-        );
+            let wire: api::TestRunResult = result.into();
+            assert_eq!(wire.kind(), kind);
+            assert!(
+                wire.measurements
+                    .all()
+                    .iter()
+                    .all(|measurement| measurement.received_ratio() == 0.0),
+                "{kind}: {:#?}",
+                wire.measurements
+            );
+        }
     }
 }

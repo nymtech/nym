@@ -13,7 +13,7 @@ mod env;
 mod keygen;
 mod manual;
 mod run_agent;
-mod test_gateway_liveness;
+mod test_gateway;
 mod test_mixnode;
 
 // Helper for passing LONG_VERSION to clap
@@ -41,7 +41,12 @@ impl Cli {
             Command::TestMixnodeLiveness(args) => {
                 test_mixnode::execute(args, TestKind::MixnodeLiveness).await?
             }
-            Command::TestGatewayLiveness(args) => test_gateway_liveness::execute(args).await?,
+            Command::TestGatewayLiveness(args) => {
+                test_gateway::execute(args, TestKind::GatewayLiveness).await?
+            }
+            Command::TestGatewayStress(args) => {
+                test_gateway::execute(args, TestKind::GatewayStress).await?
+            }
             Command::RunAgent(args) => run_agent::execute(args).await?,
             Command::Keygen(args) => keygen::execute(args)?,
         }
@@ -51,8 +56,7 @@ impl Cli {
 
 /// The manual `test-*` commands are named for the (kind, role) pair they exercise, matching the
 /// [`TestRunAssignment`](nym_network_monitor_orchestrator_requests::models::TestRunAssignment)
-/// variants an orchestrator would hand out. There are exactly three, since a gateway is probed only
-/// for liveness.
+/// variants an orchestrator would hand out.
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     /// Show build information of this binary
@@ -66,7 +70,11 @@ pub(crate) enum Command {
 
     /// One-shot manual LIVENESS test of an entry gateway, exercising both its client ingest and its
     /// client delivery, without interacting with the orchestrator
-    TestGatewayLiveness(test_gateway_liveness::Args),
+    TestGatewayLiveness(test_gateway::Args),
+
+    /// One-shot manual STRESS test of an entry gateway, loading both its client ingest and its
+    /// client delivery under the gateway stress profile, without interacting with the orchestrator
+    TestGatewayStress(test_gateway::Args),
 
     /// Test a node by contacting the orchestrator for the work assignment
     RunAgent(run_agent::Args),

@@ -18,7 +18,7 @@ use tracing::info;
 use url::Url;
 
 /// The liveness kinds' scheduling knobs. Grouped rather than flattened into [`Config`] because
-/// every one of them is per-kind: the stress kind keeps `test_interval` and `test_timeout`, and
+/// every one of them is per-kind: the stress kinds keep `test_interval` and `test_timeout`, and
 /// this is the same set of decisions taken for liveness, shared by both of its kinds except for
 /// the wave size.
 ///
@@ -54,9 +54,9 @@ pub(crate) struct LivenessConfig {
 /// How far back each kind's aggregate reaches from the start of the epoch it is filed under.
 ///
 /// The two liveness kinds share one window, as they share the rest of their scheduling, which is also
-/// what keeps their combined figure exact. Nothing validates a window against its kind's test
-/// interval: a cadence is a target rather than a guarantee, and the sample count recorded with each
-/// aggregate is the ground truth.
+/// what keeps their combined figure exact; so do the two stress kinds. Nothing validates a window
+/// against its kind's test interval: a cadence is a target rather than a guarantee, and the sample
+/// count recorded with each aggregate is the ground truth.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct AggregationWindows {
     /// Longer than the liveness window because the stress cadence is an order of magnitude slower.
@@ -71,7 +71,7 @@ impl AggregationWindows {
     pub(crate) fn for_kind(&self, kind: TestKind) -> Duration {
         match kind {
             TestKind::MixnodeLiveness | TestKind::GatewayLiveness => self.liveness,
-            TestKind::MixnodeStress => self.stress,
+            TestKind::MixnodeStress | TestKind::GatewayStress => self.stress,
         }
     }
 
@@ -101,8 +101,17 @@ pub(crate) struct Config {
     pub(crate) test_interval: Duration,
 
     /// Maximum time a single test run is allowed to run before being considered timed out
-    /// (e.g. `5m`). The stress kind's lease budget.
+    /// (e.g. `5m`). The lease budget of both stress kinds, so it has to cover the slower run, which
+    /// is the gateway one.
     pub(crate) test_timeout: Duration,
+
+    /// Whether mixnode stress work may be assigned at all. On by default, so switching it off is a
+    /// deployment-time decision.
+    pub(crate) mixnode_stress_enabled: bool,
+
+    /// Whether gateway stress work may be assigned at all. On by default, so switching it off is a
+    /// deployment-time decision, such as while its provisional pass mark is being corrected.
+    pub(crate) gateway_stress_enabled: bool,
 
     /// Scheduling knobs of the liveness kind, whose cadence and lease are its own.
     pub(crate) liveness: LivenessConfig,
@@ -204,7 +213,8 @@ impl Config {
     /// How `kind` is scheduled, or `None` while it is switched off.
     ///
     /// The two liveness kinds share one cadence, one lease and one switch, and differ only in wave
-    /// size. A stress assignment always carries a single target.
+    /// size. The two stress kinds share the stress cadence and lease and have a switch each, and a
+    /// stress assignment always carries a single target.
     fn schedule(&self, kind: TestKind) -> Option<KindSchedule> {
         let liveness = |wave_size| {
             self.liveness.enabled.then_some(KindSchedule {
@@ -215,15 +225,18 @@ impl Config {
             })
         };
 
+        let stress = KindSchedule {
+            kind,
+            staleness_age: self.test_interval,
+            lease_budget: self.test_timeout,
+            wave_size: 1,
+        };
+
         match kind {
             TestKind::MixnodeLiveness => liveness(self.liveness.mixnode_wave_size),
             TestKind::GatewayLiveness => liveness(self.liveness.gateway_wave_size),
-            TestKind::MixnodeStress => Some(KindSchedule {
-                kind,
-                staleness_age: self.test_interval,
-                lease_budget: self.test_timeout,
-                wave_size: 1,
-            }),
+            TestKind::MixnodeStress => self.mixnode_stress_enabled.then_some(stress),
+            TestKind::GatewayStress => self.gateway_stress_enabled.then_some(stress),
         }
     }
 
@@ -377,6 +390,8 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         http_server_bind_address: "127.0.0.1:0".parse().unwrap(),
         test_interval: Duration::from_secs(2 * 60 * 60),
         test_timeout: Duration::from_secs(5 * 60),
+        mixnode_stress_enabled: true,
+        gateway_stress_enabled: true,
         liveness: LivenessConfig {
             enabled: liveness_enabled,
             test_interval: Duration::from_secs(15 * 60),

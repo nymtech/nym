@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::agent::config::{NodeTesterConfig, ProbeProfile};
-use crate::agent::result::{LatencyDistribution, PacketDelivery, ProbeMeasurements, TestRunResult};
+use crate::agent::result::{LatencyDistribution, PacketDelivery, TestRunResult};
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::mixnet::egress::EgressConnection;
 use crate::mixnet::inbox::TargetInbox;
@@ -11,7 +11,7 @@ use crate::mixnet::sphinx::helpers::{
 };
 use crate::mixnet::sphinx::payload::ProcessedPacket;
 use crate::mixnet::sphinx::test_packet::{TestPacketContent, TestPacketHeader};
-use anyhow::{Context, bail};
+use anyhow::Context;
 use humantime::format_duration;
 use nym_crypto::asymmetric::x25519;
 use nym_network_monitor_orchestrator_requests::models::TestKind;
@@ -204,15 +204,15 @@ impl NodeProbe {
     /// Runs the probe against its target and returns the collected results.
     ///
     /// `inbox` is the one this probe's [`build_inbox`](Self::build_inbox) produced, already registered
-    /// with the wave's shared ingress. `deadline`, when set, cuts the probe off and keeps whatever it
-    /// had gathered, so one unresponsive target cannot hold up the wave it belongs to.
+    /// with the wave's shared ingress. `deadline` cuts the probe off and keeps whatever it had
+    /// gathered, so one unresponsive target cannot hold up the wave it belongs to.
     ///
     /// The ingress is NOT torn down here: one listener serves the whole wave, so its lifetime belongs
     /// to whoever assembled it.
     pub(crate) async fn run(
         self,
         inbox: TargetInbox,
-        deadline: Option<Duration>,
+        deadline: Duration,
     ) -> anyhow::Result<TestRunResult> {
         let node_address = self.tested_node.address;
         let node_id = self.tested_node.node_id;
@@ -311,19 +311,12 @@ impl ProbeRun {
         }
     }
 
-    /// Runs the sequence, cut off at `deadline` if one is set.
+    /// Runs the sequence, cut off at `deadline`.
     ///
     /// The deadline wraps the sequence HERE rather than the caller wrapping the whole probe, because a
     /// dropped future would take its partial result with it: a target cut off mid-flight still has to
     /// report the packets it did get back.
-    async fn run_to_deadline(
-        &mut self,
-        deadline: Option<Duration>,
-    ) -> anyhow::Result<ProbeOutcome> {
-        let Some(deadline) = deadline else {
-            return self.execute().await;
-        };
-
+    async fn run_to_deadline(&mut self, deadline: Duration) -> anyhow::Result<ProbeOutcome> {
         let address = self.probe.tested_node.address;
         // bound to a local so the borrow the timeout holds on `self` ends before the arms run
         let outcome = timeout(deadline, self.execute()).await;
@@ -415,14 +408,7 @@ impl ProbeRun {
             }
         }
 
-        // a mixnet probe measures the one interface both mixnode kinds exercise
-        match &mut result.measurements {
-            ProbeMeasurements::MixnodeLiveness { mix_forwarding }
-            | ProbeMeasurements::MixnodeStress { mix_forwarding } => *mix_forwarding = measured,
-            ProbeMeasurements::GatewayLiveness { .. } => {
-                bail!("a mixnet probe was run for a gateway liveness assignment")
-            }
-        }
+        result.measurements.record_mix_forwarding(measured)?;
         Ok(result)
     }
 

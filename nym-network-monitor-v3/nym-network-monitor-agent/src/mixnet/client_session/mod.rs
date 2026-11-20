@@ -45,6 +45,10 @@ pub(crate) mod events;
 pub(crate) mod inbox;
 pub(crate) mod reader;
 
+/// How long a session's close may take before the connection is dropped instead. The close first
+/// sends whatever an abandoned write left queued, which a gateway that stopped reading never takes.
+const SESSION_CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// The session's transport.
 ///
 /// A plain `TcpStream` and not `MaybeTlsStream`, which makes "no TLS, ever" structural rather than a
@@ -404,9 +408,14 @@ impl GatewaySession {
     /// early turns a delivered packet into a dropped one.
     pub(crate) async fn close(mut self) {
         // best effort: a gateway that has already hung up is the ordinary end of a run rather than a
-        // failure of it, and there is nothing left to measure either way
-        if let Err(err) = self.sink.close().await {
-            debug!("the session's write half did not close cleanly: {err}");
+        // failure of it, and there is nothing left to measure either way. on a timeout the write half
+        // is dropped with `self`, which closes the connection once the reader has let go of its half
+        match timeout(SESSION_CLOSE_TIMEOUT, self.sink.close()).await {
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => debug!("the session's write half did not close cleanly: {err}"),
+            Err(_) => debug!(
+                "the session's write half did not close within {SESSION_CLOSE_TIMEOUT:?}, dropping it"
+            ),
         }
 
         // cancels only this session's reader, since the token is a child of the agent's

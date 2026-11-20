@@ -3,7 +3,7 @@
 
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    ConfigScoreCandidate, DescribedNodeRoles, GatewayLivenessTestRunRow, MixnetEpochAggregate,
+    ConfigScoreCandidate, DescribedNodeRoles, GatewayTestRunRow, MixnetEpochAggregate,
     MixnetEpochConfigScore, MixnodeTestRunRow, NewTestRun, NodeAwaitingCapabilityRefresh,
     NodeChainCapability, NodeDescription, NymNode, TestKind, TestRunInProgress, TestRunSubmission,
     TestRunWindow, duration_to_us, next_ip_to_test,
@@ -68,7 +68,7 @@ async fn select_candidates(
             .fetch_all(conn)
             .await?
         }
-        TestKind::GatewayLiveness => {
+        TestKind::GatewayLiveness | TestKind::GatewayStress => {
             sqlx::query_as!(
                 AssignmentCandidate,
                 r#"
@@ -297,6 +297,90 @@ async fn insert_mixnode_stress_testrun(
     Ok(id)
 }
 
+/// Writes one `gateway_stress` run into its results table, returning the id it was stored under.
+async fn insert_gateway_stress_testrun(
+    conn: &mut SqliteConnection,
+    run: &NewTestRun,
+    client_ingest: &InterfaceMeasurement,
+    client_delivery: &InterfaceMeasurement,
+) -> anyhow::Result<i64> {
+    let ingest_rtt = client_ingest.packets_statistics;
+    let delivery_rtt = client_delivery.packets_statistics;
+    let id = sqlx::query!(
+        r#"
+        INSERT INTO gateway_stress_testrun (
+            node_id,
+            tested_address,
+            test_timestamp,
+            time_taken_us,
+            error,
+            client_ingest_ingress_noise_handshake_us,
+            client_ingest_egress_noise_handshake_us,
+            client_ingest_sphinx_packet_delay_us,
+            client_ingest_packets_sent,
+            client_ingest_packets_received,
+            client_ingest_approximate_latency_us,
+            client_ingest_packets_rtt_min_us,
+            client_ingest_packets_rtt_mean_us,
+            client_ingest_packets_rtt_median_us,
+            client_ingest_packets_rtt_max_us,
+            client_ingest_packets_rtt_std_dev_us,
+            client_ingest_received_duplicates,
+            client_delivery_ingress_noise_handshake_us,
+            client_delivery_egress_noise_handshake_us,
+            client_delivery_sphinx_packet_delay_us,
+            client_delivery_packets_sent,
+            client_delivery_packets_received,
+            client_delivery_approximate_latency_us,
+            client_delivery_packets_rtt_min_us,
+            client_delivery_packets_rtt_mean_us,
+            client_delivery_packets_rtt_median_us,
+            client_delivery_packets_rtt_max_us,
+            client_delivery_packets_rtt_std_dev_us,
+            client_delivery_received_duplicates
+        ) VALUES (
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )
+        "#,
+        run.node_id,
+        run.tested_address,
+        run.test_timestamp,
+        run.time_taken_us,
+        run.error,
+        client_ingest.ingress_noise_handshake.map(duration_to_us),
+        client_ingest.egress_noise_handshake.map(duration_to_us),
+        duration_to_us(client_ingest.sphinx_packet_delay),
+        client_ingest.packets_sent as i64,
+        client_ingest.packets_received as i64,
+        client_ingest.approximate_latency.map(duration_to_us),
+        ingest_rtt.map(|stats| duration_to_us(stats.minimum)),
+        ingest_rtt.map(|stats| duration_to_us(stats.mean)),
+        ingest_rtt.map(|stats| duration_to_us(stats.median)),
+        ingest_rtt.map(|stats| duration_to_us(stats.maximum)),
+        ingest_rtt.map(|stats| duration_to_us(stats.standard_deviation)),
+        client_ingest.received_duplicates,
+        client_delivery.ingress_noise_handshake.map(duration_to_us),
+        client_delivery.egress_noise_handshake.map(duration_to_us),
+        duration_to_us(client_delivery.sphinx_packet_delay),
+        client_delivery.packets_sent as i64,
+        client_delivery.packets_received as i64,
+        client_delivery.approximate_latency.map(duration_to_us),
+        delivery_rtt.map(|stats| duration_to_us(stats.minimum)),
+        delivery_rtt.map(|stats| duration_to_us(stats.mean)),
+        delivery_rtt.map(|stats| duration_to_us(stats.median)),
+        delivery_rtt.map(|stats| duration_to_us(stats.maximum)),
+        delivery_rtt.map(|stats| duration_to_us(stats.standard_deviation)),
+        client_delivery.received_duplicates,
+    )
+    .execute(conn)
+    .await?
+    .last_insert_rowid();
+
+    Ok(id)
+}
+
 /// Stores `run` in its kind's results table and records it as that kind's latest test of the node,
 /// returning the id it was stored under.
 ///
@@ -321,6 +405,10 @@ async fn record_testrun(
         RunMeasurements::MixnodeStress { mix_forwarding } => {
             insert_mixnode_stress_testrun(&mut *conn, run, mix_forwarding).await?
         }
+        RunMeasurements::GatewayStress {
+            client_ingest,
+            client_delivery,
+        } => insert_gateway_stress_testrun(&mut *conn, run, client_ingest, client_delivery).await?,
     };
 
     let kind = TestKind::from(measurements.kind());
@@ -374,7 +462,7 @@ impl StorageManager {
         window: TestRunWindow,
     ) -> anyhow::Result<Vec<CompletedTestRun>> {
         let rows = sqlx::query_as!(
-            GatewayLivenessTestRunRow,
+            GatewayTestRunRow,
             r#"
             SELECT *
             FROM gateway_liveness_testrun
@@ -388,7 +476,7 @@ impl StorageManager {
 
         Ok(rows
             .into_iter()
-            .map(GatewayLivenessTestRunRow::into_gateway_liveness)
+            .map(GatewayTestRunRow::into_gateway_liveness)
             .collect())
     }
 
@@ -413,6 +501,30 @@ impl StorageManager {
         Ok(rows
             .into_iter()
             .map(MixnodeTestRunRow::into_mixnode_stress)
+            .collect())
+    }
+
+    /// Every `gateway_stress` run stored within `window`.
+    async fn get_gateway_stress_testruns_in_window(
+        &self,
+        window: TestRunWindow,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        let rows = sqlx::query_as!(
+            GatewayTestRunRow,
+            r#"
+            SELECT *
+            FROM gateway_stress_testrun
+            WHERE test_timestamp >= ? AND test_timestamp < ?
+            "#,
+            window.start,
+            window.end
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(GatewayTestRunRow::into_gateway_stress)
             .collect())
     }
 
@@ -442,7 +554,7 @@ impl StorageManager {
         id: i64,
     ) -> anyhow::Result<Option<CompletedTestRun>> {
         let row = sqlx::query_as!(
-            GatewayLivenessTestRunRow,
+            GatewayTestRunRow,
             r#"
             SELECT *
             FROM gateway_liveness_testrun
@@ -453,7 +565,7 @@ impl StorageManager {
         .fetch_optional(&self.connection_pool)
         .await?;
 
-        Ok(row.map(GatewayLivenessTestRunRow::into_gateway_liveness))
+        Ok(row.map(GatewayTestRunRow::into_gateway_liveness))
     }
 
     /// The `mixnode_stress` run stored under `id`, if it still exists.
@@ -474,6 +586,26 @@ impl StorageManager {
         .await?;
 
         Ok(row.map(MixnodeTestRunRow::into_mixnode_stress))
+    }
+
+    /// The `gateway_stress` run stored under `id`, if it still exists.
+    async fn get_gateway_stress_testrun_by_id(
+        &self,
+        id: i64,
+    ) -> anyhow::Result<Option<CompletedTestRun>> {
+        let row = sqlx::query_as!(
+            GatewayTestRunRow,
+            r#"
+            SELECT *
+            FROM gateway_stress_testrun
+            WHERE id = ?
+            "#,
+            id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+
+        Ok(row.map(GatewayTestRunRow::into_gateway_stress))
     }
 
     /// Deletes every `mixnode_liveness` run older than `cutoff`, returning how many went.
@@ -513,6 +645,21 @@ impl StorageManager {
     ) -> anyhow::Result<u64> {
         let evicted = sqlx::query!(
             "DELETE FROM mixnode_stress_testrun WHERE test_timestamp < ?",
+            cutoff
+        )
+        .execute(&self.connection_pool)
+        .await?
+        .rows_affected();
+        Ok(evicted)
+    }
+
+    /// Deletes every `gateway_stress` run older than `cutoff`, returning how many went.
+    async fn evict_old_gateway_stress_testruns(
+        &self,
+        cutoff: OffsetDateTime,
+    ) -> anyhow::Result<u64> {
+        let evicted = sqlx::query!(
+            "DELETE FROM gateway_stress_testrun WHERE test_timestamp < ?",
             cutoff
         )
         .execute(&self.connection_pool)
@@ -560,7 +707,7 @@ async fn get_gateway_liveness_testruns_page(
     offset: i64,
 ) -> anyhow::Result<(Vec<CompletedTestRun>, i64)> {
     let rows = sqlx::query_as!(
-        GatewayLivenessTestRunRow,
+        GatewayTestRunRow,
         r#"
             SELECT *
             FROM gateway_liveness_testrun
@@ -579,7 +726,7 @@ async fn get_gateway_liveness_testruns_page(
 
     let runs = rows
         .into_iter()
-        .map(GatewayLivenessTestRunRow::into_gateway_liveness)
+        .map(GatewayTestRunRow::into_gateway_liveness)
         .collect();
     Ok((runs, total))
 }
@@ -611,6 +758,37 @@ async fn get_mixnode_stress_testruns_page(
     let runs = rows
         .into_iter()
         .map(MixnodeTestRunRow::into_mixnode_stress)
+        .collect();
+    Ok((runs, total))
+}
+
+/// A page of `gateway_stress` runs, newest first, with the table's total row count.
+async fn get_gateway_stress_testruns_page(
+    conn: &mut SqliteConnection,
+    limit: i64,
+    offset: i64,
+) -> anyhow::Result<(Vec<CompletedTestRun>, i64)> {
+    let rows = sqlx::query_as!(
+        GatewayTestRunRow,
+        r#"
+            SELECT *
+            FROM gateway_stress_testrun
+            ORDER BY test_timestamp DESC
+            LIMIT ? OFFSET ?
+        "#,
+        limit,
+        offset
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+
+    let total = sqlx::query_scalar!("SELECT COUNT(*) FROM gateway_stress_testrun")
+        .fetch_one(&mut *conn)
+        .await?;
+
+    let runs = rows
+        .into_iter()
+        .map(GatewayTestRunRow::into_gateway_stress)
         .collect();
     Ok((runs, total))
 }
@@ -662,7 +840,7 @@ async fn get_gateway_liveness_testruns_for_node_page(
     offset: i64,
 ) -> anyhow::Result<(Vec<CompletedTestRun>, i64)> {
     let rows = sqlx::query_as!(
-        GatewayLivenessTestRunRow,
+        GatewayTestRunRow,
         r#"
             SELECT *
             FROM gateway_liveness_testrun
@@ -686,7 +864,7 @@ async fn get_gateway_liveness_testruns_for_node_page(
 
     let runs = rows
         .into_iter()
-        .map(GatewayLivenessTestRunRow::into_gateway_liveness)
+        .map(GatewayTestRunRow::into_gateway_liveness)
         .collect();
     Ok((runs, total))
 }
@@ -725,6 +903,44 @@ async fn get_mixnode_stress_testruns_for_node_page(
     let runs = rows
         .into_iter()
         .map(MixnodeTestRunRow::into_mixnode_stress)
+        .collect();
+    Ok((runs, total))
+}
+
+/// A page of the `gateway_stress` runs against `node_id`, newest first, with that node's total run
+/// count in the table.
+async fn get_gateway_stress_testruns_for_node_page(
+    conn: &mut SqliteConnection,
+    node_id: i64,
+    limit: i64,
+    offset: i64,
+) -> anyhow::Result<(Vec<CompletedTestRun>, i64)> {
+    let rows = sqlx::query_as!(
+        GatewayTestRunRow,
+        r#"
+            SELECT *
+            FROM gateway_stress_testrun
+            WHERE node_id = ?
+            ORDER BY test_timestamp DESC
+            LIMIT ? OFFSET ?
+        "#,
+        node_id,
+        limit,
+        offset
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+
+    let total = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM gateway_stress_testrun WHERE node_id = ?",
+        node_id
+    )
+    .fetch_one(&mut *conn)
+    .await?;
+
+    let runs = rows
+        .into_iter()
+        .map(GatewayTestRunRow::into_gateway_stress)
         .collect();
     Ok((runs, total))
 }
@@ -1124,6 +1340,31 @@ impl StorageManager {
         Ok(count)
     }
 
+    /// The predicate of [`select_candidates`] for gateway stress, counted rather than limited.
+    pub(crate) async fn count_due_gateway_stress_candidates(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            LEFT JOIN node_test_state s       ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.gateway_enabled
+              AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
+            "#,
+            TestKind::GatewayStress,
+            last_tested_before,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
     /// The in-flight rows whose lease has already passed `now`, counted by kind. Absent means zero,
     /// as in [`Self::count_testruns_in_progress_by_kind`].
     ///
@@ -1192,7 +1433,8 @@ impl StorageManager {
         Ok(count)
     }
 
-    /// The bonded, described nodes reporting the entry-gateway role.
+    /// The bonded, described nodes reporting the entry-gateway role, which is what the two gateway
+    /// kinds can test.
     pub(crate) async fn count_gateway_role_population(&self) -> anyhow::Result<i64> {
         let count = sqlx::query_scalar!(
             r#"
@@ -1290,6 +1532,25 @@ impl StorageManager {
         Ok(count)
     }
 
+    /// The nodes gateway stress could test but holds no result for.
+    pub(crate) async fn count_never_tested_gateway_stress(&self) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b        ON b.node_id = d.node_id
+            LEFT JOIN node_test_state s ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE d.gateway_enabled
+              AND s.last_tested_at IS NULL
+            "#,
+            TestKind::GatewayStress,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
     /// When the oldest MEASURED node mixnode liveness would assign next was last measured, or
     /// `None` if every node it has measured is still within its cadence.
     ///
@@ -1371,6 +1632,34 @@ impl StorageManager {
             LIMIT 1
             "#,
             TestKind::MixnodeStress,
+            last_tested_before,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+
+        Ok(head)
+    }
+
+    /// When the oldest measured node gateway stress would assign next was last measured.
+    pub(crate) async fn peek_measured_gateway_stress_head(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<Option<OffsetDateTime>> {
+        let head = sqlx::query_scalar!(
+            r#"
+            SELECT s.last_tested_at AS "last_tested_at!: OffsetDateTime"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            JOIN node_test_state s            ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.gateway_enabled
+              AND s.last_tested_at IS NOT NULL
+              AND s.last_tested_at < ?
+            ORDER BY s.last_tested_at ASC
+            LIMIT 1
+            "#,
+            TestKind::GatewayStress,
             last_tested_before,
         )
         .fetch_optional(&self.connection_pool)
@@ -1490,6 +1779,7 @@ impl StorageManager {
             TestKind::MixnodeLiveness => self.get_mixnode_liveness_testrun_by_id(id).await,
             TestKind::GatewayLiveness => self.get_gateway_liveness_testrun_by_id(id).await,
             TestKind::MixnodeStress => self.get_mixnode_stress_testrun_by_id(id).await,
+            TestKind::GatewayStress => self.get_gateway_stress_testrun_by_id(id).await,
         }
     }
 
@@ -1550,6 +1840,9 @@ impl StorageManager {
             TestKind::MixnodeStress => {
                 get_mixnode_stress_testruns_for_node_page(&mut tx, node_id, limit, offset).await?
             }
+            TestKind::GatewayStress => {
+                get_gateway_stress_testruns_for_node_page(&mut tx, node_id, limit, offset).await?
+            }
         };
         tx.commit().await?;
         Ok(page)
@@ -1580,6 +1873,9 @@ impl StorageManager {
             }
             TestKind::MixnodeStress => {
                 get_mixnode_stress_testruns_page(&mut tx, limit, offset).await?
+            }
+            TestKind::GatewayStress => {
+                get_gateway_stress_testruns_page(&mut tx, limit, offset).await?
             }
         };
         tx.commit().await?;
@@ -1694,6 +1990,7 @@ impl StorageManager {
                     self.evict_old_gateway_liveness_testruns(cutoff).await?
                 }
                 TestKind::MixnodeStress => self.evict_old_mixnode_stress_testruns(cutoff).await?,
+                TestKind::GatewayStress => self.evict_old_gateway_stress_testruns(cutoff).await?,
             };
         }
         Ok(evicted)
@@ -1709,6 +2006,7 @@ impl StorageManager {
             TestKind::MixnodeLiveness => self.get_mixnode_liveness_testruns_in_window(window).await,
             TestKind::GatewayLiveness => self.get_gateway_liveness_testruns_in_window(window).await,
             TestKind::MixnodeStress => self.get_mixnode_stress_testruns_in_window(window).await,
+            TestKind::GatewayStress => self.get_gateway_stress_testruns_in_window(window).await,
         }
     }
 
@@ -2466,6 +2764,10 @@ mod tests {
                 RunMeasurements::MixnodeStress {
                     mix_forwarding: distinct_measurement(400, true),
                 },
+                RunMeasurements::GatewayStress {
+                    client_ingest: distinct_measurement(500, false),
+                    client_delivery: distinct_measurement(600, true),
+                },
             ] {
                 let kind = TestKind::from(measurements.kind());
                 let id = db
@@ -2559,6 +2861,47 @@ mod tests {
                 .unwrap();
             assert_eq!(stored, 0);
             assert!(work_state(&db, 1, TestKind::MixnodeStress).await.is_none());
+        }
+
+        // the two gateway kinds share a shape, so only the in-flight row tells a stress result
+        // from a liveness one
+        #[tokio::test]
+        async fn a_gateway_stress_result_for_a_gateway_liveness_dispatch_is_rejected() {
+            let db = setup().await;
+            seed_nodes(&db, &[gateway(1)]).await;
+            db.mark_testrun_in_progress(
+                1,
+                datetime!(2025-06-01 11:00:00 UTC),
+                datetime!(2025-06-01 11:05:00 UTC),
+                TestKind::GatewayLiveness,
+            )
+            .await
+            .unwrap();
+
+            let submission = db
+                .submit_testrun(
+                    &minimal_test_run(1),
+                    &minimal_measurements(TestKind::GatewayStress),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(
+                submission,
+                TestRunSubmission::UnexpectedKind {
+                    dispatched: TestKind::GatewayLiveness
+                }
+            );
+            for kind in [TestKind::GatewayLiveness, TestKind::GatewayStress] {
+                let (_, stored) = db.get_testruns_paginated(kind, 10, 0).await.unwrap();
+                assert_eq!(stored, 0, "{kind} stored a run");
+                assert!(
+                    work_state(&db, 1, kind).await.is_none(),
+                    "{kind} work state"
+                );
+            }
+            let lock = db.get_testrun_in_progress(1).await.unwrap().unwrap();
+            assert_eq!(lock.test_kind, TestKind::GatewayLiveness);
         }
     }
 
@@ -2870,6 +3213,7 @@ mod tests {
                 (TestKind::GatewayLiveness, vec![1, 3]),
                 (TestKind::MixnodeLiveness, vec![2, 3]),
                 (TestKind::MixnodeStress, vec![2, 3]),
+                (TestKind::GatewayStress, vec![1, 3]),
             ] {
                 let db = setup().await;
                 seed_nodes(

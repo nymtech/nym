@@ -46,9 +46,9 @@ The contract accepts measurements only for the current epoch, and seals it once 
 
 ### Requirement: A node is submitted with measured values only, with a config score and at least one of liveness or stress
 
-Each submitted node SHALL carry only the figures the orchestrator materialised for that epoch: its config score, its liveness (the liveness test kinds the coverage guard kept, combined as served), and its stress, each converted to a percent. A figure the orchestrator does not hold MUST be omitted, never submitted as zero. A node SHALL be submitted only with a config score and at least one of liveness or stress.
+Each submitted node SHALL carry only the figures the orchestrator materialised for that epoch: its config score, its liveness (the liveness test kinds the coverage guard kept, combined as served), and its stress (the stress test kinds the coverage guard kept, combined the same way), each converted to a percent. A figure the orchestrator does not hold MUST be omitted, never submitted as zero. A node SHALL be submitted only with a config score and at least one of liveness or stress.
 
-An aggregate exists only where runs exist, and a run that failed already scores zero, so an absent figure means unmeasured rather than broken. The contract uses a node's bundle at the epoch whenever one exists, even one it cannot score, so a bundle without a config score, or with nothing but a config score, would also block the fallback to that node's last scored epoch.
+An aggregate exists only where runs exist, and a run that failed already scores zero, so an absent figure means unmeasured rather than broken. The contract uses a node's bundle at the epoch whenever one exists, even one it cannot score, so a bundle without a config score, or with nothing but a config score, would also block the fallback to that node's last scored epoch. The contract's stress measurement carries no role, so a gateway's stress reaches it as the same measurement a mixnode's does.
 
 #### Scenario: An unmeasured kind is omitted
 - **WHEN** a node has a config score and a stress aggregate but no liveness aggregate
@@ -66,15 +66,19 @@ An aggregate exists only where runs exist, and a run that failed already scores 
 - **WHEN** a node has a config score and no liveness or stress aggregate
 - **THEN** it is not submitted
 
+#### Scenario: A gateway's stress is submitted as stress
+- **WHEN** a gateway-only node has a config score, a gateway-liveness aggregate and a gateway-stress aggregate, and the guard kept both test kinds
+- **THEN** it is submitted with liveness, stress and config, its stress being its gateway-stress aggregate
+
 ### Requirement: A test kind without enough reachable coverage is omitted for every node
 
-For each test kind (mixnode liveness, gateway liveness, stress), the orchestrator SHALL compute coverage as the share of eligible nodes with a reachable aggregate of that test kind for the epoch. A node is eligible when it is described and declares the role the scheduler assigns that test kind to (mixnode liveness and stress: mixnode; gateway liveness: gateway). An aggregate is reachable when it scores above zero. A test kind whose coverage is below the configured threshold, 0.5 by default, MUST be omitted from every node's submission for the epoch, before the liveness test kinds are combined. The rule on what a node carries then applies to the remaining values, so when every test kind is omitted nothing is submitted for the epoch. A threshold outside `[0, 1]` MUST be rejected at startup.
+For each test kind (mixnode liveness, gateway liveness, mixnode stress, gateway stress), the orchestrator SHALL compute coverage as the share of eligible nodes with a reachable aggregate of that test kind for the epoch. A node is eligible when it is described and declares the role the scheduler assigns that test kind to (mixnode liveness and mixnode stress: mixnode; gateway liveness and gateway stress: gateway). An aggregate is reachable when it scores above zero. A test kind whose coverage is below the configured threshold, 0.5 by default, MUST be omitted from every node's submission for the epoch, before the liveness test kinds are combined and before the stress test kinds are. The rule on what a node carries then applies to the remaining values, so when every test kind is omitted nothing is submitted for the epoch. A threshold outside `[0, 1]` MUST be rejected at startup.
 
-A fault on the measuring side records failures, which score zero and look like a network-wide outage. Omitting the test kind turns broken measurements into missing ones: the contract renormalises over the kinds still present, and with nothing submitted it falls back to each node's last scored epoch. Coverage is computed per test kind because the mixnode and gateway liveness probes fail independently, and a broken gateway probe could otherwise hide behind the mixnodes' combined liveness. The default matches the threshold below which nym-api drops a component. Eligibility follows the scheduler, so a node a test kind never tests cannot count against it.
+A fault on the measuring side records failures, which score zero and look like a network-wide outage. Omitting the test kind turns broken measurements into missing ones: the contract renormalises over the kinds still present, and with nothing submitted it falls back to each node's last scored epoch. Coverage is computed per test kind because the mixnode and gateway probes fail independently, and a broken gateway probe could otherwise hide behind the mixnodes' combined figure, for liveness and for stress alike. The default matches the threshold below which nym-api drops a component. Eligibility follows the scheduler, so a node a test kind never tests cannot count against it. A test kind that has only just been enabled has few aggregates, so the same rule keeps it out of the submission until at least the threshold share of its nodes has been reached.
 
 #### Scenario: A test kind below the threshold is omitted for every node
-- **WHEN** 30% of the eligible nodes have a stress aggregate above zero
-- **THEN** no node's submission for the epoch carries stress
+- **WHEN** 30% of the nodes eligible for mixnode stress have a mixnode-stress aggregate above zero
+- **THEN** mixnode stress is omitted, and no node's submitted stress for the epoch includes mixnode-stress runs
 
 #### Scenario: A broken gateway probe does not reach gateways as zeros
 - **WHEN** every gateway's gateway-liveness aggregate is 0.0 while most mixnodes' mixnode-liveness aggregates are above zero
@@ -89,12 +93,12 @@ A fault on the measuring side records failures, which score zero and look like a
 - **THEN** that node is not submitted
 
 #### Scenario: Every test kind omitted means nothing is submitted
-- **WHEN** all three test kinds fall below the threshold
+- **WHEN** all four test kinds fall below the threshold
 - **THEN** nothing is submitted for the epoch
 
-#### Scenario: A gateway does not count against stress coverage
+#### Scenario: A gateway does not count against the mixnode kinds' coverage
 - **WHEN** a described node declares only the gateway role
-- **THEN** it is not eligible for stress or mixnode liveness, and its missing aggregates of those test kinds do not lower their coverage
+- **THEN** it is not eligible for mixnode stress or mixnode liveness, and its missing aggregates of those test kinds do not lower their coverage
 
 #### Scenario: A measured zero is not reachable
 - **WHEN** an eligible node's mixnode-liveness aggregate is 0.0
@@ -103,6 +107,14 @@ A fault on the measuring side records failures, which score zero and look like a
 #### Scenario: A threshold outside the unit interval is rejected
 - **WHEN** the coverage threshold is configured as 1.5
 - **THEN** startup fails with an error naming the value
+
+#### Scenario: A broken gateway stress probe does not reach gateways as zeros
+- **WHEN** every gateway's gateway-stress aggregate is 0.0 while most mixnodes' mixnode-stress aggregates are above zero
+- **THEN** gateway stress is omitted: a gateway-only node is submitted with its liveness and no stress, and a dual-role node's stress is computed from its mixnode-stress runs alone
+
+#### Scenario: A newly enabled test kind is omitted until it has coverage
+- **WHEN** gateway stress was enabled so recently that fewer than half the gateways have a gateway-stress aggregate above zero
+- **THEN** gateway stress is omitted for that epoch and gateways are submitted as they were before it was enabled
 
 ### Requirement: Nodes are submitted in ascending order, in chunks, resuming from the contract's cursor
 
@@ -150,8 +162,9 @@ An incomplete epoch has to alert rather than fall back silently to last-known va
 
 #### Scenario: A guard trip is visible
 - **WHEN** the guard omits gateway liveness for an epoch
-- **THEN** the orchestrator exposes gateway liveness as omitted for that epoch, and mixnode liveness and stress as not omitted
+- **THEN** the orchestrator exposes gateway liveness as omitted for that epoch, and each of the other three test kinds as not omitted
 
 #### Scenario: A describe failure names its step
 - **WHEN** a gateway answers every describe read except the client websocket
 - **THEN** an `info` log line names the node and the failed client-websocket read
+

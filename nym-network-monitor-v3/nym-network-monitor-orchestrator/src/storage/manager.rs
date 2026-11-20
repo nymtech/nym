@@ -68,7 +68,7 @@ async fn select_candidates(
             .fetch_all(conn)
             .await?
         }
-        TestKind::GatewayLiveness => {
+        TestKind::GatewayLiveness | TestKind::GatewayStress => {
             sqlx::query_as!(
                 AssignmentCandidate,
                 r#"
@@ -1340,6 +1340,31 @@ impl StorageManager {
         Ok(count)
     }
 
+    /// The predicate of [`select_candidates`] for gateway stress, counted rather than limited.
+    pub(crate) async fn count_due_gateway_stress_candidates(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            LEFT JOIN node_test_state s       ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.gateway_enabled
+              AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
+            "#,
+            TestKind::GatewayStress,
+            last_tested_before,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
     /// The in-flight rows whose lease has already passed `now`, counted by kind. Absent means zero,
     /// as in [`Self::count_testruns_in_progress_by_kind`].
     ///
@@ -1408,7 +1433,8 @@ impl StorageManager {
         Ok(count)
     }
 
-    /// The bonded, described nodes reporting the entry-gateway role.
+    /// The bonded, described nodes reporting the entry-gateway role, which is what the two gateway
+    /// kinds can test.
     pub(crate) async fn count_gateway_role_population(&self) -> anyhow::Result<i64> {
         let count = sqlx::query_scalar!(
             r#"
@@ -1506,6 +1532,25 @@ impl StorageManager {
         Ok(count)
     }
 
+    /// The nodes gateway stress could test but holds no result for.
+    pub(crate) async fn count_never_tested_gateway_stress(&self) -> anyhow::Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) AS "count!: i64"
+            FROM nym_node_description d
+            JOIN nym_node_bond b        ON b.node_id = d.node_id
+            LEFT JOIN node_test_state s ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE d.gateway_enabled
+              AND s.last_tested_at IS NULL
+            "#,
+            TestKind::GatewayStress,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(count)
+    }
+
     /// When the oldest MEASURED node mixnode liveness would assign next was last measured, or
     /// `None` if every node it has measured is still within its cadence.
     ///
@@ -1587,6 +1632,34 @@ impl StorageManager {
             LIMIT 1
             "#,
             TestKind::MixnodeStress,
+            last_tested_before,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+
+        Ok(head)
+    }
+
+    /// When the oldest measured node gateway stress would assign next was last measured.
+    pub(crate) async fn peek_measured_gateway_stress_head(
+        &self,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<Option<OffsetDateTime>> {
+        let head = sqlx::query_scalar!(
+            r#"
+            SELECT s.last_tested_at AS "last_tested_at!: OffsetDateTime"
+            FROM nym_node_description d
+            JOIN nym_node_bond b              ON b.node_id = d.node_id
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+            JOIN node_test_state s            ON s.node_id = d.node_id AND s.test_kind = ?
+            WHERE tip.node_id IS NULL
+              AND d.gateway_enabled
+              AND s.last_tested_at IS NOT NULL
+              AND s.last_tested_at < ?
+            ORDER BY s.last_tested_at ASC
+            LIMIT 1
+            "#,
+            TestKind::GatewayStress,
             last_tested_before,
         )
         .fetch_optional(&self.connection_pool)
@@ -2691,6 +2764,10 @@ mod tests {
                 RunMeasurements::MixnodeStress {
                     mix_forwarding: distinct_measurement(400, true),
                 },
+                RunMeasurements::GatewayStress {
+                    client_ingest: distinct_measurement(500, false),
+                    client_delivery: distinct_measurement(600, true),
+                },
             ] {
                 let kind = TestKind::from(measurements.kind());
                 let id = db
@@ -2784,6 +2861,47 @@ mod tests {
                 .unwrap();
             assert_eq!(stored, 0);
             assert!(work_state(&db, 1, TestKind::MixnodeStress).await.is_none());
+        }
+
+        // the two gateway kinds share a shape, so only the in-flight row tells a stress result
+        // from a liveness one
+        #[tokio::test]
+        async fn a_gateway_stress_result_for_a_gateway_liveness_dispatch_is_rejected() {
+            let db = setup().await;
+            seed_nodes(&db, &[gateway(1)]).await;
+            db.mark_testrun_in_progress(
+                1,
+                datetime!(2025-06-01 11:00:00 UTC),
+                datetime!(2025-06-01 11:05:00 UTC),
+                TestKind::GatewayLiveness,
+            )
+            .await
+            .unwrap();
+
+            let submission = db
+                .submit_testrun(
+                    &minimal_test_run(1),
+                    &minimal_measurements(TestKind::GatewayStress),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(
+                submission,
+                TestRunSubmission::UnexpectedKind {
+                    dispatched: TestKind::GatewayLiveness
+                }
+            );
+            for kind in [TestKind::GatewayLiveness, TestKind::GatewayStress] {
+                let (_, stored) = db.get_testruns_paginated(kind, 10, 0).await.unwrap();
+                assert_eq!(stored, 0, "{kind} stored a run");
+                assert!(
+                    work_state(&db, 1, kind).await.is_none(),
+                    "{kind} work state"
+                );
+            }
+            let lock = db.get_testrun_in_progress(1).await.unwrap().unwrap();
+            assert_eq!(lock.test_kind, TestKind::GatewayLiveness);
         }
     }
 
@@ -3095,6 +3213,7 @@ mod tests {
                 (TestKind::GatewayLiveness, vec![1, 3]),
                 (TestKind::MixnodeLiveness, vec![2, 3]),
                 (TestKind::MixnodeStress, vec![2, 3]),
+                (TestKind::GatewayStress, vec![1, 3]),
             ] {
                 let db = setup().await;
                 seed_nodes(

@@ -222,6 +222,11 @@ impl NetworkMonitorStorage {
                     .count_due_mixnode_stress_candidates(last_tested_before)
                     .await
             }
+            TestKind::GatewayStress => {
+                self.storage_manager
+                    .count_due_gateway_stress_candidates(last_tested_before)
+                    .await
+            }
         }
     }
 
@@ -253,6 +258,11 @@ impl NetworkMonitorStorage {
                     .peek_measured_mixnode_stress_head(last_tested_before)
                     .await?
             }
+            TestKind::GatewayStress => {
+                self.storage_manager
+                    .peek_measured_gateway_stress_head(last_tested_before)
+                    .await?
+            }
         };
 
         Ok(head.map(|last_tested_at| {
@@ -279,17 +289,24 @@ impl NetworkMonitorStorage {
                     .count_never_tested_mixnode_stress()
                     .await
             }
+            TestKind::GatewayStress => {
+                self.storage_manager
+                    .count_never_tested_gateway_stress()
+                    .await
+            }
         }
     }
 
     /// How many nodes `kind` can test at all. The population is a property of the role, so the two
-    /// mixnode kinds share a count.
+    /// kinds of each role share a count.
     pub(crate) async fn count_testable_population(&self, kind: TestKind) -> anyhow::Result<i64> {
         match kind {
             TestKind::MixnodeLiveness | TestKind::MixnodeStress => {
                 self.storage_manager.count_mixnode_role_population().await
             }
-            TestKind::GatewayLiveness => self.storage_manager.count_gateway_role_population().await,
+            TestKind::GatewayLiveness | TestKind::GatewayStress => {
+                self.storage_manager.count_gateway_role_population().await
+            }
         }
     }
 
@@ -734,7 +751,7 @@ mod tests {
             let population = storage.count_testable_population(kind).await.unwrap();
             let expected = match kind {
                 TestKind::MixnodeLiveness | TestKind::MixnodeStress => 1,
-                TestKind::GatewayLiveness => 0,
+                TestKind::GatewayLiveness | TestKind::GatewayStress => 0,
             };
             assert_eq!(expected, population, "{kind} population");
         }

@@ -14,10 +14,6 @@ use nym_ecash_contract_common::{msg::ExecuteMsg, EcashContractError};
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 use serde::{Deserialize, Serialize};
 
-// version info for migration info
-pub(crate) const CONTRACT_NAME: &str = "crate:nym-ecash";
-pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 /// Runtime configuration persisted at the `"config"` storage key. Set on
 /// instantiation; the only field mutable through an execute path is
 /// `deposit_amount` (via `UpdateDefaultDepositValue`).
@@ -87,6 +83,8 @@ pub(crate) fn create_batch_redemption_proposal(
 
 /// Build the cw3 `Propose` SubMsg for the blacklist flow. **Dead path**: not
 /// reachable from any public ExecuteMsg today; preserved for the redesign.
+// temporarily dead
+#[allow(dead_code)]
 pub(crate) fn create_blacklist_proposal(
     public_key: String,
     ecash_bandwidth_address: String,

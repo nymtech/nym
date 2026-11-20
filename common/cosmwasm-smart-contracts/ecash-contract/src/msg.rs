@@ -148,16 +148,4 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {
-    /// Initial set of whitelisted accounts with their reduced deposit prices.
-    /// Each entry is validated and stored during migration.
-    pub initial_whitelist: Vec<WhitelistedDeposit>,
-}
-
-/// An address and its reduced deposit price, used when seeding the whitelist
-/// via migration.
-#[cw_serde]
-pub struct WhitelistedDeposit {
-    pub address: String,
-    pub deposit: Coin,
-}
+pub struct MigrateMsg {}

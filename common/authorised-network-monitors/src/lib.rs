@@ -79,6 +79,20 @@ impl AuthorisedMonitorIdentities {
     pub fn reset(&self) {
         self.inner.store(Default::default())
     }
+
+    /// Replace everything with what the given agent entries announce, in a single store.
+    ///
+    /// An entry announcing `None` contributes nothing, as with [`Self::set_announced`].
+    pub fn replace_all(&self, announced: HashMap<SocketAddr, Option<ed25519::PublicKey>>) {
+        let mut replaced = AuthorisedMonitorIdentitiesInner::default();
+        for (address, identity) in announced {
+            if let Some(identity) = identity {
+                replaced.announce(address, identity);
+            }
+        }
+
+        self.inner.store(Arc::new(replaced))
+    }
 }
 
 #[derive(Clone, Debug, Default)]

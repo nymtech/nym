@@ -11,7 +11,7 @@ sequenceDiagram
 
     Note over C: pick soonest-expiring usable book,<br/>reserve ticket index in DB (used_tickets += 1)
     Note over C: PayInfo = randomness || timestamp || gateway ed25519 pk
-    Note over C: prepare_for_spending: spend_date = today (UTC midnight),<br/>derive serial number + zk spend proof for index
+    Note over C: prepare_for_spending: spend_date = UTC date of the<br/>skew-corrected spend time (midnight),<br/>derive serial number + zk spend proof for index
     C->>GW: EcashCredential (AEAD-encrypted over shared key)
 
     rect rgb(235, 235, 235)
@@ -41,7 +41,7 @@ sequenceDiagram
 **Spend preparation** (`BandwidthController::prepare_ecash_ticket`, `common/bandwidth-controller/src/controller.rs`) first ensures the master VK, coin-index signatures and expiration-date signatures for the book's `(epoch_id, expiration_date)` are in local storage (fetching on miss), then builds the payload:
 
 - **PayInfo** (`common/credentials-interface`): exactly 72 bytes: 32 B randomness, 8 B big-endian unix timestamp, 32 B provider public key = the **gateway's ed25519 identity key**. This binds the payment to one gateway and one moment.
-- `IssuedTicketBook::prepare_for_spending` sets `spend_date = ecash_today()` (UTC midnight) and calls the black-box `spend()`, which derives, for the reserved index: the **serial number** (deterministic in the wallet secret and index; independent of PayInfo, which is what makes replays detectable), an identification tag (enables recovering the spender's public key if the same ticket is spent with two different PayInfos), and a zk spend proof binding everything to the PayInfo. The prerequisite aux signatures (7 date signatures, 50 coin-index signatures) are consumed here.
+- `IssuedTicketBook::prepare_for_spending` sets `spend_date` to the UTC date (midnight) of the `spend_time` it is given, the same clock-skew-corrected time used for the PayInfo, and calls the black-box `spend()`, which derives, for the reserved index: the **serial number** (deterministic in the wallet secret and index; independent of PayInfo, which is what makes replays detectable), an identification tag (enables recovering the spender's public key if the same ticket is spent with two different PayInfos), and a zk spend proof binding everything to the PayInfo. The prerequisite aux signatures (7 date signatures, 50 coin-index signatures) are consumed here.
 - The wire object is `CredentialSpendingData { payment, pay_info, spend_date, epoch_id }`; the embedded `epoch_id` tells the verifier which master key to use.
 
 **Always exactly one ticket per request.** The crypto supports multi-ticket payments, but every client spends 1 (`TICKETS_TO_SPEND = 1`) and both the gateway and the nym-api hard-reject `spend_value != 1` (`MultipleTickets`).

@@ -14,7 +14,7 @@ use nym_ecash_time::EcashTime;
 use nym_validator_client::nym_api::EpochId;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
-use time::{Date, OffsetDateTime};
+use time::{Date, OffsetDateTime, UtcOffset};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const CURRENT_SERIALIZATION_REVISION: u8 = 1;
@@ -127,10 +127,14 @@ impl IssuedTicketBook {
         NymPayInfo::generate(provider_pk, spend_time)
     }
 
+    /// `spend_time` sets the ticket's spend date, which gateways require to
+    /// equal their own date: pass a clock-skew-corrected time, the same one
+    /// the pay info was generated with.
     pub fn prepare_for_spending<BI, BE>(
         &mut self,
         verification_key: &VerificationKeyAuth,
         pay_info: PayInfo,
+        spend_time: OffsetDateTime,
         coin_indices_signatures: &[BI],
         expiration_date_signatures: &[BE],
         tickets_to_spend: u64,
@@ -140,7 +144,7 @@ impl IssuedTicketBook {
         BE: Borrow<ExpirationDateSignature>,
     {
         let params = nym_credentials_interface::ecash_parameters();
-        let spend_date = ecash_today();
+        let spend_date = spend_time.to_offset(UtcOffset::UTC).ecash_datetime();
 
         // make sure we still have enough tickets to spend
         Wallet::ensure_allowance(params, self.spent_tickets, tickets_to_spend)?;

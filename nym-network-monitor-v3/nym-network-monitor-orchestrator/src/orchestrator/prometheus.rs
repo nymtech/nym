@@ -181,20 +181,6 @@ pub(crate) enum TestrunRequestOutcome {
     NoWork,
 }
 
-/// What the nym-api did with one submitted result.
-#[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, Eq, PartialEq)]
-#[strum(serialize_all = "snake_case")]
-pub(crate) enum SubmissionOutcome {
-    Accepted,
-
-    /// Discarded because that measurement was already stored. Expected when a batch is retried; a
-    /// persistently non-zero rate means measurements are being lost.
-    Duplicate,
-
-    /// Dropped in the nym-api's per-entry validation.
-    Rejected,
-}
-
 /// Every Prometheus series emitted by the orchestrator. Each variant maps to exactly one metric
 /// family and must carry a `help` strum property — this is verified by the
 /// `every_variant_has_help_property` test.
@@ -272,11 +258,6 @@ pub enum PrometheusMetric {
         help = "The total number of test packets received back across all submitted testruns"
     ))]
     TestPacketsReceived,
-
-    #[strum(props(
-        help = "What the nym-api did with each submitted stress-test result, by outcome"
-    ))]
-    SubmittedResultsTotal,
 
     // Assignments, in-flight runs and lease expiries are each broken down by kind: every kind is
     // separate machinery against its own population, so an operator has to be able to see that
@@ -399,8 +380,7 @@ impl PrometheusMetric {
             | PrometheusMetric::RequiredAssignmentRate => &[KIND],
             PrometheusMetric::BondedNymNodes => &[ROLE],
             PrometheusMetric::AgentAnnounceOutcomeTotal
-            | PrometheusMetric::AgentTestrunRequestOutcomeTotal
-            | PrometheusMetric::SubmittedResultsTotal => &[OUTCOME],
+            | PrometheusMetric::AgentTestrunRequestOutcomeTotal => &[OUTCOME],
             _ => &[],
         }
     }
@@ -440,9 +420,6 @@ impl PrometheusMetric {
             PrometheusMetric::AgentTestrunRequestOutcomeTotal => {
                 TestrunRequestOutcome::iter().map(Into::into).collect()
             }
-            PrometheusMetric::SubmittedResultsTotal => {
-                SubmissionOutcome::iter().map(Into::into).collect()
-            }
             _ => Vec::new(),
         }
     }
@@ -468,7 +445,6 @@ impl PrometheusMetric {
             | PrometheusMetric::TestrunsErrors
             | PrometheusMetric::TestPacketsSent
             | PrometheusMetric::TestPacketsReceived
-            | PrometheusMetric::SubmittedResultsTotal
             | PrometheusMetric::TestrunAssignmentsTotal
             | PrometheusMetric::TestrunLeasesExpiredTotal
             | PrometheusMetric::WorkPendingSecondsTotal
@@ -688,15 +664,6 @@ impl NetworkMonitorPrometheusMetrics {
     ) {
         metric.inc(&[outcome.into()])
     }
-
-    pub(crate) fn inc_by_for_submission_outcome(
-        &self,
-        metric: PrometheusMetric,
-        outcome: SubmissionOutcome,
-        value: i64,
-    ) {
-        metric.inc_by(value, &[outcome.into()])
-    }
 }
 
 #[cfg(test)]
@@ -709,7 +676,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(34, PrometheusMetric::COUNT)
+        assert_eq!(33, PrometheusMetric::COUNT)
     }
 
     #[test]

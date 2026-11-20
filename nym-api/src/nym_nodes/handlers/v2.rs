@@ -79,10 +79,11 @@ async fn get_node_annotation(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<AnnotationResponseV2>> {
-    let annotations = state.node_status_cache().node_annotations().await?;
+    let rewarded_set = state.rewarded_set().await?;
+    let snapshot = state.latest_snapshot().await?;
 
     Ok(output.get_output().to_response(AnnotationResponseV2 {
         node_id,
-        annotation: annotations.get(&node_id).cloned(),
+        annotation: snapshot.node_annotation(node_id, &rewarded_set),
     }))
 }

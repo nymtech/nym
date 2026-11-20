@@ -56,7 +56,9 @@ impl ContractSnapshots {
 
     pub(crate) async fn latest_performance(&self) -> Option<SnapshotGuard<'_, LatestPerformance>> {
         let entry = self.latest_entry().await?;
-        Some(RwLockReadGuard::map(entry, |entry| &entry.performance))
+        Some(RwLockReadGuard::map(entry, |entry| {
+            entry.performance.snapshot()
+        }))
     }
 
     pub(crate) async fn performance_at(
@@ -64,7 +66,9 @@ impl ContractSnapshots {
         height: Height,
     ) -> Option<SnapshotGuard<'_, LatestPerformance>> {
         let entry = self.entry_at(height).await?;
-        Some(RwLockReadGuard::map(entry, |entry| &entry.performance))
+        Some(RwLockReadGuard::map(entry, |entry| {
+            entry.performance.snapshot()
+        }))
     }
 
     pub(crate) async fn latest_geolocation(&self) -> Option<SnapshotGuard<'_, GeolocationRecord>> {

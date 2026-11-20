@@ -69,8 +69,7 @@ impl<C: MixnetQueryClient + Sync> ConfigScoreMaterialiser<C> {
             .await
             .context("failed to query the nym-node version history from the mixnet contract")?;
 
-        // the shared crate scores in cosmwasm's `Coin`, matching nym-api; convert the nyxd balance at
-        // this boundary
+        // the shared crate scores in cosmwasm's `Coin`; convert the nyxd balance at this boundary
         let calculator = ConfigScoreCalculator::new(
             self.minimum_balance.clone().into(),
             self.chain_interactions_penalty,

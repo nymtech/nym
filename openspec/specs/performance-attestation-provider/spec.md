@@ -6,7 +6,7 @@ Defines nym-api's producer of attested performance snapshots: on every nym-api, 
 ## Requirements
 ### Requirement: Every nym-api produces attested performance snapshots
 
-nym-api SHALL produce signed snapshots of the performance contract's committed set on every instance, whatever its configuration: independently of `[performance_provider].use_performance_contract_data` and of whether it rewards. No setting SHALL turn the producer off. The performance contract's address SHALL be assumed present in the network details, and network details that do not carry it MUST fail startup, as a missing directory contract address does.
+nym-api SHALL produce signed snapshots of the performance contract's committed set on every instance, whatever its configuration. No setting SHALL turn the producer off. The performance contract's address SHALL be assumed present in the network details, and network details that do not carry it MUST fail startup, as a missing directory contract address does.
 
 #### Scenario: A default configuration produces snapshots
 - **WHEN** nym-api starts with a default configuration and network details carrying the performance contract's address

@@ -174,7 +174,7 @@ impl TryFrom<NymContracts> for TypedNymContracts {
 const MAX_PINNED_READ_RECORDS: usize = 250_000;
 
 /// A page of a paginated query read in full at one height.
-trait AttestationPage: DeserializeOwned {
+trait PinnedPage: DeserializeOwned {
     type QueryMsg: Serialize + Sync;
     /// What the query needs besides the cursor, `()` when nothing.
     type QueryArgs: Send + Sync;
@@ -200,7 +200,7 @@ async fn collect_pages_at_height<P, C>(
     args: P::QueryArgs,
 ) -> Result<Vec<P::Record>, NyxdError>
 where
-    P: AttestationPage,
+    P: PinnedPage,
     C: CosmWasmClient + NymContractsProvider + Sync,
 {
     let contract_address = P::contract_address(client)

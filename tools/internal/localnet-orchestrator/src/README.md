@@ -99,8 +99,8 @@ The startup is separated into 4 main steps (which can also be run individually a
     - bonds all of them into previously created mixnet contract
     - force assigns them to the active set by performing additional admin-only contract shenanigans
     - force refreshes nym-api caches to make the nodes appear in the relevant endpoints immediately
-    - injects fake "100%" network monitor scores for each node in the `nym-api` container to make sure all nodes have
-      valid performance metrics and force refreshes the relevant cache
+    - note: nothing submits to the performance contract and no epoch driver runs, so the nodes carry no performance
+      figure and the epoch does not advance past this assignment
 
 ### Commands
 

@@ -39,9 +39,22 @@ pub(crate) struct Args {
     test_interval: Duration,
 
     /// Maximum time a single test run is allowed to run before being considered timed out
-    /// (e.g. `5m`). Used as the stress kind's lease budget.
+    /// (e.g. `5m`). Used as the lease budget of both stress kinds, so it has to cover the slower
+    /// run, which is the gateway one.
     #[clap(long, env = NYM_NETWORK_MONITOR_TEST_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "5m")]
     test_timeout: Duration,
+
+    /// Whether mixnode stress testing may be assigned to agents (e.g.
+    /// `--mixnode-stress-enabled false`). Takes an explicit value rather than being a bare flag, so
+    /// that a deployment can switch it off through the environment without a redeploy.
+    #[clap(long, env = NYM_NETWORK_MONITOR_MIXNODE_STRESS_ENABLED_ARG, action = clap::ArgAction::Set, default_value_t = true)]
+    mixnode_stress_enabled: bool,
+
+    /// Whether gateway stress testing may be assigned to agents (e.g.
+    /// `--gateway-stress-enabled false`). Takes an explicit value rather than being a bare flag, so
+    /// that a deployment can switch it off through the environment without a redeploy.
+    #[clap(long, env = NYM_NETWORK_MONITOR_GATEWAY_STRESS_ENABLED_ARG, action = clap::ArgAction::Set, default_value_t = true)]
+    gateway_stress_enabled: bool,
 
     /// Whether liveness testing may be assigned to agents (e.g. `--liveness-enabled false`).
     /// Takes an explicit value rather than being a bare flag, so that a deployment can switch
@@ -231,6 +244,8 @@ impl Args {
             http_server_bind_address: self.http_server_bind_address,
             test_interval: self.test_interval,
             test_timeout: self.test_timeout,
+            mixnode_stress_enabled: self.mixnode_stress_enabled,
+            gateway_stress_enabled: self.gateway_stress_enabled,
             liveness: LivenessConfig {
                 enabled: self.liveness_enabled,
                 test_interval: self.liveness_test_interval,

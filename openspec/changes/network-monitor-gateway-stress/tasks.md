@@ -30,10 +30,10 @@
 
 ## 5. Orchestrator scheduling, config and HTTP
 
-- [ ] 5.1 Add `--gateway-stress-enabled` (explicit value, default true, with its environment variable) and carry it into `Config`; `Config::schedule` gives gateway stress the stress interval and lease with a wave of one, or nothing while the switch is off
-- [ ] 5.2 `AggregationWindows::for_kind`: gateway stress uses the stress window
-- [ ] 5.3 HTTP state: build the single-target gateway stress assignment, give the assignment metrics their arm, and serve `latest_gateway_stress` on the node read
-- [ ] 5.4 Tests: a disabled gateway stress is never chosen while the other kinds still are; a cold start reaches gateway stress after mixnode stress; a gateway stress assignment carries one target
+- [x] 5.1 Add `--mixnode-stress-enabled` and `--gateway-stress-enabled` (explicit values, default true, each with its environment variable) and carry them into `Config`; `Config::schedule` gives gateway stress the stress interval and lease with a wave of one, and gives each stress kind nothing while its switch is off
+- [x] 5.2 `AggregationWindows::for_kind`: gateway stress uses the stress window
+- [x] 5.3 HTTP state: build the single-target gateway stress assignment, give the assignment metrics their arm, and serve `latest_gateway_stress` on the node read
+- [x] 5.4 Tests: a disabled stress kind (either one) is never chosen while the other kinds still are; a cold start reaches gateway stress after mixnode stress; a gateway stress assignment carries one target
 
 ## 6. Aggregation and submission
 
@@ -46,5 +46,5 @@
 - [ ] 7.1 `cargo fmt`; `cargo check --all-targets` and the tests of the agent, the requests crate (also with `--features openapi`) and the orchestrator
 - [ ] 7.2 Read the diff against every scenario of the three delta specs, and record in design Decision 11 which scenarios are left untested and why
 - [ ] 7.3 Run `test-gateway-stress` against real gateways and record the rate each sustains, as the input for raising the profile. Not a gate on the first deploy
-- [ ] 7.4 PR description: the new kind, the gateway liveness behaviour change (send window, partial credit), the lenient initial values with the note that they will be raised progressively, the reward effect on gateways, that orchestrator and agents deploy together, and a section of its own on the renamed mixnode stress flags and environment variables: a table of every old name to its new one, and the warning that a deployment script still setting an old variable silently gets the default
+- [ ] 7.4 PR description: the new kind, the gateway liveness behaviour change (send window, partial credit), the lenient initial values with the note that they will be raised progressively, the reward effect on gateways, the two new orchestrator switches `--mixnode-stress-enabled` and `--gateway-stress-enabled`, that orchestrator and agents deploy together, and a section of its own on the renamed mixnode stress flags and environment variables: a table of every old name to its new one, and the warning that a deployment script still setting an old variable silently gets the default
 - [ ] 7.5 Sync the main specs by hand (two scenario titles are renamed, so `openspec archive` would abort), check `git diff openspec/specs` line by line, and archive the change in the PR with `--skip-specs`

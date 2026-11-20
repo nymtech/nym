@@ -81,11 +81,11 @@ With both phases bounded, a run takes at most session setup, the egress connecti
 
 ### 7. Scheduled on the stress cadence, behind its own switch
 
-`gateway_stress` uses `test_interval` (2 hours) and `test_timeout` (5 minutes) with a wave size of one, and is declared after `mixnode_stress`, so ties resolve as liveness, mixnode stress, gateway stress. `--gateway-stress-enabled` takes an explicit value and defaults to on, like the liveness switch; `Config::schedule` returns nothing for the kind while it is off.
+`gateway_stress` uses `test_interval` (2 hours) and `test_timeout` (5 minutes) with a wave size of one, and is declared after `mixnode_stress`, so ties resolve as liveness, mixnode stress, gateway stress. `--gateway-stress-enabled` takes an explicit value and defaults to on, like the liveness switch; `Config::schedule` returns nothing for the kind while it is off. Mixnode stress, which had no switch, gains one on the same terms, `--mixnode-stress-enabled`.
 
-Sharing the cadence mirrors the liveness family and keeps a dual-role node's two stress kinds at comparable sample counts when they are combined. The shared lease has to cover the slower run, which is the gateway one. The asymmetry is accepted: mixnode stress still has no switch.
+Sharing the cadence mirrors the liveness family and keeps a dual-role node's two stress kinds at comparable sample counts when they are combined. The shared lease has to cover the slower run, which is the gateway one. With a switch each, the two stress kinds differ in scheduling only in their declaration order. Switching mixnode stress off takes stress out of every mixnode's submitted score once its aggregates age out, as switching gateway stress off does for gateways.
 
-Alternatives considered: its own interval and lease (two more flags, and the more frequently tested kind would then dominate a dual-role node's combined stress); no switch (the kind could not be turned off without a build).
+Alternatives considered: its own interval and lease (two more flags, and the more frequently tested kind would then dominate a dual-role node's combined stress); no switch (the kind could not be turned off without a build); a switch for gateway stress alone (leaves mixnode stress the one kind that cannot be turned off without a build, for no reason of its own).
 
 ### 8. The kind is plumbed the way the existing three are
 

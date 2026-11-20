@@ -33,12 +33,16 @@ A scraper built over a storage backend SHALL take the last processed height reco
 
 ### Requirement: A watcher starts at the block after a height its caller supplies
 
-The watcher, which persists nothing and only feeds its modules, SHALL be given the height that its modules' state already reflects, and MUST treat the block after that height as the next one to process. It MUST NOT take the first block it observes as its starting point. Blocks between the supplied height and the first one the subscription delivers MUST be fetched by height like any other missing block.
+The watcher, which persists nothing and only feeds its modules, MAY be given the height that its modules' state already reflects. When given one, it MUST treat the block after that height as the next one to process and MUST NOT take the first block it observes as its starting point; blocks between the supplied height and the first one the subscription delivers MUST be fetched by height like any other missing block. When given none, which suits a caller with no loaded state, the first block it observes SHALL become its starting point.
 
 #### Scenario: Blocks produced between the state load and the first delivered block reach the modules
 - **WHEN** a watcher is started after height 500 and the first block its subscription delivers is 503
 - **THEN** 503 waits in the backlog while 501 and 502 are fetched by height
 - **AND** the modules are handed 501, 502 and 503 in that order
+
+#### Scenario: A watcher given no height starts at the first block it observes
+- **WHEN** a watcher is started with no height and the first block its subscription delivers is 503
+- **THEN** the modules are handed 503 first, and no earlier block is fetched
 
 ### Requirement: A watcher that cannot advance gives up, and a persisting scraper never does
 

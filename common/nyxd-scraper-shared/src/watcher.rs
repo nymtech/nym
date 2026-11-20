@@ -20,11 +20,14 @@ pub struct WatcherConfig {
     /// Urls to the rpc endpoints of validators, for example, `https://rpc.nymtech.net/`, in order
     /// of preference: a later one is only queried once the earlier ones have failed.
     pub rpc_urls: Vec<Url>,
+
+    /// The height the modules' state already reflects, so processing starts at the block after it.
+    /// With `None` processing starts at the first block observed.
+    pub start_after_height: Option<u32>,
 }
 
 pub struct NyxdWatcherBuilder {
     config: WatcherConfig,
-    custom_shutdown: CancellationToken,
 
     block_modules: Vec<Box<dyn BlockModule + Send>>,
     tx_modules: Vec<Box<dyn TxModule + Send>>,
@@ -35,17 +38,10 @@ impl NyxdWatcherBuilder {
     pub fn new(config: WatcherConfig) -> Self {
         NyxdWatcherBuilder {
             config,
-            custom_shutdown: CancellationToken::new(),
             block_modules: vec![],
             tx_modules: vec![],
             msg_modules: vec![],
         }
-    }
-
-    #[must_use]
-    pub fn with_custom_shutdown(mut self, token: CancellationToken) -> Self {
-        self.custom_shutdown = token;
-        self
     }
 
     #[must_use]
@@ -95,7 +91,11 @@ impl NyxdWatcherBuilder {
                     get_validators: false,
                     get_transactions: true,
                     get_block_results: false,
-                });
+                })
+                .with_stall_give_up();
+        if let Some(height) = self.config.start_after_height {
+            block_processor = block_processor.with_start_after(height);
+        }
         block_processor.set_block_modules(self.block_modules);
         block_processor.set_tx_modules(self.tx_modules);
         block_processor.set_msg_modules(self.msg_modules);

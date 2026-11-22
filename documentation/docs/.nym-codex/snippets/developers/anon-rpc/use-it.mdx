@@ -11,4 +11,4 @@ await worker.ready
 const res = await worker.fetch(rpcUrl, { method: 'POST', body })
 ```
 
-No config is required: the worker discovers an exit and its DNS resolvers itself, so `config` is `{}`.
+You do not need to configure the worker: it finds an exit gateway and its DNS resolvers, so `config` is `{}`.

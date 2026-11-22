@@ -2,14 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    client::base_client::storage::helpers::{
+        get_all_registered_identities, remove_gateway_details,
+    },
+    client::key_manager::persistence::{KeySecret, KeyStore, OnDiskKeys, OnDiskKeysError},
     client::replies::reply_storage::{CombinedReplyStorage, ReplyStorageBackend, fs_backend},
     config,
     config::Config,
+    config::disk_persistence::CommonClientPaths,
     error::ClientCoreError,
+    init::generate_new_client_keys,
 };
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd};
-use std::{io, path::Path};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 use time::OffsetDateTime;
 use tracing::{error, info, trace};
 use url::Url;
@@ -183,6 +192,59 @@ pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
         })
 }
 
+/// Gives the client a new identity: new random root keys, no gateway registrations and no reply
+/// SURBs or reply keys. It contacts no gateway and leaves the credential store unopened, so
+/// ticketbooks are kept. No client may be using these paths while it runs. It fails before
+/// changing anything when `key_secret` does not open the existing keys.
+pub async fn reset_client_identity(
+    paths: &CommonClientPaths,
+    key_secret: Option<KeySecret>,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
+) -> Result<(), ClientCoreError> {
+    let key_store = OnDiskKeys::with_secret(paths.keys.clone(), key_secret);
+    if let Err(
+        err
+        @ (OnDiskKeysError::PassphraseRequired { .. } | OnDiskKeysError::WrongPassphrase { .. }),
+    ) = key_store.load_keys().await
+    {
+        return Err(ClientCoreError::KeyStoreError {
+            source: Box::new(err),
+        });
+    }
+
+    // the keys go last, so a reset cut short leaves registrations under the keys they were
+    // made with, or none, and running it again finishes it
+    let details_store =
+        setup_fs_gateways_storage(&paths.gateway_registrations, database_key).await?;
+    for gateway_id in get_all_registered_identities(&details_store).await? {
+        remove_gateway_details(&details_store, &gateway_id.to_base58_string()).await?;
+    }
+
+    // deleted, not opened: the next start creates a fresh store from the client's own config
+    for path in sqlite_database_paths(&paths.reply_surb_database) {
+        match std::fs::remove_file(path) {
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+            result => result?,
+        }
+    }
+
+    generate_new_client_keys(&mut nym_crypto::rng::os_rng(), &key_store).await
+}
+
+/// The sqlite database file together with its journal files (wal, shm).
+pub fn sqlite_database_paths<P: AsRef<Path>>(db_file: P) -> Vec<PathBuf> {
+    let db_file = db_file.as_ref();
+    ["-shm", "-wal"]
+        .iter()
+        .map(|suffix| {
+            let mut path = db_file.as_os_str().to_owned();
+            path.push(suffix);
+            PathBuf::from(path)
+        })
+        .chain([db_file.to_path_buf()])
+        .collect()
+}
+
 pub fn default_query_dkg_client_from_config(
     config: &Config,
 ) -> Result<QueryHttpRpcNyxdClient, ClientCoreError> {
@@ -202,4 +264,26 @@ pub fn default_query_dkg_client(nyxd_url: Url) -> Result<QueryHttpRpcNyxdClient,
 
     QueryHttpRpcNyxdClient::connect(client_config, nyxd_url.as_str())
         .map_err(|source| ClientCoreError::RpcClientCreationFailure { source })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn journal_paths_extend_the_whole_file_name() {
+        assert_eq!(
+            sqlite_database_paths("data/replies.sqlite"),
+            [
+                "data/replies.sqlite-shm",
+                "data/replies.sqlite-wal",
+                "data/replies.sqlite"
+            ]
+            .map(PathBuf::from)
+        );
+        assert_eq!(
+            sqlite_database_paths("data/replies"),
+            ["data/replies-shm", "data/replies-wal", "data/replies"].map(PathBuf::from)
+        );
+    }
 }

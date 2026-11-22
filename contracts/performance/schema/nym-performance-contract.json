@@ -221,49 +221,19 @@
         "additionalProperties": false
       },
       {
-        "description": "An admin method to remove submitted node measurements. Used as an escape hatch should the data stored get too unwieldy.",
+        "description": "Cross-contract callback from the mixnet contract when `node_id` unbonds; removes the node's latest entry from the digest. Sender must be the configured mixnet contract.",
         "type": "object",
         "required": [
-          "remove_node_measurements"
+          "on_nym_node_unbond"
         ],
         "properties": {
-          "remove_node_measurements": {
+          "on_nym_node_unbond": {
             "type": "object",
             "required": [
-              "epoch_id",
               "node_id"
             ],
             "properties": {
-              "epoch_id": {
-                "type": "integer",
-                "format": "uint32",
-                "minimum": 0.0
-              },
               "node_id": {
-                "type": "integer",
-                "format": "uint32",
-                "minimum": 0.0
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "An admin method to remove submitted nodes measurements. Used as an escape hatch should the data stored get too unwieldy. Note: it is expected to get called multiple times until the response indicates all the epoch data has been removed.",
-        "type": "object",
-        "required": [
-          "remove_epoch_measurements"
-        ],
-        "properties": {
-          "remove_epoch_measurements": {
-            "type": "object",
-            "required": [
-              "epoch_id"
-            ],
-            "properties": {
-              "epoch_id": {
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
@@ -611,6 +581,52 @@
         "additionalProperties": false
       },
       {
+        "description": "Returns (paged) every node's latest entry: exactly what the digest commits",
+        "type": "object",
+        "required": [
+          "latest_performance_paged"
+        ],
+        "properties": {
+          "latest_performance_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "The 32-byte collapse of the accumulator. A convenience for comparing digests; it carries no proof, since smart queries cannot. Proving requires a raw store read at the documented digest key.",
+        "type": "object",
+        "required": [
+          "digest"
+        ],
+        "properties": {
+          "digest": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Returns everything rewarding uses for the node in the epoch: the resolved medians, the epoch they came from, the weights in force and the score",
         "type": "object",
         "required": [
@@ -924,6 +940,27 @@
             }
           },
           "additionalProperties": false
+        }
+      }
+    },
+    "digest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DigestResponse",
+      "description": "The 32-byte collapse of the LtHash accumulator. Unproven: smart queries carry no proof, so a client that needs one performs a raw store read at the digest key instead.",
+      "type": "object",
+      "required": [
+        "digest"
+      ],
+      "properties": {
+        "digest": {
+          "$ref": "#/definitions/Binary"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
         }
       }
     },
@@ -1408,6 +1445,76 @@
         "Uint64": {
           "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
           "type": "string"
+        }
+      }
+    },
+    "latest_performance_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LatestPerformancePagedResponse",
+      "type": "object",
+      "required": [
+        "performance"
+      ],
+      "properties": {
+        "performance": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LatestPerformance"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "LatestPerformance": {
+          "description": "A node's newest bundle as the digest commits it: its score under the weights of its own epoch.",
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "node_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "score": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
         }
       }
     },

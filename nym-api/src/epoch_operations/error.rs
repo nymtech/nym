@@ -32,6 +32,9 @@ pub enum RewardingError {
     #[error("it seems the current epoch is in mid-role assignment state (next role to assign is {next}). With our current nym-api this shouldn't have been possible. Manual intervention is required.")]
     MidRoleAssignment { next: Role },
 
+    #[error("the performance contract window has not been loaded")]
+    PerformanceContractWindowNotLoaded,
+
     // #[error("There were no mixnodes to reward (network is dead)")]
     // NoMixnodesToReward,
     #[error("Failed to execute the smart contract - {0}")]

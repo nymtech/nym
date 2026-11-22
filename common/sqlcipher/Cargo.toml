@@ -17,6 +17,7 @@ publish = true
 hex = { workspace = true }
 # Only here to switch on SQLCipher through the `bundled` feature.
 libsqlite3-sys = { workspace = true }
+rand = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "sqlite"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "sync"] }

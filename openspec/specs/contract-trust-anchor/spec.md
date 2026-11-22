@@ -3,10 +3,9 @@
 ## Purpose
 TBD - created by archiving change geolocation-retrieval-client. Update Purpose after archive.
 ## Requirements
-
 ### Requirement: Domain-neutral trust-anchor trait
 
-The crate SHALL define a `TrustAnchor` trait exposing `trusted_app_hash(height)` and `trusted_digest(height)`, naming no directory-specific or geolocation-specific type in its signature or in the types it returns. A `TrustedDigest` SHALL carry the height and the full `LtHash16` accumulator rather than its 32-byte collapse, so a verifying client compares accumulators directly.
+The crate SHALL define two traits, naming no directory-specific or geolocation-specific type in their signatures or in the types they return: `ChainAnchor`, exposing `trusted_app_hash(height)`, which concerns the chain only and names no contract; and `TrustAnchor: ChainAnchor`, exposing `trusted_digest(height)`, the digest of one contract. A `TrustedDigest` SHALL carry the height and the full `LtHash16` accumulator rather than its 32-byte collapse, so a verifying client compares accumulators directly.
 
 #### Scenario: Trait is usable by an unrelated contract client
 
@@ -18,13 +17,18 @@ The crate SHALL define a `TrustAnchor` trait exposing `trusted_app_hash(height)`
 - **WHEN** an anchor returns a `TrustedDigest` for height `H`
 - **THEN** it carries the full `LtHash16` accumulator, so a caller can compare it against a locally recomputed accumulator without first collapsing either side
 
+#### Scenario: Every trust anchor is a chain anchor
+
+- **WHEN** code needs only the trusted `app_hash` at a height, such as a single-entry proof or a producer signing the app hash
+- **THEN** it can take any `ChainAnchor`, and every `TrustAnchor` qualifies
+
 ### Requirement: Digest location is a parameter, not a constant
 
 The trusted-digest fetch SHALL take the contract address and the raw digest storage key as arguments rather than reading either from a compiled-in per-domain constant. The raw key SHALL be reconstructed locally by the verifier and never taken from the response of the RPC serving the proof, so a malicious RPC cannot substitute a different key for the one the proof is checked against.
 
 #### Scenario: Two contracts anchored by one implementation
 
-- **WHEN** the same anchor implementation is constructed once for the directory contract and once for the geolocation contract
+- **WHEN** a `ContractAnchor` is constructed once for the directory contract and once for the geolocation contract
 - **THEN** each returns a trusted digest for its own contract, with no code change and no per-domain constant consulted
 
 #### Scenario: Key is reconstructed, not echoed
@@ -62,7 +66,7 @@ A contract writes its digest item only on its first entry mutation, so a contrac
 
 ### Requirement: The trusted app hash never comes from the RPC serving the proof
 
-Every single-key verified read SHALL take the `app_hash` it checks against from the anchor's `trusted_app_hash`, never from a header re-fetched from the RPC that served the proof. Otherwise a malicious RPC could supply a self-consistent forged pair of header and proof. The proven anchor's own digest fetch SHALL route through `trusted_app_hash` for the same reason, so there is exactly one trust seam.
+Every single-key verified read SHALL take the `app_hash` it checks against from the anchor's `trusted_app_hash`, never from a header re-fetched from the RPC that served the proof. Otherwise a malicious RPC could supply a self-consistent forged pair of header and proof. A `ContractAnchor`'s digest fetch SHALL route through its chain anchor's `trusted_app_hash` for the same reason, so there is exactly one trust seam.
 
 #### Scenario: Forged self-consistent pair is rejected
 
@@ -96,3 +100,117 @@ The crate SHALL own the error variants that belong to anchoring and proving: pro
 
 - **WHEN** any verification step fails
 - **THEN** the call returns an error and no data, rather than returning data flagged as unverified
+
+### Requirement: Whole-set verification is shared across contract clients
+
+A contract's record type SHALL expose the leaf its contract folds into the accumulator through one `DigestLeaf` trait in `nym-contracts-common`, implemented in the record type's own common crate with that contract's frozen encoding. The anchor crate SHALL provide, generic over any `DigestLeaf` record type:
+- recomputing the accumulator over a record set;
+- checking a record set against a trusted accumulator, rejecting a set that repeats a record;
+- checking attested data (`SnapshotData`) against a trusted snapshot: its height label against the requested height, its node-identity map against the snapshot's `node_identities_hash`, then its records against the snapshot's accumulator;
+- reading the mixnet bond set at a height as the `NodeId -> ed25519` identity map, with every page pinned to that height.
+
+Every contract client SHALL use these rather than its own copies. Each check SHALL fail closed with an error and no records.
+
+#### Scenario: A record type gains verification by implementing its leaf
+- **WHEN** a contract's record type implements `DigestLeaf`
+- **THEN** its record sets can be folded, checked against a trusted accumulator and checked against an attested snapshot with no client-specific verification code
+
+#### Scenario: The fold is order-independent
+- **WHEN** the same records are folded in two different orders
+- **THEN** both yield the same accumulator, so the order pages arrive in cannot affect verification
+
+#### Scenario: A tampered record set fails closed
+- **WHEN** a record set has a record added, withheld or altered relative to the set the trusted accumulator commits
+- **THEN** the check returns a digest-mismatch error
+
+#### Scenario: A record set that repeats a record fails closed
+- **WHEN** a record set contains the same record more than once
+- **THEN** the check returns a duplicate-record error, since the committed set holds every record once
+
+#### Scenario: Attested data labelled with another height is rejected
+- **WHEN** attested data recomputes to the trusted values for height `H` but is labelled with another height
+- **THEN** the check returns a height-mismatch error rather than accepting data stamped with a height the anchor never established
+
+#### Scenario: A substituted identity map is rejected
+- **WHEN** attested records recompute correctly but the served identity map does not hash to the snapshot's `node_identities_hash`
+- **THEN** the check returns an identities-mismatch error
+
+### Requirement: Every whole-set read path yields one verified record set
+
+The anchor crate SHALL provide each way of reading a contract's whole record set at a height `H`, generic over any `DigestLeaf` record type, and each SHALL yield the same verified record set: the records, the bond set's identity map at `H` and the accumulator they matched, labelled with `H`. The paths are:
+- through the chain RPC under any trust anchor: the anchor's trusted digest at `H`, then the records from a read pinned to `H`, run only once the digest is established, then the check of the records against the digest, with the node-identity map the caller supplies. A contract client supplies the bond set it reads at `H` through its own query client; a producer attesting several contracts supplies the map it read once at `H` for all of them;
+- offline, against a quorum-agreed snapshot the caller already holds: the attested-data check of the served data against that snapshot;
+- through an attested anchor's sources (see the next requirement).
+
+A contract client SHALL build its own result from this record set rather than implement a read path of its own.
+
+#### Scenario: The RPC read checks the records against the anchor's digest
+- **WHEN** the anchor trusts an accumulator at `H` and the pinned read returns records that recompute to it
+- **THEN** the read yields those records with the identity map of the bonds at `H` and the trusted accumulator
+
+#### Scenario: The RPC read rejects records the digest does not commit
+- **WHEN** the pinned read returns records that do not recompute to the accumulator the anchor trusts at `H`
+- **THEN** the read returns a digest-mismatch error and no records
+
+#### Scenario: Nothing is read when trust cannot be established
+- **WHEN** the anchor cannot establish a digest for `H`
+- **THEN** the read returns that error without running the pinned read
+
+#### Scenario: The offline read checks served data against a held snapshot
+- **WHEN** a caller holds a quorum-agreed snapshot for `H` and data for `H` that recomputes to its accumulator and identity hash
+- **THEN** the read yields that data with the snapshot's accumulator, and rejects data that is labelled with another height or carries another identity map
+
+#### Scenario: The identity map comes from the caller's read
+- **WHEN** a producer supplies the identity map it read at `H` to the chain reads of several contracts
+- **THEN** each read yields its records with that map, and makes no bond read of its own
+
+### Requirement: The attested anchor returns verified whole-set data from its sources
+
+`AttestedTrustAnchor` SHALL provide a read of the whole record set at a height `H`, available whenever its sources' record type implements `DigestLeaf`. It SHALL take the quorum-agreed snapshot for `H`, then ask its sources for their data at `H` one at a time, returning the first set that passes the attested-data check. It SHALL skip a source that fails to answer or whose data fails the check, return the last failure when no source passes, and fail when no quorum-agreed snapshot exists for `H`. Only the structural check SHALL decide whether a source's data is accepted: the anchor does not interpret records, and checks a client applies afterwards SHALL NOT cause a source to be skipped.
+
+#### Scenario: The first verifying source is returned
+- **WHEN** a quorum agrees on the snapshot for `H` and a source serves data that passes the check
+- **THEN** the anchor returns that source's records and identity map, together with the accumulator they verified against
+
+#### Scenario: A source serving bad data is skipped
+- **WHEN** the first source serves data that fails the check and the second serves data that passes
+- **THEN** the anchor returns the second source's data
+
+#### Scenario: No source verifies
+- **WHEN** every source fails to answer or serves data that fails the check
+- **THEN** the anchor returns the last failure and no records
+
+#### Scenario: No quorum for the height
+- **WHEN** no quorum-agreed snapshot exists for `H`
+- **THEN** the anchor returns that error without fetching any data
+
+### Requirement: Moving the existing clients onto the shared verification preserves their behaviour
+
+Moving `nym-directory-client` and `nym-geolocation-client` onto the shared verification, the shared read paths, the shared bond read and the shared height-pinned paging SHALL preserve what they verify and return. Their client types, their RPC reads' signatures, their verified result types and their key helpers SHALL remain; their own verify, offline and attested functions SHALL give way to the shared read paths, each result type being built from the shared verified record set. Every contract client SHALL return the anchor crate's shared verification error rather than an error type of its own, so that each cause of failure, including a failure to establish trust and a contract address that is not configured, has exactly one variant. Every scenario the pre-existing tests in both crates covered SHALL stay covered: a domain property by a test in the client crate, with its expected values unchanged, and a shared check by the anchor crate's test of that check.
+
+#### Scenario: Sibling scenarios stay covered after the move
+- **WHEN** the move is complete and the client and anchor crates' test suites run
+- **THEN** they pass, and every scenario the clients' pre-existing tests covered is covered by one of them with unchanged expected values
+
+#### Scenario: A failure to establish trust has one variant
+- **WHEN** a client cannot establish trust for `H`, on any of its paths
+- **THEN** its error is the shared error's anchor variant, carrying the anchor failure
+
+#### Scenario: Consumers compile against the shared error
+- **WHEN** nym-api, nym-node-status-api and the checkpoint updater are built against the moved clients
+- **THEN** they compile, naming the shared error in place of a client's own, with no other source change
+
+### Requirement: One chain anchor serves every contract
+
+The crate SHALL provide its proven and light-client anchors as chain anchors (`ProvenChainAnchor`, `LightClientAnchor`), which take no contract address or digest key, and a `ContractAnchor` that pairs any chain anchor with one contract's address and bare digest item key and implements `TrustAnchor` by proving that contract's digest item against the chain anchor's `app_hash`. One chain anchor instance SHALL be shareable by the contract anchors of several contracts. `AttestedTrustAnchor` SHALL implement both traits itself, since its `app_hash` and digest come from one contract's quorum-agreed snapshot.
+
+#### Scenario: Two contracts share one chain anchor
+
+- **WHEN** a caller builds contract anchors for the directory and performance contracts over one shared chain anchor and reads both at height `H`
+- **THEN** both digests are proven against the `app_hash` the shared chain anchor trusts at `H`
+
+#### Scenario: A chain anchor needs no contract
+
+- **WHEN** a caller constructs a `ProvenChainAnchor` or a `LightClientAnchor`
+- **THEN** it supplies no contract address and no digest key, and the anchor can serve any contract
+

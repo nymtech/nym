@@ -224,6 +224,10 @@ pub struct ContractState {
     /// so that it directory data could be removed from the underlying storage.
     pub directory_contract_address: Option<Addr>,
 
+    /// Address of the performance contract. It is called whenever nym-node unbonds,
+    /// so that its latest performance entry could be removed from the routing view.
+    pub performance_contract_address: Option<Addr>,
+
     /// The expected denom used for rewarding (and realistically any other operation).
     /// Default: `unym`
     pub rewarding_denom: String,

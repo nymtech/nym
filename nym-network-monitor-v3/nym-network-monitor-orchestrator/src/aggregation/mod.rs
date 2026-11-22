@@ -6,8 +6,11 @@
 //! Every rule about what a number MEANS lives here rather than in the storage layer, which only
 //! keeps the rows, or in the HTTP layer, which only hands them out.
 
-use crate::storage::models::{CompletedTestRun, MixnetEpochAggregate, TestKind};
+use crate::storage::models::{
+    CompletedTestRun, MixnetEpochAggregate, MixnetEpochConfigScore, TestKind,
+};
 use nym_network_monitor_orchestrator_requests::models::KindAggregate;
+use nym_validator_client::client::NodeId;
 use std::collections::BTreeMap;
 
 pub(crate) mod materialiser;
@@ -106,19 +109,69 @@ impl ReportedAggregates {
     pub(crate) fn from_rows(rows: &[MixnetEpochAggregate]) -> Self {
         let mut reported = ReportedAggregates::default();
         for row in rows {
-            let aggregate = WindowAggregate::from(row);
-            match row.test_kind {
-                TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {
-                    reported.liveness = Some(match reported.liveness {
-                        Some(liveness) => liveness.combine(aggregate),
-                        None => aggregate,
-                    });
-                }
-                TestKind::MixnodeStress => reported.stress = Some(aggregate),
-            }
+            reported.add_row(row);
         }
         reported
     }
+
+    /// Folds one more of the node's stored aggregates into the reported figures.
+    fn add_row(&mut self, row: &MixnetEpochAggregate) {
+        let aggregate = WindowAggregate::from(row);
+        match row.test_kind {
+            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {
+                self.liveness = Some(match self.liveness {
+                    Some(liveness) => liveness.combine(aggregate),
+                    None => aggregate,
+                });
+            }
+            TestKind::MixnodeStress => self.stress = Some(aggregate),
+        }
+    }
+}
+
+/// One node's stored figures for one epoch, as they are reported.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct NodeEpochFigures {
+    pub(crate) node_id: NodeId,
+    pub(crate) config_score: Option<MixnetEpochConfigScore>,
+    pub(crate) aggregates: ReportedAggregates,
+}
+
+impl NodeEpochFigures {
+    /// A node with no figures yet, keyed as its rows are.
+    fn empty(node_id: i64) -> Self {
+        NodeEpochFigures {
+            node_id: node_id as NodeId,
+            config_score: None,
+            aggregates: ReportedAggregates::default(),
+        }
+    }
+}
+
+/// Merges an epoch's config scores and aggregates, each spanning many nodes, into one entry per node
+/// that has either, ordered by node id.
+///
+/// A node can have one without the other: a backfilled epoch has aggregates but no config scores,
+/// and a described node nothing measured in the window has a config score alone.
+pub(crate) fn epoch_figures(
+    config_scores: &[MixnetEpochConfigScore],
+    aggregates: &[MixnetEpochAggregate],
+) -> Vec<NodeEpochFigures> {
+    let mut figures: BTreeMap<i64, NodeEpochFigures> = BTreeMap::new();
+    for score in config_scores {
+        figures
+            .entry(score.node_id)
+            .or_insert_with(|| NodeEpochFigures::empty(score.node_id))
+            .config_score = Some(*score);
+    }
+    for row in aggregates {
+        figures
+            .entry(row.node_id)
+            .or_insert_with(|| NodeEpochFigures::empty(row.node_id))
+            .aggregates
+            .add_row(row);
+    }
+    figures.into_values().collect()
 }
 
 #[cfg(test)]

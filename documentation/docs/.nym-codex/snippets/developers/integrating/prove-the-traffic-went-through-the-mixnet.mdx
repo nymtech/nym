@@ -1,13 +1,11 @@
 ## Prove the traffic went through the mixnet [#prove-the-traffic-went-through-the-mixnet]
 
-Routing code that fails to route raises no error, so add a check underneath it
-that does. [Fail-open or fail-closed](snippet:nym/developers/integrating/decide-fail-open-or-fail-closed-explicitly)
-shows one way traffic falls back to the clearnet with no error. Three checks exist. **Detection**
-traps direct requests to a routed host and reports them as bugs. It proves
-that your code ran. **Positive proof** compares the source address one echo
-service sees over the tunnel and over the clearnet. Only this check proves
-that a request went through the mixnet. **Enforcement** removes the direct
-path at the platform level. It stops bypasses, within what the platform
-governs. All three checks are platform-specific.
-[Routing a browser or WebView app](snippet:nym/developers/browser-routing/intro) implements
-them for the web runtime.
+Routing code that fails to route raises no error. Add a check that does. [Fail-open or fail-closed](snippet:nym/developers/integrating/decide-fail-open-or-fail-closed-explicitly) shows one way traffic falls back to the clearnet with no error. Three checks exist, and all three are platform-specific:
+
+| Check | What it does | What it proves |
+|---|---|---|
+| **Detection** | Traps direct requests to a routed host and reports them as bugs | Your routing code ran |
+| **Positive proof** | Compares the source address that one echo service sees over the tunnel and over the clearnet | The request did not leave from the address your clearnet requests use. To confirm a Nym exit, compare the address with the exit gateway's IP address. A dVPN route also passes. |
+| **Enforcement** | Removes the direct path at the platform level | Bypasses stop, within what the platform controls |
+
+[Routing a browser or WebView app](snippet:nym/developers/browser-routing/intro) implements them for the web runtime.

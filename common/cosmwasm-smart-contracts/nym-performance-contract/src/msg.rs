@@ -6,11 +6,12 @@ use cosmwasm_schema::cw_serde;
 
 #[cfg(feature = "schema")]
 use crate::types::{
-    EpochMeasurementsPagedResponse, EpochPerformancePagedResponse,
+    DigestResponse, EpochMeasurementsPagedResponse, EpochPerformancePagedResponse,
     FullHistoricalPerformancePagedResponse, LastKnownEpochResponse, LastSubmission,
-    NetworkMonitorResponse, NetworkMonitorsPagedResponse, NodeMeasurementsResponse,
-    NodePerformancePagedResponse, NodePerformanceResponse, RetiredNetworkMonitorsPagedResponse,
-    RewardingInputsResponse, RewardingScoreResponse, WeightsResponse,
+    LatestPerformancePagedResponse, NetworkMonitorResponse, NetworkMonitorsPagedResponse,
+    NodeMeasurementsResponse, NodePerformancePagedResponse, NodePerformanceResponse,
+    RetiredNetworkMonitorsPagedResponse, RewardingInputsResponse, RewardingScoreResponse,
+    WeightsResponse,
 };
 
 #[cw_serde]
@@ -48,14 +49,9 @@ pub enum ExecuteMsg {
     /// Attempt to retire an existing network monitor and forbid it from submitting any future performance data
     RetireNetworkMonitor { address: String },
 
-    /// An admin method to remove submitted node measurements. Used as an escape hatch should
-    /// the data stored get too unwieldy.
-    RemoveNodeMeasurements { epoch_id: EpochId, node_id: NodeId },
-
-    /// An admin method to remove submitted nodes measurements. Used as an escape hatch should
-    /// the data stored get too unwieldy. Note: it is expected to get called multiple times
-    /// until the response indicates all the epoch data has been removed.
-    RemoveEpochMeasurements { epoch_id: EpochId },
+    /// Cross-contract callback from the mixnet contract when `node_id` unbonds; removes the
+    /// node's latest entry from the digest. Sender must be the configured mixnet contract.
+    OnNymNodeUnbond { node_id: NodeId },
 }
 
 #[cw_serde]
@@ -102,6 +98,19 @@ pub enum QueryMsg {
         start_after: Option<(EpochId, NodeId)>,
         limit: Option<u32>,
     },
+
+    /// Returns (paged) every node's latest entry: exactly what the digest commits
+    #[cfg_attr(feature = "schema", returns(LatestPerformancePagedResponse))]
+    LatestPerformancePaged {
+        start_after: Option<NodeId>,
+        limit: Option<u32>,
+    },
+
+    /// The 32-byte collapse of the accumulator. A convenience for comparing digests; it
+    /// carries no proof, since smart queries cannot. Proving requires a raw store read at the
+    /// documented digest key.
+    #[cfg_attr(feature = "schema", returns(DigestResponse))]
+    Digest {},
 
     /// Returns everything rewarding uses for the node in the epoch: the resolved medians,
     /// the epoch they came from, the weights in force and the score

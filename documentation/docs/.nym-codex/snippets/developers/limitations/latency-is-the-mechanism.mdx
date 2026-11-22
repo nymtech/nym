@@ -1,10 +1,5 @@
 ## Latency is the mechanism [#latency-is-the-mechanism]
 
-Each mix node holds a packet for an average of 15 ms
-(`DEFAULT_AVERAGE_PACKET_DELAY`) before forwarding it, and the path is five hops.
-Reordering is what breaks the link between a packet entering the network and a
-packet leaving it. Removing the delay removes the protection, so there is
-nothing to tune.
+Each mix node holds a packet for an average of 15 ms (`DEFAULT_AVERAGE_PACKET_DELAY`) before forwarding it, and the path is five hops. Mixing and reordering, together with cover traffic, make it hard to match a packet that enters the network to a packet that leaves it. The protection is stronger when more traffic goes through each mix node. If you remove the delay, you remove that protection. The delay can be changed only through the client's debug configuration (`DebugConfig`). Lowering it reduces your anonymity, so do not change it.
 
-This is why interactive workloads do not fit. The latency comes from the design,
-not from code that will get faster.
+A request passes through three mix nodes, and its reply passes through three more. One round trip thus has six mix delays (about 90 ms), the time on each network link, and a wait for a free slot in the send stream. A new TCP connection also needs a TCP handshake, a DNS lookup if the destination is a hostname, and a TLS handshake if the connection uses TLS. Each of these steps needs at least one more round trip. The first request also waits for the client to connect to its gateway. For these reasons, interactive workloads do not fit.

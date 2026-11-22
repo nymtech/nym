@@ -64,6 +64,17 @@
         }
       ]
     },
+    "performance_contract_address": {
+      "description": "Address of the performance contract. It is called whenever nym-node unbonds, so that its latest performance entry could be removed from the routing view.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "rewarding_denom": {
       "description": "The expected denom used for rewarding (and realistically any other operation). Default: `unym`",
       "type": "string"

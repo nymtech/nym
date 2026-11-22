@@ -27,7 +27,6 @@ use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use rand::rngs::SysRng;
 use rand::SeedableRng;
-use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -36,7 +35,6 @@ use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use url::Url;
-use zeroize::Zeroizing;
 
 use crate::config::{RestockPolicy, SessionConfig};
 use crate::dvpn::DvpnDirectory;
@@ -214,15 +212,12 @@ impl Session {
             .map(|e| e.nyxd_url.clone())
             .ok_or(SessionError::MissingEndpoint { which: "nyxd" })?;
 
-        // Derive a stable, non-reversible client id from the mnemonic entropy BEFORE moving the
-        // mnemonic into the chain client (so we neither clone it nor hand the raw entropy on).
-        let client_id = derive_client_id(&mnemonic);
-
-        // Direct-signing chain client from the mnemonic (consumes it — no clone).
+        // Direct-signing chain client from the mnemonic. It takes a copy, since the fetcher
+        // below derives the ecash keypair from the same mnemonic.
         let nyxd = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic_and_network_details(
             nyxd_url.as_str(),
             network,
-            mnemonic,
+            mnemonic.clone(),
         )?;
         let nyxd = Arc::new(nyxd);
 
@@ -241,7 +236,7 @@ impl Session {
         // ticketbook anyway — rather than hanging the controller loop and losing the book.
         // Issuance itself (the deposit) is deliberately not timed; see `TimeoutFetcher` docs.
         let fetcher_db = data_path.join("fetcher-requests.db");
-        let fetcher = NyxdCredentialFetcher::new(nyxd, &fetcher_db, database_key, client_id)
+        let fetcher = NyxdCredentialFetcher::new(nyxd, &fetcher_db, database_key, &mnemonic)
             .await
             .map_err(|e| SessionError::Issuance(e.to_string()))?;
         let fetcher = TimeoutFetcher::new(fetcher);
@@ -777,17 +772,6 @@ impl Drop for Session {
         // task observes the cancelled token and cleans up on its own.
         self.cancel.cancel();
     }
-}
-
-/// Derive a stable, non-reversible client id from a mnemonic's entropy. Domain-separated so it can
-/// never collide with another use of the same entropy, and hashed so the raw entropy is never
-/// handed to issuance.
-fn derive_client_id(mnemonic: &bip39::Mnemonic) -> Zeroizing<Vec<u8>> {
-    let entropy = Zeroizing::new(mnemonic.to_entropy());
-    let mut hasher = Sha256::new();
-    hasher.update(b"nym-sdk-session::client-id::v1");
-    hasher.update(entropy.as_slice());
-    Zeroizing::new(hasher.finalize().to_vec())
 }
 
 /// Extract the LP info for a selected gateway or fail with a clear error.

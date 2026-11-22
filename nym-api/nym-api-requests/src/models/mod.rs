@@ -12,12 +12,14 @@ pub mod api_status;
 pub mod circulating_supply;
 pub mod described;
 pub mod directory;
+pub mod geolocation;
 pub mod legacy;
 pub mod mixnet;
 pub mod network;
 pub mod network_monitor;
 pub mod node_families;
 pub mod node_status;
+pub mod performance;
 pub mod schema_helpers;
 pub mod utility;
 

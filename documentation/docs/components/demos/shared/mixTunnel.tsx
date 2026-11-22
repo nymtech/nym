@@ -137,7 +137,7 @@ export function MixTunnelSetup({
       } else {
         setStatus({ text: 'Failed', colour: 'red' });
         log('tunnel', `Connection failed: ${msg}`, 'red');
-        log('tunnel', "Timeouts and IPR rate-limits are common. Try again, or tick 'Use random IPR' and reload.", 'orange');
+        log('tunnel', "Timeouts and IPR rate-limits are common. Try again, or reload the page and tick 'Use random IPR' before you connect.", 'orange');
       }
     } finally {
       setBusy(false);
@@ -197,7 +197,9 @@ export function MixTunnelSetup({
       </div>
 
       {showAdvanced && (
-        <div style={{ ...row, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+        // nowrap: a wrapping column sizes to its rows' max-content width, so the
+        // flex inputs in each row would grow past the card.
+        <div style={{ ...row, flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', gap: 6 }}>
           <div style={row}>
             <label style={sub}>client id</label>
             <input style={input} value={clientId} onChange={(e) => setClientId(e.target.value)} disabled={connected || busy} />

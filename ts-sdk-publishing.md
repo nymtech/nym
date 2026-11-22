@@ -281,15 +281,14 @@ first.
 Dispatch `publish-sdk-npm` from `develop` with `dry_run` unticked and `dist_tag` on `auto`.
 
 `publish.sh` walks the four packages in a fixed order under `set -o errexit`, starting with
-`mix-tunnel`. It is not idempotent: a package whose version is already on npm returns 403
-and aborts the whole run. There is no resume workflow, unlike the crates.io flow's
-`ci-crates-publish-resume`.
+`mix-tunnel`. Before it publishes anything, it checks each `name@version` on npm and skips
+the ones already there. If all four are already there, it fails, because that almost
+always means the versions were not bumped.
 
 The failure that matters is a partial run. `mix-tunnel` goes first, so an abort part way
 through leaves it published and some dependents not, which is the stranded-pin state
-described above. If a run aborts, check what actually landed on npm and publish the
-remaining packages by hand from their directories with
-`pnpm publish --access=public --no-git-checks --tag <tag>`.
+described above. To recover, dispatch the workflow again on the same ref with the same
+inputs. The run skips the packages that landed and publishes the rest.
 
 ### 5. Promote (only a backport, or a release cut before this policy)
 

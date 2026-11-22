@@ -2,7 +2,7 @@
 
 # Generates TypeDoc markdown API reference for TypeScript SDK packages.
 # Each package's typedoc.json sets its own `out` path under
-# docs/pages/developers/ (sdk -> typescript/api/sdk, the rest -> <pkg>/api).
+# docs/content/developers/ (sdk -> typescript/api/sdk, the rest -> <pkg>/api).
 #
 # Prerequisites: typedoc and typedoc-plugin-markdown must be installed globally
 #   pnpm add -g typedoc@0.25.13 typedoc-plugin-markdown@4.0.3
@@ -30,9 +30,9 @@ for pkg in "${PACKAGES[@]}"; do
 done
 
 # typedoc-plugin-markdown does not emit Nextra sidebar metadata; regenerate the
-# _meta.json files from the markdown output so they can't drift or be wiped.
-echo "Generating _meta.json for TypeDoc output..."
+# _meta.js files from the markdown output so they can't drift or be wiped.
+echo "Generating _meta.js for TypeDoc output..."
 node "$REPO_ROOT/documentation/scripts/next-scripts/generate-typedoc-meta.mjs"
 
 echo "TypeDoc generation complete."
-echo "Output: documentation/docs/pages/developers/{typescript/api/sdk,<pkg>/api}/"
+echo "Output: documentation/docs/content/developers/{typescript/api/sdk,<pkg>/api}/"

@@ -66,6 +66,9 @@ pub enum Error {
 
     #[error("failed to obtain a valid credential share")]
     CredentialShareObtainFailed,
+
+    #[error("timed out while waiting for a credential share from {signer}")]
+    CredentialShareTimeout { signer: String },
 }
 
 impl From<NymAPIError> for Error {

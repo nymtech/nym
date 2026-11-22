@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines the requirements for `AttestedTrustAnchor`, a `DirectoryTrustAnchor` implementation that establishes the trusted block `app_hash`, directory digest, and node-identity binding from a K-of-N quorum of configured nym-api (Tier-1) identity keys. It replaces both the honest-RPC assumption of `ProvenTrustAnchor` and the checkpoint requirement of `LightClientAnchor` with a different trust root: a snapshot is accepted only when at least K distinct configured signers sign identical `(height, app_hash, accumulator, node_identities_hash)` values. It ships with a small, overridable default trust root, requires no root key and no light-client checkpoint, and lets whole-directory retrieval proceed with no direct chain RPC connection at all.
+Defines the requirements for `AttestedTrustAnchor`, a `TrustAnchor` (and so `ChainAnchor`) implementation that establishes the trusted block `app_hash`, directory digest, and node-identity binding from a K-of-N quorum of configured nym-api (Tier-1) identity keys. It replaces both the honest-RPC assumption of `ProvenChainAnchor` and the checkpoint requirement of `LightClientAnchor` with a different trust root: a snapshot is accepted only when at least K distinct configured signers sign identical `(height, app_hash, accumulator, node_identities_hash)` values. It ships with a small, overridable default trust root, requires no root key and no light-client checkpoint, and lets whole-directory retrieval proceed with no direct chain RPC connection at all.
 
 ## Requirements
 

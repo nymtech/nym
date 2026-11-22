@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::http::state::AppState;
+use crate::unstable_routes::v3::nym_nodes::contract_divergence::contract_divergence;
 use crate::unstable_routes::v3::nym_nodes::liveness_divergence::liveness_divergence;
 use crate::unstable_routes::v3::nym_nodes::semi_skimmed::nodes_expanded;
 use crate::unstable_routes::v3::nym_nodes::skimmed::{
@@ -12,6 +13,7 @@ use axum::routing::get;
 use axum::Router;
 use tower_http::compression::CompressionLayer;
 
+pub(crate) mod contract_divergence;
 pub(crate) mod helpers;
 pub(crate) mod liveness_divergence;
 pub(crate) mod semi_skimmed;
@@ -38,5 +40,7 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         // TEMPORARY, to be deleted once liveness is either weighted or dropped - see the module
         .route("/liveness-divergence", get(liveness_divergence))
+        // TEMPORARY, to be deleted once rewarding uses the performance contract - see the module
+        .route("/contract-divergence", get(contract_divergence))
         .layer(CompressionLayer::new())
 }

@@ -5,6 +5,7 @@ use crate::BadGateway;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::client::GatewayListeners;
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
+use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -17,6 +18,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub const REMOTE_GATEWAY_TYPE: &str = "remote";
 pub const CUSTOM_GATEWAY_TYPE: &str = "custom";
 const GATEWAY_DETAILS_TTL: Duration = Duration::days(7);
+const GENERATION_ID_SIZE: usize = 16;
 
 #[derive(Debug, Clone, Default)]
 pub struct ActiveGateway {
@@ -68,11 +70,13 @@ impl GatewayDetails {
         gateway_id: ed25519::PublicKey,
         shared_key: Arc<SharedSymmetricKey>,
         published_data: GatewayPublishedData,
+        generation_id: GenerationId,
     ) -> Self {
         GatewayDetails::Remote(RemoteGatewayDetails {
             gateway_id,
             shared_key,
             published_data,
+            generation_id: Some(generation_id),
         })
     }
 
@@ -94,11 +98,24 @@ impl GatewayDetails {
         }
     }
 
+    pub fn generation_id(&self) -> Option<GenerationId> {
+        match self {
+            GatewayDetails::Remote(details) => details.generation_id,
+            GatewayDetails::Custom(_) => None,
+        }
+    }
+
     pub fn details_exipration(&self) -> Option<OffsetDateTime> {
         match self {
             GatewayDetails::Remote(details) => Some(details.published_data.expiration_timestamp),
             GatewayDetails::Custom(_) => None,
         }
+    }
+
+    /// Whether a remote gateway's stored listeners are past their TTL.
+    pub fn published_data_expired(&self) -> bool {
+        self.details_exipration()
+            .is_some_and(|expiration| OffsetDateTime::now_utc() > expiration)
     }
 
     pub fn is_custom(&self) -> bool {
@@ -239,6 +256,7 @@ impl TryFrom<RawGatewayPublishedData> for GatewayPublishedData {
 pub struct RawRemoteGatewayDetails {
     pub gateway_id_bs58: String,
     pub derived_aes256_gcm_siv_key: Vec<u8>,
+    pub generation_id: Option<Vec<u8>>,
     #[zeroize(skip)]
     #[cfg_attr(feature = "sqlx", sqlx(flatten))]
     pub published_data: RawGatewayPublishedData,
@@ -262,10 +280,25 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
                 source,
             })?;
 
+        let generation_id = value
+            .generation_id
+            .as_deref()
+            .map(|bytes| {
+                bytes
+                    .try_into()
+                    .map(GenerationId)
+                    .map_err(|_| BadGateway::MalformedGenerationId {
+                        gateway_id: value.gateway_id_bs58.clone(),
+                        length: bytes.len(),
+                    })
+            })
+            .transpose()?;
+
         Ok(RemoteGatewayDetails {
             gateway_id,
             shared_key: Arc::new(shared_key),
             published_data: value.published_data.clone().try_into()?,
+            generation_id,
         })
     }
 }
@@ -275,6 +308,7 @@ impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
         RawRemoteGatewayDetails {
             gateway_id_bs58: value.gateway_id.to_base58_string(),
             derived_aes256_gcm_siv_key: value.shared_key.to_bytes(),
+            generation_id: value.generation_id.map(|id| id.0.to_vec()),
             published_data: (&value.published_data).into(),
         }
     }
@@ -287,6 +321,26 @@ pub struct RemoteGatewayDetails {
     pub shared_key: Arc<SharedSymmetricKey>,
 
     pub published_data: GatewayPublishedData,
+
+    /// None for a registration that uses the client's root keys.
+    pub generation_id: Option<GenerationId>,
+}
+
+/// Selects the generation of the keys a client derives for one gateway registration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GenerationId([u8; GENERATION_ID_SIZE]);
+
+impl GenerationId {
+    /// A fresh random generation id; every registration, refresh and LP start draws it from the OS random generator.
+    pub fn new_random<R: CryptoRng>(rng: &mut R) -> GenerationId {
+        let mut bytes = [0; GENERATION_ID_SIZE];
+        rng.fill_bytes(&mut bytes);
+        GenerationId(bytes)
+    }
+
+    pub fn as_bytes(&self) -> &[u8; GENERATION_ID_SIZE] {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -337,5 +391,30 @@ impl CustomGatewayDetails {
             gateway_id,
             data: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
+
+    #[test]
+    fn generation_id_of_wrong_length_is_rejected() {
+        let raw = RawRemoteGatewayDetails {
+            gateway_id_bs58: dummy_ed25519_keypair(1).public_key().to_base58_string(),
+            derived_aes256_gcm_siv_key: vec![1; 32],
+            generation_id: Some(vec![0; GENERATION_ID_SIZE - 1]),
+            published_data: RawGatewayPublishedData {
+                gateway_listener: "ws://127.0.0.1:9000".to_string(),
+                fallback_listener: None,
+                expiration_timestamp: OffsetDateTime::now_utc(),
+            },
+        };
+
+        assert!(matches!(
+            RemoteGatewayDetails::try_from(raw),
+            Err(BadGateway::MalformedGenerationId { length, .. }) if length == GENERATION_ID_SIZE - 1
+        ));
     }
 }

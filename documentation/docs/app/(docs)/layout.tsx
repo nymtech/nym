@@ -11,21 +11,13 @@ import { Matrix } from "components/matrix-link";
 // disabled to match the old theme.config.tsx. The route group keeps URLs unchanged.
 
 const banner = (
-  <Banner storageKey="threat-model-2026-08">
+  <Banner storageKey="nginx2root-cve-2026-11">
     <span>
-      New: a threat-model-first guide to{" "}
-      <Link href="/network/threat-model" style={{ textDecoration: "underline" }}>
-        choosing your network defence
+      19 November 2026: gateway operators, apply the{" "}
+      <Link href="/operators/changelog#cve-nginx2root-mitigation" style={{ textDecoration: "underline" }}>
+        nginx2root CVE mitigation
       </Link>
-      , plus the{" "}
-      <Link href="/developers/smoldvpn" style={{ textDecoration: "underline" }}>
-        nym-smoldvpn
-      </Link>{" "}
-      dVPN package and{" "}
-      <Link href="/developers/swizzle" style={{ textDecoration: "underline" }}>
-        nym-swizzle
-      </Link>{" "}
-      sender hygiene.
+      .
     </span>
   </Banner>
 );

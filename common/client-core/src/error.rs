@@ -245,12 +245,14 @@ pub enum ClientCoreError {
     AlreadyRegistered { gateway_id: String },
 
     #[error(
+        "the registration with gateway {gateway_id} is custom and always uses the root keys, so its keys cannot be refreshed"
+    )]
+    CustomGatewayKeyRefresh { gateway_id: String },
+
+    #[error(
         "fresh registration with gateway {gateway_id} somehow requires an additional key upgrade!"
     )]
     UnexpectedKeyUpgrade { gateway_id: String },
-
-    #[error("failed to derive keys from master key")]
-    HkdfDerivationError,
 
     #[error("missing url for constructing RPC client")]
     RpcClientMissingUrl,

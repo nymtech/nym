@@ -14,7 +14,7 @@ use nym_bandwidth_controller::{
 };
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
-    IssuanceTicketBook, IssuedTicketBook, obtain_aggregate_wallet,
+    IssuanceTicketBook, IssuedTicketBook, ecash_keypair_from_mnemonic, obtain_aggregate_wallet,
 };
 use nym_credentials_interface::KeyPairUser;
 use nym_crypto::asymmetric::ed25519;
@@ -23,7 +23,7 @@ use nym_validator_client::rpc::TendermintRpcClient;
 use nym_validator_client::{
     nym_api::EpochId,
     nyxd::{
-        Coin, TendermintRpcClientExt,
+        Coin, TendermintRpcClientExt, bip39,
         contract_traits::{
             DkgQueryClient, EcashQueryClient, EcashSigningClient, dkg_query_client::EpochState,
         },
@@ -32,57 +32,24 @@ use nym_validator_client::{
     signing::signer::OfflineSigner,
 };
 use tracing::{debug, error, info, warn};
-use zeroize::Zeroizing;
 
-/// Obtains ticketbooks by depositing on-chain and aggregating wallet signatures from the ecash
-/// APIs, and recovers ticketbooks from deposits whose issuance never completed. Deposits are
-/// serialised via `deposit_lock` so concurrent fetches don't race the account sequence number.
-///
-// Batching them is TODO, it requires extensive changes to the BC
-pub struct NyxdCredentialFetcher<C> {
+/// The part of a fetcher that holds no ecash key: it completes issuances whose deposit already
+/// exists and serves the global signing data, so a recovery-only fetcher is built from it alone.
+struct FetcherCore<C> {
     client: Arc<C>,
-    ecash_keypair: KeyPairUser,
     pending_storage: PendingCredentialRequestsStorage,
     ecash_api_clients: Arc<EcashApiClientsCache>,
     public_data_fetcher: NyxdGlobalDataFetcher<C>,
-    // serialises on-chain deposits so concurrent fetches can't race the account sequence number.
-    deposit_lock: tokio::sync::Mutex<()>,
 }
 
-impl<C> NyxdCredentialFetcher<C>
+impl<C> FetcherCore<C>
 where
     C: DkgQueryClient,
 {
-    /// Creates a fetcher whose pending-request recovery store lives at `db_path`.
-    /// The ecash keypair is derived from `client_id`.
-    ///
-    /// With `db_key`, the store is encrypted with SQLCipher using the raw 256-bit key, and an
-    /// existing plaintext store is encrypted in place first.
-    pub async fn new(
+    async fn new(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
         db_key: Option<&nym_sqlcipher::DatabaseKey>,
-        client_id: Zeroizing<Vec<u8>>,
-    ) -> Result<Self, NyxdFetcherError> {
-        Self::new_with_keypair(
-            client,
-            db_path,
-            db_key,
-            KeyPairUser::new_seeded(client_id.as_slice()),
-        )
-        .await
-    }
-
-    /// Creates a fetcher whose pending-request recovery store lives at `db_path`,
-    /// using `ecash_keypair` for issued ticketbooks.
-    ///
-    /// With `db_key`, the store is encrypted with SQLCipher using the raw 256-bit key, and an
-    /// existing plaintext store is encrypted in place first.
-    pub async fn new_with_keypair(
-        client: Arc<C>,
-        db_path: impl AsRef<Path>,
-        db_key: Option<&nym_sqlcipher::DatabaseKey>,
-        ecash_keypair: KeyPairUser,
     ) -> Result<Self, NyxdFetcherError> {
         let pending_storage = PendingCredentialRequestsStorage::new(db_path, db_key).await?;
         let ecash_api_clients = Arc::new(EcashApiClientsCache::new());
@@ -91,13 +58,11 @@ where
             ecash_api_clients.clone(),
         );
 
-        Ok(NyxdCredentialFetcher {
+        Ok(FetcherCore {
             client,
-            ecash_keypair,
-            ecash_api_clients,
             pending_storage,
+            ecash_api_clients,
             public_data_fetcher,
-            deposit_lock: tokio::sync::Mutex::new(()),
         })
     }
 
@@ -279,6 +244,61 @@ where
     }
 }
 
+/// Obtains ticketbooks by depositing on-chain and aggregating wallet signatures from the ecash
+/// APIs, and recovers ticketbooks from deposits whose issuance never completed. Deposits are
+/// serialised via `deposit_lock` so concurrent fetches don't race the account sequence number.
+///
+// Batching them is TODO, it requires extensive changes to the BC
+pub struct NyxdCredentialFetcher<C> {
+    core: FetcherCore<C>,
+    ecash_keypair: KeyPairUser,
+    // serialises on-chain deposits so concurrent fetches can't race the account sequence number.
+    deposit_lock: tokio::sync::Mutex<()>,
+}
+
+impl<C> NyxdCredentialFetcher<C>
+where
+    C: DkgQueryClient,
+{
+    /// Creates a fetcher whose pending-request recovery store lives at `db_path`.
+    /// The ecash keypair is derived from `mnemonic` with [`ecash_keypair_from_mnemonic`].
+    ///
+    /// With `db_key`, the store is encrypted with SQLCipher using the raw 256-bit key, and an
+    /// existing plaintext store is encrypted in place first.
+    pub async fn new(
+        client: Arc<C>,
+        db_path: impl AsRef<Path>,
+        db_key: Option<&nym_sqlcipher::DatabaseKey>,
+        mnemonic: &bip39::Mnemonic,
+    ) -> Result<Self, NyxdFetcherError> {
+        Self::new_with_keypair(
+            client,
+            db_path,
+            db_key,
+            ecash_keypair_from_mnemonic(mnemonic),
+        )
+        .await
+    }
+
+    /// Creates a fetcher whose pending-request recovery store lives at `db_path`,
+    /// using `ecash_keypair` for issued ticketbooks.
+    ///
+    /// With `db_key`, the store is encrypted with SQLCipher using the raw 256-bit key, and an
+    /// existing plaintext store is encrypted in place first.
+    pub async fn new_with_keypair(
+        client: Arc<C>,
+        db_path: impl AsRef<Path>,
+        db_key: Option<&nym_sqlcipher::DatabaseKey>,
+        ecash_keypair: KeyPairUser,
+    ) -> Result<Self, NyxdFetcherError> {
+        Ok(NyxdCredentialFetcher {
+            core: FetcherCore::new(client, db_path, db_key).await?,
+            ecash_keypair,
+            deposit_lock: tokio::sync::Mutex::new(()),
+        })
+    }
+}
+
 impl<C> NyxdCredentialFetcher<C>
 where
     C: DkgQueryClient + EcashSigningClient + EcashQueryClient,
@@ -291,7 +311,7 @@ where
         // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await`s below
         let signing_key = ed25519::PrivateKey::new(&mut rand::rng());
 
-        let deposit_amount = self.client.get_default_deposit_amount().await?;
+        let deposit_amount = self.core.client.get_default_deposit_amount().await?;
         info!("we'll need to deposit {deposit_amount} to obtain the ticketbook");
 
         // serialise deposits: overlapping fetches would otherwise race the account sequence number.
@@ -299,6 +319,7 @@ where
         // the sequence has advanced on-chain - holding the lock across it is enough.
         let _deposit_guard = self.deposit_lock.lock().await;
         let result = self
+            .core
             .client
             .make_ticketbook_deposit(
                 signing_key.public_key().to_base58_string(),
@@ -333,7 +354,7 @@ where
     pub async fn check_balance(&self, nb_deposits: u128) -> Result<bool, NyxdFetcherError> {
         // determine required deposits amount and funds and ensure we have enough
         // (plus a bit more for tx fees)
-        let raw_deposit_cost = self.client.get_default_deposit_amount().await?;
+        let raw_deposit_cost = self.core.client.get_default_deposit_amount().await?;
         let per_deposit_cost_amount = raw_deposit_cost.amount.u128() + Self::DEPOSIT_TX_FEE_AMOUNT;
         let total_deposits_cost = Coin::new(
             per_deposit_cost_amount * nb_deposits,
@@ -344,9 +365,10 @@ where
             "this will require {nb_deposits} deposits that will cost approximately {total_deposits_cost}"
         );
 
-        let client_address = self.client.signer_addresses()[0].clone();
+        let client_address = self.core.client.signer_addresses()[0].clone();
 
         let available_balance = self
+            .core
             .client
             .get_balance(&client_address, total_deposits_cost.denom.clone())
             .await?
@@ -374,7 +396,8 @@ where
         &self,
         epoch_id: EpochId,
     ) -> Result<EpochVerificationKey, CredentialFetcherError> {
-        self.public_data_fetcher
+        self.core
+            .public_data_fetcher
             .fetch_master_verification_key(epoch_id)
             .await
     }
@@ -383,7 +406,8 @@ where
         &self,
         epoch_id: EpochId,
     ) -> Result<AggregatedCoinIndicesSignatures, CredentialFetcherError> {
-        self.public_data_fetcher
+        self.core
+            .public_data_fetcher
             .fetch_coin_index_signatures(epoch_id)
             .await
     }
@@ -393,7 +417,8 @@ where
         expiration_date: Date,
         epoch_id: EpochId,
     ) -> Result<AggregatedExpirationDateSignatures, CredentialFetcherError> {
-        self.public_data_fetcher
+        self.core
+            .public_data_fetcher
             .fetch_expiration_date_signatures(expiration_date, epoch_id)
             .await
     }
@@ -409,13 +434,13 @@ where
         &self,
         ticketbook_type: TicketType,
     ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
-        if let Err(err) = self.cancel_expired_ticketbooks().await {
+        if let Err(err) = self.core.cancel_expired_ticketbooks().await {
             tracing::warn!("Could not cancel expired ticketbooks: {err}");
         }
 
-        self.block_until_ecash_is_available().await?;
+        self.core.block_until_ecash_is_available().await?;
 
-        if let Ok(recovered_ticketbooks) = self.recover_deposits(ticketbook_type).await {
+        if let Ok(recovered_ticketbooks) = self.core.recover_deposits(ticketbook_type).await {
             if !recovered_ticketbooks.is_empty() {
                 info!(
                     "managed to recover {} ticket books. no need to make fresh deposit",
@@ -429,7 +454,7 @@ where
 
         // settled before the deposit is made, so that it is the same epoch throughout however long
         // the collection takes, and is recorded alongside the deposit if it has to be resumed
-        let epoch_id = self.issuable_epoch().await?;
+        let epoch_id = self.core.issuable_epoch().await?;
 
         info!("Starting to deposit funds, don't kill the process");
         let issuance_data = self
@@ -437,7 +462,7 @@ where
             .await?;
         info!("Deposit done");
 
-        match self.obtain_ticketbook(&issuance_data, epoch_id).await {
+        match self.core.obtain_ticketbook(&issuance_data, epoch_id).await {
             Ok(issued) => {
                 info!("Succeeded adding a ticketbook of type '{ticketbook_type}'");
                 Ok(vec![NymCredential::Ticketbook(Box::new(issued))])
@@ -445,7 +470,8 @@ where
             Err(e) => {
                 error!("failed to obtain credential. saving recovery data...");
 
-                self.pending_storage
+                self.core
+                    .pending_storage
                     .insert_pending_ticketbook(&issuance_data, epoch_id)
                     .await
                     .inspect_err(|err| {
@@ -460,11 +486,12 @@ where
     }
 
     async fn cleanup(&self) {
-        self.pending_storage.close().await;
+        self.core.pending_storage.close().await;
     }
 
     async fn reset(mut self) -> Result<(), CredentialFetcherError> {
         Ok(self
+            .core
             .pending_storage
             .reset()
             .await
@@ -476,9 +503,9 @@ where
 pub(crate) mod recovery {
     use super::*;
 
-    /// Recover-only view over [`NyxdCredentialFetcher`]: its `CredentialFetcher` impl only recovers pending deposits (never makes new
-    /// ones), so it works with a plain query client.
-    pub struct NyxdRecoveryFetcher<C>(NyxdCredentialFetcher<C>);
+    /// Recover-only fetcher: its `CredentialFetcher` impl only recovers pending deposits (never makes new
+    /// ones), so it works with a plain query client and holds no ecash keypair.
+    pub struct NyxdRecoveryFetcher<C>(FetcherCore<C>);
 
     impl<C> NyxdRecoveryFetcher<C>
     where
@@ -491,11 +518,7 @@ pub(crate) mod recovery {
             db_path: impl AsRef<Path>,
             db_key: Option<&nym_sqlcipher::DatabaseKey>,
         ) -> Result<Self, NyxdFetcherError> {
-            // recovery never deposits, so the client id is unused
-            Ok(Self(
-                NyxdCredentialFetcher::new(client, db_path, db_key, Zeroizing::new(Vec::new()))
-                    .await?,
-            ))
+            Ok(Self(FetcherCore::new(client, db_path, db_key).await?))
         }
     }
 
@@ -509,14 +532,20 @@ pub(crate) mod recovery {
             &self,
             epoch_id: EpochId,
         ) -> Result<EpochVerificationKey, CredentialFetcherError> {
-            self.0.fetch_master_verification_key(epoch_id).await
+            self.0
+                .public_data_fetcher
+                .fetch_master_verification_key(epoch_id)
+                .await
         }
 
         async fn fetch_coin_index_signatures(
             &self,
             epoch_id: EpochId,
         ) -> Result<AggregatedCoinIndicesSignatures, CredentialFetcherError> {
-            self.0.fetch_coin_index_signatures(epoch_id).await
+            self.0
+                .public_data_fetcher
+                .fetch_coin_index_signatures(epoch_id)
+                .await
         }
 
         async fn fetch_expiration_date_signatures(
@@ -525,6 +554,7 @@ pub(crate) mod recovery {
             epoch_id: EpochId,
         ) -> Result<AggregatedExpirationDateSignatures, CredentialFetcherError> {
             self.0
+                .public_data_fetcher
                 .fetch_expiration_date_signatures(expiration_date, epoch_id)
                 .await
         }
@@ -577,11 +607,7 @@ mod tests {
     use serde::Deserialize;
 
     use nym_validator_client::nyxd::{
-        Fee,
-        contract_traits::dkg_query_client::DkgQueryMsg,
-        cosmwasm_client::types::ExecuteResult,
-        error::NyxdError,
-        nym_ecash_contract_common::msg::{ExecuteMsg, QueryMsg},
+        contract_traits::dkg_query_client::DkgQueryMsg, error::NyxdError,
     };
     use tokio::fs::remove_file;
 
@@ -602,41 +628,14 @@ mod tests {
         }
     }
 
-    #[async_trait]
-    impl EcashSigningClient for MockPruneClient {
-        async fn execute_ecash_contract(
-            &self,
-            _fee: Option<Fee>,
-            _msg: ExecuteMsg,
-            _memo: String,
-            _funds: Vec<Coin>,
-        ) -> Result<ExecuteResult, NyxdError> {
-            unreachable!("client not used in prune unit tests");
-        }
-    }
-
-    #[async_trait]
-    impl EcashQueryClient for MockPruneClient {
-        async fn query_ecash_contract<T>(&self, _query: QueryMsg) -> Result<T, NyxdError>
-        where
-            for<'a> T: Deserialize<'a>,
-        {
-            unreachable!("client not used in prune unit tests");
-        }
-    }
-
     #[tokio::test]
     async fn prune_expired() {
         let mut db_path = temp_dir();
         db_path.push("prune_expired_unittest.db");
-        let fetcher = NyxdCredentialFetcher::new(
-            Arc::new(MockPruneClient {}),
-            &db_path,
-            None,
-            Zeroizing::new(Vec::new()),
-        )
-        .await
-        .unwrap();
+        // pruning touches only the pending store, which needs no ecash key
+        let fetcher = FetcherCore::new(Arc::new(MockPruneClient {}), &db_path, None)
+            .await
+            .unwrap();
 
         // pruning empty database doesn't fail
         fetcher.cancel_expired_ticketbooks().await.unwrap();

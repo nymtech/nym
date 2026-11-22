@@ -124,21 +124,59 @@ resolve_tag() {
   fi
 }
 
+# Print "yes" if name@version is already on npm, "no" if it is not. A re-run
+# after a partial publish then skips what landed instead of aborting on the
+# first 403. As in resolve_tag, only a 404 (package never published) counts as
+# absent; any other lookup failure aborts. For an existing package, a missing
+# version is exit 0 with empty output.
+is_published() {
+  local name="$1" version="$2" found err
+  err="$(mktemp)"
+  if found="$(npm view "$name@$version" version 2>"$err")"; then
+    rm -f "$err"
+  elif grep -qiE 'E404|404 Not Found' "$err"; then
+    found=""
+    rm -f "$err"
+  else
+    printf 'npm view failed for %s@%s (not a 404), refusing to guess: %s\n' "$name" "$version" "$(cat "$err")" >&2
+    rm -f "$err"
+    return 1
+  fi
+  if [[ "$found" == "$version" ]]; then printf 'yes'; else printf 'no'; fi
+}
+
 NPM_DIST_TAG="${NPM_DIST_TAG:-auto}"
 
 # Resolve every tag up front so the summary shows exactly what each package will
 # get. Under DRY_RUN this is the whole point: you see the tag decision before
 # anything is uploaded.
-declare -a TAGS
+declare -a TAGS SKIP
 echo "Summary of packages to publish (mode: $NPM_DIST_TAG):"
 echo
+to_publish=0
 for item in "${packages[@]}"; do
   name="$(jq -r '.name' "$item/package.json")"
   version="$(jq -r '.version' "$item/package.json")"
+  published="$(is_published "$name" "$version")"
+  SKIP+=("$published")
+  if [[ "$published" == "yes" ]]; then
+    TAGS+=("")
+    printf '  %-34s %-8s already on npm, skipped\n' "$name" "$version"
+    continue
+  fi
   tag="$(resolve_tag "$name" "$version" "$NPM_DIST_TAG")"
   TAGS+=("$tag")
+  (( to_publish+=1 ))
   printf '  %-34s %-8s --tag %s\n' "$name" "$version" "$tag"
 done
+
+# Every version already on npm almost always means the bump was forgotten.
+# Fail, so a dispatch that publishes nothing does not pass as a release.
+if (( to_publish == 0 )); then
+  echo
+  echo "Every package version is already on npm: nothing to publish. Bump the versions first." >&2
+  exit 1
+fi
 
 echo
 # `pnpm publish` (not `npm publish`) is required because the four packages
@@ -160,9 +198,10 @@ COUNTER=0
 for i in "${!packages[@]}"; do
   item="${packages[$i]}"
   tag="${TAGS[$i]}"
+  [[ "${SKIP[$i]}" == "yes" ]] && continue
   (( COUNTER+=1 ))
   pushd "$item"
-  echo "Publishing $item  (${COUNTER}/${#packages[@]})  --tag $tag"
+  echo "Publishing $item  (${COUNTER}/${to_publish})  --tag $tag"
   pnpm publish --access=public --no-git-checks --tag "$tag" $DRY_RUN_FLAG
   popd
   echo

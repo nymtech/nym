@@ -1,0 +1,15 @@
+## Global options [#global-options]
+
+These options apply to each `nym-cli` command.
+
+| Option | What it does |
+|---|---|
+| `--mnemonic` | The mnemonic of the account that signs. Without the flag, `nym-cli` reads the `MNEMONIC` environment variable. Prefer the variable: a flag value shows in the process list. |
+| `--config-env-file` | A file of environment variables that sets the network. A variable that is set in the environment wins over the file. |
+| `--nyxd-url` | The nyxd endpoint. It overrides `NYXD_VALIDATOR` and the config file. |
+| `--nym-api-url` | The Nym API endpoint. It overrides `API_VALIDATOR` and the config file. |
+| `--mixnet-contract-address`, `--vesting-contract-address` | The contract addresses. They override the environment and the config file. |
+
+The `ecash` commands open the credential store of a client. When that client encrypts its databases, give the same key with `--database-key`, or better with the `NYM_CLIENT_DATABASE_KEY` environment variable: a raw 256-bit key as 64 hex characters, which needs a build with SQLCipher. Set the variable in the process environment, because `--config-env-file` is read only after the arguments are parsed.
+
+Run `nym-cli <command> <subcommand> --help` for all options.

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_crypto::asymmetric::ed25519;
+use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use time::OffsetDateTime;
@@ -35,5 +36,21 @@ impl Display for GatewayInfo {
             write!(f, " fallback: {fallback_endpoint}")?;
         }
         Ok(())
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RefreshedGatewayKeys {
+    pub gateway: ed25519::PublicKey,
+    pub address: Recipient,
+}
+
+impl Display for RefreshedGatewayKeys {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "registered with gateway '{}' under new keys, the client's address there is now {}",
+            self.gateway, self.address
+        )
     }
 }

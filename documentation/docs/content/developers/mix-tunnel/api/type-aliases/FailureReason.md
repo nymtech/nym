@@ -6,7 +6,7 @@
 
 # Type alias: FailureReason
 
-> **FailureReason**: `object` \| `object`
+> **FailureReason**: `object` \| `object` \| `object`
 
 ## Source
 

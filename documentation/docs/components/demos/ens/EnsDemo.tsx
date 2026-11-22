@@ -156,7 +156,7 @@ export function EnsDemo() {
       ensLog('Visual content check (open the link below in another tab), not CID-hash verification.', 'gray');
     } catch (e: any) {
       ensLog(`${label} fetch failed: ${e.message || e}`, 'red');
-      ensLog("If this is a 403/429 or connection error, the exit IP may be rate-limited. Tick 'Use random IPR' and reload.", 'orange');
+      ensLog("If this is a 403/429 or connection error, the exit IP may be rate-limited. Reload the page and tick 'Use random IPR' before you connect.", 'orange');
     }
   }
 

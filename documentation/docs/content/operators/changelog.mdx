@@ -18,6 +18,8 @@ import OperatorIntroduction from 'components/operators/templates/provider_introd
 import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
 import NTMExplanation from 'components/operators/snippets/ntm-explanation.mdx';
 import AnsibleRolesByMode from 'components/operators/snippets/ansible-roles-by-node-mode.mdx';
+import CVENginx2ManualFix from 'components/operators/snippets/cve-nginx2root-fix-manual.mdx';
+import CVENginx2AnsibleFix from 'components/operators/snippets/ansible-cve-nginx2root-fix.mdx';
 
 
 
@@ -30,6 +32,23 @@ This page displays a full list of all the changes during our release cycle from 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
 <VarInfo />
+
+## CVE `nginx2root` Mitigation
+
+Five critical nginx vulnerabilities were published on 18 November 2026, plus a Linux kernel bug that can be chained with them to get root. Two of the vulnerabilities affect gateways set up from our docs or `setup-nginx-proxy-wss.sh`, because that setup enables HTTP/2. nginx fixed them in 1.30.7 and 1.31.9 on 18 November. Distributions ship their own fixed packages on their own schedule, and until yours has, disabling HTTP/2 is the protection.
+
+Disabling HTTP/2 closes both. You lose nothing: WSS runs over HTTP/1.1 anyway.
+
+<div>
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
+    <MyTab>
+<CVENginx2ManualFix />
+    </MyTab>
+    <MyTab>
+<CVENginx2AnsibleFix />
+    </MyTab>
+  </Tabs>
+</div>
 
 ## `v2026.22-istanbul`
 

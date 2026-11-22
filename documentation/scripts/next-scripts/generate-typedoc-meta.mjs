@@ -1,15 +1,15 @@
-// Generates Nextra `_meta.json` files for the TypeDoc markdown output.
+// Generates Nextra `_meta.js` files for the TypeDoc markdown output.
 //
 // typedoc-plugin-markdown does a clean write into each package's `out` dir and
-// does NOT emit `_meta.json`, so without this step the API-reference sidebar
+// does NOT emit `_meta.js`, so without this step the API-reference sidebar
 // falls back to alphabetical order with filename-derived (camelCase-mangled)
 // titles. This runs straight after `typedoc` in generate-typedoc.sh, which
-// makes `_meta.json` a generated artifact like the markdown beside it: it can't
+// makes `_meta.js` a generated artifact like the markdown beside it: it can't
 // drift from the source and a regen can't wipe it.
 //
 // A TypeDoc output root is any directory containing `globals.md`. For each one
-// we write an ordered root `_meta.json` (API Index first, then the category
-// folders that exist) plus a `_meta.json` per category folder listing its
+// we write an ordered root `_meta.js` (API Index first, then the category
+// folders that exist) plus a `_meta.js` per category folder listing its
 // symbol pages. Directories without a `globals.md` (the hand-written page
 // trees) are left untouched.
 
@@ -36,12 +36,13 @@ const CATEGORY_LABELS = {
   variables: 'Variables',
 };
 
+// Nextra 4 reads `_meta.js`, not `_meta.json`.
 function writeMeta(dir, obj) {
-  const file = path.join(dir, '_meta.json');
-  fs.writeFileSync(file, JSON.stringify(obj, null, 2) + '\n');
+  const file = path.join(dir, '_meta.js');
+  fs.writeFileSync(file, 'export default ' + JSON.stringify(obj, null, 2) + '\n');
 }
 
-// Build the `_meta.json` for one TypeDoc output root and its category folders.
+// Build the `_meta.js` for one TypeDoc output root and its category folders.
 function generateForRoot(root) {
   const entries = fs.readdirSync(root, { withFileTypes: true });
   const dirs = new Set(entries.filter((e) => e.isDirectory()).map((e) => e.name));
@@ -84,5 +85,5 @@ if (roots.length === 0) {
 }
 for (const root of roots) {
   generateForRoot(root);
-  console.log(`_meta.json written for ${path.relative(DEVELOPERS, root)}`);
+  console.log(`_meta.js written for ${path.relative(DEVELOPERS, root)}`);
 }

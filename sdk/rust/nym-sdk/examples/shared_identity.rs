@@ -74,6 +74,10 @@ async fn main() -> anyhow::Result<()> {
         .expect("remote gateway should have a shared key")
         .to_bytes();
     let gateway_id = registration.details.gateway_id();
+    let generation_id = registration
+        .details
+        .generation_id()
+        .expect("client-A should have registered with keys derived for the gateway");
     let published_data = match &registration.details {
         GatewayDetails::Remote(r) => r.published_data.clone(),
         _ => panic!("expected remote gateway"),
@@ -108,7 +112,12 @@ async fn main() -> anyhow::Result<()> {
     let shared_key = SharedSymmetricKey::try_from_bytes(&shared_key_bytes)?;
 
     // build a pre-populated gateway registration
-    let gw_details = GatewayDetails::new_remote(gateway_id, Arc::new(shared_key), published_data);
+    let gw_details = GatewayDetails::new_remote(
+        gateway_id,
+        Arc::new(shared_key),
+        published_data,
+        generation_id,
+    );
     let gw_registration = gw_details.into();
 
     // create a new ephemeral storage and pre-populate it

@@ -1,0 +1,12 @@
+## The docs checks that run on each change [#ci-checks]
+
+| Check | It fails when |
+|---|---|
+| Site build | A link names a section that no page shows, or the threat-model data has an integrity error |
+| Snippet check | A snippet, an import or a link is broken, a cited code symbol does not resolve, or a snippet does not compile alone |
+| Unit tests and type check | A test of the docs build tools fails, or the tools have a type error |
+| Guide lint | A how-to or tutorial page breaks the form of its type |
+| Link check | A link to another docs page or file is broken. External links are not checked |
+| TypeDoc check | The committed SDK reference differs from a fresh build |
+
+The workflows are in [`.github/workflows/`](https://github.com/nymtech/nym/tree/develop/.github/workflows) of the Nym repository. Their names start with `ci-docs` and `ci-codex`.

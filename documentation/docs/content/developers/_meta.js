@@ -43,7 +43,6 @@ export default {
   "nymvpncli": "Nym VPN CLI",
   "chain": "Interacting with Nyx Blockchain",
   "tools": "Tools",
-  "mcp": "MCP Server (AI agents)",
   "clients": "Standalone Clients",
   "----": {
     "type": "separator"

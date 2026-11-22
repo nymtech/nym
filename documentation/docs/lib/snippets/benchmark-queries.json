@@ -167,7 +167,7 @@
  {
   "query": "connect an AI coding agent to the documentation",
   "expect": [
-   "developers/mcp",
+   "use-with-ai/mcp",
    "use-with-ai"
   ]
  },

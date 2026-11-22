@@ -18,6 +18,8 @@ cfg_if::cfg_if! {
         pub mod client_import_master_verification_key;
         pub mod client_init;
         pub mod client_list_gateways;
+        pub mod client_refresh_gateway_keys;
+        pub mod client_reset_client_identity;
         pub mod client_run;
         pub mod client_show_ticketbooks;
         pub mod client_switch_gateway;

@@ -11,9 +11,9 @@ Read this before changing anything under `docs/lib/retrieval/`, `docs/lib/mcp/`,
 `docs/pages/api/`, or `scripts/next-scripts/generate-*`.
 
 Two pages cover the same ground for readers rather than contributors:
-[`/docs/developers/mcp`](docs/pages/developers/mcp.mdx) is the
+[`/docs/use-with-ai/mcp`](docs/content/use-with-ai/mcp.mdx) is the
 tool catalogue and client setup, and
-[`/docs/use-with-ai`](docs/pages/use-with-ai.mdx) is the consumer-facing guide.
+[`/docs/use-with-ai`](docs/content/use-with-ai/index.mdx) is the consumer-facing guide.
 
 ## What ships
 
@@ -25,7 +25,7 @@ tool catalogue and client setup, and
   button, to fetch it as clean Markdown.
 - **`llms.txt` and `llms-full.txt`**, generated during the build.
 
-The [MCP server](docs/pages/developers/mcp.mdx) serves one thing: a semantic index built at deploy time and shipped as a static file. There is no vector database and no separate service to operate. This page explains that pipeline, for anyone extending it or judging what its answers are worth.
+The [MCP server](docs/content/use-with-ai/mcp.mdx) serves one thing: a semantic index built at deploy time and shipped as a static file. There is no vector database and no separate service to operate. This page explains that pipeline, for anyone extending it or judging what its answers are worth.
 
 ## The shape
 
@@ -219,7 +219,7 @@ The same build emits three static surfaces that need no key at all:
 - **Per-page Markdown.** Append `.md` to any docs URL for a clean Markdown version of that page.
 - **`llms.txt`** for page discovery, and **`llms-full.txt`** for the whole corpus in one file. Both follow [Cloudflare's approach](https://developers.cloudflare.com/style-guide/how-we-docs/ai-consumability/).
 
-These are generated build artifacts and are gitignored, along with both index files. See [Use these docs with AI](docs/pages/use-with-ai.mdx) for how to consume them.
+These are generated build artifacts and are gitignored, along with both index files. See [Use these docs with AI](docs/content/use-with-ai/index.mdx) for how to consume them.
 
 Locally at `http://localhost:3000/docs/llms.txt` and `.../llms-full.txt`; in production at
 [nym.com/docs/llms.txt](https://nym.com/docs/llms.txt) and

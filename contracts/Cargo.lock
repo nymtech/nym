@@ -864,7 +864,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "easy-addr"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-std",
  "quote",
@@ -1291,7 +1291,7 @@ dependencies = [
 
 [[package]]
 name = "nym-coconut-dkg-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1304,7 +1304,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1319,7 +1319,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common-testing"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "cosmwasm-std",
@@ -1333,7 +1333,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -1373,7 +1373,7 @@ dependencies = [
 
 [[package]]
 name = "nym-directory-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1415,7 +1415,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1449,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "nym-geolocation-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1463,7 +1463,7 @@ dependencies = [
 
 [[package]]
 name = "nym-group-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cw-controllers",
@@ -1474,7 +1474,7 @@ dependencies = [
 
 [[package]]
 name = "nym-lthash"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "blake3",
  "digest 0.10.7",
@@ -1510,7 +1510,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1530,7 +1530,7 @@ dependencies = [
 
 [[package]]
 name = "nym-multisig-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1545,7 +1545,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-defaults"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cargo_metadata 0.19.2",
  "regex",
@@ -1553,7 +1553,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitors-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1565,7 +1565,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-families-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1580,7 +1580,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "pem",
  "thiserror 2.0.18",
@@ -1610,7 +1610,7 @@ dependencies = [
 
 [[package]]
 name = "nym-performance-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1638,7 +1638,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pool-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1671,7 +1671,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",

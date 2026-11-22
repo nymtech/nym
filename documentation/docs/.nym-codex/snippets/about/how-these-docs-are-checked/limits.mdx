@@ -1,0 +1,7 @@
+## What the docs checks do not cover [#limits]
+
+The checks confirm that a fact matches its source, and that a link reaches its target. They do not confirm that an explanation is correct. A sentence about why the design is as it is, or about when to choose one configuration over another, has no source in the code. People write it, and people review it.
+
+A check that follows a link or a name does not read the meaning of the code. The code can change its behaviour and keep its names. Only a test of the behaviour finds that change.
+
+A number that an author types into prose has no check. Where a named value exists, a snippet reads the number from that value.

@@ -2,10 +2,4 @@
 title: "ENS over the mixnet"
 ---
 
-A normal ENS lookup (name to address to IPFS website) built with
-[ethers.js](https://docs.ethers.org/v6/), except every network request goes
-through the Nym mixnet instead of leaving over your normal connection. The
-Ethereum RPC node and the IPFS gateway see the [IPR](/network/infrastructure/exit-services#ip-packet-router)
-exit's IP, not yours, and your ISP cannot see which names or sites you reach.
-The trade-off is latency: every packet takes a multi-relay path, so requests are
-slower than a direct route.
+This demo does an ENS lookup (name to address to IPFS website) with [ethers.js](https://docs.ethers.org/v6/). Every JSON-RPC and IPFS request of the lookup goes through the Nym mixnet. The demo turns off CCIP-Read, because an offchain resolver would make a direct request. The optional **Verify IP routing** check also makes one direct request to ipinfo.io, for comparison. The Ethereum RPC node and the IPFS gateway see the [IPR](/network/infrastructure/exit-services#ip-packet-router) exit's IP address, not yours, and your ISP cannot see which names or sites you reach. The trade-off is latency: every packet takes a multi-relay path, so requests are slower than a direct route.

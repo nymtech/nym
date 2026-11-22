@@ -1266,6 +1266,26 @@ const config = {
         permanent: true,
         basePath: false,
       },
+      // The About tab has no index page.
+      {
+        source: "/docs/about",
+        destination: "/docs/about/how-these-docs-are-checked",
+        permanent: false,
+        basePath: false,
+      },
+      // The MCP server page moved to the Use with AI tab (2026-11).
+      {
+        source: "/docs/developers/mcp",
+        destination: "/docs/use-with-ai/mcp",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/mcp.md",
+        destination: "/docs/use-with-ai/mcp.md",
+        permanent: true,
+        basePath: false,
+      },
     ];
   },
   images: {

@@ -1,0 +1,11 @@
+## Each docs record states its authority [#authority]
+
+The docs tools turn each snippet, each requirement in a specification and each threat-model entity into a record: the text, its id and its links. Each record gets an authority label from its kind:
+
+| Label | Records | Meaning |
+|---|---|---|
+| `normative` | A requirement in a specification, an entity of the threat model | What the system must do |
+| `descriptive` | A specification page, an explanation, a code item | What the system does today |
+| `illustrative` | A how-to guide, a tutorial | One way to use the system |
+
+The label tells a reader which record states a commitment. This matters most for an agent. An agent can read a true description of a fault in the code as a rule, and then write code that depends on the fault. The MCP server does not return the label yet.

@@ -8,7 +8,7 @@ All paths are under `documentation/docs/`.
 
 | Path | Content |
 |------|---------|
-| `content/` | The pages, one `.mdx` or `.md` file each: `network/` (key concepts, cryptosystems, architecture), `developers/` (SDKs, clients, tools), `operators/` (node setup and maintenance guides), `apis/` (API reference), and `use-with-ai.mdx`. The sidebar order is in the `_meta.js` file of each directory. |
+| `content/` | The pages, one `.mdx` or `.md` file each: `network/` (key concepts, cryptosystems, architecture), `developers/` (SDKs, clients, tools), `operators/` (node setup and maintenance guides), `apis/` (API reference), `use-with-ai/` (the guide for AI tools and the MCP server page), and `about/` (how the docs are checked). The sidebar order is in the `_meta.js` file of each directory. |
 | `.nym-codex/snippets/` | Snippets: the sections that pages import (see [Snippets and records](#snippets-and-records)). |
 | `.nym-codex/manifest.json` | The sites that import snippets, with the page root and the components of each. |
 | `components/` | React components, and the `.mdx` partials that pages import (operator partials are in `components/operators/snippets/`). `components/outputs/` holds generated files: do not edit them. |
@@ -268,7 +268,9 @@ The docs are built for AI agents and LLMs as well as for people. There is an MCP
 
 [MCP-SERVER.md](MCP-SERVER.md) documents all of it: the retrieval pipeline, chunking and the embedding cache, how the route serves from a static index with no vector database, where to set the API key, each tunable, and how to test a deployment. Read it before you change anything under `docs/lib/retrieval/`, `docs/lib/mcp/`, `docs/pages/api/`, or `scripts/next-scripts/generate-*`.
 
-For readers rather than contributors: `/docs/developers/mcp` is the tool catalogue and client setup, and `/docs/use-with-ai` is the guide for users.
+For readers rather than contributors: `/docs/use-with-ai/mcp` is the tool catalogue and client setup, `/docs/use-with-ai` is the guide for users, and `/docs/about/how-these-docs-are-checked` explains the checks.
+
+[`DOCS-SYSTEM.md`](DOCS-SYSTEM.md) explains how the parts of the docs system fit together, and the state of each part: merged, on a branch, or planned.
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

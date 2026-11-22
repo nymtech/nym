@@ -1,0 +1,9 @@
+---
+title: "How these docs are checked"
+---
+
+The Nym docs describe software that changes with each release. A docs page can fail its reader in two ways. The reader never gets a fact, or the reader gets a fact that is no longer true.
+
+For some kinds of fact, the docs build takes the fact from the code. For others, a check compares the docs with the code or with the threat model. The checks run in CI on each push and each pull request that changes the docs. Two of them also run in the build of the site, so a fault in those stops the deploy.
+
+A person in a browser and an agent that reads the docs through the [MCP server](snippet:nym/use-with-ai/mcp/intro) get the same content and the same checks. An agent cannot see the age of a page. If a fact is false, the agent can act on it as if it were true.

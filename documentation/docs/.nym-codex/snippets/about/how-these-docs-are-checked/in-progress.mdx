@@ -1,0 +1,10 @@
+## Docs checks in progress [#in-progress]
+
+These changes are not on the live site yet:
+
+| Change | State | What it adds |
+|---|---|---|
+| Specifications for the mixnet core | On a branch, not merged | Requirements for the Sphinx packet format, client cover traffic and the delay that a mix node adds. A comment above the code that keeps a requirement names its id, and so does a comment above the test that checks it. [Tracey](https://github.com/bearcove/tracey) reads these comments, and CI fails a pull request when a requirement has no code or no test |
+| Links from requirements to the threat model | On a branch, not merged | Each requirement names the privacy property that it serves, or states that it serves none. A reader can then follow a privacy claim to its requirement, its code and its test |
+| A shared search index | Partly built, not live | The MCP index moves from the docs build to a shared store, so that other Nym repositories can add their docs and code |
+| Code citations on the site | Planned | The site renders a cited Rust item from its source, so a tutorial shows its example code by citation in place of a copy |

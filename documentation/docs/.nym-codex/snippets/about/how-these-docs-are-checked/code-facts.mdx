@@ -1,0 +1,16 @@
+## Some facts come from the code [#code-facts]
+
+For the facts in this table, the docs take the value from its source, and no author types it by hand:
+
+| Fact | Source |
+|---|---|
+| The TypeScript types that cross the wasm boundary | tsify generates them from the Rust types |
+| The TypeScript SDK reference | TypeDoc. A CI job fails when the committed reference differs from a fresh build |
+| The REST API reference | The live OpenAPI spec of each API |
+| The `--help` output of `nym-node`, `nym-api` and `nymvisor` | A CI job that a maintainer starts builds each binary, runs it and commits the output |
+| Versions, for example the minimum Rust version | One file of named values, which snippets read by name |
+| Network counts, for example the number of nodes | A script reads them from the mainnet APIs, and the site uses its last output |
+| Placeholders in commands, for example `<PUBLIC_IP>` | One list. The variables table and the guide lint both read it |
+| The complete code of each Rust tutorial | An SDK example file that CI builds. A test fails when the tutorial and its example differ |
+
+A snippet can also cite a Rust item by its file and its symbol, in place of a copy of the code. The snippet tools take the text from the source file. If a pull request renames or removes the symbol, CI fails in that pull request. When a pull request changes a cited excerpt, a bot comment shows the change and the pages that show the excerpt. This site does not render code citations yet.

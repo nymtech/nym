@@ -59,22 +59,10 @@ jobs:
           VERSION=$(grep -oP '^\s*version\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' Cargo.toml | head -1)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # The next two steps must match the ones in ci-crates-version-bump.yml, or the
-      # dry run tests a different bump from the real one. A major bump fails without
-      # the contracts step: nym-api reaches contracts/coconut-dkg by path, and its
-      # nym-* pins in contracts/Cargo.toml would still ask for the old major.
-      - name: Update workspace dependencies
-        run: |
-          # Match any version string on lines with `path = `, including pre-release
-          # suffixes and drifted pins, not just the current workspace version.
-          sed -i '/path = /s/version = "[0-9][^"]*"/version = "${{ inputs.version }}"/g' Cargo.toml
-
-      - name: Update contracts workspace dependencies
-        run: |
-          sed -i '\|path = "../common/|s/version = "[0-9][^"]*"/version = "${{ inputs.version }}"/g' contracts/Cargo.toml
-          sed -i -E '/path = /! s/^(nym-[a-z0-9-]+ = )"[0-9][^"]*"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
-          sed -i -E '/path = /! s/^(nym-[a-z0-9-]+ = \{ version = )"[0-9][^"]*"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
-          sed -i -E 's/^((contracts-common|mixnet-contract-common|vesting-contract-common|nym-node-families-contract-common) = \{ version = )"[0-9][^"]*"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
+      - name: Update workspace dependency pins
+        env:
+          VERSION: ${{ inputs.version }}
+        run: tools/internal/bump-manifest-versions.sh "$VERSION"
 
       - name: Bump versions (local only)
         run: |

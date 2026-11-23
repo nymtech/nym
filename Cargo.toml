@@ -486,7 +486,6 @@ nym-credentials-interface = { version = "3.0.0", path = "common/credentials-inte
 nym-credential-proxy-requests = { version = "3.0.0", path = "nym-credential-proxy/nym-credential-proxy-requests", default-features = false }
 nym-credential-verification = { version = "3.0.0", path = "common/credential-verification" }
 nym-crypto = { version = "3.0.0", path = "common/crypto", default-features = false }
-nym-directory-attestation = { version = "3.0.0", path = "common/directory-attestation" }
 nym-directory-client = { version = "3.0.0", path = "common/nym-directory-client" }
 nym-dkg = { version = "3.0.0", path = "common/dkg" }
 nym-ecash-contract-common = { version = "3.0.0", path = "common/cosmwasm-smart-contracts/ecash-contract" }
@@ -530,7 +529,6 @@ nym-node-requests = { version = "3.0.0", path = "nym-node/nym-node-requests", de
 nym-node-metrics = { version = "3.0.0", path = "nym-node/nym-node-metrics" }
 nym-node-families-contract-common = { version = "3.0.0", path = "common/cosmwasm-smart-contracts/node-families-contract" }
 nym-ordered-buffer = { version = "3.0.0", path = "common/socks5/ordered-buffer" }
-nym-outfox = { version = "3.0.0", path = "nym-outfox" }
 nym-registration-client = { version = "3.0.0", path = "nym-registration-client" }
 nym-registration-common = { version = "3.0.0", path = "common/registration" }
 nym-sdk-session = { version = "3.0.0", path = "sdk/rust/nym-sdk-session" }
@@ -580,10 +578,7 @@ nym-wasm-utils = { version = "3.0.0", path = "common/wasm/utils", default-featur
 nyxd-scraper-shared = { version = "3.0.0", path = "common/nyxd-scraper-shared" }
 
 nym-smol-core = { version = "3.0.0", path = "common/smol-core" }
-nym-smolmix = { version = "3.0.0", path = "smolmix/core" }
-nym-smoldvpn = { version = "3.0.0", path = "smoldvpn" }
 nym-swizzle = { version = "3.0.0", path = "sdk/rust/nym-swizzle" }
-nym-swizzle-zcash = { version = "3.0.0", path = "sdk/rust/nym-swizzle-zcash" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork

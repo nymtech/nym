@@ -376,6 +376,11 @@ pub enum PrometheusMetric {
     ))]
     ProcessForwardHopPacketsPendingDelivery,
 
+    #[strum(props(
+        help = "The cumulative number of attempts to start a new nyx chain watcher after the previous one ended"
+    ))]
+    ProcessNyxWatcherRestartAttempts,
+
     // # TOKIO RUNTIME
     #[strum(props(help = "Number of tokio worker threads"))]
     TokioRuntimeNumWorkers,
@@ -616,6 +621,9 @@ impl PrometheusMetric {
             PrometheusMetric::ProcessForwardHopPacketsPendingDelivery => {
                 Metric::new_int_gauge(&name, help)
             }
+            PrometheusMetric::ProcessNyxWatcherRestartAttempts => {
+                Metric::new_int_gauge(&name, help)
+            }
             PrometheusMetric::TokioRuntimeNumWorkers => Metric::new_int_gauge(&name, help),
             PrometheusMetric::TokioRuntimeAliveTasks => Metric::new_int_gauge(&name, help),
             PrometheusMetric::TokioRuntimeGlobalQueueDepth => Metric::new_int_gauge(&name, help),
@@ -716,7 +724,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(90, PrometheusMetric::COUNT)
+        assert_eq!(91, PrometheusMetric::COUNT)
     }
 
     #[test]

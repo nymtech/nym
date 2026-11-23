@@ -13,6 +13,9 @@ pub struct NodeStats {
 
     // packets that haven't yet been delayed and are waiting for their chance
     pub packet_forwarder_queue_size: AtomicUsize,
+
+    // attempts to start a new nyx chain watcher after the previous one ended
+    pub nyx_watcher_restart_attempts: AtomicUsize,
 }
 
 impl NodeStats {
@@ -53,5 +56,14 @@ impl NodeStats {
 
     pub fn packet_forwarder_queue_size(&self) -> usize {
         self.packet_forwarder_queue_size.load(Ordering::Relaxed)
+    }
+
+    pub fn increment_nyx_watcher_restart_attempts(&self) {
+        self.nyx_watcher_restart_attempts
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn nyx_watcher_restart_attempts_count(&self) -> usize {
+        self.nyx_watcher_restart_attempts.load(Ordering::Relaxed)
     }
 }

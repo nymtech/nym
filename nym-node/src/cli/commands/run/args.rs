@@ -55,8 +55,9 @@ pub(crate) struct Args {
     )]
     pub(crate) local: bool,
 
-    /// Start even if the nyx chain watcher cannot be started. Until a later attempt succeeds,
-    /// the node rejects every network monitor agent.
+    /// Start even if the nyx chain watcher cannot be started; the node keeps retrying in the
+    /// background. Until the authorised agent set has been loaded, every network monitor agent
+    /// is rejected.
     #[clap(
         long,
         default_value_t = false,

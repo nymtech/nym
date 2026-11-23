@@ -1154,6 +1154,7 @@ impl NymNode {
             (&self.config.nyx).into(),
             nyxd_config,
             network_monitors,
+            self.metrics.clone(),
             self.shutdown_manager.clone_shutdown_token(),
         )?;
         supervisor

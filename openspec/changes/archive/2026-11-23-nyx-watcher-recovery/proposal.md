@@ -29,10 +29,11 @@ No configuration file changes, no new config version, and the websocket URL in e
 
 ## Impact
 
-- **`common/nyxd-scraper-shared`**: block processor (drain, start height, give-up rule), RPC client (current height across endpoints), block requester (stops when cancelled), watcher builder (**BREAKING** for its in-repo callers, nym-node and the crate's example: `WatcherConfig` gains an optional start height and `with_custom_shutdown` is removed).
+- **`common/nyxd-scraper-shared`**: block processor (drain, start height, give-up rule), RPC client (current height across endpoints), block requester (stops when cancelled), watcher builder (**BREAKING** for its in-repo callers, nym-node and the crate's example: `WatcherConfig` gains an optional start height, `with_custom_shutdown` is removed, and `NyxdWatcher::cancel_token()` is no longer public, replaced by `ended()` so that `stop()` is the only way for a caller to end a watcher).
 - **Persisting scraper users** (`nyx-chain-watcher`, `nym-validator-rewarder`, `nym-data-observatory`): no API change. Behaviour changes in two ways: a block that fails is retried until it succeeds where it could previously be skipped, and a restart resumes from the stored height. A scraper held by a block that never succeeds grows its backlog without bound, as it already does when the failure happens outside the drain.
 - **`common/client-libs/validator-client`**: a height-pinned variant of the paged network-monitor agents query.
 - **`nym-node`**: a supervisor task owning the watcher, startup wiring, the new CLI flag and env variable, a replace-everything method on the authorised-agents view, one metric.
-- **`common/authorised-network-monitors`**, **`common/nymnoise`** (read only), **`nym-node` routing filter**: whole-structure replacement of the announced identities and of the routing set.
+- **`common/authorised-network-monitors`**, **`nym-node` routing filter**: whole-structure replacement of the announced identities and of the routing set.
+- **`common/nymnoise`**: the noise-key map gets its own type, `NoiseNodes`, which holds the map's rules in one place; behaviour unchanged.
 - **Operators**: a node that today would fail to start on a transient RPC failure now retries for about twenty seconds first. A node started with the new flag and no reachable chain endpoint rejects every monitor agent until its first successful load.
 - **No contract, wire format or config changes.**

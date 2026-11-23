@@ -1,5 +1,8 @@
-## ADDED Requirements
+# nyx-block-scraper Specification
 
+## Purpose
+The shared engine in `common/nyxd-scraper-shared` that follows the nyx chain block by block and hands each block to registered modules. It runs in two forms: the persisting scraper, which stores every block and must never leave a hole in stored history (used by `nyx-chain-watcher`, `nym-validator-rewarder` and `nym-data-observatory` through the sqlite and postgres storage crates), and the non-persisting watcher, which only feeds its modules and is replaced by its owner when it cannot advance (used by nym-node). This spec covers processing order, what happens to a block that fails, where processing starts and resumes, when a watcher gives up and how it stops, and how the current chain height is determined.
+## Requirements
 ### Requirement: Blocks are processed in strict height order and a failed block holds back every block behind it
 
 The block processor shared by the persisting scraper and the watcher SHALL hand each block to storage and to the registered modules in strictly increasing height order, one height at a time, with no height left out. A block that arrives ahead of the next expected height MUST be held in a backlog until every height before it has been processed. A block whose processing fails at any step (obtaining its details, persisting it, or a module returning an error) MUST NOT be recorded as processed, and NO block of a greater height may be processed until it has succeeded. This holds whether the block arrived as the next expected one or was taken from the backlog.
@@ -84,11 +87,12 @@ When the engine needs the current chain height it SHALL ask every configured RPC
 - **WHEN** only one endpoint is configured
 - **THEN** its answer is the current chain height, and an endpoint that has stopped advancing is not detected
 
-### Requirement: A cancelled watcher stops fetching at once and finishes only the block in hand
+### Requirement: A cancelled watcher stops fetching at once and finishes only the blocks in hand
 
-When a watcher is cancelled, by itself or by its owner, its block fetching MUST stop without completing the range it was working on, and its processor MUST finish at most the block it is already processing. Stopping a watcher MUST wait until all of its tasks have ended, so that no block is handed to a module after the stop has returned.
+When a watcher is cancelled, by itself or by its owner, its block fetching MUST stop without completing the range it was working on, and its processor MUST NOT take up a new block from its subscription or from a fetch once it has noticed the cancellation. It finishes what it is processing at that moment: one block, or that block followed by the consecutive run of backlogged blocks it unblocked. Stopping a watcher MUST wait until all of its tasks have ended, so that no block is handed to a module after the stop has returned.
 
 #### Scenario: Stopping mid-range does not wait for the range
 - **WHEN** the owner stops a watcher while a range of 30 blocks is being fetched
 - **THEN** no further block of that range is requested
-- **AND** the block being processed, if any, completes, and no module is called after the stop has returned
+- **AND** the blocks being processed, if any, complete, and no module is called after the stop has returned
+

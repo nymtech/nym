@@ -6,9 +6,16 @@
 //! This module processes blockchain transactions involving the Network Monitors smart contract
 //! and automatically updates the list of authorised network monitor agents whenever it is invoked.
 //!
+//! # Whole-set loads
+//!
+//! At boot and every time the watcher has to be restarted, the nyx watcher supervisor loads the
+//! whole authorised set through [`NetworkMonitorAgentsModule::load_at`], pinned at the height the
+//! new watcher starts after, and replaces the node's set with it through
+//! [`NetworkMonitorAgentsModule::publish`]. The events below keep it current in between.
+//!
 //! # Authorisation Flow
 //!
-//! 1. Network Monitor orchestrator submits `AuthoriseNetworkMonitor { address }` to the contract
+//! 1. Network Monitor orchestrator submits `AuthoriseNetworkMonitor` to the contract
 //! 2. Transaction is committed to Nyx blockchain
 //! 3. This module receives the message via `MsgModule::handle_msg()`
 //! 4. The agent is folded into the node's [`AuthorisedAgentsView`]

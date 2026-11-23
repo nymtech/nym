@@ -5,6 +5,7 @@ use crate::config;
 use crate::error::NymNodeError;
 use crate::node::authorised_agents::AuthorisedAgent;
 use crate::node::nyxd_watcher::network_monitor_agents::NetworkMonitorAgentsModule;
+use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownToken;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::nyxd;
@@ -53,6 +54,7 @@ pub(crate) struct NyxWatcherSupervisor {
     network_monitors: NetworkMonitorAgentsModule,
     backoff: RestartBackoff,
     running: Option<RunningWatcher>,
+    metrics: NymNodeMetrics,
     shutdown_token: ShutdownToken,
 }
 
@@ -61,6 +63,7 @@ impl NyxWatcherSupervisor {
         config: NyxWatcherSupervisorConfig,
         nyxd_config: nyxd::Config,
         network_monitors: NetworkMonitorAgentsModule,
+        metrics: NymNodeMetrics,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
         let endpoints = config
@@ -75,6 +78,7 @@ impl NyxWatcherSupervisor {
             network_monitors,
             backoff: RestartBackoff::new(),
             running: None,
+            metrics,
             shutdown_token,
         })
     }
@@ -155,7 +159,7 @@ impl NyxWatcherSupervisor {
 
             if allow_failure {
                 error!(
-                    "failed to start the nyx watcher: {err}. Every network monitor agent is rejected until a later attempt succeeds"
+                    "failed to start the nyx watcher: {err}. The node starts anyway and keeps retrying; until an authorised agent set has been loaded, every network monitor agent is rejected"
                 );
                 return Ok(());
             }
@@ -195,6 +199,9 @@ impl NyxWatcherSupervisor {
                 _ = sleep(wait) => {}
             }
 
+            self.metrics
+                .process
+                .increment_nyx_watcher_restart_attempts();
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => return,

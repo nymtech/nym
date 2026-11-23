@@ -4,8 +4,9 @@
 //! Structures derived from the set of network monitor agents authorised by the network-monitors
 //! contract, for the ones whose readers live outside the node that folds that set.
 //!
-//! A node loads the authorised set once at startup and keeps it current through nyxd websocket
-//! events, folding each entry into several structures keyed differently for their different gates.
+//! A node loads the whole authorised set from the contract at boot and again whenever its chain
+//! watcher has to be restarted, keeps it current in between through the watcher's contract events,
+//! and folds each entry into several structures keyed differently for their different gates.
 //! Those read only by the node itself live with their readers; the ones here are shared.
 //!
 //! # Announced client identities
@@ -31,8 +32,9 @@ use std::sync::Arc;
 /// Thread-safe, lock-free set of the ed25519 client identities announced by authorised network
 /// monitor agents.
 ///
-/// Reads are lock-free and happen once per client registration handshake; writes are rare (only on
-/// agent authorisation events) and copy the whole map, which is acceptable for a handful of entries.
+/// Reads are lock-free and happen once per client registration handshake; writes are rare (agent
+/// authorisation events and whole-set reloads) and copy the whole map, which is acceptable for a
+/// handful of entries.
 ///
 /// Cloning is cheap: it only clones the `Arc`, not the underlying data.
 #[derive(Clone, Debug, Default)]

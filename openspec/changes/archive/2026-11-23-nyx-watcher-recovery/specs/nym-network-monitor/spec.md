@@ -92,7 +92,7 @@ The noise-key map is shared with the topology refresher, which owns its nym-node
 
 At boot a node SHALL make up to 3 attempts at the load-and-start sequence, 10 seconds apart, and MUST refuse to start when all of them fail.
 
-The node SHALL accept a run-time flag `--allow-nyx-watcher-startup-failure` (environment variable `NYMNODE_ALLOW_NYX_WATCHER_STARTUP_FAILURE`). When it is set the node makes a single attempt, and when that attempt fails it MUST log an error stating that every network-monitor agent is rejected until a load succeeds, MUST start with an empty authorised-agent set, and MUST keep retrying on the supervised schedule of the next requirement. The flag is a run-time argument only: it MUST NOT be written to the node's configuration file.
+The node SHALL accept a run-time flag `--allow-nyx-watcher-startup-failure` (environment variable `NYMNODE_ALLOW_NYX_WATCHER_STARTUP_FAILURE`). When it is set the node makes a single attempt, and when that attempt fails it MUST log an error stating that every network-monitor agent is rejected until an authorised-agent set has been loaded, MUST start with whatever set the attempt published (none when the load itself failed, the whole loaded set when only the watcher could not be started), and MUST keep retrying on the supervised schedule of the next requirement. The flag is a run-time argument only: it MUST NOT be written to the node's configuration file.
 
 #### Scenario: A node without a reachable chain endpoint refuses to start
 - **WHEN** none of the three attempts succeeds and the flag is not set
@@ -103,8 +103,13 @@ The node SHALL accept a run-time flag `--allow-nyx-watcher-startup-failure` (env
 - **THEN** the node starts normally
 
 #### Scenario: The flag lets the node start with an empty set
-- **WHEN** the flag is set and the single attempt fails
+- **WHEN** the flag is set and the single attempt fails to load the authorised-agent set
 - **THEN** the node starts, logs the error, and rejects every network-monitor agent
+- **AND** its supervisor keeps attempting the load-and-start sequence
+
+#### Scenario: The flag lets the node start with a loaded set but no watcher
+- **WHEN** the flag is set and the single attempt loads the authorised-agent set but cannot start the watcher
+- **THEN** the node starts, logs the error, and gates on the loaded set
 - **AND** its supervisor keeps attempting the load-and-start sequence
 
 #### Scenario: The flag applies to one run only

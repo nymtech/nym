@@ -3,11 +3,13 @@
 
 //! The node's view of the network monitor agents authorised by the network-monitors contract.
 //!
-//! The authorised set is loaded in full once at startup (a failed load aborts startup) and is
-//! thereafter kept current in real time through nyxd websocket events. Both paths parse an
-//! announced entry into an [`AuthorisedAgent`] and fold it through [`AuthorisedAgentsView`], the
-//! sole writer to the structures derived from the set, so that key validation and keying
-//! discipline each live in exactly one place.
+//! The whole authorised set is loaded from the contract at a single block height, at boot and again
+//! every time the nyx chain watcher has to be restarted, and is kept current in between by the
+//! watcher's contract events. A failed load at boot stops the node from starting unless it runs
+//! with `--allow-nyx-watcher-startup-failure`; a failed reload keeps the set already held. Both
+//! paths parse an announced entry into an [`AuthorisedAgent`] and go through
+//! [`AuthorisedAgentsView`], the sole writer to the structures derived from the set, so that key
+//! validation and keying discipline each live in exactly one place.
 
 use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
@@ -31,7 +33,7 @@ pub(crate) struct AuthorisedAgent {
 }
 
 impl AuthorisedAgent {
-    /// Parse the keys an agent announced, as carried by both the startup contract query and the
+    /// Parse the keys an agent announced, as carried by both the contract's agent query and the
     /// `AuthoriseNetworkMonitor` blockchain event.
     ///
     /// Returns `None`, having logged the reason, if the noise key is unusable: without it the agent

@@ -102,7 +102,7 @@ Alternatives considered: adding the new agents and then removing the stale ones 
 
 Without a working watcher the node refuses to start, as today. Pinning adds a new way for the first load to fail (a lagging backend), so boot makes 3 attempts 10 seconds apart. Each attempt reads a fresh height, so the pause does not wait out a lagging backend; it gives a briefly unavailable endpoint time to come back.
 
-`--allow-nyx-watcher-startup-failure` (`NYMNODE_ALLOW_NYX_WATCHER_STARTUP_FAILURE`) makes a single attempt and, on failure, starts the node with an empty agent set and lets the supervisor keep trying. It is a run-only flag like `--deny-init` and `--local`, not a config field, and it is visible in `--help`: it is an operator's escape hatch, not a tuning knob.
+`--allow-nyx-watcher-startup-failure` (`NYMNODE_ALLOW_NYX_WATCHER_STARTUP_FAILURE`) makes a single attempt and, on failure, starts the node with whatever agent set that attempt published (none when the load failed, the loaded set when only the watcher could not start) and lets the supervisor keep trying. It is a run-only flag like `--deny-init` and `--local`, not a config field, and it is visible in `--help`: it is an operator's escape hatch, not a tuning knob.
 
 ### 10. A contract message the node cannot parse stays logged and skipped
 
@@ -135,7 +135,7 @@ Checked by hand instead, because a test would need chain endpoints and a websock
 ## Risks / Trade-offs
 
 - **A persisting scraper held on a block that never succeeds grows its backlog without bound.** → Unchanged from today for failures outside the drain; now also true for failures inside it. Accepted: skipping is worse for a scraper, and its loss already stops the rewarder.
-- **A watcher task that panics does not cancel the watcher's token**, so the supervisor does not notice. → Unchanged from today. Not addressed here.
+- **A watcher task that panics does not cancel the watcher's token**, so the supervisor would not notice. → In nym-node this does not arise: its panic hook cancels the node's root token on any panic, which stops every node task, the supervisor included, as a panic in any other task already does. Not addressed here.
 - **A node with one configured endpoint cannot detect a backend that stopped advancing.** → The v15 config migration of part one gives default mainnet configs a fallback. Operators with a custom single endpoint keep today's behaviour.
 - **Modules can be about 30 seconds behind right after a watcher start**, because the blocks produced during the load are fetched by the existing 30 second check. → Accepted; today the same blocks are lost outright.
 - **A reload jumps over the blocks between the stall and the new height.** → That is the design: the loaded state already reflects them. It is why this mechanism suits a consumer that mirrors contract state and not one that must act on every transaction.

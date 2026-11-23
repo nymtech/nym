@@ -17,7 +17,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, stripHeadingIds, frontmatterLines } from '../../docs/lib/retrieval/mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, stripHeadingIds, frontmatterLines, absoluteLinks } from '../../docs/lib/retrieval/mdx.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 // PAGES_DIR / SITE_URL / SKIP_DIRS are shared with the ordered generators. Only
 // the walk differs: this generator uses a flat file collector (below) so it also
@@ -59,7 +59,7 @@ for (const file of files) {
   const { data, content } = parseFrontmatter(raw);
   // Partials first, as collectPages does: their text is on the rendered page.
   const whole = inlineMdxPartials(content, { ...composeOptions(file, snippets), lineOffset: frontmatterLines(raw, content) });
-  const body = stripMdx(whole, { expand, values });
+  const body = absoluteLinks(stripMdx(whole, { expand, values }), SITE_URL);
   if (!body) continue; // skip pages that are pure JSX/redirects with no prose
 
   const slug = pageSlug(file);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, stripHeadingIds, inlineMdxPartials } from './mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, stripHeadingIds, inlineMdxPartials, absoluteLinks } from './mdx.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -65,6 +65,25 @@ describe('stripHeadingIds', () => {
   it('removes explicit anchors from headings and leaves fences and prose alone', () => {
     const body = ['## Constructors [#constructors]', 'See [#5701](https://x).', '```md', '## In a fence [#kept]', '```'].join('\n');
     expect(stripHeadingIds(body)).toBe(['## Constructors', 'See [#5701](https://x).', '```md', '## In a fence [#kept]', '```'].join('\n'));
+  });
+});
+
+describe('absoluteLinks', () => {
+  it('prefixes root-relative links and leaves other links and fences alone', () => {
+    const body = [
+      'See [limits](/developers/limitations#top) and ![diagram](/images/a.png).',
+      'Also [here](#local), [rel](./x), [ext](https://github.com/x) and [cdn](//cdn.x/y).',
+      '```md',
+      '[in a fence](/kept)',
+      '```',
+    ].join('\n');
+    expect(absoluteLinks(body, 'https://nym.com/docs')).toBe([
+      'See [limits](https://nym.com/docs/developers/limitations#top) and ![diagram](https://nym.com/docs/images/a.png).',
+      'Also [here](#local), [rel](./x), [ext](https://github.com/x) and [cdn](//cdn.x/y).',
+      '```md',
+      '[in a fence](/kept)',
+      '```',
+    ].join('\n'));
   });
 });
 

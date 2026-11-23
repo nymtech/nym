@@ -83,6 +83,15 @@ export function stripHeadingIds(body) {
 }
 
 /**
+ * Make root-relative Markdown links absolute, outside code fences. Next.js adds
+ * the site's base path (`/docs`) only to links that it renders, so in a text copy
+ * of a page (the `.md` files, the search index) `/developers` resolves to a 404.
+ */
+export function absoluteLinks(body, siteUrl) {
+  return outsideFences(body, (text) => text.replace(/\]\(\/(?!\/)/g, `](${siteUrl}/`));
+}
+
+/**
  * Inline MDX partials before anything else looks at the page.
  *
  * A page's source file is not the page's content. `performance-and-testing.mdx`

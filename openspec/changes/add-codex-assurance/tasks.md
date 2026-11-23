@@ -1,10 +1,10 @@
 # Tasks
 
-Owner of each section: TBD(Max). This change depends on `add-codex-snippets` (records, statements, coverage report, stage 7 generator) and on `add-mixnet-core-specs` (the first requirements that link to a threat-model property).
+Owner of each section: TBD(Max). This change depends on `add-codex-snippets` (records, statements, coverage report, and the D16 view generator and D20 archive layout on #7435) and on `add-mixnet-core-specs` (the first requirements that link to a threat-model property).
 
 ## 1. Join the rules and the records (A6)
 
-- [ ] 1.1 Push the branch of the rules experiment, or name it here: TBD(Max). Compare it with `max/codex-snippets`, and list each file that both change
+- [ ] 1.1 Push `max/docs-model-experiments`, the branch of the rules experiment. Compare it with `develop`, and list each file that both change
 - [ ] 1.2 Merge the rules and the CI gate into the codex branch, or into `develop` first. Owner of the merge order: TBD(Max)
 - [ ] 1.3 Run the threat-model adapter before and after. The output is identical apart from `warrant`. The model owner resolves each verdict that changes
 
@@ -32,8 +32,8 @@ Owner of each section: TBD(Max). This change depends on `add-codex-snippets` (re
 ## 5. Assurance viewpoint (A4)
 
 - [ ] 5.1 Review `viewpoints/assurance.json` and `viewpoints/prompts/assurance-summary.md`. Owner: TBD(Max)
-- [ ] 5.2 Move them to the codex site when the stage 7 generator exists
-- [ ] 5.3 Generate the view and record the stage 7 measure: the share that levels 0 and 1 make
+- [ ] 5.2 Move them to `viewpoints/` in the codex archive when the D16 view generator exists
+- [ ] 5.3 Generate the view under `views/assurance/` and record the stage 7 measure: the share that levels 0 and 1 make
 - [ ] 5.4 Compare the view with one hand-made audit page, as stage 7 of `add-codex-snippets` asks
 
 ## 6. Sufficiency report (A5)

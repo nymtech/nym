@@ -79,7 +79,7 @@ The `assurance` viewpoint gives the Nym network the same page, made from records
 | Enforced against approved | Each statement with its `status`, `warrant`, witness and canary | 0 |
 | Summary | A short introduction | 2, with the prompt in the viewpoint |
 
-The draft is `viewpoints/assurance.json`, with its prompt in `viewpoints/prompts/assurance-summary.md`. The field names are provisional.
+The draft is `viewpoints/assurance.json`, with its prompt in `viewpoints/prompts/assurance-summary.md` and its page template in `viewpoints/templates/assurance-guarantee.md`. The field names are provisional. The files move to `viewpoints/` in the codex archive (`add-codex-snippets` D20 on #7435). The view generator (D16) writes the view as Markdown files under `views/assurance/` in the archive, so a person can read it on GitHub with no site. A Markdown view cannot hold a component, so the template puts in the text of each cited record and a link to it.
 
 **Measure:** the stage 7 measure of `add-codex-snippets`: the share of the page that levels 0 and 1 make. **Changes the design:** if levels 0 and 1 make less than half of the page, the records lack the edges or the conditions that the page needs. Then that content work comes before any second viewpoint. Today the guarantees section is empty, because 0 of 492 requirements link to a property. `add-mixnet-core-specs` proposes the first links: 2 requirements that realise property P1, and 11 that mitigate vector V2. The view shows the second kind in its own section, "Mitigations", because a guarantee section that follows only `realises` edges hides them.
 
@@ -98,7 +98,7 @@ The reason: fidelity to the source is necessary and not sufficient. A view can b
 
 ### A6: The threat-model adapter takes its verdicts from the rules
 
-An earlier experiment computes each matrix verdict from capabilities and rules, and a CI test fails when a computed verdict and a committed verdict differ. It is on a branch that is not merged or pushed yet: TBD(Max), push it or name it here. The adapter of `add-codex-snippets` reads the committed verdicts, which a person types. After the merge, the adapter reads the computed verdicts, and each verdict record is `entailed`.
+An earlier experiment computes each matrix verdict from capabilities and rules, and a CI test fails when a computed verdict and a committed verdict differ. It is on `max/docs-model-experiments`, a local branch that is not pushed yet. Push it before the merge. The adapter of `add-codex-snippets` reads the committed verdicts, which a person types. After the merge, the adapter reads the computed verdicts, and each verdict record is `entailed`.
 
 **Measure:** the adapter output is identical before and after the merge, apart from the `warrant` field. **Changes the design:** if the merge changes a verdict, the rules and the committed matrix disagree. The model owner resolves each case before the merge.
 

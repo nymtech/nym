@@ -24,7 +24,6 @@ comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
 humantime = { workspace = true }
 rand = { workspace = true }
-rand_chacha = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
@@ -40,7 +39,7 @@ zeroize = { workspace = true }
 nym-id = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bandwidth-fetcher = { workspace = true }
-nym-crypto = { workspace = true, features = ["rand"] }
+nym-crypto = { workspace = true, features = ["hashing", "rand"] }
 nym-gateway-client = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-http-api-client = { workspace = true, features = ["network-defaults"] }
@@ -61,9 +60,15 @@ nym-client-core-surb-storage = { workspace = true }
 nym-client-core-gateways-storage = { workspace = true }
 nym-ecash-time = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
+nym-lp-data = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 nym-mixnet-client = { workspace = true }
+nym-sqlcipher = { workspace = true, optional = true }
+nym-lp = { workspace = true }
+nym-lp-gateway-client = { workspace = true }
+dashmap = { workspace = true }
+crossbeam-channel = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-pemstore]
 workspace = true
@@ -129,14 +134,20 @@ workspace = true
 features = ["full"]
 
 [dev-dependencies]
-nym-test-utils = { workspace = true }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 tempfile = { workspace = true }
+# `SessionsMock`, to stand in for a handshake the LP round-trip test does not perform
+nym-lp = { workspace = true, features = ["mock"] }
+nym-kkt-ciphersuite = { workspace = true }
+nym-api-requests = { workspace = true }
+hex = { workspace = true }
+semver = { workspace = true }
 
 [features]
 default = []
-cli = ["clap", "comfy-table"]
+cli = ["clap", "comfy-table", "dep:nym-sqlcipher"]
 fs-credentials-storage = ["nym-credential-storage/persistent-storage"]
-fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage"]
+fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage", "dep:nym-sqlcipher"]
 fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]
 wasm = ["nym-gateway-client/wasm"]
 metrics-server = []

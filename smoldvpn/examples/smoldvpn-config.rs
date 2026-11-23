@@ -119,6 +119,7 @@ async fn run() -> Result<(), String> {
             mnemonic,
             network,
             credential_store_path: Some(format!("{data_dir}/creds.db").into()),
+            database_key: None,
             data_path: data_dir.clone().into(),
             dvpn_directory_url: None,
             automatic_topups: None,

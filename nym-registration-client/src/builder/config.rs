@@ -6,14 +6,18 @@ use nym_registration_common::NymNodeInformation;
 use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
-        MixnetClient, MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent, StoragePaths,
-        x25519,
+        KeySecret, MixnetClient, MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent,
+        StoragePaths, x25519,
     },
 };
 
 #[cfg(unix)]
 use std::os::fd::RawFd;
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 use time::Duration as TimeDuration;
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
@@ -37,6 +41,16 @@ pub struct BuilderConfig {
     pub entry_node: NymNodeWithKeys,
     pub exit_node: NymNodeWithKeys,
     pub data_path: PathBuf,
+    /// Raw SQLCipher key encrypting the mixnet client databases in `data_path`: credentials,
+    /// reply SURBs and gateway registrations. Plaintext databases get encrypted on first open
+    /// with it. SQLCipher has to be linked in place of SQLite.
+    #[builder(default)]
+    pub database_key: Option<nym_sqlcipher::DatabaseKey>,
+    /// Secret (passphrase or raw 256-bit key) encrypting the mixnet client private keys in
+    /// `data_path`: identity, encryption and ack keys. Plaintext keys get encrypted on first load
+    /// with it. Validating a passphrase (for instance rejecting an empty one) is the caller's job.
+    #[builder(default)]
+    pub keys_secret: Option<KeySecret>,
     pub mode: RegistrationMode,
     pub bandwidth_request_sender: BandwidthControllerRequestSender,
     /// Clock skew to apply to the system clock when timestamping bandwidth credentials spent
@@ -53,6 +67,13 @@ pub struct BuilderConfig {
     pub mixnet_client_config: MixnetClientConfig,
     #[builder(default = MIXNET_CLIENT_STARTUP_TIMEOUT)]
     pub mixnet_client_startup_timeout: Duration,
+    /// Register the mixnet client again with the entry gateway under a new identity, instead of
+    /// loading its stored registration. The new registration is stored before the client
+    /// authenticates with it, so a connect that fails after that point still leaves the client
+    /// on the new identity, and a retry with the flag set registers yet another one. Not used on
+    /// the LP registration path, which builds no mixnet client.
+    #[builder(default)]
+    pub refresh_gateway_keys: bool,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     pub network_env: NymNetworkDetails,
@@ -115,8 +136,11 @@ impl BuilderConfig {
             self.data_path.display()
         );
 
-        let storage_paths = StoragePaths::new_from_dir(&self.data_path)
-            .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
+        let storage_paths = mixnet_client_storage_paths(
+            &self.data_path,
+            self.database_key.clone(),
+            self.keys_secret.clone(),
+        )?;
 
         let mixnet_client_storage = storage_paths
             .initialise_persistent_storage(&self.mixnet_client_debug_config())
@@ -143,6 +167,7 @@ impl BuilderConfig {
         let builder = builder
             .with_user_agent(self.user_agent)
             .request_gateway(identity.clone())
+            .refresh_gateway_keys(self.refresh_gateway_keys)
             .network_details(self.network_env)
             .debug_config(debug_config)
             .credentials_mode(true)
@@ -165,6 +190,32 @@ impl BuilderConfig {
             .inspect_err(|e| tracing::debug!("failed to connect reg client for {}: {e}", identity))
             .map_err(|err| RegistrationClientError::ConnectToMixnet(Box::new(err)))
     }
+}
+
+/// Gives the mixnet client stored under `data_path` a new identity: new root keys, no gateway
+/// registrations and no stored replies. Its ticketbooks are kept. No client built from
+/// `data_path` may be running. `database_key` and `keys_secret` are the client's own, as set
+/// on [`BuilderConfig`].
+pub async fn reset_client_identity(
+    data_path: &Path,
+    database_key: Option<nym_sqlcipher::DatabaseKey>,
+    keys_secret: Option<KeySecret>,
+) -> Result<(), RegistrationClientError> {
+    mixnet_client_storage_paths(data_path, database_key, keys_secret)?
+        .reset_client_identity()
+        .await
+        .map_err(|err| RegistrationClientError::ResetClientIdentity(Box::new(err)))
+}
+
+fn mixnet_client_storage_paths(
+    data_path: &Path,
+    database_key: Option<nym_sqlcipher::DatabaseKey>,
+    keys_secret: Option<KeySecret>,
+) -> Result<StoragePaths, RegistrationClientError> {
+    Ok(StoragePaths::new_from_dir(data_path)
+        .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?
+        .with_database_key(database_key)
+        .with_key_secret(keys_secret))
 }
 
 // r[impl delay.named-settings]

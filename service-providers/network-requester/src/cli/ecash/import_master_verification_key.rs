@@ -10,7 +10,7 @@ use nym_client_core::cli_helpers::client_import_master_verification_key::{
 pub(crate) async fn execute(
     args: CommonClientImportMasterVerificationKeyArgs,
 ) -> Result<(), NetworkRequesterError> {
-    import_master_verification_key::<CliNetworkRequesterClient, _>(args).await?;
+    import_master_verification_key::<CliNetworkRequesterClient, _>(args, None).await?;
     println!("successfully imported master verification key!");
     Ok(())
 }

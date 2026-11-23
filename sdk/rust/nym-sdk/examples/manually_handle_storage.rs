@@ -9,13 +9,17 @@
 //!
 //! Run with: cargo run --example manually_handle_storage
 
-use nym_client_core::client::base_client::storage::gateways_storage::GatewayPublishedData;
+use nym_client_core::client::base_client::storage::gateways_storage::{
+    GatewayPublishedData, GenerationId,
+};
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_sdk::mixnet::{
     self, ed25519, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage,
     EphemeralCredentialStorage, GatewayRegistration, GatewaysDetailsStore, KeyStore, KeyStoreError,
     MixnetClientStorage, MixnetMessageSender,
 };
 use nym_topology::provider_trait::async_trait;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -184,6 +188,17 @@ impl GatewaysDetailsStore for MockGatewayDetailsStore {
         _details: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
         println!("updating gateway details");
+
+        Ok(())
+    }
+
+    async fn update_gateway_keys(
+        &self,
+        _gateway_id: &ed25519::PublicKey,
+        _generation_id: GenerationId,
+        _shared_key: Arc<SharedSymmetricKey>,
+    ) -> Result<(), Self::StorageError> {
+        println!("updating gateway keys");
 
         Ok(())
     }

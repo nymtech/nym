@@ -27,7 +27,7 @@ impl SqliteZkNymRequestsStorageManager {
         data: &[u8],
         expiration_date: Date,
         dkg_epoch_id: i64,
-    ) -> Result<(), sqlx::Error> {
+    ) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 INSERT INTO pending_issuance
@@ -55,7 +55,7 @@ impl SqliteZkNymRequestsStorageManager {
         deposit_id: u32,
         data: &[u8],
         expiration_date: Date,
-    ) -> Result<(), sqlx::Error> {
+    ) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
                 INSERT INTO pending_issuance
@@ -75,16 +75,13 @@ impl SqliteZkNymRequestsStorageManager {
 
     pub(crate) async fn get_pending_ticketbooks(
         &self,
-    ) -> Result<Vec<StoredPendingTicketbook>, sqlx::Error> {
+    ) -> sqlx::Result<Vec<StoredPendingTicketbook>> {
         sqlx::query_as("SELECT * FROM pending_issuance")
             .fetch_all(&self.connection_pool)
             .await
     }
 
-    pub(crate) async fn remove_pending_ticketbook(
-        &self,
-        pending_id: i64,
-    ) -> Result<(), sqlx::Error> {
+    pub(crate) async fn remove_pending_ticketbook(&self, pending_id: i64) -> sqlx::Result<()> {
         sqlx::query!(
             "DELETE FROM pending_issuance WHERE deposit_id = ?",
             pending_id

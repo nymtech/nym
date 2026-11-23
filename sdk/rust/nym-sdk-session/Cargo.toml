@@ -34,12 +34,12 @@ nym-kkt-ciphersuite = { workspace = true }
 nym-lp = { workspace = true }
 nym-lp-data = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
+nym-sqlcipher = { workspace = true }
 nym-task = { workspace = true }
 nym-bridges-types = { workspace = true, features = ["serde"] }
 
 async-trait = { workspace = true }
 bip39 = { workspace = true }
-sha2 = { workspace = true }
 rand = { workspace = true }
 getrandom = { workspace = true }
 semver = { workspace = true }
@@ -51,7 +51,6 @@ tokio-util = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
-zeroize = { workspace = true }
 
 [dev-dependencies]
 # `test-util` enables the paused virtual clock used by the signer-timeout tests.

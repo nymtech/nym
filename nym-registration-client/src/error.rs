@@ -12,6 +12,9 @@ pub enum RegistrationClientError {
     #[error("failed to initialize storage")]
     StorageInitialization(#[source] Box<nym_sdk::Error>),
 
+    #[error("failed to reset the client identity")]
+    ResetClientIdentity(#[source] Box<nym_sdk::Error>),
+
     #[error("failed to connect to mixnet")]
     ConnectToMixnet(#[source] Box<nym_sdk::Error>),
 

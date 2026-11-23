@@ -138,6 +138,7 @@ nym-client-core = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-gateway-requests = { workspace = true }
 nym-credential-storage = { workspace = true }
+nym-sqlcipher = { workspace = true, optional = true }
 nym-network-defaults = { workspace = true }
 nym-sphinx = { workspace = true }
 nym-statistics-common = { workspace = true }
@@ -145,7 +146,6 @@ nym-task = { workspace = true }
 nym-topology = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }
 bytes = { workspace = true }
-zeroize = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
@@ -221,7 +221,7 @@ dirs = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-service-providers-common = { workspace = true }
 nym-pemstore = { workspace = true }
-nym-test-utils = { workspace = true }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
@@ -251,7 +251,15 @@ fs-storage = [
     "nym-client-core/fs-surb-storage",
     "nym-client-core/fs-gateways-storage",
     "nym-credential-storage/persistent-storage",
+    "dep:nym-sqlcipher",
 ]
+
+# Builds the bundled SQLCipher in place of SQLite for the whole dependency graph, which
+# `StoragePaths::with_database_key` needs to encrypt the databases. Apps can instead enable
+# SQLCipher themselves, e.g. through `libsqlite3-sys`.
+sqlcipher = ["fs-storage", "nym-sqlcipher/bundled"]
+# Same as `sqlcipher`, but builds OpenSSL from source instead of linking the system OpenSSL.
+sqlcipher-vendored-openssl = ["sqlcipher", "nym-sqlcipher/vendored-openssl"]
 
 # SOCKS5 client mode and network-requester country discovery.
 socks5 = [

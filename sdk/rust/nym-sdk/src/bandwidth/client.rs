@@ -10,7 +10,6 @@ use nym_credential_storage::storage::Storage;
 use nym_credentials_interface::TicketType;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
-use zeroize::Zeroizing;
 
 /// Represents a client that can be used to acquire bandwidth.
 ///
@@ -33,22 +32,21 @@ where
         network_details: NymNetworkDetails,
         mnemonic: String,
         storage: St,
-        client_id: Vec<u8>,
         ticketbook_type: TicketType,
     ) -> Result<Self> {
         let nyxd_url = network_details.endpoints[0].nyxd_url.as_str();
         let config = nyxd::Config::try_from_nym_network_details(&network_details)?;
+        let mnemonic: bip39::Mnemonic = mnemonic.parse()?;
 
         let client = Arc::new(DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
             config,
             nyxd_url,
-            mnemonic.parse()?,
+            mnemonic.clone(),
         )?);
 
-        let credential_fetcher =
-            NyxdCredentialFetcher::new(client, ":memory:", Zeroizing::new(client_id))
-                .await
-                .map_err(|e| BandwidthControllerError::fetcher_error(Box::new(e)))?;
+        let credential_fetcher = NyxdCredentialFetcher::new(client, ":memory:", None, &mnemonic)
+            .await
+            .map_err(|e| BandwidthControllerError::fetcher_error(Box::new(e)))?;
         let bandwidth_controller =
             BandwidthController::new(storage.clone()).with_credential_fetcher(credential_fetcher);
 

@@ -250,5 +250,9 @@ export function buildProvider(rpcUrl: string, mixFetch: MixFetchFn, ensLog: LogF
   };
 
   // staticNetwork skips the eth_chainId discovery probe: one round trip saved.
-  return new JsonRpcProvider(base, 'mainnet', { staticNetwork: true });
+  const provider = new JsonRpcProvider(base, 'mainnet', { staticNetwork: true });
+  // CCIP-Read builds a new FetchRequest per gateway call, which falls back to the
+  // browser fetch and would leave the mixnet. Offchain resolvers are not supported.
+  provider.disableCcipRead = true;
+  return provider;
 }

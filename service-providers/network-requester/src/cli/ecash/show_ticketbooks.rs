@@ -25,7 +25,7 @@ impl AsRef<CommonShowTicketbooksArgs> for Args {
 
 pub(crate) async fn execute(args: Args) -> Result<(), NetworkRequesterError> {
     let output = args.output;
-    let res = show_ticketbooks::<CliNetworkRequesterClient, _>(args).await?;
+    let res = show_ticketbooks::<CliNetworkRequesterClient, _>(args, None).await?;
 
     println!("{}", output.format(&res));
     Ok(())

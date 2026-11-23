@@ -1,0 +1,10 @@
+## Guides and tutorials follow a checked form [#guide-form]
+
+A page that states `diataxis: how-to` or `diataxis: tutorial` in its frontmatter must follow the fixed form of that type. Today these pages are the operator guides and the Rust tutorials. A lint checks each one:
+
+- Each procedure is in a `Steps` element.
+- Each step heading has a stable anchor and no number, because `Steps` adds the number.
+- Each code block names its language from a fixed list.
+- Each placeholder in a command comes from the shared placeholder list.
+
+The lint checks the form of a guide. It does not run the commands.

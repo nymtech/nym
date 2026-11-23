@@ -4,7 +4,9 @@
   template:
     src: nym-node.service.j2
     dest: /etc/systemd/system/nym-node.service
-  notify: Reload systemd
+  notify:
+    - Reload systemd
+    - Restart nym-node
 
 - name: Enable and start nym service
   tags: systemctl

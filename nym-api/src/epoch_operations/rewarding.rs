@@ -99,8 +99,7 @@ impl EpochAdvancer {
             .await
             .unwrap();
 
-        Ok(self
-            .load_nodes_for_rewarding(&rewarded_set, reward_params)
-            .await)
+        self.load_nodes_for_rewarding(&rewarded_set, reward_params)
+            .await
     }
 }

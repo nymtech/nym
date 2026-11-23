@@ -1,9 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::aggregation::ReportedAggregates;
+use crate::aggregation::{NodeEpochFigures, ReportedAggregates, epoch_figures};
 use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
+use crate::signing_client::SigningClient;
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
     AssignedTestrun, CompletedTestRun, KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore,
@@ -15,15 +16,16 @@ use nym_network_monitor_orchestrator_requests::models::{
     AgentMixAddresses, NodeEpochAggregates, NymNodeData, NymNodeWithTestRuns, PagedResult,
     Pagination, TestRunAssignment, TestRunData, TestRunInProgressData, TestRunResult,
 };
-use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
+use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
+use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 use tracing::{error, warn};
 
 /// Thread-safe cache of all agents known to this orchestrator, keyed by the agent's IPv4 mixnet
@@ -34,18 +36,43 @@ pub(crate) struct KnownAgents {
 }
 
 impl KnownAgents {
-    /// Looks up an agent by the address pair it announced. Returns `None` if nothing is registered
-    /// under its IPv4 address, or if the registered entry belongs to a different IPv6 address, i.e.
-    /// this is not the agent we authorised.
-    pub(crate) async fn get_agent(&self, addresses: AgentMixAddresses) -> Option<KnownAgent> {
-        let guard = self.inner.lock().await;
-        let agent = guard.agents.get(&addresses.v4)?;
+    /// Looks up the agent making a request by the address pair it announced, and records that it
+    /// requested work. Returns `None` if nothing is registered under its IPv4 address, or if the
+    /// registered entry belongs to a different IPv6 address, i.e. this is not the agent we
+    /// authorised, in which case nothing is recorded.
+    ///
+    /// The stamp is what `agents_seen_recently` counts, and it is taken here because this is the
+    /// only place the orchestrator resolves a caller it already knows.
+    pub(crate) async fn resolve_requesting_agent(
+        &self,
+        addresses: AgentMixAddresses,
+    ) -> Option<KnownAgent> {
+        let mut guard = self.inner.lock().await;
+        let agent = guard.agents.get_mut(&addresses.v4)?;
 
         if agent.mix_v6 != addresses.v6 {
             return None;
         }
 
+        agent.last_work_request_at = Some(OffsetDateTime::now_utc());
         Some(*agent)
+    }
+
+    /// How many agents have requested work within `window`.
+    ///
+    /// Counted rather than derived from the cache size: the cache is seeded from every agent ever
+    /// authorised and is never pruned, so its size is addresses ever seen rather than agents
+    /// currently working. An agent that restarted on a new address leaves a second entry behind,
+    /// which falls out of this count as soon as it stops requesting work.
+    pub(crate) async fn seen_within(&self, window: Duration) -> i64 {
+        let cutoff = OffsetDateTime::now_utc() - window;
+        let guard = self.inner.lock().await;
+
+        guard
+            .agents
+            .values()
+            .filter(|agent| agent.last_work_request_at.is_some_and(|at| at >= cutoff))
+            .count() as i64
     }
 
     /// Records an announcement from the agent at `addresses`. The cache entry is upserted: a
@@ -67,7 +94,6 @@ impl KnownAgents {
         match guard.agents.entry(addresses.v4) {
             Entry::Occupied(mut entry) => {
                 let agent = entry.get_mut();
-                agent.last_active_at = OffsetDateTime::now_utc();
 
                 let details_diverged = agent.noise_key != noise_key || agent.mix_v6 != addresses.v6;
                 let identity_diverged = agent.ed25519_identity != ed25519_identity;
@@ -115,7 +141,7 @@ impl KnownAgents {
             Entry::Vacant(entry) => {
                 entry.insert(KnownAgent {
                     mix_v6: addresses.v6,
-                    last_active_at: OffsetDateTime::now_utc(),
+                    last_work_request_at: None,
                     noise_key,
                     ed25519_identity,
                     announced: false,
@@ -123,7 +149,6 @@ impl KnownAgents {
             }
         }
 
-        guard.publish_gauges();
         false
     }
 
@@ -136,7 +161,6 @@ impl KnownAgents {
         {
             agent.announced = true;
         }
-        guard.publish_gauges();
     }
 }
 
@@ -204,9 +228,7 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
                 v4_entry.mixnet_address,
                 KnownAgent {
                     mix_v6: v6_entry.mixnet_address,
-                    // the on-chain authorisation timestamp says nothing about liveness,
-                    // so treat a restored entry as freshly active
-                    last_active_at: OffsetDateTime::now_utc(),
+                    last_work_request_at: None,
                     noise_key,
                     ed25519_identity,
                     announced: true,
@@ -214,10 +236,8 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
             );
         }
 
-        let inner = KnownAgentsInner { agents: agents_map };
-        inner.publish_gauges();
         Ok(KnownAgents {
-            inner: Arc::new(Mutex::new(inner)),
+            inner: Arc::new(Mutex::new(KnownAgentsInner { agents: agents_map })),
         })
     }
 }
@@ -230,26 +250,15 @@ struct KnownAgentsInner {
     agents: HashMap<SocketAddr, KnownAgent>,
 }
 
-impl KnownAgentsInner {
-    /// Recomputes and publishes the `known_agents_*` gauges. Called from every mutation of
-    /// the inner map — we recount rather than incrementally adjust so the gauges stay correct
-    /// even if a future code path mutates state without going through a dedicated helper.
-    fn publish_gauges(&self) {
-        let total = self.agents.len() as i64;
-        let announced = self.agents.values().filter(|a| a.announced).count() as i64;
-
-        PROMETHEUS_METRICS.set(PrometheusMetric::KnownAgentsTotal, total);
-        PROMETHEUS_METRICS.set(PrometheusMetric::KnownAgentsAnnounced, announced);
-    }
-}
-
 /// Cached state of a single known agent, i.e. of the pair of contract authorisations it holds.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct KnownAgent {
     /// The IPv6 mixnet address announced alongside the IPv4 address this entry is keyed by.
     pub(crate) mix_v6: SocketAddr,
 
-    pub(crate) last_active_at: OffsetDateTime,
+    /// When this agent last requested work, `None` until it does. What `agents_seen_recently`
+    /// counts against its window.
+    pub(crate) last_work_request_at: Option<OffsetDateTime>,
     pub(crate) noise_key: x25519::PublicKey,
 
     /// The ed25519 identity this agent presents when opening a gateway client session.
@@ -265,21 +274,20 @@ pub(crate) struct KnownAgent {
 /// has one. A stress assignment has no wave series: its width is fixed at one by the wire type, so
 /// a histogram of it would carry no information.
 fn emit_assignment_metrics(kind: TestKind, wave_size: usize) {
-    let (assignments, wave) = match kind {
-        TestKind::MixnodeLiveness => (
-            PrometheusMetric::MixnodeLivenessAssignments,
-            Some(PrometheusMetric::MixnodeLivenessWaveSize),
-        ),
-        TestKind::GatewayLiveness => (
-            PrometheusMetric::GatewayLivenessAssignments,
-            Some(PrometheusMetric::GatewayLivenessWaveSize),
-        ),
-        TestKind::MixnodeStress => (PrometheusMetric::MixnodeStressAssignments, None),
+    PROMETHEUS_METRICS.inc_for_kind(PrometheusMetric::TestrunAssignmentsTotal, kind);
+
+    // exhaustive rather than defaulting, so a new kind has to say here whether it has a wave at all
+    let has_wave = match kind {
+        TestKind::MixnodeLiveness | TestKind::GatewayLiveness => true,
+        TestKind::MixnodeStress => false,
     };
 
-    PROMETHEUS_METRICS.inc(assignments);
-    if let Some(wave) = wave {
-        PROMETHEUS_METRICS.observe_histogram(wave, wave_size as f64);
+    if has_wave {
+        PROMETHEUS_METRICS.observe_for_kind(
+            PrometheusMetric::LivenessWaveSize,
+            kind,
+            wave_size as f64,
+        );
     }
 }
 
@@ -464,7 +472,7 @@ pub(crate) struct AppState {
 
     pub(crate) storage: NetworkMonitorStorage,
 
-    pub(crate) validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
+    pub(crate) validator_client: SigningClient,
 }
 
 impl AppState {
@@ -472,7 +480,7 @@ impl AppState {
         agents: KnownAgents,
         storage: NetworkMonitorStorage,
         schedules: Vec<KindSchedule>,
-        validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
+        validator_client: SigningClient,
     ) -> Self {
         AppState {
             agents,
@@ -704,7 +712,7 @@ impl AppState {
     /// a thousand nodes and each record is small.
     pub(crate) async fn get_epoch_aggregates(
         &self,
-        mixnet_epoch: i64,
+        mixnet_epoch: EpochId,
     ) -> Result<Vec<NodeEpochAggregates>, ApiError> {
         let aggregates = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
             Err(err) => {
@@ -735,7 +743,7 @@ impl AppState {
     /// row for a node nothing was computed for, so they cannot answer node existence anyway.
     pub(crate) async fn get_node_epoch_aggregates(
         &self,
-        mixnet_epoch: i64,
+        mixnet_epoch: EpochId,
         node_id: NodeId,
     ) -> Result<NodeEpochAggregates, ApiError> {
         let aggregates = match self
@@ -762,72 +770,55 @@ impl AppState {
             Ok(row) => row,
         };
 
-        Ok(node_record(
+        let figures = NodeEpochFigures {
             node_id,
-            mixnet_epoch,
             config_score,
-            &aggregates,
-        ))
+            aggregates: ReportedAggregates::from_rows(&aggregates),
+        };
+        Ok(node_record(figures, mixnet_epoch))
     }
 }
 
-/// One node's record for an epoch, built from its stored rows as they are reported.
-fn node_record(
-    node_id: NodeId,
-    mixnet_epoch: i64,
-    config_score: Option<MixnetEpochConfigScore>,
-    aggregates: &[MixnetEpochAggregate],
-) -> NodeEpochAggregates {
-    let reported = ReportedAggregates::from_rows(aggregates);
+/// One node's figures for an epoch, as the wire record.
+fn node_record(figures: NodeEpochFigures, mixnet_epoch: EpochId) -> NodeEpochAggregates {
     NodeEpochAggregates::new(
-        node_id,
-        mixnet_epoch as u32,
-        config_score.map(Into::into),
-        reported.liveness.map(Into::into),
-        reported.stress.map(Into::into),
+        figures.node_id,
+        mixnet_epoch,
+        figures.config_score.map(Into::into),
+        figures.aggregates.liveness.map(Into::into),
+        figures.aggregates.stress.map(Into::into),
     )
 }
 
-/// Merges an epoch's config scores and aggregates, each spanning many nodes, into one record per
-/// node that has either, ordered by node id.
+/// One record per node with a config score or an aggregate for the epoch, ordered by node id.
 ///
-/// A node can have one without the other: a backfilled epoch has aggregates but no config scores,
-/// and a described node nothing measured in the window has a config score alone. `mixnet_epoch` is
-/// passed in rather than read from a row so the result is well-formed even when neither table has
-/// anything for the epoch.
+/// `mixnet_epoch` is passed in rather than read from a row so the result is well-formed even when
+/// neither table has anything for the epoch.
 fn epoch_records(
     config_scores: &[MixnetEpochConfigScore],
     aggregates: &[MixnetEpochAggregate],
-    mixnet_epoch: i64,
+    mixnet_epoch: EpochId,
 ) -> Vec<NodeEpochAggregates> {
-    let config_scores: BTreeMap<i64, MixnetEpochConfigScore> = config_scores
-        .iter()
-        .map(|score| (score.node_id, *score))
-        .collect();
-
-    // the aggregates arrive ordered by node id, so each node's are contiguous
-    let aggregates: BTreeMap<i64, &[MixnetEpochAggregate]> = aggregates
-        .chunk_by(|a, b| a.node_id == b.node_id)
-        .map(|node_rows| (node_rows[0].node_id, node_rows))
-        .collect();
-
-    let node_ids: BTreeSet<i64> = config_scores
-        .keys()
-        .chain(aggregates.keys())
-        .copied()
-        .collect();
-
-    node_ids
+    epoch_figures(config_scores, aggregates)
         .into_iter()
-        .map(|node_id| {
-            node_record(
-                node_id as NodeId,
-                mixnet_epoch,
-                config_scores.get(&node_id).copied(),
-                aggregates.get(&node_id).copied().unwrap_or_default(),
-            )
-        })
+        .map(|figures| node_record(figures, mixnet_epoch))
         .collect()
+}
+
+#[cfg(test)]
+impl KnownAgents {
+    /// Backdates when the agent at `addresses` last requested work, standing in for one that has
+    /// gone quiet.
+    pub(crate) async fn backdate_last_work_request(
+        &self,
+        addresses: AgentMixAddresses,
+        ago: Duration,
+    ) {
+        let mut guard = self.inner.lock().await;
+        if let Some(agent) = guard.agents.get_mut(&addresses.v4) {
+            agent.last_work_request_at = Some(OffsetDateTime::now_utc() - ago);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -873,10 +864,22 @@ mod tests {
         let key = noise_key(1);
 
         assert!(!agents.try_announce_agent(addresses, key, identity(1)).await);
-        assert!(!agents.get_agent(addresses).await.unwrap().announced);
+        assert!(
+            !agents
+                .resolve_requesting_agent(addresses)
+                .await
+                .unwrap()
+                .announced
+        );
 
         agents.mark_announced(addresses).await;
-        assert!(agents.get_agent(addresses).await.unwrap().announced);
+        assert!(
+            agents
+                .resolve_requesting_agent(addresses)
+                .await
+                .unwrap()
+                .announced
+        );
 
         // a repeated announcement is now a no-op, so the caller skips the contract txs
         assert!(agents.try_announce_agent(addresses, key, identity(1)).await);
@@ -899,8 +902,67 @@ mod tests {
             .try_announce_agent(second, noise_key(2), identity(2))
             .await;
 
-        assert!(agents.get_agent(first).await.unwrap().announced);
-        assert!(!agents.get_agent(second).await.unwrap().announced);
+        assert!(
+            agents
+                .resolve_requesting_agent(first)
+                .await
+                .unwrap()
+                .announced
+        );
+        assert!(
+            !agents
+                .resolve_requesting_agent(second)
+                .await
+                .unwrap()
+                .announced
+        );
+    }
+
+    // The cache is seeded from every agent ever authorised and is never pruned, so the working
+    // fleet has to be counted from recent activity. An agent that restarted on a new address leaves
+    // its old entry behind, and that entry must stop being counted rather than inflating the fleet
+    // with every restart.
+    #[tokio::test]
+    async fn only_agents_that_requested_work_within_the_window_are_counted() {
+        let agents = KnownAgents::default();
+        let abandoned = addresses(1789);
+        let current = addresses(1790);
+
+        agents
+            .try_announce_agent(abandoned, noise_key(1), identity(1))
+            .await;
+        agents
+            .try_announce_agent(current, noise_key(2), identity(2))
+            .await;
+
+        // announcing is not asking for work
+        assert_eq!(0, agents.seen_within(Duration::from_secs(60 * 60)).await);
+
+        agents.resolve_requesting_agent(abandoned).await.unwrap();
+        agents.resolve_requesting_agent(current).await.unwrap();
+        agents
+            .backdate_last_work_request(abandoned, Duration::from_secs(30 * 60))
+            .await;
+
+        assert_eq!(2, agents.seen_within(Duration::from_secs(60 * 60)).await);
+        assert_eq!(1, agents.seen_within(Duration::from_secs(15 * 60)).await);
+    }
+
+    // a restart restores every agent ever authorised, so counting them before they ask for work
+    // would inflate the fleet for a whole window and then read as a loss
+    #[tokio::test]
+    async fn restored_agents_are_not_counted_until_they_request_work() {
+        let agent = addresses(1789);
+        let restored = KnownAgents::try_from(vec![
+            authorisation(agent.v4, noise_key(1), Some(identity(1))),
+            authorisation(agent.v6, noise_key(1), Some(identity(1))),
+        ])
+        .unwrap();
+
+        assert_eq!(0, restored.seen_within(Duration::from_secs(60 * 60)).await);
+
+        restored.resolve_requesting_agent(agent).await.unwrap();
+        assert_eq!(1, restored.seen_within(Duration::from_secs(60 * 60)).await);
     }
 
     // the entry belongs to the announced pair, not to the ipv4 address alone
@@ -917,7 +979,7 @@ mod tests {
             v6: "[bbbb::1]:1789".parse().unwrap(),
             ..announced
         };
-        assert!(agents.get_agent(other_v6).await.is_none());
+        assert!(agents.resolve_requesting_agent(other_v6).await.is_none());
     }
 
     #[tokio::test]
@@ -944,7 +1006,7 @@ mod tests {
             };
             assert!(!agents.try_announce_agent(changed, key, identity(1)).await);
 
-            let agent = agents.get_agent(changed).await.unwrap();
+            let agent = agents.resolve_requesting_agent(changed).await.unwrap();
             assert!(!agent.announced);
             assert_eq!(agent.mix_v6, changed.v6);
             assert_eq!(agent.noise_key, key);
@@ -970,7 +1032,7 @@ mod tests {
                 .await
         );
 
-        let agent = agents.get_agent(announced).await.unwrap();
+        let agent = agents.resolve_requesting_agent(announced).await.unwrap();
         assert!(!agent.announced);
         assert_eq!(agent.ed25519_identity, identity(2));
     }
@@ -990,13 +1052,13 @@ mod tests {
         ])
         .unwrap();
 
-        let restored_first = restored.get_agent(first).await.unwrap();
+        let restored_first = restored.resolve_requesting_agent(first).await.unwrap();
         assert_eq!(restored_first.mix_v6, first.v6);
         assert_eq!(restored_first.noise_key, first_key);
         assert_eq!(restored_first.ed25519_identity, first_identity);
         assert!(restored_first.announced);
 
-        let restored_second = restored.get_agent(second).await.unwrap();
+        let restored_second = restored.resolve_requesting_agent(second).await.unwrap();
         assert_eq!(restored_second.mix_v6, second.v6);
         assert_eq!(restored_second.noise_key, second_key);
         assert_eq!(restored_second.ed25519_identity, second_identity);
@@ -1013,7 +1075,7 @@ mod tests {
         let id = Some(identity(1));
 
         let v4_only = KnownAgents::try_from(vec![authorisation(agent.v4, key, id)]).unwrap();
-        assert!(v4_only.get_agent(agent).await.is_none());
+        assert!(v4_only.resolve_requesting_agent(agent).await.is_none());
 
         let stale_v6 = KnownAgents::try_from(vec![
             authorisation(agent.v4, key, id),
@@ -1021,7 +1083,7 @@ mod tests {
             authorisation("[bbbb::1]:1789".parse().unwrap(), key, id),
         ])
         .unwrap();
-        assert!(stale_v6.get_agent(agent).await.is_none());
+        assert!(stale_v6.resolve_requesting_agent(agent).await.is_none());
     }
 
     // a pair that doesn't carry one identity across both entries is dropped rather than restored
@@ -1047,7 +1109,7 @@ mod tests {
                 authorisation(agent.v6, key, v6_identity),
             ])
             .unwrap();
-            assert!(restored.get_agent(agent).await.is_none());
+            assert!(restored.resolve_requesting_agent(agent).await.is_none());
         }
     }
 }

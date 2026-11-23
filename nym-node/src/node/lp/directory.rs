@@ -32,7 +32,7 @@ impl LpNodes {
         Self::default()
     }
 
-    pub(crate) fn get_node_details(&self, node_ip: IpAddr) -> Option<LpNodeDetails> {
+    pub fn get_node_details(&self, node_ip: IpAddr) -> Option<LpNodeDetails> {
         self.nodes.load().get(&node_ip.to_canonical()).cloned()
     }
 

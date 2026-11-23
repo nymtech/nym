@@ -61,8 +61,6 @@ const DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY: usize = 8;
 /// estimating timestamps of pruned (no longer servable) heights.
 const DEFAULT_NODE_FAMILIES_BLOCK_TIME_ESTIMATION_LOOKBACK: u32 = 100;
 const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
-const DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS: u32 = 12;
-const DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS: usize = 25;
 
 pub(crate) const DEFAULT_ADDRESS_CACHE_TTL: Duration = Duration::from_secs(60 * 15);
 pub(crate) const DEFAULT_ADDRESS_CACHE_CAPACITY: u64 = 1000;
@@ -513,8 +511,9 @@ impl Default for NodeFamiliesCacheDebug {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct PerformanceProvider {
-    /// Specifies whether this nym-api should attempt to retrieve node performance
-    /// information from the performance contract.
+    /// Contract mode: on the nym-api that rewards, rewarding and active-set selection use the
+    /// performance contract's figure, and every nym-api publishes the contract's verified routing
+    /// figure as each node's performance; nym-api computes no figure of its own.
     pub use_performance_contract_data: bool,
 
     /// Which properties contribute to a node's score, and in what proportion.
@@ -577,7 +576,9 @@ impl PerformanceProvider {
     }
 
     fn validate(&self) -> anyhow::Result<()> {
-        self.scoring.validate(self.use_performance_contract_data)?;
+        // checked in both modes, although it has no effect while the contract's figure is used,
+        // so that turning the switch on or off leaves the weights in force untouched
+        self.scoring.validate()?;
         self.debug.validate()
     }
 }
@@ -670,7 +671,7 @@ impl PerformanceProviderScoring {
         self.named().into_iter().filter(|(_, p)| p.enabled)
     }
 
-    fn validate(&self, use_performance_contract_data: bool) -> anyhow::Result<()> {
+    fn validate(&self) -> anyhow::Result<()> {
         for (name, property) in self.named() {
             if property.weight < 0.0 || property.weight > 1.0 || !property.weight.is_finite() {
                 bail!(
@@ -678,18 +679,6 @@ impl PerformanceProviderScoring {
                      the range [0.0, 1.0]"
                 );
             }
-        }
-
-        // the contract provider serves none of these, so enabling one alongside it would ask for
-        // a measurement that provider structurally cannot supply
-        if use_performance_contract_data {
-            if let Some((name, _)) = self.enabled().next() {
-                bail!(
-                    "[performance_provider.scoring.{name}] cannot be enabled while \
-                     [performance_provider].use_performance_contract_data is also enabled"
-                );
-            }
-            return Ok(());
         }
 
         // a node's delivery score is the weighted mean of whatever applies to it, so with nothing
@@ -747,20 +736,11 @@ impl PerformanceProviderScoring {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct PerformanceProviderDebug {
-    /// Specifies interval of polling the performance contract. Note it is only applicable
-    /// if the contract data is being used.
-    /// Further note that if there have been no updates to the cache, the performance overhead is negligible
-    /// (i.e. there will be only a single query performed to check if anything has changed)
+    /// Interval at which the window of the performance contract's data is polled; the window is
+    /// held only with `[rewarding].enabled`. A poll finding no new submission costs a single query,
+    /// plus a weights read when the epoch has moved on.
     #[serde(with = "humantime_serde")]
     pub contract_polling_interval: Duration,
-
-    /// Specify the maximum number of epochs we can fallback to if given epoch's performance data
-    /// is not available in the contract
-    pub max_performance_fallback_epochs: u32,
-
-    /// Specify the maximum number of epoch entries to be kept in the cache in case we needed non-current data
-    // (currently we need an equivalent of full day worth of data for legacy endpoints)
-    pub max_epoch_entries_to_retain: usize,
 
     /// If `stress_testing` is enabled, this specifies the minimum % of nodes,
     /// that must have their stress data available in the `stress_testing_data_period`,
@@ -829,8 +809,6 @@ impl Default for PerformanceProviderDebug {
     fn default() -> Self {
         PerformanceProviderDebug {
             contract_polling_interval: DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL,
-            max_performance_fallback_epochs: DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS,
-            max_epoch_entries_to_retain: DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS,
 
             minimum_available_stress_testing_results: DEFAULT_MIN_STRESS_TESTED_NODES,
             chain_interactions_penalty: DEFAULT_CHAIN_INTERACTIONS_PENALTY,
@@ -1243,21 +1221,22 @@ impl DirectoryConfig {
     }
 }
 
+/// Shared by every attested contract's snapshots, not only the directory's.
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct DirectoryConfigDebug {
-    /// Number of snapshots to keep
+    /// Number of snapshots to keep.
     pub retention_count: usize,
 
     /// Number of blocks to wait before promoting the most recently pulled snapshot as latest.
     pub settle_lag: usize,
 
-    /// Specifies whether the RPC node this api is connected to is trusted.
-    /// It controls method of anchoring directory trust.
+    /// Specifies whether the RPC node this api is connected to is trusted, which decides how
+    /// chain trust is anchored: a proven read through it, or a light client.
     pub trusted_rpc_node: bool,
 
     /// How often the chain should be polled for the current height
-    /// and consequently for whether new snapshot should be taken
+    /// and consequently for whether new snapshot should be taken.
     #[serde(with = "humantime_serde")]
     pub polling_interval: Duration,
 }
@@ -1352,6 +1331,53 @@ mod tests {
         let err = provider.validate().unwrap_err().to_string();
         assert!(err.contains("must sum to 1.0"), "got: {err}");
     }
+
+    fn contract_mode() -> PerformanceProvider {
+        PerformanceProvider {
+            use_performance_contract_data: true,
+            ..Default::default()
+        }
+    }
+
+    /// The switch needs no other setting, and the flip leaves the scoring section as it is, so a
+    /// rollback restores exactly its weights.
+    #[test]
+    fn the_switch_validates_alone_with_the_default_scoring_section() {
+        let provider = contract_mode();
+
+        assert!(provider.scoring.legacy_v1_routing.enabled);
+        assert!(provider.validate().is_ok());
+    }
+
+    #[test]
+    fn the_scoring_rules_still_apply_with_the_switch_on() {
+        let mut provider = contract_mode();
+        provider.scoring.stress_testing = ScoreProperty::new(true, 0.3);
+        let err = provider.validate().unwrap_err().to_string();
+        assert!(err.contains("must sum to 1.0"), "got: {err}");
+
+        let mut provider = contract_mode();
+        provider.scoring.legacy_v1_routing.enabled = false;
+        provider.scoring.stress_testing = ScoreProperty::new(true, 1.0);
+        let err = provider.validate().unwrap_err().to_string();
+        assert!(err.contains("gateways unscoreable"), "got: {err}");
+    }
+
+    #[test]
+    fn a_config_setting_the_removed_knobs_loads() {
+        let provider: PerformanceProvider = toml::from_str(
+            r#"
+            read_performance_contract = true
+
+            [debug]
+            max_performance_fallback_epochs = 3
+            max_epoch_entries_to_retain = 7
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(provider, PerformanceProvider::default());
+    }
 }
 
 #[cfg(test)]
@@ -1373,9 +1399,13 @@ mod template_tests {
             assert!(rendered.contains(expected), "missing {expected}");
         }
 
-        // the moved keys must not be advertised any more, or a fresh config would be born
-        // carrying deprecated fields and warning on every start
-        for gone in ["use_stress_testing_data", "use_liveness_data"] {
+        // the moved and removed keys must not be advertised any more, or a fresh config would be
+        // born carrying deprecated fields and warning on every start, or setting one that is ignored
+        for gone in [
+            "use_stress_testing_data",
+            "use_liveness_data",
+            "read_performance_contract",
+        ] {
             assert!(!rendered.contains(gone), "template still emits {gone}");
         }
 

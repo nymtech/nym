@@ -90,7 +90,7 @@
       "additionalProperties": false
     },
     {
-      "description": "Paginated enumeration of all node entries, ordered by their key string.",
+      "description": "Paginated enumeration of all node entries, ordered by their (node_id, label) composite key",
       "type": "object",
       "required": [
         "node_entries_paged"
@@ -241,6 +241,20 @@
       ],
       "properties": {
         "allowed_labels": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "The current snapshot interval.",
+      "type": "object",
+      "required": [
+        "snapshot_interval"
+      ],
+      "properties": {
+        "snapshot_interval": {
           "type": "object",
           "additionalProperties": false
         }

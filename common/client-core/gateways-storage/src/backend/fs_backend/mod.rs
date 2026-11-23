@@ -3,12 +3,15 @@
 
 use crate::{
     ActiveGateway, BadGateway, GatewayDetails, GatewayPublishedData, GatewayRegistration,
-    GatewayType, GatewaysDetailsStore, StorageError,
+    GatewayType, GatewaysDetailsStore, GenerationId, StorageError,
 };
 use async_trait::async_trait;
 use manager::StorageManager;
 use nym_crypto::asymmetric::ed25519;
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use std::path::Path;
+use std::sync::Arc;
+use zeroize::Zeroizing;
 
 pub mod error;
 mod manager;
@@ -19,9 +22,15 @@ pub struct OnDiskGatewaysDetails {
 }
 
 impl OnDiskGatewaysDetails {
-    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+    /// Opens the gateway registrations database at `database_path`. With `key`, it's encrypted
+    /// with SQLCipher using the raw 256-bit key, and an existing plaintext database is encrypted in
+    /// place first.
+    pub async fn init<P: AsRef<Path>>(
+        database_path: P,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
+    ) -> Result<Self, StorageError> {
         Ok(OnDiskGatewaysDetails {
-            manager: StorageManager::init(database_path).await?,
+            manager: StorageManager::init(database_path, key).await?,
         })
     }
 }
@@ -146,6 +155,23 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
         Ok(())
     }
 
+    async fn update_gateway_keys(
+        &self,
+        gateway_id: &ed25519::PublicKey,
+        generation_id: GenerationId,
+        shared_key: Arc<SharedSymmetricKey>,
+    ) -> Result<(), Self::StorageError> {
+        let shared_key = Zeroizing::new(shared_key.to_bytes());
+        self.manager
+            .update_remote_gateway_keys(
+                &gateway_id.to_base58_string(),
+                generation_id.as_bytes(),
+                &shared_key,
+            )
+            .await?;
+        Ok(())
+    }
+
     // ideally all of those should be run under a storage tx to ensure storage consistency,
     // but at that point it's fine
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {
@@ -156,14 +182,113 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
             }
         }
 
-        // just try remove it from all tables even if it doesn't actually exist
-        self.manager.remove_registered_gateway(gateway_id).await?;
+        // just try remove it from all tables even if it doesn't actually exist; the details rows
+        // reference the registered one, so they go first
         self.manager
             .remove_remote_gateway_details(gateway_id)
             .await?;
         self.manager
             .remove_custom_gateway_details(gateway_id)
             .await?;
+        self.manager.remove_registered_gateway(gateway_id).await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::RemoteGatewayDetails;
+    use nym_gateway_client::client::GatewayListeners;
+    use nym_test_utils::helpers::{deterministic_rng, dummy_ed25519_keypair};
+
+    async fn in_memory_store() -> OnDiskGatewaysDetails {
+        let connection_pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!("./fs_gateways_migrations")
+            .run(&connection_pool)
+            .await
+            .unwrap();
+        OnDiskGatewaysDetails {
+            manager: StorageManager { connection_pool },
+        }
+    }
+
+    fn shared_key(byte: u8) -> Arc<SharedSymmetricKey> {
+        Arc::new(SharedSymmetricKey::try_from_bytes(&[byte; 32]).unwrap())
+    }
+
+    fn remote_registration(
+        gateway_seed: u64,
+        generation_id: Option<GenerationId>,
+    ) -> GatewayRegistration {
+        let listeners = GatewayListeners {
+            primary: "ws://127.0.0.1:9000".parse().unwrap(),
+            fallback: None,
+        };
+        GatewayDetails::Remote(RemoteGatewayDetails {
+            gateway_id: *dummy_ed25519_keypair(gateway_seed).public_key(),
+            shared_key: shared_key(1),
+            published_data: GatewayPublishedData::new(listeners),
+            generation_id,
+        })
+        .into()
+    }
+
+    #[tokio::test]
+    async fn generation_id_round_trips() {
+        let store = in_memory_store().await;
+        let generation_ids = [
+            None,
+            Some(GenerationId::new_random(&mut deterministic_rng())),
+        ];
+
+        for (gateway_seed, generation_id) in (1..).zip(generation_ids) {
+            let registration = remote_registration(gateway_seed, generation_id);
+            store.store_gateway_details(&registration).await.unwrap();
+
+            let loaded = store
+                .load_gateway_details(&registration.gateway_id().to_base58_string())
+                .await
+                .unwrap();
+            assert_eq!(loaded.details.generation_id(), generation_id);
+        }
+    }
+
+    #[tokio::test]
+    async fn updating_gateway_keys_keeps_the_gateway_registered_and_active() {
+        let store = in_memory_store().await;
+        let mut rng = deterministic_rng();
+        let registration = remote_registration(1, Some(GenerationId::new_random(&mut rng)));
+        let gateway_id = registration.gateway_id();
+        store.store_gateway_details(&registration).await.unwrap();
+        store
+            .set_active_gateway(&gateway_id.to_base58_string())
+            .await
+            .unwrap();
+
+        let generation_id = GenerationId::new_random(&mut rng);
+        store
+            .update_gateway_keys(&gateway_id, generation_id, shared_key(2))
+            .await
+            .unwrap();
+
+        let active = store.active_gateway().await.unwrap().registration.unwrap();
+        assert_eq!(active.gateway_id(), gateway_id);
+        assert_eq!(active.details.generation_id(), Some(generation_id));
+        assert_eq!(active.details.shared_key(), Some(&*shared_key(2)));
+    }
+
+    #[tokio::test]
+    async fn removing_the_active_gateway_leaves_no_registration() {
+        let store = in_memory_store().await;
+        let registration = remote_registration(1, None);
+        let gateway_id = registration.gateway_id().to_base58_string();
+        store.store_gateway_details(&registration).await.unwrap();
+        store.set_active_gateway(&gateway_id).await.unwrap();
+
+        store.remove_gateway_details(&gateway_id).await.unwrap();
+
+        assert!(!store.has_gateway_details(&gateway_id).await.unwrap());
+        assert!(store.active_gateway().await.unwrap().registration.is_none());
     }
 }

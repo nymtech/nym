@@ -82,7 +82,7 @@ impl InnerHeader {
 
         // everything below decodes the V1 layout; a version that changes it must add its own
         // branch here rather than inheriting V1's by default
-        if protocol_version != version::V1 {
+        if protocol_version != version::V1 && protocol_version != version::V2 {
             return Err(MalformedLpPacketError::UnsupportedPacketVersion {
                 got: protocol_version,
             });
@@ -142,5 +142,24 @@ impl LpHeader {
     /// Get the sender index from the header
     pub fn receiver_idx(&self) -> LpReceiverIndex {
         self.outer.receiver_idx
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_v2_header_parses_with_the_v1_layout() {
+        let header = InnerHeader::parse(&[version::V2, 0, 0, 0]).unwrap();
+        assert_eq!(header.protocol_version, version::V2);
+    }
+
+    #[test]
+    fn an_unknown_version_is_still_rejected() {
+        assert!(matches!(
+            InnerHeader::parse(&[version::CURRENT + 1, 0, 0, 0]),
+            Err(MalformedLpPacketError::UnsupportedPacketVersion { .. })
+        ));
     }
 }

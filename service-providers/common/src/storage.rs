@@ -44,6 +44,7 @@ impl EmbeddedProviderStorage {
 
         let reply_store = non_wasm_helpers::setup_fs_reply_surb_backend(
             paths.reply_surb_database,
+            None,
             &debug_config.reply_surbs,
         )
         .await?;
@@ -51,7 +52,7 @@ impl EmbeddedProviderStorage {
         let credential_store = nym_credential_storage::initialise_ephemeral_storage();
 
         let gateway_details_store =
-            non_wasm_helpers::setup_fs_gateways_storage(paths.gateway_registrations).await?;
+            non_wasm_helpers::setup_fs_gateways_storage(paths.gateway_registrations, None).await?;
 
         Ok(EmbeddedProviderStorage {
             key_store,

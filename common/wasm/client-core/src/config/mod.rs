@@ -133,6 +133,8 @@ impl From<DebugWasm> for ConfigDebug {
             stats_reporting: debug.stats_reporting.into(),
             forget_me: debug.forget_me.into(),
             remember_me: debug.remember_me.into(),
+            // LP is never started in the browser (for now)
+            lewes_protocol: Default::default(),
         }
     }
 }

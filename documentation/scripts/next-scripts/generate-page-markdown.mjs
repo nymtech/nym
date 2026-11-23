@@ -4,9 +4,9 @@
  * Emits one clean Markdown file per docs page under public/, mirroring the page
  * tree, so every page is fetchable as raw markdown:
  *
- *   pages/developers/mcp.mdx      -> public/developers/mcp.md   (/docs/developers/mcp.md)
- *   pages/developers/index.mdx    -> public/developers.md       (/docs/developers.md)
- *   pages/index.mdx               -> public/index.md            (/docs/index.md)
+ *   content/use-with-ai/mcp.mdx   -> public/use-with-ai/mcp.md  (/docs/use-with-ai/mcp.md)
+ *   content/developers/index.mdx  -> public/developers.md       (/docs/developers.md)
+ *   content/index.mdx             -> public/index.md            (/docs/index.md)
  *
  * Once each page has a dereferenceable .md, the "copy as markdown" / "open in
  * Claude" buttons and the llms.txt index all point at these files.

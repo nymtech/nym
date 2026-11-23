@@ -6,8 +6,15 @@ async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "fs-gateways-storage")]
     {
         use anyhow::Context;
+        use sqlx::migrate::Migrator;
         use sqlx::{Connection, SqliteConnection};
         use std::env;
+        use std::path::Path;
+
+        const MIGRATIONS_DIR: &str = "fs_gateways_migrations";
+
+        // re-run whenever a migration is added or changed, so the `query!` checks see the current schema
+        println!("cargo:rerun-if-changed={MIGRATIONS_DIR}");
 
         let out_dir = env::var("OUT_DIR")?;
         let database_path = format!("{out_dir}/gateways-storage-example.sqlite");
@@ -22,7 +29,10 @@ async fn main() -> anyhow::Result<()> {
             .await
             .context("Failed to create SQLx database connection")?;
 
-        sqlx::migrate!("./fs_gateways_migrations")
+        // read at run time: `sqlx::migrate!` would bake in the set from when this script was compiled
+        Migrator::new(Path::new(MIGRATIONS_DIR))
+            .await
+            .context("Failed to read SQLx migrations")?
             .run(&mut conn)
             .await
             .context("Failed to perform SQLx migrations")?;

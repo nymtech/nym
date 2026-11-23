@@ -556,6 +556,10 @@ apply_smtps_465_rate_limit() {
 ###############################################################################
 
 NETWORK_FIREWALL_COMMENT="NYM-NETWORK-FW"
+UFW_MIGRATED_COMMENT="NYM-UFW-MIGRATED"
+# address families ufw managed before NTM took over (written once, at migration)
+UFW_FAMILIES_FILE="/etc/iptables/ntm-ufw-families"
+UFW_BACKUP_DIR=""
 HOST_SSH_PORT="${HOST_SSH_PORT:-22}"
 NETWORK_FIREWALL_TCP_PORTS=("$HOST_SSH_PORT" 80 443 1789 1790 4422 4443 8080 9000 9001 41264)
 NETWORK_FIREWALL_UDP_PORTS=(4443 51822 51264)
@@ -573,8 +577,17 @@ validate_port_value() {
 
 validate_port_value "HOST_SSH_PORT" "$HOST_SSH_PORT"
 
+# inbound policy once the allow rules are in place: DROP (default, ufw-like: everything
+# not allowed below is dropped) or KEEP (leave the existing INPUT policy untouched)
+HOST_INPUT_POLICY="${HOST_INPUT_POLICY:-DROP}"
+HOST_INPUT_POLICY="${HOST_INPUT_POLICY^^}"
+if [[ "$HOST_INPUT_POLICY" != "DROP" && "$HOST_INPUT_POLICY" != "KEEP" ]]; then
+  error "invalid HOST_INPUT_POLICY='${HOST_INPUT_POLICY}'. expected DROP or KEEP"
+  exit 1
+fi
+
 build_network_firewall_status_pattern() {
-  local patterns=("$NETWORK_FIREWALL_COMMENT")
+  local patterns=("$NETWORK_FIREWALL_COMMENT" "$UFW_MIGRATED_COMMENT")
   local port
 
   for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}" "${NETWORK_FIREWALL_UDP_PORTS[@]}" "$NETWORK_FIREWALL_WG_TCP_PORT"; do
@@ -615,14 +628,284 @@ add_input_port_rule() {
   fi
 }
 
+# inserted at the top of INPUT, ahead of everything else
+add_managed_input_rule() {
+  local cmd="$1"
+  shift
+  if ! $cmd -C INPUT "$@" -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+    $cmd -I INPUT 1 "$@" -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT
+  fi
+}
+
+# what any default-deny host needs, first in INPUT like ufw's before-rules: loopback,
+# replies to its own traffic, icmp, dhcp (inserted in reverse, each goes to the top)
+add_base_input_rules() {
+  local cmd="$1"
+  if [[ "$cmd" == "iptables" ]]; then
+    add_managed_input_rule "$cmd" -p udp --sport 67 --dport 68
+    add_managed_input_rule "$cmd" -p icmp --icmp-type echo-request
+  else
+    add_managed_input_rule "$cmd" -p udp --sport 547 --dport 546
+    # icmpv6 carries neighbor discovery and path mtu; ipv6 breaks without it. same types
+    # ufw's before6.rules accepts (neighbor discovery only with hop limit 255, i.e. on-link)
+    local rule
+    local icmpv6_rules=(
+      "--icmpv6-type echo-reply"
+      "--icmpv6-type destination-unreachable"
+      "--icmpv6-type packet-too-big"
+      "--icmpv6-type time-exceeded"
+      "--icmpv6-type parameter-problem"
+      "--icmpv6-type echo-request"
+      "--icmpv6-type router-solicitation -m hl --hl-eq 255"
+      "--icmpv6-type router-advertisement -m hl --hl-eq 255"
+      "--icmpv6-type neighbor-solicitation -m hl --hl-eq 255"
+      "--icmpv6-type neighbor-advertisement -m hl --hl-eq 255"
+      "--icmpv6-type 141 -m hl --hl-eq 255"
+      "--icmpv6-type 142 -m hl --hl-eq 255"
+      "--icmpv6-type 130 -s fe80::/10"
+      "--icmpv6-type 131 -s fe80::/10"
+      "--icmpv6-type 132 -s fe80::/10"
+      "--icmpv6-type 143 -s fe80::/10"
+      "--icmpv6-type 148 -m hl --hl-eq 255"
+      "--icmpv6-type 149 -m hl --hl-eq 255"
+      "--icmpv6-type 151 -s fe80::/10 -m hl --hl-eq 1"
+      "--icmpv6-type 152 -s fe80::/10 -m hl --hl-eq 1"
+      "--icmpv6-type 153 -s fe80::/10 -m hl --hl-eq 1"
+      "--icmpv6-type 144"
+      "--icmpv6-type 145"
+      "--icmpv6-type 146"
+      "--icmpv6-type 147"
+    )
+    for rule in "${icmpv6_rules[@]}"; do
+      # shellcheck disable=SC2086 # rule spec, word splitting intended
+      add_managed_input_rule "$cmd" -p ipv6-icmp $rule
+    done
+  fi
+  add_managed_input_rule "$cmd" -m conntrack --ctstate ESTABLISHED,RELATED
+  add_managed_input_rule "$cmd" -i lo
+}
+
+# every port ssh must stay reachable on: HOST_SSH_PORT, the port(s) sshd is configured
+# on, and the port of the current ssh session - a custom ssh port can't lock you out
+detect_ssh_ports() {
+  {
+    echo "$HOST_SSH_PORT"
+    sshd -T 2>/dev/null | awk '$1 == "port" {print $2}' || true
+    ss -Htlnp 2>/dev/null | awk '/"sshd/ {n = split($4, a, ":"); print a[n]}' || true
+    if [[ -n "${SSH_CONNECTION:-}" ]]; then awk '{print $4}' <<< "$SSH_CONNECTION"; fi
+  } | grep -E '^[0-9]+$' | sort -un
+}
+
+# re-add operator ufw rules to the matching built-in chain, at the top and in their original
+# order, so first-match precedence (an allow before a deny, or the other way round) is kept
+migrate_ufw_rules() {
+  local cmd="$1"
+  local chain="$2"
+  local rules="$3"
+  local line spec pos=1
+
+  [[ -z "$rules" ]] && return 0
+  while IFS= read -r line; do
+    spec="$(sed -E 's/^-A ufw6?-user-(input|output|forward) //' <<< "$line")"
+    case "$spec" in
+      # ufw limit = track, reject over the limit, accept: keep all three
+      *" -j ufw-user-limit-accept" | *" -j ufw6-user-limit-accept") spec="${spec% -j *} -j ACCEPT" ;;
+      *" -j ufw-user-limit" | *" -j ufw6-user-limit") spec="${spec% -j *} -j REJECT" ;;
+      *"-j ufw"*) continue ;; # ufw logging
+    esac
+    spec="$(sed -E 's/ -m comment --comment ("([^"\\]|\\.)*"|[^ ]+)//' <<< "$spec")"
+    # shellcheck disable=SC2086 # spec is an iptables rule spec, word splitting intended
+    $cmd -I "$chain" "$pos" $spec -m comment --comment "$UFW_MIGRATED_COMMENT"
+    pos=$((pos + 1))
+  done <<< "$rules"
+  ok "$cmd: migrated $((pos - 1)) ufw rule(s) to $chain"
+}
+
+ufw_is_active() {
+  command -v ufw >/dev/null 2>&1 && [[ "$(ufw status 2>/dev/null)" == *"Status: active"* ]]
+}
+
+# NTM requires outbound traffic allowed; it won't take over a ufw that denies it
+ufw_denies_outgoing() {
+  ufw_is_active && [[ "$(ufw status verbose 2>/dev/null)" =~ (deny|reject)\ \(outgoing\) ]]
+}
+
+# a migrated ufw rule allows this port (possibly only from some sources): leave it to that
+# rule, an extra open-to-all allow from NTM would widen it. covers a single port, a range
+# (a:b), a multiport list, and rules without any port (e.g. "allow from <ip>")
+port_allowed_by_ufw_rule() {
+  local port="$1"
+  local cmd="$2"
+  local rule ports item items
+  while read -r rule; do
+    [[ "$rule" == *" -j ACCEPT"* ]] || continue
+    [[ "$rule" == *" -p udp "* ]] && continue
+    if [[ "$rule" =~ --dports?\ ([0-9:,]+) ]]; then
+      ports="${BASH_REMATCH[1]}"
+    elif [[ "$rule" == *" -p tcp "* || "$rule" != *" -p "* ]]; then
+      return 0 # no port: the rule covers every port
+    else
+      continue
+    fi
+    IFS=',' read -ra items <<< "$ports"
+    for item in "${items[@]}"; do
+      if [[ "$item" == *:* ]]; then
+        (( port >= ${item%%:*} && port <= ${item##*:} )) && return 0
+      else
+        (( port == item )) && return 0
+      fi
+    done
+  done < <($cmd -S INPUT 2>/dev/null | grep -F -- "$UFW_MIGRATED_COMMENT" || true)
+  return 1
+}
+
+# leave this ssh port to the migrated ufw rules in this address family? yes when a rule here
+# covers it; also yes in a family ufw managed when only the other family has a rule (ufw kept
+# the port closed here). a family ufw never managed gets NTM's normal ssh allow
+ssh_port_left_to_ufw() {
+  local port="$1"
+  local cmd="$2"
+  port_allowed_by_ufw_rule "$port" "$cmd" && return 0
+  if grep -qw -- "$cmd" "$UFW_FAMILIES_FILE" 2>/dev/null; then
+    port_allowed_by_ufw_rule "$port" iptables || port_allowed_by_ufw_rule "$port" ip6tables
+    return
+  fi
+  return 1
+}
+
+# ufw disable empties its chains but leaves them and their jumps behind; remove both
+remove_ufw_chains() {
+  local cmd="$1"
+  local chain rule
+  for chain in INPUT OUTPUT FORWARD; do
+    while read -r rule; do
+      [[ -z "$rule" ]] && continue
+      # shellcheck disable=SC2086 # rule spec, word splitting intended
+      $cmd -D "$chain" ${rule#-A "$chain" } 2>/dev/null || true
+    done < <($cmd -S "$chain" 2>/dev/null | grep -E -- '-j ufw6?-' || true)
+  done
+  while read -r chain; do
+    [[ -n "$chain" ]] && $cmd -F "$chain" 2>/dev/null || true
+  done < <($cmd -S 2>/dev/null | awk '$1 == "-N" && $2 ~ /^ufw6?-/ {print $2}')
+  while read -r chain; do
+    [[ -n "$chain" ]] && $cmd -X "$chain" 2>/dev/null || true
+  done < <($cmd -S 2>/dev/null | awk '$1 == "-N" && $2 ~ /^ufw6?-/ {print $2}')
+}
+
+# older deployments ran ufw on every node. NTM owns the host firewall now, so take over:
+# ufw's chains (and a REJECT default) would otherwise sit in front of NTM's rules
+# snapshot the firewall exactly as it is, before NTM changes anything
+backup_ufw_state() {
+  [[ -n "$UFW_BACKUP_DIR" ]] && return 0 # already taken earlier in this run
+  UFW_BACKUP_DIR="/etc/iptables/pre-ntm-ufw-$(date +%F-%H%M%S)"
+  mkdir -p "$UFW_BACKUP_DIR"
+  ufw status verbose > "$UFW_BACKUP_DIR/ufw-status.txt" 2>&1 || true
+  iptables-save > "$UFW_BACKUP_DIR/rules.v4"
+  ip6tables-save > "$UFW_BACKUP_DIR/rules.v6" 2>/dev/null || true
+  # iptables-save skips tables that were never used; add them empty, so a restore also
+  # flushes what this run adds there (e.g. the tunnel's nat rules)
+  local file table
+  for file in "$UFW_BACKUP_DIR/rules.v4" "$UFW_BACKUP_DIR/rules.v6"; do
+    for table in nat mangle; do
+      grep -q "^\*${table}$" "$file" || printf '*%s\nCOMMIT\n' "$table" >> "$file"
+    done
+  done
+  cat > "$UFW_BACKUP_DIR/RESTORE.txt" <<EOF
+restore the firewall as it was before NTM took over from ufw:
+  iptables-restore < $UFW_BACKUP_DIR/rules.v4
+  ip6tables-restore < $UFW_BACKUP_DIR/rules.v6
+  ufw --force enable
+then remove /etc/iptables/rules.v4 and rules.v6 (or re-save them) so the NTM state is not restored at boot
+EOF
+}
+
+migrate_from_ufw() {
+  ufw_is_active || return 0
+  warn "ufw is active: NTM takes over the host firewall and disables ufw (backup: $UFW_BACKUP_DIR)"
+
+  local rules_v4 rules_v6 out_v4 out_v6 fwd_v4 fwd_v6 forward_v4 forward_v6
+  rules_v4="$(iptables -S ufw-user-input 2>/dev/null | grep '^-A ' || true)"
+  rules_v6="$(ip6tables -S ufw6-user-input 2>/dev/null | grep '^-A ' || true)"
+  out_v4="$(iptables -S ufw-user-output 2>/dev/null | grep '^-A ' || true)"
+  out_v6="$(ip6tables -S ufw6-user-output 2>/dev/null | grep '^-A ' || true)"
+  fwd_v4="$(iptables -S ufw-user-forward 2>/dev/null | grep '^-A ' || true)"
+  fwd_v6="$(ip6tables -S ufw6-user-forward 2>/dev/null | grep '^-A ' || true)"
+  forward_v4="$(iptables -S FORWARD | awk 'NR==1 {print $3}')"
+  forward_v6="$(ip6tables -S FORWARD 2>/dev/null | awk 'NR==1 {print $3}' || true)"
+
+  local families="iptables"
+  ip6tables -S ufw6-user-input >/dev/null 2>&1 && families+=" ip6tables"
+  echo "$families" > "$UFW_FAMILIES_FILE"
+
+  ufw disable >/dev/null
+  remove_ufw_chains iptables
+  remove_ufw_chains ip6tables
+
+  # ufw disable resets FORWARD to ACCEPT; keep what the host had
+  iptables -P FORWARD "$forward_v4"
+  [[ -n "$forward_v6" ]] && ip6tables -P FORWARD "$forward_v6"
+
+  migrate_ufw_rules iptables INPUT "$rules_v4"
+  migrate_ufw_rules ip6tables INPUT "$rules_v6"
+  migrate_ufw_rules iptables OUTPUT "$out_v4"
+  migrate_ufw_rules ip6tables OUTPUT "$out_v6"
+  migrate_ufw_rules iptables FORWARD "$fwd_v4"
+  migrate_ufw_rules ip6tables FORWARD "$fwd_v6"
+  # ufw accepted replies to routed traffic in its before-rules; keep that for migrated routes
+  if [[ -n "$fwd_v4" ]]; then
+    iptables -I FORWARD 1 -m conntrack --ctstate RELATED,ESTABLISHED -m comment --comment "$UFW_MIGRATED_COMMENT" -j ACCEPT
+  fi
+  if [[ -n "$fwd_v6" ]]; then
+    ip6tables -I FORWARD 1 -m conntrack --ctstate RELATED,ESTABLISHED -m comment --comment "$UFW_MIGRATED_COMMENT" -j ACCEPT
+  fi
+}
+
+# refuse before anything is changed: a nym node needs outbound traffic allowed
+ufw_takeover_preflight() {
+  if [[ "$HOST_INPUT_POLICY" == "DROP" ]] && ufw_denies_outgoing; then
+    error "ufw is active and denies outgoing traffic; a nym node needs outbound allowed. nothing was changed."
+    error "allow outgoing in ufw ('ufw default allow outgoing') and rerun, or rerun with HOST_INPUT_POLICY=KEEP"
+    return 1
+  fi
+}
+
 configure_network_firewall() {
   info "configuring host network firewall for nym node services"
+
+  ufw_takeover_preflight || return 1
+
+  if [[ "$HOST_INPUT_POLICY" == "DROP" ]]; then
+    ufw_is_active && backup_ufw_state
+    # fail open while rules are rebuilt: if this aborts midway the host stays reachable
+    iptables -P INPUT ACCEPT
+    ip6tables -P INPUT ACCEPT
+    migrate_from_ufw
+  elif ufw_is_active; then
+    warn "HOST_INPUT_POLICY=KEEP with ufw active: ufw is evaluated before NTM's rules and its default can block them."
+    warn "allow these ports in ufw yourself: tcp ${NETWORK_FIREWALL_TCP_PORTS[*]}, udp ${NETWORK_FIREWALL_UDP_PORTS[*]}, tcp ${NETWORK_FIREWALL_WG_TCP_PORT} on ${WG_INTERFACE}"
+  fi
 
   delete_managed_input_rules iptables
   delete_managed_input_rules ip6tables
 
-  local port
+  add_base_input_rules iptables
+  add_base_input_rules ip6tables
+
+  local port ssh_ports
+  ssh_ports=" $(detect_ssh_ports | tr '\n' ' ') "
+  local cmd
+  for port in $ssh_ports; do
+    for cmd in iptables ip6tables; do
+      if ssh_port_left_to_ufw "$port" "$cmd"; then
+        warn "$cmd: ssh port $port keeps its migrated ufw rules (source/rate limits); not opened to everyone"
+        continue
+      fi
+      add_input_port_rule "$cmd" "$port" tcp
+    done
+  done
+
   for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}"; do
+    [[ "$ssh_ports" == *" $port "* ]] && continue # handled above
     add_input_port_rule iptables "$port" tcp
     add_input_port_rule ip6tables "$port" tcp
   done
@@ -635,6 +918,14 @@ configure_network_firewall() {
   add_input_port_rule iptables "$NETWORK_FIREWALL_WG_TCP_PORT" tcp "$WG_INTERFACE"
   add_input_port_rule ip6tables "$NETWORK_FIREWALL_WG_TCP_PORT" tcp "$WG_INTERFACE"
 
+  if [[ "$HOST_INPUT_POLICY" == "DROP" ]]; then
+    iptables -P INPUT DROP
+    ip6tables -P INPUT DROP
+    ok "inbound traffic not allowed above is now dropped (ipv4 + ipv6)"
+  else
+    warn "HOST_INPUT_POLICY=KEEP: INPUT policy left unchanged ($(iptables -S INPUT | awk 'NR==1 {print $3}'))"
+  fi
+
   save_iptables_rules
   ok "host network firewall configuration completed"
 }
@@ -645,6 +936,8 @@ show_network_firewall_status() {
 
   status_pattern="$(build_network_firewall_status_pattern)"
 
+  echo
+  info "input policy: ipv4 $(iptables -S INPUT | awk 'NR==1 {print $3}'), ipv6 $(ip6tables -S INPUT | awk 'NR==1 {print $3}')"
   echo
   info "ipv4 input rules:"
   iptables -L INPUT -n -v --line-numbers | grep -E "(${status_pattern})" || true
@@ -659,7 +952,13 @@ test_network_firewall_rules() {
   local failures=0
   local port
 
+  local ssh_ports
+  ssh_ports=" $(detect_ssh_ports | tr '\n' ' ') "
   for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}"; do
+    if [[ "$ssh_ports" == *" $port "* ]] && ssh_port_left_to_ufw "$port" iptables; then
+      ok "tcp port $port handled by migrated ufw rules"
+      continue
+    fi
     if iptables -C INPUT -p tcp --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
       ok "ipv4 tcp port $port allowed"
     else
@@ -703,6 +1002,19 @@ test_network_firewall_rules() {
   else
     error "ipv6 tcp port $NETWORK_FIREWALL_WG_TCP_PORT missing on $WG_INTERFACE"
     ((failures++))
+  fi
+
+  if [[ "$HOST_INPUT_POLICY" == "DROP" ]]; then
+    local cmd policy
+    for cmd in iptables ip6tables; do
+      policy="$($cmd -S INPUT | awk 'NR==1 {print $3}')"
+      if [[ "$policy" == "DROP" ]]; then
+        ok "$cmd INPUT policy is DROP"
+      else
+        error "$cmd INPUT policy is $policy, expected DROP"
+        ((failures++))
+      fi
+    done
   fi
 
   return "$failures"
@@ -1649,6 +1961,11 @@ exit_policy_install() {
 complete_networking_configuration() {
   info "starting complete networking configuration: tunnels + host firewall + exit policy"
 
+  ufw_takeover_preflight || return 1
+  # snapshot before anything in this run changes the firewall (tunnel setup included)
+  if [[ "$HOST_INPUT_POLICY" == "DROP" ]] && ufw_is_active; then
+    backup_ufw_state
+  fi
   nym_tunnel_setup
   configure_network_firewall
   exit_policy_install
@@ -1773,7 +2090,7 @@ usage: $0 <command> [args]
 high level workflows:
   complete_networking_configuration Install tunnel interfaces, setup networking, host firewall, iptables, wg exit policy & tests
   nym_tunnel_setup                  Install tunnel interfaces & setup networking
-  configure_network_firewall        Install host firewall rules for nym services
+  configure_network_firewall        Allow nym service ports, drop all other inbound (HOST_INPUT_POLICY=KEEP to skip the drop)
   exit_policy_install               Install and configure wireguard exit policy
 
 tunnel and nat helpers:

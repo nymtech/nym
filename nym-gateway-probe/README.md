@@ -22,112 +22,76 @@ cargo build -p nym-gateway-probe
 
 ## Test Modes
 
-The probe supports different test modes via the `--mode` flag:
+Select phases with `--test-mode` (default: `core`). NS-Agents force `all`.
 
 | Mode | Description |
 |------|-------------|
-| `mixnet` | Traditional mixnet testing - entry/exit pings + WireGuard via authenticator (default) |
-| `single-hop` | LP registration + WireGuard on single gateway (no mixnet) |
-| `two-hop` | Entry LP + Exit LP (nested forwarding) + WireGuard tunnel |
-| `lp-only` | LP registration only - test handshake, skip WireGuard |
+| `core` | Mixnet entry/exit pings + WireGuard via authenticator (default) |
+| `wg-mix` | WireGuard via authenticator only |
+| `wg-lp` | Entry LP + Exit LP (nested forwarding) + WireGuard |
+| `lp-only` | LP registration only (no WireGuard) |
+| `socks5-only` | SOCKS5 network-requester HTTPS probe |
+| `bridges-only` | Published bridge transports via WG forward path (needs mixnet + credentials) |
+| `all` | Mixnet, WireGuard via authenticator, bridges, LP, and SOCKS5 |
+
+Bridge results are informational: they are not used by the directory visual score.
+`bridges-only` / `all` register a WG peer so the probe can prove traffic through
+each transport, not only that the dial connects. Use a real mnemonic for
+authenticator registration; `--use-mock-ecash` is for LP mock gateways and is
+not sufficient for the authenticator path.
 
 ## Usage
 
-### Standard Mode (via nym-api)
-
-Test gateways registered in nym-api directory:
+### Bonded gateway (`run`)
 
 ```sh
-# Test a specific gateway (mixnet mode)
-nym-gateway-probe -g "qj3GgGYgGZZ3HkFrtD1GU9UJ5oNXME9eD2xtmPLqYYw"
+# Default core mode (mixnet + WG)
+./nym-gateway-probe -c path/to/network.env run \
+  -g "qj3GgGYgGZZ3HkFrtD1GU9UJ5oNXME9eD2xtmPLqYYw" \
+  --mnemonic "$TEST_MNEMONIC"
 
-# Test with amnezia WireGuard
-nym-gateway-probe -g "qj3GgGYg..." -a "jc=4\njmin=40\njmax=70\n"
+# Same surface as NS-Agents
+./nym-gateway-probe -c path/to/network.env run \
+  -g "qj3GgGYg..." \
+  --test-mode all \
+  --mnemonic "$TEST_MNEMONIC"
 
-# WireGuard only (skip entry/exit ping tests)
-nym-gateway-probe -g "qj3GgGYg..." --only-wireguard
+# Bridges only
+./nym-gateway-probe -c path/to/network.env run \
+  -g "qj3GgGYg..." \
+  --test-mode bridges-only \
+  --mnemonic "$TEST_MNEMONIC"
+
+# Amnezia WireGuard args (appended to the WG config)
+./nym-gateway-probe -c path/to/network.env run \
+  -g "qj3GgGYg..." \
+  --test-mode wg-mix \
+  --mnemonic "$TEST_MNEMONIC" \
+  --amnezia-args "jc=4
+jmin=40
+jmax=70
+"
 ```
 
-### Localnet Mode (run-local)
+### Local / unannounced (`run-local`)
 
-Test gateways directly by IP/identity without nym-api:
+Probe by IP without directory lookup. Mixnet and authenticator-WG phases that
+need topology are limited; LP can still run when the node exposes it.
 
 ```sh
-# Single-hop: LP registration + WireGuard on one gateway
-nym-gateway-probe run-local \
-  --entry-gateway-identity "8yGm5h2KgNwrPgRRxjT2DhXQFCnADkHVyE5FYS4LHWLC" \
-  --entry-lp-address "192.168.66.6:41264" \
-  --mode single-hop \
-  --use-mock-ecash
-
-# Two-hop: Entry + Exit LP forwarding + WireGuard
-nym-gateway-probe run-local \
-  --entry-gateway-identity "$ENTRY_ID" \
-  --entry-lp-address "192.168.66.6:41264" \
-  --exit-gateway-identity "$EXIT_ID" \
-  --exit-lp-address "192.168.66.7:41264" \
-  --mode two-hop \
-  --use-mock-ecash
-
-# LP-only: Test handshake and registration only
-nym-gateway-probe run-local \
-  --entry-gateway-identity "$GATEWAY_ID" \
-  --entry-lp-address "localhost:41264" \
-  --mode lp-only \
+./nym-gateway-probe -c path/to/network.env run-local \
+  --entry-gateway-ip "192.168.66.6" \
+  --test-mode lp-only \
   --use-mock-ecash
 ```
 
 **Note:** `--use-mock-ecash` requires gateways started with `--lp-use-mock-ecash`.
 
-### Split Network Configuration
-
-For docker/container setups where entry and exit are on different networks:
-
-```sh
-# Entry reachable from host, exit only reachable from entry's internal network
-nym-gateway-probe run-local \
-  --entry-gateway-identity "$ENTRY_ID" \
-  --entry-lp-address "192.168.66.6:41264" \     # Host → Entry
-  --exit-gateway-identity "$EXIT_ID" \
-  --exit-lp-address "172.18.0.5:41264" \        # Entry → Exit (internal)
-  --mode two-hop \
-  --use-mock-ecash
-```
-
-## CLI Reference
-
-```
-Usage: nym-gateway-probe [OPTIONS] [COMMAND]
-
-Commands:
-  run-local  Run probe in localnet mode (direct IP, no nym-api)
-
-Options:
-  -c, --config-env-file <PATH>     Path to env file describing the network
-  -g, --entry-gateway <ID>         Entry gateway identity (base58)
-  -n, --node <ID>                  Node to test (defaults to entry gateway)
-      --gateway-ip <IP>            Query gateway directly by IP (skip nym-api)
-      --exit-gateway-ip <IP>       Exit gateway IP for two-hop testing
-      --mode <MODE>                Test mode: mixnet, single-hop, two-hop, lp-only
-      --only-wireguard             Skip ping tests, only test WireGuard
-      --only-lp-registration       Test LP registration only (legacy flag)
-      --test-lp-wg                 Test LP + WireGuard (legacy flag)
-  -a, --amnezia-args <ARGS>        Amnezia WireGuard config arguments
-      --no-log                     Disable logging
-  -h, --help                       Print help
-  -V, --version                    Print version
-
-Localnet Options (run-local):
-      --entry-gateway-identity <ID>    Entry gateway Ed25519 identity
-      --entry-lp-address <HOST:PORT>   Entry gateway LP listener address
-      --exit-gateway-identity <ID>     Exit gateway Ed25519 identity
-      --exit-lp-address <HOST:PORT>    Exit gateway LP listener address
-      --use-mock-ecash                 Use mock credentials (dev only)
-```
-
 ## Output
 
-The probe outputs JSON with test results:
+The probe prints JSON to stdout. With `--test-mode all`, `outcome` may include
+`as_entry`, `as_exit`, `wg`, `bridges`, `lp`, and `socks5` (absent phases are
+`null`). Example bridge shape:
 
 ```json
 {
@@ -135,8 +99,19 @@ The probe outputs JSON with test results:
   "used_entry": "entry-gateway-identity",
   "outcome": {
     "as_entry": { "can_connect": true, "can_route": true },
-    "as_exit": { "can_connect": true, "can_route_ip_v4": true, "can_route_ip_v6": true },
     "wg": { "can_register": true, "can_handshake_v4": true, "can_handshake_v6": true },
+    "bridges": {
+      "transports": [
+        {
+          "transport": "quic_plain",
+          "can_connect_v4": true,
+          "can_handshake_v4": true,
+          "ping_ips_performance_v4": 1.0,
+          "error": null
+        }
+      ],
+      "error": null
+    },
     "lp": { "can_connect": true, "can_handshake": true, "can_register": true }
   }
 }

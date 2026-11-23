@@ -1,7 +1,7 @@
 [package]
 name = "nym-client"
 description = "Implementation of the Nym Client"
-version = "1.1.88"
+version = "1.1.90"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
@@ -61,6 +61,7 @@ nym-crypto = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-sphinx = { workspace = true }
+nym-sqlcipher = { workspace = true }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
 nym-topology = { workspace = true }

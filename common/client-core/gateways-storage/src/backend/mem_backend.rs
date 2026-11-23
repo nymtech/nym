@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{ActiveGateway, GatewayRegistration};
-use crate::{BadGateway, GatewayDetails, GatewayPublishedData, GatewaysDetailsStore};
+use crate::{BadGateway, GatewayDetails, GatewayPublishedData, GatewaysDetailsStore, GenerationId};
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
@@ -104,6 +105,22 @@ impl GatewaysDetailsStore for InMemGatewaysDetails {
         if let Some(gateway) = guard.gateways.get_mut(&gateway_id.to_base58_string()) {
             if let GatewayDetails::Remote(ref mut remote_details) = gateway.details {
                 remote_details.published_data = published_data.clone();
+            }
+        }
+        Ok(())
+    }
+
+    async fn update_gateway_keys(
+        &self,
+        gateway_id: &ed25519::PublicKey,
+        generation_id: GenerationId,
+        shared_key: Arc<SharedSymmetricKey>,
+    ) -> Result<(), Self::StorageError> {
+        let mut guard = self.inner.write().await;
+        if let Some(gateway) = guard.gateways.get_mut(&gateway_id.to_base58_string()) {
+            if let GatewayDetails::Remote(ref mut remote_details) = gateway.details {
+                remote_details.generation_id = Some(generation_id);
+                remote_details.shared_key = shared_key;
             }
         }
         Ok(())

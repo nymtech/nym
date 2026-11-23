@@ -1,0 +1,7 @@
+## The threat model is typed data [#threat-model-data]
+
+The [threat model](snippet:nym/network/threat-model/intro) is TypeScript data, with one entity for each actor, attack vector, privacy property and network configuration. The build turns each entity into a record. A snippet cites the record, and the site draws the table, the diagram or the assessment from it.
+
+Before each build, an integrity step checks the data. It stops the build when two verdicts for the same actor and property disagree, or when an entity names an id that does not exist. It prints a warning for a gap in the data, for example a matrix verdict that the per-actor assessment does not state. The current data has such gaps.
+
+The site renders the tables into static HTML, so the site search reads the same text as a person. The MCP index holds a text projection of the same data.

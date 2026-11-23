@@ -1,4 +1,4 @@
-use nym_cli_commands::context::{create_query_client, create_signing_client, ClientArgs};
+use nym_cli_commands::context::{create_query_client, signing_mnemonic, ClientArgs};
 use nym_cli_commands::ecash::EcashCommands;
 use nym_network_defaults::NymNetworkDetails;
 
@@ -11,7 +11,8 @@ pub(crate) async fn execute(
         EcashCommands::IssueTicketBook(args) => {
             nym_cli_commands::ecash::issue_ticket_book::execute(
                 args,
-                create_signing_client(global_args, network_details)?,
+                signing_mnemonic(global_args.mnemonic)?,
+                network_details,
             )
             .await?
         }

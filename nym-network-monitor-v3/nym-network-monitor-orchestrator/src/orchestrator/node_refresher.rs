@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::orchestrator::config::Config;
-use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
+use crate::orchestrator::prometheus::{NodeRole, PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{BondedNymNode, NodeDescription, NymNode};
 use anyhow::{Context, anyhow, bail};
@@ -19,7 +19,7 @@ use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::{Instant, interval};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 pub(crate) struct NodeRefresher {
     pub(crate) client: QueryHttpRpcNyxdClient,
@@ -193,14 +193,16 @@ impl NodeRefresher {
         )
         .await
         {
+            // logged at info so that every node missing from a submission can be matched to the step
+            // that failed to describe it
             Err(_timeout) => {
-                debug!(
+                info!(
                     "timed out while attempting to retrieve self-described node details for node {node_id}"
                 );
                 None
             }
             Ok(Err(err)) => {
-                debug!("failed to retrieve self-described node details for node {node_id}: {err}");
+                info!("failed to retrieve self-described node details for node {node_id}: {err}");
                 None
             }
             Ok(Ok(description)) => Some(description),
@@ -252,13 +254,26 @@ impl NodeRefresher {
         let successful = refreshed_nodes.len() as i64 - unknown;
         info!("managed to retrieve full node information on {successful} nodes ({unknown} failed)");
 
-        PROMETHEUS_METRICS.set(PrometheusMetric::BondedMixnodeNymNodes, mixnodes);
-        PROMETHEUS_METRICS.set(PrometheusMetric::BondedGatewayNymNodes, gateways);
-        PROMETHEUS_METRICS.set(
-            PrometheusMetric::BondedMixnodeAndGatewayNymNodes,
+        PROMETHEUS_METRICS.set_for_role(
+            PrometheusMetric::BondedNymNodes,
+            NodeRole::Mixnode,
+            mixnodes,
+        );
+        PROMETHEUS_METRICS.set_for_role(
+            PrometheusMetric::BondedNymNodes,
+            NodeRole::Gateway,
+            gateways,
+        );
+        PROMETHEUS_METRICS.set_for_role(
+            PrometheusMetric::BondedNymNodes,
+            NodeRole::MixnodeAndGateway,
             mixnodes_and_gateways,
         );
-        PROMETHEUS_METRICS.set(PrometheusMetric::BondedUnknownNymNodes, unknown);
+        PROMETHEUS_METRICS.set_for_role(
+            PrometheusMetric::BondedNymNodes,
+            NodeRole::Unknown,
+            unknown,
+        );
 
         // 3. persist what each node yielded: every bond, the description of each node that answered
         //    completely, and the removal of descriptions of nodes the contract no longer lists. A node

@@ -1,0 +1,9 @@
+## Most sections of the docs have one source [#one-source]
+
+On most docs pages, each section is a snippet: one MDX file with its own id. The page file holds only a title and a list of snippet imports. The generated references (TypeDoc, the command output), the changelog and some long operator pages stay whole files.
+
+The docs site, the Markdown copy of each page, `llms-full.txt` and the MCP search index all read the same snippet files. When an author changes a section, each of these surfaces gets the change in the same build.
+
+A link from one snippet to another names the id of the target, and the build writes the route. If no page shows the target, the build stops.
+
+Each snippet must read alone, because a search result can show it with no page around it. A check lists each snippet that points at text outside itself.

@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{connection_state::BuilderState, Config};
+use crate::mixnet::native_client::{LegacyClient, MixnetClientInner};
 use crate::mixnet::{MixnetClient, Recipient};
 use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use log::{debug, warn};
+use nym_client_core::client::base_client::lp_client::LpBaseClientBuilder;
 use nym_client_core::client::base_client::storage::gateways_storage::GatewayRegistration;
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
-    set_active_gateway,
+    load_active_gateway_details, set_active_gateway,
 };
 use nym_client_core::client::base_client::storage::{
     Ephemeral, GatewaysDetailsStore, MixnetClientStorage,
@@ -23,7 +25,7 @@ use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::init::{refresh_gateway_published_data, setup_gateway};
-use nym_crypto::hkdf::DerivationMaterial;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::RoutingNode;
@@ -38,8 +40,6 @@ use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 #[cfg(feature = "credentials")]
 use nym_credentials_interface::TicketType;
-#[cfg(feature = "credentials")]
-use zeroize::Zeroizing;
 
 #[cfg(feature = "fs-storage")]
 use super::StoragePaths;
@@ -103,8 +103,9 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     storage: S,
     forget_me: ForgetMe,
     remember_me: RememberMe,
-    derivation_material: Option<DerivationMaterial>,
     stream_idle_timeout: Option<std::time::Duration>,
+    lp_enabled: bool,
+    refresh_gateway_keys: bool,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -149,8 +150,9 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             connection_fd_callback: None,
             forget_me: Default::default(),
             remember_me: Default::default(),
-            derivation_material: None,
             stream_idle_timeout: None,
+            lp_enabled: false,
+            refresh_gateway_keys: false,
         })
     }
 }
@@ -183,8 +185,9 @@ where
             storage,
             forget_me: Default::default(),
             remember_me: Default::default(),
-            derivation_material: None,
             stream_idle_timeout: None,
+            lp_enabled: false,
+            refresh_gateway_keys: false,
         }
     }
 
@@ -212,15 +215,10 @@ where
             storage,
             forget_me: self.forget_me,
             remember_me: self.remember_me,
-            derivation_material: self.derivation_material,
             stream_idle_timeout: self.stream_idle_timeout,
+            lp_enabled: self.lp_enabled,
+            refresh_gateway_keys: self.refresh_gateway_keys,
         }
-    }
-
-    #[must_use]
-    pub fn with_derivation_material(mut self, derivation_material: DerivationMaterial) -> Self {
-        self.derivation_material = Some(derivation_material);
-        self
     }
 
     /// Change the underlying storage of this builder to use default implementation of on-disk disk_persistence.
@@ -251,6 +249,34 @@ where
     #[must_use]
     pub fn with_stream_idle_timeout(mut self, timeout: std::time::Duration) -> Self {
         self.stream_idle_timeout = Some(timeout);
+        self
+    }
+
+    /// Reach the network over the Lewes Protocol rather than the gateway's websocket.
+    ///
+    /// Off by default. A client over LP has no stream mode, no SOCKS5 mode, no topology or lane
+    /// controls and no stats reporting; their accessors panic on it.
+    #[must_use]
+    pub fn with_lp(mut self, lp_enabled: bool) -> Self {
+        self.lp_enabled = lp_enabled;
+        self
+    }
+
+    /// Register again with the stored gateway under a new identity when connecting, instead of
+    /// loading its registration.
+    ///
+    /// Off by default; with no stored registration for the gateway it changes nothing. The old
+    /// identity's bandwidth is forfeited and the client's address changes. If the new registration
+    /// fails, the connect fails and the old registration stays stored. Once it succeeds it is
+    /// stored before the client authenticates with it, so a connect that fails after that point,
+    /// for instance for lack of bandwidth, still leaves the client on the new identity, and a
+    /// retry with the flag set registers yet another one. The gateway drops the old
+    /// identity only if the previous session disconnected with
+    /// [`with_forget_me`](Self::with_forget_me) set. Over LP it changes nothing, as an LP client
+    /// already uses a new identity at every start.
+    #[must_use]
+    pub fn refresh_gateway_keys(mut self, refresh_gateway_keys: bool) -> Self {
+        self.refresh_gateway_keys = refresh_gateway_keys;
         self
     }
 
@@ -440,8 +466,9 @@ where
         }
         client.forget_me = self.forget_me;
         client.remember_me = self.remember_me;
-        client.derivation_material = self.derivation_material;
         client.stream_idle_timeout = self.stream_idle_timeout;
+        client.lp_enabled = self.lp_enabled;
+        client.refresh_gateway_keys = self.refresh_gateway_keys;
         Ok(client)
     }
 }
@@ -513,10 +540,14 @@ where
     forget_me: ForgetMe,
 
     remember_me: RememberMe,
-    /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
-    derivation_material: Option<DerivationMaterial>,
 
     stream_idle_timeout: Option<std::time::Duration>,
+
+    /// Reach the network over the Lewes Protocol rather than the gateway's websocket.
+    lp_enabled: bool,
+
+    /// Register again under a new identity instead of loading the stored registration.
+    refresh_gateway_keys: bool,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -574,8 +605,9 @@ where
             connection_fd_callback: None,
             forget_me,
             remember_me,
-            derivation_material: None,
             stream_idle_timeout: None,
+            lp_enabled: false,
+            refresh_gateway_keys: false,
         })
     }
 
@@ -718,6 +750,28 @@ where
         })
     }
 
+    /// Setup for the active gateway's stored registration: loaded, or refreshed when asked.
+    async fn stored_gateway_setup(&mut self) -> Result<GatewaySetup, ClientCoreError> {
+        if !self.refresh_gateway_keys {
+            return Ok(GatewaySetup::MustLoad { gateway_id: None });
+        }
+
+        // a refresh dials the stored listeners, so expired ones are replaced before it, not after
+        let registration = load_active_gateway_details(self.storage.gateway_details_store())
+            .await?
+            .registration
+            .ok_or(ClientCoreError::NoActiveGatewaySet)?;
+        if registration.details.published_data_expired() {
+            self.refresh_gateway_published_data(registration).await?;
+        }
+
+        Ok(GatewaySetup::RefreshKeys {
+            gateway_id: None,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback.clone(),
+        })
+    }
+
     async fn refresh_gateway_published_data(
         &mut self,
         gateway_registration: GatewayRegistration,
@@ -770,12 +824,12 @@ where
             (Some(user_chosen_gateway), Some(active_gateway))
                 if &active_gateway.to_base58_string() == user_chosen_gateway =>
             {
-                GatewaySetup::MustLoad { gateway_id: None }
+                self.stored_gateway_setup().await?
             }
             // When a user-chosen gateway exists but there's no active gateway, or it doesn't match the active one.
             (Some(_), _) => self.new_gateway_setup().await?,
             // When no user-chosen gateway exists but there's an active gateway.
-            (None, Some(_)) => GatewaySetup::MustLoad { gateway_id: None },
+            (None, Some(_)) => self.stored_gateway_setup().await?,
             // When there's no user-chosen gateway and no active gateway.
             (None, None) => self.new_gateway_setup().await?,
         };
@@ -806,6 +860,8 @@ where
 
     /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
     /// credentials of particular type for this client to consume.
+    ///
+    /// Its ecash keypair is derived from `mnemonic`, so it works before the client's keys exist.
     #[cfg(feature = "credentials")]
     pub async fn create_bandwidth_client(
         &self,
@@ -815,25 +871,11 @@ where
         if !self.config.enabled_credentials_mode {
             return Err(Error::DisabledCredentialsMode);
         }
-        let client_id_array = Zeroizing::new(
-            self.storage
-                .key_store()
-                .load_keys()
-                .await
-                .map_err(|e| Error::KeyStorageError {
-                    source: Box::new(e),
-                })?
-                .identity_keypair()
-                .private_key()
-                .to_bytes(),
-        );
-        let client_id = client_id_array.to_vec();
 
         BandwidthAcquireClient::new(
             self.config.network_details.clone(),
             mnemonic,
             self.storage.credential_store().clone(),
-            client_id,
             ticketbook_type,
         )
         .await
@@ -842,6 +884,68 @@ where
     #[cfg(feature = "credentials")]
     pub fn begin_bandwidth_import(&self) -> BandwidthImporter<'_, S::CredentialStore> {
         BandwidthImporter::new(self.storage.credential_store())
+    }
+
+    /// Build and start a client over LP.
+    ///
+    /// No websocket and no stored gateway details: the gateway is the requested one, or a random
+    /// one from the LP topology, and the client handshakes and registers with it over LP itself.
+    async fn connect_to_lp(mut self) -> Result<MixnetClient> {
+        if !matches!(self.state, BuilderState::New) {
+            return Err(Error::ReregisteringGatewayNotSupported);
+        }
+
+        let requested_gateway = self
+            .config
+            .user_chosen_gateway
+            .as_deref()
+            .map(NodeIdentity::from_base58_string)
+            .transpose()
+            .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
+
+        let base_config = self
+            .config
+            .as_base_client_config(self.get_nyxd_endpoints(), self.get_api_endpoints());
+
+        let mut lp_builder: LpBaseClientBuilder<_, _> =
+            LpBaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
+                .with_nym_api_urls(self.config.network_details.nym_api_urls());
+
+        if let Some(gateway) = requested_gateway {
+            lp_builder = lp_builder.with_gateway(gateway);
+        }
+
+        if let Some(user_agent) = self.user_agent {
+            lp_builder = lp_builder.with_user_agent(user_agent);
+        }
+
+        if let Some(shutdown_tracker) = self.custom_shutdown {
+            lp_builder = lp_builder.with_shutdown(shutdown_tracker);
+        }
+
+        #[cfg(feature = "credentials")]
+        if let Some(bandwidth_provider) = self.custom_bandwidth_provider {
+            lp_builder = lp_builder.with_custom_bandwidth_provider(bandwidth_provider);
+        }
+
+        let lp_client = lp_builder.start().await?;
+        self.state = BuilderState::Registered {};
+
+        let nym_address = lp_client.address();
+        let shutdown_handle = lp_client.shutdown_handle().clone();
+
+        let mut client = MixnetClient::new(
+            nym_address,
+            MixnetClientInner::Lp(Box::new(lp_client)),
+            shutdown_handle,
+            None,
+            self.forget_me,
+            self.remember_me,
+        );
+        if let Some(timeout) = self.stream_idle_timeout {
+            client.stream_idle_timeout = timeout;
+        }
+        Ok(client)
     }
 
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
@@ -867,7 +971,6 @@ where
                 .with_wait_for_initial_topology(self.wait_for_initial_topology)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)
-                .with_derivation_material(self.derivation_material)
                 .with_nym_api_urls(self.config.network_details.nym_api_urls());
 
         if let Some(user_agent) = self.user_agent {
@@ -934,6 +1037,9 @@ where
     /// ```
     #[cfg(feature = "socks5")]
     pub async fn connect_to_mixnet_via_socks5(self) -> Result<Socks5MixnetClient> {
+        if self.lp_enabled {
+            return Err(Error::Socks5OverLp);
+        }
         let socks5_config = self
             .socks5_config
             .clone()
@@ -990,6 +1096,9 @@ where
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });
         }
+        if self.lp_enabled {
+            return self.connect_to_lp().await;
+        }
         let stream_idle_timeout = self.stream_idle_timeout;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let client_input = started_client.client_input.register_producer();
@@ -998,17 +1107,17 @@ where
             started_client.client_state;
         let stats_events_reporter = started_client.stats_reporter;
 
-        let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;
 
         let mut client = MixnetClient::new(
             nym_address,
-            identity_keys,
-            client_input,
-            client_output,
-            client_state,
-            reconstructed_receiver,
-            stats_events_reporter,
+            MixnetClientInner::Legacy(LegacyClient {
+                client_input,
+                client_output,
+                client_state,
+                reconstructed_receiver: Some(reconstructed_receiver),
+                stats_events_reporter,
+            }),
             started_client.shutdown_handle,
             None,
             started_client.forget_me,
@@ -1094,7 +1203,7 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             let encrypted = StoragePaths::new_from_dir(dir.path())
                 .unwrap()
-                .with_key_passphrase(Some(Passphrase::new("hunter2")));
+                .with_key_secret(Some(Passphrase::new("hunter2").into()));
             encrypted
                 .on_disk_key_storage_spec()
                 .store_keys(&ClientKeys::generate_new(&mut deterministic_rng()))
@@ -1104,7 +1213,7 @@ mod tests {
 
             let wrong_passphrase = StoragePaths::new_from_dir(dir.path())
                 .unwrap()
-                .with_key_passphrase(Some(Passphrase::new("hunter3")));
+                .with_key_secret(Some(Passphrase::new("hunter3").into()));
             let no_passphrase = StoragePaths::new_from_dir(dir.path()).unwrap();
 
             assert!(client_with(wrong_passphrase)

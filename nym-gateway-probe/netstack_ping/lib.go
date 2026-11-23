@@ -64,6 +64,9 @@ type NetstackRequestGo struct {
 	DownloadTimeoutSec uint64   `json:"download_timeout_sec"`
 	MetadataTimeoutSec uint64   `json:"metadata_timeout_sec"`
 	AwgArgs            string   `json:"awg_args"`
+	// SkipDownload omits the file download. A timeout of 0 is *not* a skip:
+	// Go's http.Client treats Timeout 0 as "no timeout".
+	SkipDownload bool `json:"skip_download"`
 	// exit policy port check
 	PortCheckTarget     string   `json:"port_check_target"`
 	PortCheckPorts      []uint16 `json:"port_check_ports"`
@@ -588,32 +591,36 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 		}
 	}
 
-	var urlsToTry []string
+	if !req.SkipDownload {
+		var urlsToTry []string
 
-	if req.IpVersion == 4 {
-		urlsToTry = fileUrls
-	} else {
-		urlsToTry = fileUrlsV6
-	}
+		if req.IpVersion == 4 {
+			urlsToTry = fileUrls
+		} else {
+			urlsToTry = fileUrlsV6
+		}
 
-	// Try URLs with retry logic
-	fileContent, downloadDuration, usedURL, err := downloadFileWithRetry(urlsToTry, req.DownloadTimeoutSec, tnet)
-	if err != nil {
-		log.Printf("Failed to download file from any URL: %v\n", err)
-	} else {
-		log.Printf("Downloaded file content length: %.2f MB\n", float64(len(fileContent))/1024/1024)
-		log.Printf("Download duration: %v\n", downloadDuration)
-	}
+		// Try URLs with retry logic
+		fileContent, downloadDuration, usedURL, err := downloadFileWithRetry(urlsToTry, req.DownloadTimeoutSec, tnet)
+		if err != nil {
+			log.Printf("Failed to download file from any URL: %v\n", err)
+		} else {
+			log.Printf("Downloaded file content length: %.2f MB\n", float64(len(fileContent))/1024/1024)
+			log.Printf("Download duration: %v\n", downloadDuration)
+		}
 
-	response.DownloadDurationSec = uint64(downloadDuration.Seconds())
-	response.DownloadDurationMilliseconds = uint64(downloadDuration.Milliseconds())
-	response.DownloadedFile = usedURL
-	if err != nil {
-		response.DownloadError = err.Error()
-		response.DownloadedFileSizeBytes = 0
+		response.DownloadDurationSec = uint64(downloadDuration.Seconds())
+		response.DownloadDurationMilliseconds = uint64(downloadDuration.Milliseconds())
+		response.DownloadedFile = usedURL
+		if err != nil {
+			response.DownloadError = err.Error()
+			response.DownloadedFileSizeBytes = 0
+		} else {
+			response.DownloadError = ""
+			response.DownloadedFileSizeBytes = uint64(len(fileContent))
+		}
 	} else {
-		response.DownloadError = ""
-		response.DownloadedFileSizeBytes = uint64(len(fileContent))
+		log.Printf("Skipping download (skip_download=true)")
 	}
 
 	response.CanHandshake = hasHandshaked(dev)

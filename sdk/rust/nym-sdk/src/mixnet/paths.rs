@@ -4,7 +4,7 @@
 use crate::error::{Error, Result};
 use nym_client_core::client::base_client::storage::OnDiskGatewaysDetails;
 use nym_client_core::client::base_client::{non_wasm_helpers, storage};
-use nym_client_core::client::key_manager::persistence::{OnDiskKeys, Passphrase};
+use nym_client_core::client::key_manager::persistence::{KeySecret, OnDiskKeys};
 use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
@@ -49,8 +49,13 @@ pub struct StoragePaths {
     /// Details of the used gateways
     pub gateway_registrations: PathBuf,
 
-    /// Passphrase protecting the private keys; plaintext keys get encrypted on first load with it.
-    key_passphrase: Option<Passphrase>,
+    /// Secret (passphrase or raw key) protecting the private keys; plaintext keys get encrypted on
+    /// first load with it.
+    key_secret: Option<KeySecret>,
+
+    /// Raw SQLCipher key encrypting the credential, reply SURB and gateway registration databases;
+    /// plaintext databases get encrypted on first open with it.
+    database_key: Option<nym_sqlcipher::DatabaseKey>,
 }
 
 impl StoragePaths {
@@ -77,16 +82,31 @@ impl StoragePaths {
             credential_requests_database_path: dir.join(DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME),
             reply_surb_database_path: dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
             gateway_registrations: dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
-            key_passphrase: None,
+            key_secret: None,
+            database_key: None,
         })
     }
 
-    /// Protects the private keys with a passphrase; keys still in plaintext are encrypted the first
-    /// time they are loaded. Validating the passphrase (for instance rejecting an empty one) is the
+    /// Protects the private keys with a secret: a passphrase, or a uniformly random 256-bit raw
+    /// key that needs no stretching. Keys still in plaintext are encrypted the first time they
+    /// are loaded. Validating the secret (for instance rejecting an empty passphrase) is the
     /// caller's job.
     #[must_use]
-    pub fn with_key_passphrase(mut self, key_passphrase: Option<Passphrase>) -> Self {
-        self.key_passphrase = key_passphrase;
+    pub fn with_key_secret(mut self, key_secret: Option<KeySecret>) -> Self {
+        self.key_secret = key_secret;
+        self
+    }
+
+    /// Encrypts the credential, reply SURB and gateway registration databases with SQLCipher,
+    /// using the raw 256-bit `key` as is, without passphrase key derivation. Databases still in
+    /// plaintext are encrypted the first time they are opened. The same key must be provided on
+    /// every run.
+    ///
+    /// SQLCipher has to be linked in place of SQLite, e.g. with the `sqlcipher` feature.
+    /// Otherwise opening the databases fails, without creating or changing them.
+    #[must_use]
+    pub fn with_database_key(mut self, key: Option<nym_sqlcipher::DatabaseKey>) -> Self {
+        self.database_key = key;
         self
     }
 
@@ -116,11 +136,11 @@ impl StoragePaths {
         ))
     }
 
-    /// Instantiates default ecash credential storage.
+    /// Instantiates default ecash credential storage, encrypted if a database key is set.
     pub async fn persistent_credential_storage(
         &self,
     ) -> Result<PersistentCredentialStorage, Error> {
-        PersistentCredentialStorage::init(&self.credential_database_path)
+        PersistentCredentialStorage::new(&self.credential_database_path, self.database_key())
             .await
             .map_err(|source| Error::CredentialStorageError {
                 source: Box::new(source),
@@ -132,37 +152,71 @@ impl StoragePaths {
         self.persistent_fs_reply_backend(&Default::default()).await
     }
 
-    /// Instantiates default reply surb storage backend with the provided metadata config.
+    /// Instantiates default reply surb storage backend with the provided metadata config,
+    /// encrypted if a database key is set.
     pub async fn persistent_fs_reply_backend(
         &self,
         surb_config: &config::ReplySurbs,
     ) -> Result<fs_backend::Backend, Error> {
         Ok(non_wasm_helpers::setup_fs_reply_surb_backend(
             &self.reply_surb_database_path,
+            self.database_key(),
             surb_config,
         )
         .await?)
     }
 
-    /// Instantiates default persistent key storage.
-    pub fn on_disk_key_storage_spec(&self) -> OnDiskKeys {
-        OnDiskKeys::with_passphrase(self.client_keys_paths(), self.key_passphrase.clone())
+    fn database_key(&self) -> Option<&nym_sqlcipher::DatabaseKey> {
+        self.database_key.as_ref()
     }
 
+    /// Instantiates default persistent key storage.
+    pub fn on_disk_key_storage_spec(&self) -> OnDiskKeys {
+        OnDiskKeys::with_secret(self.client_keys_paths(), self.key_secret.clone())
+    }
+
+    /// Instantiates gateway registrations storage, encrypted if a database key is set.
     pub async fn on_disk_gateway_details_storage(&self) -> Result<OnDiskGatewaysDetails, Error> {
-        Ok(non_wasm_helpers::setup_fs_gateways_storage(&self.gateway_registrations).await?)
+        Ok(non_wasm_helpers::setup_fs_gateways_storage(
+            &self.gateway_registrations,
+            self.database_key(),
+        )
+        .await?)
+    }
+
+    /// Gives the client a new identity: new random root keys, no gateway registrations and no
+    /// reply SURBs or reply keys. It contacts no gateway and leaves the credential store unopened,
+    /// so ticketbooks are kept. No client may be using these paths while it runs. It fails before
+    /// changing anything when the key secret does not open the existing keys.
+    pub async fn reset_client_identity(&self) -> Result<()> {
+        Ok(non_wasm_helpers::reset_client_identity(
+            &self.common_client_paths(),
+            self.key_secret.clone(),
+            self.database_key(),
+        )
+        .await?)
     }
 
     pub fn credential_database_paths(&self) -> Vec<PathBuf> {
-        Self::with_sqlite_journal_paths(&self.credential_database_path)
+        non_wasm_helpers::sqlite_database_paths(&self.credential_database_path)
     }
 
     pub fn reply_surb_database_paths(&self) -> Vec<PathBuf> {
-        Self::with_sqlite_journal_paths(&self.reply_surb_database_path)
+        non_wasm_helpers::sqlite_database_paths(&self.reply_surb_database_path)
     }
 
     pub fn gateway_registrations_paths(&self) -> Vec<PathBuf> {
-        Self::with_sqlite_journal_paths(&self.gateway_registrations)
+        non_wasm_helpers::sqlite_database_paths(&self.gateway_registrations)
+    }
+
+    fn common_client_paths(&self) -> CommonClientPaths {
+        CommonClientPaths {
+            keys: self.client_keys_paths(),
+            gateway_registrations: self.gateway_registrations.clone(),
+            credential_requests_database: self.credential_requests_database_path.clone(),
+            credentials_database: self.credential_database_path.clone(),
+            reply_surb_database: self.reply_surb_database_path.clone(),
+        }
     }
 
     fn client_keys_paths(&self) -> ClientKeysPaths {
@@ -174,36 +228,11 @@ impl StoragePaths {
             ack_key_file: self.ack_key.clone(),
         }
     }
-
-    /// Returns a list of paths that include the sqlite database and journal files (wal, shm)
-    fn with_sqlite_journal_paths<P: AsRef<Path>>(db_file: P) -> Vec<PathBuf> {
-        ["-shm", "-wal"]
-            .iter()
-            .map(|ext_suffix| {
-                let mut new_ext = db_file.as_ref().extension().unwrap_or_default().to_owned();
-                new_ext.push(ext_suffix);
-                db_file.as_ref().with_extension(new_ext)
-            })
-            .chain([db_file.as_ref().to_path_buf()])
-            .collect()
-    }
 }
 
 impl From<StoragePaths> for CommonClientPaths {
     fn from(value: StoragePaths) -> Self {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: value.private_identity,
-                public_identity_key_file: value.public_identity,
-                private_encryption_key_file: value.private_encryption,
-                public_encryption_key_file: value.public_encryption,
-                ack_key_file: value.ack_key,
-            },
-            gateway_registrations: value.gateway_registrations,
-            credential_requests_database: value.credential_requests_database_path,
-            credentials_database: value.credential_database_path,
-            reply_surb_database: value.reply_surb_database_path,
-        }
+        value.common_client_paths()
     }
 }
 
@@ -219,7 +248,8 @@ impl From<CommonClientPaths> for StoragePaths {
             credential_requests_database_path: value.credential_requests_database,
             reply_surb_database_path: value.reply_surb_database,
             gateway_registrations: value.gateway_registrations,
-            key_passphrase: None,
+            key_secret: None,
+            database_key: None,
         }
     }
 }
@@ -227,16 +257,21 @@ impl From<CommonClientPaths> for StoragePaths {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_client_core::client::key_manager::persistence::KeyStore;
+    use nym_client_core::client::base_client::storage::gateways_storage::{
+        GatewayDetails, GatewaysDetailsStore,
+    };
+    use nym_client_core::client::key_manager::persistence::{KeyStore, Passphrase, RawKey};
     use nym_client_core::client::key_manager::ClientKeys;
-    use nym_test_utils::helpers::deterministic_rng;
+    use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
+    use nym_client_core::error::ClientCoreError;
+    use nym_test_utils::helpers::{deterministic_rng, dummy_ed25519_keypair};
 
     #[tokio::test]
     async fn key_passphrase_reaches_the_key_store() {
         let dir = tempfile::tempdir().unwrap();
         let paths = StoragePaths::new_from_dir(dir.path())
             .unwrap()
-            .with_key_passphrase(Some(Passphrase::new("hunter2")));
+            .with_key_secret(Some(Passphrase::new("hunter2").into()));
 
         paths
             .on_disk_key_storage_spec()
@@ -251,6 +286,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn raw_key_reaches_the_key_store() {
+        let dir = tempfile::tempdir().unwrap();
+        let secret = KeySecret::from(RawKey::from_bytes(&[7; nym_pemstore::RAW_KEY_LEN]));
+        let paths = StoragePaths::new_from_dir(dir.path())
+            .unwrap()
+            .with_key_secret(Some(secret.clone()));
+        let keys = ClientKeys::generate_new(&mut deterministic_rng());
+
+        paths
+            .on_disk_key_storage_spec()
+            .store_keys(&keys)
+            .await
+            .unwrap();
+
+        assert!(nym_pemstore::is_encrypted(&paths.private_identity).unwrap());
+        assert!(nym_pemstore::is_encrypted(&paths.private_encryption).unwrap());
+        assert!(nym_pemstore::is_encrypted(&paths.ack_key).unwrap());
+        assert!(!nym_pemstore::is_encrypted(&paths.public_identity).unwrap());
+        let loaded = paths.on_disk_key_storage_spec().load_keys().await.unwrap();
+        assert_eq!(
+            loaded.identity_keypair().private_key().to_bytes(),
+            keys.identity_keypair().private_key().to_bytes()
+        );
+    }
+
+    #[tokio::test]
     async fn without_a_passphrase_keys_stay_plaintext() {
         let dir = tempfile::tempdir().unwrap();
         let paths = StoragePaths::new_from_dir(dir.path()).unwrap();
@@ -262,5 +323,99 @@ mod tests {
             .unwrap();
 
         assert!(!nym_pemstore::is_encrypted(&paths.private_identity).unwrap());
+    }
+
+    #[tokio::test]
+    async fn reset_client_identity_replaces_the_root_and_clears_registrations_and_replies() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = StoragePaths::new_from_dir(dir.path()).unwrap();
+
+        let key_store = paths.on_disk_key_storage_spec();
+        let old_keys = ClientKeys::generate_new(&mut deterministic_rng());
+        key_store.store_keys(&old_keys).await.unwrap();
+
+        let gateway_id = *dummy_ed25519_keypair(1).public_key();
+        let details_store = paths.on_disk_gateway_details_storage().await.unwrap();
+        details_store
+            .store_gateway_details(&GatewayDetails::new_custom(gateway_id, None).into())
+            .await
+            .unwrap();
+        details_store
+            .set_active_gateway(&gateway_id.to_base58_string())
+            .await
+            .unwrap();
+
+        let reply_store = paths.default_persistent_fs_reply_backend().await.unwrap();
+        reply_store.stop_storage_session().await.unwrap();
+        assert!(paths.reply_surb_database_path.exists());
+
+        paths.reset_client_identity().await.unwrap();
+
+        let new_keys = key_store.load_keys().await.unwrap();
+        assert_ne!(
+            new_keys.identity_keypair().public_key(),
+            old_keys.identity_keypair().public_key()
+        );
+        assert!(details_store
+            .all_gateways_identities()
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(details_store
+            .active_gateway()
+            .await
+            .unwrap()
+            .registration
+            .is_none());
+        assert!(paths
+            .reply_surb_database_paths()
+            .iter()
+            .all(|path| !path.exists()));
+    }
+
+    #[tokio::test]
+    async fn reset_client_identity_changes_nothing_without_the_key_passphrase() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = StoragePaths::new_from_dir(dir.path())
+            .unwrap()
+            .with_key_secret(Some(KeySecret::from(Passphrase::new("hunter2"))));
+
+        let old_keys = ClientKeys::generate_new(&mut deterministic_rng());
+        paths
+            .on_disk_key_storage_spec()
+            .store_keys(&old_keys)
+            .await
+            .unwrap();
+
+        let gateway_id = *dummy_ed25519_keypair(1).public_key();
+        let details_store = paths.on_disk_gateway_details_storage().await.unwrap();
+        details_store
+            .store_gateway_details(&GatewayDetails::new_custom(gateway_id, None).into())
+            .await
+            .unwrap();
+
+        for key_secret in [None, Some(KeySecret::from(Passphrase::new("hunter3")))] {
+            let reset = paths
+                .clone()
+                .with_key_secret(key_secret)
+                .reset_client_identity()
+                .await;
+            assert!(matches!(
+                reset,
+                Err(Error::ClientCoreError(
+                    ClientCoreError::KeyStoreError { .. }
+                ))
+            ));
+        }
+
+        let keys = paths.on_disk_key_storage_spec().load_keys().await.unwrap();
+        assert_eq!(
+            keys.identity_keypair().public_key(),
+            old_keys.identity_keypair().public_key()
+        );
+        assert_eq!(
+            details_store.all_gateways_identities().await.unwrap().len(),
+            1
+        );
     }
 }

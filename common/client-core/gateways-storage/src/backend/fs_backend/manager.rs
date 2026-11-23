@@ -22,7 +22,13 @@ pub struct StorageManager {
 
 // all SQL goes here
 impl StorageManager {
-    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+    /// Opens the database at `database_path`, creating it if needed. With `key`, it's encrypted
+    /// with SQLCipher using the raw 256-bit key, and an existing plaintext database is encrypted in
+    /// place first.
+    pub async fn init<P: AsRef<Path>>(
+        database_path: P,
+        key: Option<&nym_sqlcipher::DatabaseKey>,
+    ) -> Result<Self, StorageError> {
         // ensure the whole directory structure exists
         if let Some(parent_dir) = database_path.as_ref().parent() {
             std::fs::create_dir_all(parent_dir).map_err(|source| {
@@ -36,9 +42,10 @@ impl StorageManager {
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
-            .filename(database_path)
+            .filename(database_path.as_ref())
             .create_if_missing(true)
             .disable_statement_logging();
+        let opts = nym_sqlcipher::apply_key(opts, key).await?;
 
         let connection_pool = sqlx::SqlitePool::connect_with(opts)
             .await
@@ -158,11 +165,12 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes256_gcm_siv_key, gateway_listener, fallback_listener, expiration_timestamp)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes256_gcm_siv_key, generation_id, gateway_listener, fallback_listener, expiration_timestamp)
+                VALUES (?, ?, ?, ?, ?, ?)
             "#,
             remote.gateway_id_bs58,
             remote.derived_aes256_gcm_siv_key,
+            remote.generation_id,
             remote.published_data.gateway_listener,
             remote.published_data.fallback_listener,
             remote.published_data.expiration_timestamp
@@ -184,6 +192,25 @@ impl StorageManager {
             published_data.gateway_listener,
             published_data.fallback_listener,
             published_data.expiration_timestamp,
+            gateway_id_bs58
+        )
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn update_remote_gateway_keys(
+        &self,
+        gateway_id_bs58: &str,
+        generation_id: &[u8],
+        derived_aes256_gcm_siv_key: &[u8],
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                UPDATE remote_gateway_details SET generation_id = ?, derived_aes256_gcm_siv_key = ? WHERE gateway_id_bs58 = ?
+            "#,
+            generation_id,
+            derived_aes256_gcm_siv_key,
             gateway_id_bs58
         )
             .execute(&self.connection_pool)

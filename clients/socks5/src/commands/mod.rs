@@ -24,6 +24,8 @@ pub(crate) mod build_info;
 pub mod ecash;
 pub mod init;
 mod list_gateways;
+mod refresh_gateway_keys;
+mod reset_client_identity;
 pub(crate) mod run;
 mod switch_gateway;
 
@@ -83,6 +85,12 @@ pub(crate) enum Commands {
     /// Change the currently active gateway. Note that you must have already registered with the new gateway!
     SwitchGateway(switch_gateway::Args),
 
+    /// Register again with a gateway under new keys, so it sees a new client. The client must not be running
+    RefreshGatewayKeys(refresh_gateway_keys::Args),
+
+    /// Give this client new keys, removing every gateway registration and stored reply but keeping its ticketbooks. The client must not be running, and needs `add-gateway` afterwards
+    ResetClientIdentity(reset_client_identity::Args),
+
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
 
@@ -118,6 +126,8 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::AddGateway(args) => add_gateway::execute(args).await?,
         Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
+        Commands::RefreshGatewayKeys(args) => refresh_gateway_keys::execute(args).await?,
+        Commands::ResetClientIdentity(args) => reset_client_identity::execute(args).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),

@@ -203,7 +203,7 @@ where
 
         let mut stream = tokio::time::timeout(
             self.config.connect_timeout,
-            S::connect(self.gateway_lp_address),
+            S::connect_from(self.gateway_lp_address, Some(self.config.source_addr)),
         )
         .await
         .map_err(|_| LpClientError::TcpConnection {

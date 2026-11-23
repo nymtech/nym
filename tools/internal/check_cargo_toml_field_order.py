@@ -4,7 +4,7 @@ import re, sys
 
 ORDER = [
     "name", "description", "version", "authors", "edition", "license",
-    "repository", "homepage", "documentation", "rust-version", "readme",
+    "repository", "documentation", "rust-version", "readme",
     "publish", "keywords", "exclude", "build", "links", "default-run",
     "resolver",
 ]
@@ -12,7 +12,7 @@ ORDER = [
 # Required when publish = true or publish.workspace = true
 REQUIRED = {
     "name", "description", "version", "authors", "edition", "license",
-    "repository", "homepage", "documentation", "rust-version", "readme",
+    "repository", "documentation", "rust-version", "readme",
     "publish",
 }
 

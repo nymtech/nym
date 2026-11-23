@@ -181,6 +181,11 @@ impl BandwidthStorageManager {
             return Ok(());
         };
 
+        // nothing to flush; skips a storage round trip per idle peer at shutdown
+        if delta == 0 {
+            return Ok(());
+        }
+
         let updated = persistence.increase_bandwidth(delta).await?;
         self.client_bandwidth
             .resync_bandwidth_with_storage(updated)

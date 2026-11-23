@@ -40,8 +40,7 @@ use nym_bandwidth_controller::{BandwidthController, BandwidthTicketProvider};
 use nym_bandwidth_fetcher::NyxdGlobalDataFetcher;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::GatewayDetails;
-use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_crypto::hkdf::DerivationMaterial;
+use nym_crypto::asymmetric::x25519;
 use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
@@ -82,6 +81,8 @@ const DEFAULT_NYM_API_RETRIES: usize = 3;
 pub mod non_wasm_helpers;
 
 pub mod helpers;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod lp_client;
 pub mod storage;
 
 #[derive(Clone, Copy, Debug)]
@@ -231,8 +232,6 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
 
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-
-    derivation_material: Option<DerivationMaterial>,
 }
 
 impl<C, S> BaseClientBuilder<C, S>
@@ -261,17 +260,7 @@ where
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
-            derivation_material: None,
         }
-    }
-
-    #[must_use]
-    pub fn with_derivation_material(
-        mut self,
-        derivation_material: Option<DerivationMaterial>,
-    ) -> Self {
-        self.derivation_material = derivation_material;
-        self
     }
 
     /// Set Nym API URLs for domain fronting support.
@@ -553,7 +542,7 @@ where
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown_tracker: &ShutdownTracker,
     ) -> Result<GatewayClient, ClientCoreError> {
-        let managed_keys = initialisation_result.client_keys;
+        let managed_keys = initialisation_result.gateway_keys;
         let GatewayDetails::Remote(details) = initialisation_result.gateway_registration.details
         else {
             return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails);
@@ -781,7 +770,7 @@ where
         )
     }
 
-    fn start_bandwidth_controller(
+    pub(crate) fn start_bandwidth_controller(
         custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
         public_data_fetcher_client: Option<C>,
         credential_store: S::CredentialStore,
@@ -870,41 +859,35 @@ where
         Ok(mem_store)
     }
 
+    pub(crate) async fn initialise_keys(
+        key_store: &S::KeyStore,
+    ) -> Result<ClientKeys, ClientCoreError> {
+        // if client keys do not exist already, create and persist them; any other load failure
+        // means existing keys could not be read and must not be overwritten
+        match key_store.load_keys().await {
+            Ok(keys) => Ok(keys),
+            Err(err) if err.keys_missing() => {
+                tracing::info!("could not find client keys - a new set will be generated");
+                let keys = ClientKeys::generate_new(&mut rand::rng());
+                store_client_keys(keys.clone(), key_store).await?;
+                Ok(keys)
+            }
+            Err(err) => Err(ClientCoreError::KeyStoreError {
+                source: Box::new(err),
+            }),
+        }
+    }
+
     async fn initialise_keys_and_gateway(
         setup_method: GatewaySetup,
         key_store: &S::KeyStore,
         details_store: &S::GatewaysDetailsStore,
-        derivation_material: Option<DerivationMaterial>,
     ) -> Result<InitialisationResult, ClientCoreError> {
-        // if client keys do not exist already, create and persist them; any other load failure
-        // means existing keys could not be read and must not be overwritten
-        match key_store.load_keys().await {
-            Ok(_) => {}
-            Err(err) if err.keys_missing() => {
-                tracing::info!("could not find client keys - a new set will be generated");
-                // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await` below
-                let keys = {
-                    let mut rng = rand::rng();
-                    if let Some(derivation_material) = derivation_material {
-                        ClientKeys::from_master_key(&mut rng, &derivation_material)
-                            .map_err(|_| ClientCoreError::HkdfDerivationError)?
-                    } else {
-                        ClientKeys::generate_new(&mut rng)
-                    }
-                };
-                store_client_keys(keys, key_store).await?;
-            }
-            Err(err) => {
-                return Err(ClientCoreError::KeyStoreError {
-                    source: Box::new(err),
-                });
-            }
-        }
-
+        Self::initialise_keys(key_store).await?;
         setup_gateway(setup_method, key_store, details_store).await
     }
 
-    fn construct_nym_api_client(
+    pub(crate) fn construct_nym_api_client(
         nym_api_urls: Option<&Vec<nym_network_defaults::ApiUrl>>,
         config: &Config,
         user_agent: Option<UserAgent>,
@@ -989,7 +972,6 @@ where
             self.setup_method,
             self.client_store.key_store(),
             self.client_store.gateway_details_store(),
-            self.derivation_material,
         )
         .await?;
 
@@ -1032,9 +1014,8 @@ where
             reply_controller::requests::new_control_channels();
 
         let self_address = Self::mix_address(&init_res);
-        let ack_key = init_res.client_keys.ack_key();
-        let encryption_keys = init_res.client_keys.encryption_keypair();
-        let identity_keys = init_res.client_keys.identity_keypair();
+        let ack_key = init_res.gateway_keys.ack_key();
+        let encryption_keys = init_res.gateway_keys.encryption_keypair();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -1187,7 +1168,6 @@ where
 
         Ok(BaseClient {
             address: self_address,
-            identity_keys,
             client_input: ClientInputStatus::AwaitingProducer {
                 client_input: ClientInput {
                     connection_command_sender: client_connection_tx,
@@ -1216,7 +1196,6 @@ where
 
 pub struct BaseClient {
     pub address: Recipient,
-    pub identity_keys: Arc<ed25519::KeyPair>,
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,

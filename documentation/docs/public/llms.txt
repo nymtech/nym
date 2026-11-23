@@ -76,6 +76,12 @@
 - [Network Statistics API](https://nym.com/docs/apis/ns-api): Network statistics and monitoring endpoints
 - [Nyx Cosmos SDK API](https://nym.com/docs/apis/cosmos-sdk-nyx): Cosmos SDK blockchain queries for the Nyx chain
 
+## Using these docs
+
+- [Use these docs with AI](https://nym.com/docs/use-with-ai): The MCP server, the Markdown copy of each page, and llms.txt
+- [MCP server](https://nym.com/docs/use-with-ai/mcp): Tool catalogue and client setup for the docs MCP server
+- [How these docs are checked](https://nym.com/docs/about/how-these-docs-are-checked): How the docs build checks pages against the code and the threat model, and the limits of the checks
+
 ## Optional
 
 - [Rust SDK Tour](https://nym.com/docs/developers/rust/tour): Guided tour of the SDK's module structure

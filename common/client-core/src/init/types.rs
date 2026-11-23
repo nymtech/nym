@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::key_manager::ClientKeys;
+use crate::client::key_manager::gateway_keys::GatewayClientKeys;
 use crate::client::key_manager::persistence::KeyStore;
 use crate::config::Config;
 use crate::error::ClientCoreError;
@@ -119,20 +120,23 @@ pub struct RegistrationResult {
 
 /// Result of fully initialising a client:
 /// - details of the associated gateway
-/// - all loaded (or derived) keys
+/// - the keys the client uses with that gateway
 /// - an optional authenticated handle of an ephemeral gateway handle created for the purposes of registration,
 ///   if this was the first time this client registered
 pub struct InitialisationResult {
     pub gateway_registration: GatewayRegistration,
-    pub client_keys: ClientKeys,
+    pub gateway_keys: GatewayClientKeys,
     pub authenticated_ephemeral_client: Option<InitGatewayClient>,
 }
 
 impl InitialisationResult {
-    pub fn new_loaded(gateway_registration: GatewayRegistration, client_keys: ClientKeys) -> Self {
+    /// Resolves the keys from the registration's gateway and generation.
+    pub fn new_loaded(gateway_registration: GatewayRegistration, client_keys: &ClientKeys) -> Self {
+        let details = &gateway_registration.details;
+        let gateway_keys = client_keys.gateway_keys(details.gateway_id(), details.generation_id());
         InitialisationResult {
             gateway_registration,
-            client_keys,
+            gateway_keys,
             authenticated_ephemeral_client: None,
         }
     }
@@ -147,8 +151,8 @@ impl InitialisationResult {
 
     pub fn client_address(&self) -> Recipient {
         Recipient::new(
-            *self.client_keys.identity_keypair().public_key(),
-            *self.client_keys.encryption_keypair().public_key(),
+            *self.gateway_keys.identity_keypair().public_key(),
+            *self.gateway_keys.encryption_keypair().public_key(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
             self.gateway_id(),
@@ -161,11 +165,7 @@ impl InitialisationResult {
 
     // indicates if the remote gateway details TTL has expired
     pub fn exipred_details(&self) -> bool {
-        if let Some(expiration_timestamp) = self.gateway_registration.details.details_exipration() {
-            OffsetDateTime::now_utc() > expiration_timestamp
-        } else {
-            false
-        }
+        self.gateway_registration.details.published_data_expired()
     }
 }
 
@@ -242,6 +242,16 @@ pub enum GatewaySetup {
         gateway_id: Option<String>,
     },
 
+    /// Register again with a gateway that has a stored registration, under a newly drawn generation id.
+    RefreshKeys {
+        /// Optionally specify concrete gateway id. If none is selected, the current active gateway will be used.
+        gateway_id: Option<String>,
+
+        /// Callback useful for allowing initial connection to gateway
+        #[cfg(unix)]
+        connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+    },
+
     /// Specifies usage of a new gateway
     New {
         specification: GatewaySelectionSpecification,
@@ -261,7 +271,7 @@ pub enum GatewaySetup {
         // Details of this pre-initialised client (i.e. gateway and keys)
         gateway_details: Box<GatewayRegistration>,
 
-        client_keys: ClientKeys,
+        gateway_keys: GatewayClientKeys,
     },
 }
 
@@ -270,6 +280,10 @@ impl Debug for GatewaySetup {
         match self {
             GatewaySetup::MustLoad { gateway_id } => f
                 .debug_struct("GatewaySetup::MustLoad")
+                .field("gateway_id", gateway_id)
+                .finish(),
+            GatewaySetup::RefreshKeys { gateway_id, .. } => f
+                .debug_struct("GatewaySetup::RefreshKeys")
                 .field("gateway_id", gateway_id)
                 .finish(),
             GatewaySetup::New {
@@ -289,7 +303,7 @@ impl Debug for GatewaySetup {
                 .debug_struct("GatewaySetup::ReuseConnection")
                 .field("authenticated_ephemeral_client", &"***")
                 .field("gateway_details", gateway_details)
-                .field("client_keys", &"***")
+                .field("gateway_keys", &"***")
                 .finish(),
         }
     }
@@ -301,7 +315,7 @@ impl GatewaySetup {
             Ok(GatewaySetup::ReuseConnection {
                 authenticated_ephemeral_client: Box::new(authenticated_ephemeral_client),
                 gateway_details: Box::new(init_res.gateway_registration),
-                client_keys: init_res.client_keys,
+                gateway_keys: init_res.gateway_keys,
             })
         } else {
             Err(ClientCoreError::NoInitClientPresent)
@@ -391,5 +405,122 @@ impl Display for InitResults {
         writeln!(f, "Gateway ID: {}", self.gateway_id)?;
         writeln!(f, "Gateway: {}", self.gateway_listener)?;
         write!(f, "Registered at: {}", self.gateway_registration)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_client_core_gateways_storage::{GatewayDetails, GatewayPublishedData, GenerationId};
+    use nym_test_utils::helpers::{deterministic_rng, dummy_ed25519_keypair};
+
+    fn gateway_id(seed: u64) -> ed25519::PublicKey {
+        *dummy_ed25519_keypair(seed).public_key()
+    }
+
+    fn remote_registration(
+        gateway_id: ed25519::PublicKey,
+        generation_id: Option<GenerationId>,
+    ) -> GatewayRegistration {
+        let listeners = GatewayListeners {
+            primary: "ws://127.0.0.1:9000".parse().unwrap(),
+            fallback: None,
+        };
+        GatewayDetails::Remote(RemoteGatewayDetails {
+            gateway_id,
+            shared_key: Arc::new(SharedSymmetricKey::try_from_bytes(&[1; 32]).unwrap()),
+            published_data: GatewayPublishedData::new(listeners),
+            generation_id,
+        })
+        .into()
+    }
+
+    #[test]
+    fn a_legacy_registration_resolves_to_the_root_keys() {
+        let root = ClientKeys::generate_new(&mut deterministic_rng());
+
+        let loaded =
+            InitialisationResult::new_loaded(remote_registration(gateway_id(1), None), &root);
+
+        assert_eq!(
+            loaded.gateway_keys.identity_keypair().public_key(),
+            root.identity_keypair().public_key()
+        );
+        assert_eq!(
+            loaded.gateway_keys.encryption_keypair().public_key(),
+            root.encryption_keypair().public_key()
+        );
+    }
+
+    #[test]
+    fn a_custom_registration_resolves_to_the_root_keys() {
+        let root = ClientKeys::generate_new(&mut deterministic_rng());
+        let registration = GatewayDetails::new_custom(gateway_id(1), None).into();
+
+        let loaded = InitialisationResult::new_loaded(registration, &root);
+
+        assert_eq!(
+            loaded.gateway_keys.identity_keypair().public_key(),
+            root.identity_keypair().public_key()
+        );
+        assert_eq!(
+            loaded.gateway_keys.encryption_keypair().public_key(),
+            root.encryption_keypair().public_key()
+        );
+    }
+
+    #[test]
+    fn a_derived_registration_resolves_to_the_keys_for_its_gateway_and_generation() {
+        let mut rng = deterministic_rng();
+        let root = ClientKeys::generate_new(&mut rng);
+        let generation_id = GenerationId::new_random(&mut rng);
+
+        let loaded = InitialisationResult::new_loaded(
+            remote_registration(gateway_id(1), Some(generation_id)),
+            &root,
+        );
+        let expected = root.gateway_keys(gateway_id(1), Some(generation_id));
+
+        assert_eq!(
+            loaded.gateway_keys.identity_keypair().public_key(),
+            expected.identity_keypair().public_key()
+        );
+        assert_eq!(
+            loaded.gateway_keys.encryption_keypair().public_key(),
+            expected.encryption_keypair().public_key()
+        );
+        assert_ne!(
+            loaded.gateway_keys.identity_keypair().public_key(),
+            root.identity_keypair().public_key()
+        );
+        assert_ne!(
+            loaded.gateway_keys.encryption_keypair().public_key(),
+            root.encryption_keypair().public_key()
+        );
+    }
+
+    #[test]
+    fn two_gateways_resolve_to_different_keys() {
+        let mut rng = deterministic_rng();
+        let root = ClientKeys::generate_new(&mut rng);
+        let generation_id = GenerationId::new_random(&mut rng);
+
+        let first = InitialisationResult::new_loaded(
+            remote_registration(gateway_id(1), Some(generation_id)),
+            &root,
+        );
+        let second = InitialisationResult::new_loaded(
+            remote_registration(gateway_id(2), Some(generation_id)),
+            &root,
+        );
+
+        assert_ne!(
+            first.gateway_keys.identity_keypair().public_key(),
+            second.gateway_keys.identity_keypair().public_key()
+        );
+        assert_ne!(
+            first.gateway_keys.encryption_keypair().public_key(),
+            second.gateway_keys.encryption_keypair().public_key()
+        );
     }
 }

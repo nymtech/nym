@@ -14,8 +14,8 @@ nano /etc/nginx/sites-available/wss-config-nym
 #############################################################
 
 server {
-    listen <ANNOUNCE_WSS_PORT> ssl http2;
-    listen [::]:<ANNOUNCE_WSS_PORT> ssl http2;
+    listen <ANNOUNCE_WSS_PORT> ssl;
+    listen [::]:<ANNOUNCE_WSS_PORT> ssl;
 
     server_name <HOSTNAME>;
 

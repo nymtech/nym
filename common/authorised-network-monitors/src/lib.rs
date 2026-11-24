@@ -59,12 +59,7 @@ impl AuthorisedMonitorIdentities {
     /// never leave the superseded identity exempt.
     pub fn set_announced(&self, address: SocketAddr, identity: Option<ed25519::PublicKey>) {
         let mut updated = self.inner.load().as_ref().clone();
-
-        updated.withdraw(address);
-        if let Some(identity) = identity {
-            updated.announce(address, identity);
-        }
-
+        updated.set_announced(address, identity);
         self.inner.store(Arc::new(updated))
     }
 
@@ -82,17 +77,13 @@ impl AuthorisedMonitorIdentities {
         self.inner.store(Default::default())
     }
 
-    /// Replace everything with what the given agent entries announce, in a single store.
-    ///
-    /// An entry announcing `None` contributes nothing, as with [`Self::set_announced`].
-    pub fn replace_all(&self, announced: HashMap<SocketAddr, Option<ed25519::PublicKey>>) {
+    /// Replace everything with what the given agent entries announce, folded in order as
+    /// [`Self::set_announced`] folds them, in a single store.
+    pub fn replace_all(&self, announced: Vec<(SocketAddr, Option<ed25519::PublicKey>)>) {
         let mut replaced = AuthorisedMonitorIdentitiesInner::default();
         for (address, identity) in announced {
-            if let Some(identity) = identity {
-                replaced.announce(address, identity);
-            }
+            replaced.set_announced(address, identity);
         }
-
         self.inner.store(Arc::new(replaced))
     }
 }
@@ -106,6 +97,14 @@ struct AuthorisedMonitorIdentitiesInner {
 impl AuthorisedMonitorIdentitiesInner {
     fn is_announced(&self, identity: &ed25519::PublicKey) -> bool {
         self.announced.contains_key(identity)
+    }
+
+    /// Record what an agent entry announces, replacing whatever it announced before.
+    fn set_announced(&mut self, address: SocketAddr, identity: Option<ed25519::PublicKey>) {
+        self.withdraw(address);
+        if let Some(identity) = identity {
+            self.announce(address, identity);
+        }
     }
 
     fn announce(&mut self, address: SocketAddr, identity: ed25519::PublicKey) {
@@ -251,6 +250,28 @@ mod tests {
         identities.remove(plain);
 
         assert!(!identities.is_announced(&identity));
+    }
+
+    // The contract keys both address forms separately, so a reload can carry one host and port
+    // twice. Left with two identities on it, revoking either form would keep one of them exempt.
+    #[test]
+    fn a_reload_carrying_both_forms_of_an_address_leaves_one_identity_on_it() {
+        let identities = AuthorisedMonitorIdentities::default();
+
+        let plain = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 39322);
+        let mapped = SocketAddr::new(
+            IpAddr::V6(Ipv4Addr::new(1, 2, 3, 4).to_ipv6_mapped()),
+            39322,
+        );
+
+        identities.replace_all(vec![
+            (plain, Some(identity(1))),
+            (mapped, Some(identity(2))),
+        ]);
+        identities.remove(mapped);
+
+        assert!(!identities.is_announced(&identity(1)));
+        assert!(!identities.is_announced(&identity(2)));
     }
 
     // Agents sharing a host are disambiguated by port, so revoking one must not withdraw another's

@@ -436,15 +436,19 @@ where
         Ok(())
     }
 
-    pub async fn wait_for_startup_sync(&self) {
+    pub async fn wait_for_startup_sync(&self) -> Result<(), ScraperError> {
         info!("awaiting startup chain sync");
-        self.startup_sync.notified().await
+        tokio::select! {
+            biased;
+            _ = self.startup_sync.notified() => Ok(()),
+            _ = self.cancel_token.cancelled() => Err(ScraperError::StoppedBeforeStartupSync),
+        }
     }
 
     pub async fn stop(self) {
         info!("stopping the chain scraper");
-        assert!(self.task_tracker.is_closed());
 
+        // the tracker may be open here: the subscriber reopens it briefly for every new subscription
         self.cancel_token.cancel();
         self.task_tracker.wait().await
     }

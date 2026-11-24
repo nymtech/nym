@@ -21,11 +21,15 @@ A failed or missing block MUST be requested again by height. The processor check
 
 ### Requirement: A persisting scraper resumes from the height its storage recorded
 
-A scraper built over a storage backend SHALL take the last processed height recorded in that storage as its own when it starts. When that height is below the current chain height it MUST request every block between them at startup, except that with a pruning strategy in force it MUST NOT request blocks older than the ones that strategy would keep. A scraper whose storage records no height MUST start from its configured starting height when one is set, and otherwise from the first block it observes.
+A scraper built over a storage backend SHALL take the last processed height recorded in that storage as its own when it starts. When that height is below the current chain height it MUST request every block between them at startup, except that with a pruning strategy in force it MUST NOT request blocks older than the ones that strategy would keep. When its endpoint no longer holds the first block it would request, it MUST stop with an error naming that block rather than request it. A scraper whose storage records no height MUST start from its configured starting height when one is set, and otherwise from the first block it observes.
 
 #### Scenario: Blocks produced while the scraper was down are fetched
 - **WHEN** a scraper that stopped after block 1000 is started again while the chain is at height 1500
 - **THEN** it requests blocks 1001 through 1500 and processes them in order
+
+#### Scenario: Blocks its endpoint no longer holds stop the scraper
+- **WHEN** a scraper that stopped after block 1000 is started again while its endpoint's earliest available block is 5000
+- **THEN** it requests no blocks, reports block 1001 as unavailable, and stops
 
 #### Scenario: A first start has nothing to resume
 - **WHEN** a scraper starts over an empty storage with no starting height configured

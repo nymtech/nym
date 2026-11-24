@@ -66,7 +66,7 @@ Alternatives considered:
 
 ### 4. The current height is the highest any configured endpoint reports
 
-`current_block_height()` asks every endpoint and keeps the highest answer. With "first endpoint that answers", a backend that responds but has stopped advancing, serving both the websocket and the first RPC endpoint, leaves the watcher convinced there is nothing newer. All four callers are inside the crate, and the persisting scrapers build their client with one URL, so nothing changes for them. The query only runs when nothing was processed for 15 seconds and the backlog is empty. Cost: the endpoints are asked in turn, so a hanging fallback adds up to its 30 second request timeout to that check.
+`current_block_height()` asks every endpoint and keeps the highest answer. With "first endpoint that answers", a backend that responds but has stopped advancing, serving both the websocket and the first RPC endpoint, leaves the watcher convinced there is nothing newer. Every caller is inside the crate, and the persisting scrapers build their client with one URL, so nothing changes for them. The query only runs when nothing was processed for 15 seconds and the backlog is empty. Cost: the endpoints are asked in turn, so a hanging fallback adds up to its 30 second request timeout to that check.
 
 ### 5. A failed block stops the drain, and is not put back in the backlog
 
@@ -134,12 +134,13 @@ Checked by hand instead, because a test would need chain endpoints and a websock
 
 ## Risks / Trade-offs
 
-- **A persisting scraper held on a block that never succeeds grows its backlog without bound.** → Unchanged from today for failures outside the drain; now also true for failures inside it. Accepted: skipping is worse for a scraper, and its loss already stops the rewarder.
+- **A persisting scraper held on a block that never succeeds grows its backlog without bound.** → Unchanged from today for failures outside the drain; now also true for failures inside it. Accepted: skipping is worse for a scraper. A held scraper is not cancelled, so the validator rewarder keeps running: it pays the epoch in which the hold began from the blocks stored before it, and every later epoch fails for lack of blocks and is not replayed.
 - **A watcher task that panics does not cancel the watcher's token**, so the supervisor would not notice. → In nym-node this does not arise: its panic hook cancels the node's root token on any panic, which stops every node task, the supervisor included, as a panic in any other task already does. Not addressed here.
 - **A node with one configured endpoint cannot detect a backend that stopped advancing.** → The v15 config migration of part one gives default mainnet configs a fallback. Operators with a custom single endpoint keep today's behaviour.
+- **A reload from an endpoint behind the node's current state can bring back a revoked agent.** The reload takes the first endpoint that answers, at whatever height it reports. If that backend is behind a revocation the previous watcher already applied, the reloaded set has the agent again until the new watcher fetches that block by height, about 30 seconds; while no watcher can be started, until a reload lands on an endpoint past the revocation. → Accepted: refusing loads below the last loaded height would still miss whatever the watcher applied after its start.
 - **Modules can be about 30 seconds behind right after a watcher start**, because the blocks produced during the load are fetched by the existing 30 second check. → Accepted; today the same blocks are lost outright.
 - **A reload jumps over the blocks between the stall and the new height.** → That is the design: the loaded state already reflects them. It is why this mechanism suits a consumer that mirrors contract state and not one that must act on every transaction.
-- **A failing boot takes about 10 seconds longer to fail.** → Accepted for riding out a lagging backend.
+- **A failing boot takes about 20 seconds longer to fail** (two 10 second pauses between its three attempts). → Accepted for riding out a lagging backend.
 - **With the flag set and no reachable endpoint, a node rejects every monitor agent** and so fails liveness probes until its first load. → The flag's help text and the error log say so.
 - **The restart counter is opportunistic.** If wiring it needs more than a few lines it is dropped, and the sentence requiring it is removed from the spec delta in the same task.
 
@@ -147,7 +148,7 @@ Checked by hand instead, because a test would need chain endpoints and a websock
 
 No data or configuration migration. The change ships with a node release. Rolling back is a binary downgrade: no persisted state is introduced, and the flag is simply unknown to an older binary.
 
-The persisting scraper users pick up the drain fix and the resume fix when they are next built. On the first restart after that, a scraper resumes from its stored height and fetches the blocks produced while it was down. Blocks skipped by earlier restarts stay missing; a separate backfill is needed to recover those.
+The persisting scraper users pick up the drain fix and the resume fix when they are next built. On the first restart after that, a scraper resumes from its stored height and fetches the blocks produced while it was down; if its endpoint no longer holds them, the scraper stops with an error naming the first missing block and its program exits. Blocks skipped by earlier restarts stay missing; a separate backfill is needed to recover those.
 
 Moving operators' websocket URL back to the load-balanced default is a later rollout decision that this change makes safe but does not make.
 

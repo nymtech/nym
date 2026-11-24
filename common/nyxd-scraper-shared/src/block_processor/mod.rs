@@ -566,6 +566,14 @@ where
                 self.last_processed_height = max(self.last_processed_height, last_to_keep);
             }
 
+            let earliest_available =
+                self.rpc_client.earliest_available_block_height().await? as u32;
+            if earliest_available > self.last_processed_height + 1 {
+                return Err(ScraperError::BlocksUnavailable {
+                    height: self.last_processed_height + 1,
+                });
+            }
+
             let request_range = self.last_processed_height + 1..latest_block + 1;
             info!(
                 keep_recent = %keep_recent,

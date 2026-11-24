@@ -145,7 +145,7 @@ The rewarder SHALL run a single biased `select!` loop over four events, evaluate
 
 ### Requirement: Block-signing epochs are contiguous and resumed from storage, and finished epochs are replayed on startup
 
-Block signing SHALL be organised into contiguous epochs identified by a monotonically increasing `id`, where each epoch's `start_time` is the previous epoch's `end_time` and its `end_time` is `start_time + epoch_duration`. On startup the current epoch MUST be the successor of the newest epoch in storage, or, when storage holds none, epoch `0` starting at `now + 1 hour` truncated to the hour. Before entering the main loop the rewarder MUST replay every already-finished epoch that has no stored header, in order, rewarding each, until the current epoch is still in progress. The epoch marker is the header row, which MUST be written before any reward transaction is sent (see the persistence requirement), so an epoch whose header exists is resumed past and never replayed. A header written without a settled details row MUST be reported at startup as possibly unsettled, not replayed.
+Block signing SHALL be organised into contiguous epochs identified by a monotonically increasing `id`, where each epoch's `start_time` is the previous epoch's `end_time` and its `end_time` is `start_time + epoch_duration`. On startup the current epoch MUST be the successor of the newest epoch in storage, or, when storage holds none, epoch `0` starting at `now + 1 hour` truncated to the hour. Before entering the main loop the rewarder MUST replay every already-finished epoch that has no stored header, in order, rewarding each, until the current epoch is still in progress. It MUST first wait for the scraper's startup sync, and MUST abort startup without replaying anything when the scraper stops before that sync completes. The epoch marker is the header row, which MUST be written before any reward transaction is sent (see the persistence requirement), so an epoch whose header exists is resumed past and never replayed. A header written without a settled details row MUST be reported at startup as possibly unsettled, not replayed.
 
 #### Scenario: Fresh deployment starts at the next hour boundary
 - **WHEN** the rewarder starts at 10:17 UTC with an empty database and a 1 hour epoch duration
@@ -154,6 +154,10 @@ Block signing SHALL be organised into contiguous epochs identified by a monotoni
 #### Scenario: Downtime is replayed epoch by epoch
 - **WHEN** the rewarder restarts after being down for three epochs
 - **THEN** each missed epoch is measured and rewarded in order before the main loop starts, and each is recorded separately
+
+#### Scenario: A scraper that stops during its startup sync aborts startup
+- **WHEN** the nyxd scraper stops before its startup sync completes, for example because its endpoint no longer holds the blocks it has to resume from
+- **THEN** startup fails with an error and no epoch is replayed or rewarded
 
 #### Scenario: Epoch marker advances past a failed epoch
 - **WHEN** an epoch's rewarding fails

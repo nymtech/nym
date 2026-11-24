@@ -5,8 +5,8 @@ These options apply to each `nym-cli` command.
 | Option | What it does |
 |---|---|
 | `--mnemonic` | The mnemonic of the account that signs. When a command signs a transaction, such as `account send`, the `MNEMONIC` environment variable takes precedence over this flag, so clear `MNEMONIC` before choosing the signing account with `--mnemonic`. Prefer the variable anyway: a flag value shows in the process list. |
-| `--config-env-file` | A file of environment variables that sets the network. A variable that is set in the environment wins over the file. |
-| `--nyxd-url` | The nyxd endpoint. It overrides `NYXD_VALIDATOR` and the config file. |
+| `--config-env-file` | A file of environment variables that sets the network. A variable that is set in the environment wins over the file. `setup_env` skips the file entirely when `CONFIGURED` is already set, so unset `CONFIGURED` when you want the file loaded. |
+| `--nyxd-url` | The nyxd endpoint. It overrides the legacy `NYMD_VALIDATOR` variable and the config file. |
 | `--nym-api-url` | The Nym API endpoint. It overrides `API_VALIDATOR` and the config file. |
 | `--mixnet-contract-address`, `--vesting-contract-address` | The contract addresses. They override the environment and the config file. |
 

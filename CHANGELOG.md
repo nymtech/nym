@@ -4,6 +4,26 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.23-jakarta] (2026-11-24)
+
+- Accept key passphrase in nym-cli ecash issue-ticket-book ([#7421])
+- Add SQLCipher encryption for client storage ([#7417])
+- adding bridges to probe tests ([#7415])
+- [LP-DATA] Experimental LP client ([#7411])
+- fix: no longer check for homepage in cargo.toml ([#7404])
+- feat: Nym Node: publish noise key, operator T&C and legacy LP signature to the directory ([#7399])
+- [LP-DATA] Gateway Control Client ([#7396])
+- [LP-DATA] NymNodes improvements ([#7394])
+
+[#7421]: https://github.com/nymtech/nym/pull/7421
+[#7417]: https://github.com/nymtech/nym/pull/7417
+[#7415]: https://github.com/nymtech/nym/pull/7415
+[#7411]: https://github.com/nymtech/nym/pull/7411
+[#7404]: https://github.com/nymtech/nym/pull/7404
+[#7399]: https://github.com/nymtech/nym/pull/7399
+[#7396]: https://github.com/nymtech/nym/pull/7396
+[#7394]: https://github.com/nymtech/nym/pull/7394
+
 ## [2026.22-istanbul] (2026-11-11)
 
 - bugfix: initiator-derived KKT mode ([#7403])

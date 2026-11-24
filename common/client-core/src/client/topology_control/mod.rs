@@ -1,7 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) use accessor::TopologyAccessor;
 use futures::StreamExt;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_topology::NymTopologyError;
@@ -15,9 +14,15 @@ use tokio::time::sleep;
 use wasmtimer::tokio::sleep;
 
 mod accessor;
+mod lp_accessor;
+pub mod lp_provider;
 pub mod nym_api_provider;
 
+pub use accessor::TopologyAccessor;
+pub use lp_accessor::LpTopologyAccessor;
+pub use lp_provider::NymApiLpTopologyProvider;
 pub use nym_api_provider::{Config as NymApiTopologyProviderConfig, NymApiTopologyProvider};
+pub use nym_topology::lp::LpTopologyProvider;
 pub use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
 
 // TODO: move it to config later
@@ -191,5 +196,73 @@ impl TopologyRefresher {
 
         // this should never get triggered
         error!("topology refresher interval has been exhausted!")
+    }
+}
+
+/// Keeps the LP view fresh, independently of the legacy one.
+///
+/// Separate from [`TopologyRefresher`] so the two feeds fail apart: a broken LP listing stops LP
+/// routes and leaves the legacy path alone, which is the whole point of the paths being separate.
+pub struct LpTopologyRefresher {
+    topology_provider: Box<dyn LpTopologyProvider + Send + Sync>,
+    topology_accessor: LpTopologyAccessor,
+
+    refresh_rate: Duration,
+    consecutive_failure_count: usize,
+}
+
+impl LpTopologyRefresher {
+    pub fn new(
+        cfg: TopologyRefresherConfig,
+        topology_accessor: LpTopologyAccessor,
+        topology_provider: Box<dyn LpTopologyProvider + Send + Sync>,
+    ) -> Self {
+        LpTopologyRefresher {
+            topology_provider,
+            topology_accessor,
+            refresh_rate: cfg.refresh_rate,
+            consecutive_failure_count: 0,
+        }
+    }
+
+    pub async fn try_refresh(&mut self) {
+        trace!("Refreshing the LP topology");
+
+        let new_topology = self.topology_provider.get_new_lp_topology().await;
+        if new_topology.is_none() {
+            warn!("failed to obtain new LP network topology");
+        }
+
+        if new_topology.is_none() && self.consecutive_failure_count < MAX_FAILURE_COUNT {
+            // a hiccup at the api is not a reason to tear down a working view
+            warn!("we're going to keep on using the old LP topology for this iteration");
+            self.consecutive_failure_count += 1;
+            return;
+        } else if new_topology.is_some() {
+            self.consecutive_failure_count = 0;
+        }
+
+        self.topology_accessor.update_global_topology(new_topology);
+    }
+
+    pub async fn run(&mut self) {
+        debug!("Started LpTopologyRefresher");
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut interval =
+            tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(self.refresh_rate));
+
+        #[cfg(target_arch = "wasm32")]
+        let mut interval =
+            gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        interval.next().await;
+
+        while interval.next().await.is_some() {
+            self.try_refresh().await;
+        }
+
+        error!("LP topology refresher interval has been exhausted!")
     }
 }

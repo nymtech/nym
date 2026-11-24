@@ -11,11 +11,10 @@ use nym_client_core_gateways_storage::{GatewayDetails, GatewayType};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[derive(Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct CommonClientListGatewaysArgs {
     /// Id of client we want to list gateways for.
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[clap(long)]
     pub id: String,
 }
 
@@ -32,7 +31,10 @@ impl Display for RegisteredGateways {
     }
 }
 
-pub async fn list_gateways<C, A>(args: A) -> Result<RegisteredGateways, C::Error>
+pub async fn list_gateways<C, A>(
+    args: A,
+    database_key: Option<&nym_sqlcipher::DatabaseKey>,
+) -> Result<RegisteredGateways, C::Error>
 where
     A: AsRef<CommonClientListGatewaysArgs>,
     C: CliClient,
@@ -43,7 +45,8 @@ where
     let config = C::try_load_current_config(id).await?;
     let paths = config.common_paths();
 
-    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    let details_store =
+        setup_fs_gateways_storage(&paths.gateway_registrations, database_key).await?;
 
     let active_gateway = get_active_gateway_identity(&details_store).await?;
 

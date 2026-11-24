@@ -95,6 +95,13 @@
 //! | `client-pool` | Pre-warmed pool of ephemeral clients |
 //! | `cli` | The `nym-proxy-server` and `nym-proxy-client` binaries (implies `tcp-proxy`) |
 //!
+//! These are off by default:
+//!
+//! | Feature | Enables |
+//! |---------|---------|
+//! | `sqlcipher` | Builds the bundled SQLCipher in place of SQLite, to encrypt the databases with `StoragePaths::with_database_key` (implies `fs-storage`) |
+//! | `sqlcipher-vendored-openssl` | Same as `sqlcipher`, but builds OpenSSL from source instead of linking the system OpenSSL |
+//!
 //! # Network configuration
 //!
 //! By default, the SDK connects to the Nym mainnet. Customize with

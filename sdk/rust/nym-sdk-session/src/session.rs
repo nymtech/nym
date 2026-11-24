@@ -18,7 +18,8 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpRemotePeer};
 use nym_network_defaults::NymNetworkDetails;
 use nym_registration_client::{
-    LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient, NestedLpSession,
+    LpDvpnRegistrationClient, LpGatewayControlClient, NestedLpDvpnRegistrationClient,
+    NestedLpSession,
 };
 use nym_registration_common::WireguardConfiguration;
 use nym_task::ShutdownToken;
@@ -128,6 +129,7 @@ impl Session {
             mnemonic,
             network,
             credential_store_path,
+            database_key,
             data_path,
             dvpn_directory_url,
             automatic_topups,
@@ -176,6 +178,7 @@ impl Session {
                     mnemonic,
                     network,
                     credential_store_path,
+                    database_key.as_ref(),
                     data_path,
                     automatic_topups,
                     cancel.clone(),
@@ -200,6 +203,7 @@ impl Session {
         mnemonic: bip39::Mnemonic,
         network: NymNetworkDetails,
         credential_store_path: Option<PathBuf>,
+        database_key: Option<&nym_sqlcipher::DatabaseKey>,
         data_path: PathBuf,
         automatic_topups: Option<RestockPolicy>,
         cancel: CancellationToken,
@@ -227,7 +231,8 @@ impl Session {
         if let Some(parent) = store_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| SessionError::Storage(e.to_string()))?;
         }
-        let storage = nym_credential_storage::initialise_persistent_storage(&store_path).await;
+        let storage =
+            nym_credential_storage::initialise_persistent_storage(&store_path, database_key).await;
 
         // Credential fetcher: deposits NYM and aggregates issued wallets. Wrapped so the
         // read-only global-signing-data fetches are time-bounded: unresponsive ecash signers
@@ -236,7 +241,7 @@ impl Session {
         // ticketbook anyway — rather than hanging the controller loop and losing the book.
         // Issuance itself (the deposit) is deliberately not timed; see `TimeoutFetcher` docs.
         let fetcher_db = data_path.join("fetcher-requests.db");
-        let fetcher = NyxdCredentialFetcher::new(nyxd, &fetcher_db, client_id)
+        let fetcher = NyxdCredentialFetcher::new(nyxd, &fetcher_db, database_key, client_id)
             .await
             .map_err(|e| SessionError::Issuance(e.to_string()))?;
         let fetcher = TimeoutFetcher::new(fetcher);
@@ -593,7 +598,7 @@ impl Session {
             Arc::new(DHKeyPair::new(&mut rng).map_err(|_| SessionError::KeyGenerationFailure)?);
         let entry_peer =
             LpRemotePeer::new(entry_lp.x25519).with_key_digests(entry_lp.expected_kem_key_hashes);
-        let mut entry_client = LpGatewayClient::<TcpStream>::new_with_default_config(
+        let mut entry_client = LpGatewayControlClient::<TcpStream>::new_with_default_config(
             entry_keypair,
             entry_peer,
             entry_lp.address,
@@ -707,7 +712,7 @@ impl Session {
         let keypair =
             Arc::new(DHKeyPair::new(&mut rng).map_err(|_| SessionError::KeyGenerationFailure)?);
         let peer = LpRemotePeer::new(lp.x25519).with_key_digests(lp.expected_kem_key_hashes);
-        let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
+        let mut client = LpGatewayControlClient::<TcpStream>::new_with_default_config(
             keypair,
             peer,
             lp.address,

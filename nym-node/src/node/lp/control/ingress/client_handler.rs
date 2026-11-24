@@ -305,7 +305,7 @@ where
             }
             RegistrationStatus::PendingMoreData => {
                 info!(
-                    "we required more deta from {} to complete registration",
+                    "we require more data from {} to complete registration",
                     self.remote_addr
                 );
             }
@@ -558,6 +558,7 @@ mod tests {
     use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
     use nym_test_utils::helpers::deterministic_rng;
     use std::sync::Arc;
+    use tokio::sync::mpsc;
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests
@@ -582,7 +583,7 @@ mod tests {
         );
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), x_keys).with_kem_keys(kem_keys);
 
-        let sessions = ActiveLpSessions::new();
+        let sessions = ActiveLpSessions::new(mpsc::channel(100).0);
         let shared = SharedLpControlState {
             local_lp_peer: lp_peer,
             nodes: LpNodes::new_empty(),

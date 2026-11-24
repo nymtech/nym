@@ -27,7 +27,8 @@ mod tests {
     use nym_node::node::lp::{SharedGatewayLpControlState, SharedLpControlState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{
-        LpClientError, LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient,
+        LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient,
+        NestedLpDvpnRegistrationClient,
     };
     use nym_test_utils::helpers::CryptoRng010;
     use nym_test_utils::traits::Timeboxed;
@@ -41,8 +42,8 @@ mod tests {
     use std::mem;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
     use std::sync::Arc;
-    use tokio::sync::Semaphore;
     use tokio::sync::mpsc::Receiver;
+    use tokio::sync::{Semaphore, mpsc};
     use tokio::task::JoinHandle;
     use tokio_util::sync::CancellationToken;
     use tracing::error;
@@ -240,8 +241,8 @@ mod tests {
                 PeerManager::new(wireguard_data),
                 upgrade_mode_details,
             );
-
-            let sessions = ActiveLpSessions::new();
+            let (tx, _) = mpsc::channel(10);
+            let sessions = ActiveLpSessions::new(tx);
 
             let lp_state = SharedLpControlState {
                 local_lp_peer: base.peer.clone(),
@@ -412,7 +413,7 @@ mod tests {
                 let client_key = *client_data.base.x25519_wg_keys.public_key();
                 let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-                let mut client = LpGatewayClient::<MockTransport>::new_with_default_config(
+                let mut client = LpGatewayControlClient::<MockTransport>::new_with_default_config(
                     client_data.base.peer.x25519().clone(),
                     entry.base.peer.as_remote(),
                     entry.base.socket_addr,
@@ -518,7 +519,7 @@ mod tests {
 
             let ciphersuite = Ciphersuite::default();
 
-            let mut client = LpGatewayClient::<MockTransport>::new_with_default_config(
+            let mut client = LpGatewayControlClient::<MockTransport>::new_with_default_config(
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
@@ -595,7 +596,7 @@ mod tests {
                 exit.learn_node(&entry.base);
             }
 
-            let mut entry_client = LpGatewayClient::<MockTransport>::new_with_default_config(
+            let mut entry_client = LpGatewayControlClient::<MockTransport>::new_with_default_config(
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,

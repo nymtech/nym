@@ -7,12 +7,11 @@ use std::collections::BTreeMap;
 use std::fmt::Display;
 use strum_macros::{Display, EnumIter, EnumString};
 
-#[cfg(feature = "serde")]
-use serde_with::{DisplayFromStr, hex::Hex};
-
 pub use strum::IntoEnumIterator;
 
 pub mod error;
+#[cfg(feature = "serde")]
+pub mod serde_helpers;
 
 pub const DEFAULT_HASH_LEN: usize = 32;
 const _: () = assert!(DEFAULT_HASH_LEN <= u8::MAX as usize);
@@ -55,10 +54,6 @@ pub type KEMKeyDigests = BTreeMap<HashFunction, Vec<u8>>;
 
 /// Digests of all KEM keys of a node, per KEM and per hash function used to compute them.
 pub type KEMKeysDigests = BTreeMap<KEM, KEMKeyDigests>;
-
-#[cfg(feature = "serde")]
-/// Serialized format of KEMKeysDigests, with digest in hex format
-pub type HexKEMKeysDigests = BTreeMap<DisplayFromStr, BTreeMap<DisplayFromStr, Hex>>;
 
 pub mod node_compatibility {
     /// Indicates the initial version where kkt has been introduced

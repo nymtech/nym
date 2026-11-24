@@ -97,6 +97,30 @@ name = "tcp_proxy_single_connection"
 path = "examples/tcp_proxy_single_connection.rs"
 required-features = ["tcp-proxy"]
 
+[[example]]
+name = "tutorial_mixnet_ephemeral"
+path = "examples/tutorial_mixnet_ephemeral.rs"
+
+[[example]]
+name = "tutorial_mixnet_persistent"
+path = "examples/tutorial_mixnet_persistent.rs"
+required-features = ["fs-storage"]
+
+[[example]]
+name = "tutorial_stream_server"
+path = "examples/tutorial_stream_server.rs"
+required-features = ["stream"]
+
+[[example]]
+name = "tutorial_stream_client"
+path = "examples/tutorial_stream_client.rs"
+required-features = ["stream"]
+
+[[example]]
+name = "tutorial_client_pool"
+path = "examples/tutorial_client_pool.rs"
+required-features = ["client-pool"]
+
 [[bin]]
 name = "nym-proxy-server"
 path = "src/tcp_proxy/bin/proxy_server.rs"
@@ -114,6 +138,7 @@ nym-client-core = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-gateway-requests = { workspace = true }
 nym-credential-storage = { workspace = true }
+nym-sqlcipher = { workspace = true, optional = true }
 nym-network-defaults = { workspace = true }
 nym-sphinx = { workspace = true }
 nym-statistics-common = { workspace = true }
@@ -227,7 +252,15 @@ fs-storage = [
     "nym-client-core/fs-surb-storage",
     "nym-client-core/fs-gateways-storage",
     "nym-credential-storage/persistent-storage",
+    "dep:nym-sqlcipher",
 ]
+
+# Builds the bundled SQLCipher in place of SQLite for the whole dependency graph, which
+# `StoragePaths::with_database_key` needs to encrypt the databases. Apps can instead enable
+# SQLCipher themselves, e.g. through `libsqlite3-sys`.
+sqlcipher = ["fs-storage", "nym-sqlcipher/bundled"]
+# Same as `sqlcipher`, but builds OpenSSL from source instead of linking the system OpenSSL.
+sqlcipher-vendored-openssl = ["sqlcipher", "nym-sqlcipher/vendored-openssl"]
 
 # SOCKS5 client mode and network-requester country discovery.
 socks5 = [

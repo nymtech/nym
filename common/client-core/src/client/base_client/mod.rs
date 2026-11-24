@@ -82,6 +82,8 @@ const DEFAULT_NYM_API_RETRIES: usize = 3;
 pub mod non_wasm_helpers;
 
 pub mod helpers;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod lp_client;
 pub mod storage;
 
 #[derive(Clone, Copy, Debug)]
@@ -780,7 +782,7 @@ where
         )
     }
 
-    fn start_bandwidth_controller(
+    pub(crate) fn start_bandwidth_controller(
         custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
         public_data_fetcher_client: Option<C>,
         credential_store: S::CredentialStore,
@@ -869,16 +871,14 @@ where
         Ok(mem_store)
     }
 
-    async fn initialise_keys_and_gateway(
-        setup_method: GatewaySetup,
+    pub(crate) async fn initialise_keys(
         key_store: &S::KeyStore,
-        details_store: &S::GatewaysDetailsStore,
         derivation_material: Option<DerivationMaterial>,
-    ) -> Result<InitialisationResult, ClientCoreError> {
+    ) -> Result<ClientKeys, ClientCoreError> {
         // if client keys do not exist already, create and persist them; any other load failure
         // means existing keys could not be read and must not be overwritten
         match key_store.load_keys().await {
-            Ok(_) => {}
+            Ok(keys) => Ok(keys),
             Err(err) if err.keys_missing() => {
                 tracing::info!("could not find client keys - a new set will be generated");
                 // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await` below
@@ -891,19 +891,26 @@ where
                         ClientKeys::generate_new(&mut rng)
                     }
                 };
-                store_client_keys(keys, key_store).await?;
+                store_client_keys(keys.clone(), key_store).await?;
+                Ok(keys)
             }
-            Err(err) => {
-                return Err(ClientCoreError::KeyStoreError {
-                    source: Box::new(err),
-                });
-            }
+            Err(err) => Err(ClientCoreError::KeyStoreError {
+                source: Box::new(err),
+            }),
         }
+    }
 
+    async fn initialise_keys_and_gateway(
+        setup_method: GatewaySetup,
+        key_store: &S::KeyStore,
+        details_store: &S::GatewaysDetailsStore,
+        derivation_material: Option<DerivationMaterial>,
+    ) -> Result<InitialisationResult, ClientCoreError> {
+        Self::initialise_keys(key_store, derivation_material).await?;
         setup_gateway(setup_method, key_store, details_store).await
     }
 
-    fn construct_nym_api_client(
+    pub(crate) fn construct_nym_api_client(
         nym_api_urls: Option<&Vec<nym_network_defaults::ApiUrl>>,
         config: &Config,
         user_agent: Option<UserAgent>,

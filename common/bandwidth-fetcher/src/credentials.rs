@@ -55,14 +55,19 @@ where
 {
     /// Creates a fetcher whose pending-request recovery store lives at `db_path`.
     /// The ecash keypair is derived from `client_id`.
+    ///
+    /// With `db_key`, the store is encrypted with SQLCipher using the raw 256-bit key, and an
+    /// existing plaintext store is encrypted in place first.
     pub async fn new(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
+        db_key: Option<&nym_sqlcipher::DatabaseKey>,
         client_id: Zeroizing<Vec<u8>>,
     ) -> Result<Self, NyxdFetcherError> {
         Self::new_with_keypair(
             client,
             db_path,
+            db_key,
             KeyPairUser::new_seeded(client_id.as_slice()),
         )
         .await
@@ -70,12 +75,16 @@ where
 
     /// Creates a fetcher whose pending-request recovery store lives at `db_path`,
     /// using `ecash_keypair` for issued ticketbooks.
+    ///
+    /// With `db_key`, the store is encrypted with SQLCipher using the raw 256-bit key, and an
+    /// existing plaintext store is encrypted in place first.
     pub async fn new_with_keypair(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
+        db_key: Option<&nym_sqlcipher::DatabaseKey>,
         ecash_keypair: KeyPairUser,
     ) -> Result<Self, NyxdFetcherError> {
-        let pending_storage = PendingCredentialRequestsStorage::init(db_path).await?;
+        let pending_storage = PendingCredentialRequestsStorage::new(db_path, db_key).await?;
         let ecash_api_clients = Arc::new(EcashApiClientsCache::new());
         let public_data_fetcher = NyxdGlobalDataFetcher::new_with_ecash_clients(
             client.clone(),
@@ -475,13 +484,17 @@ pub(crate) mod recovery {
     where
         C: DkgQueryClient,
     {
+        /// Creates a recovery fetcher over the pending-request store at `db_path`, encrypted with
+        /// `db_key` if given, as for [`NyxdCredentialFetcher::new`].
         pub async fn new(
             client: Arc<C>,
             db_path: impl AsRef<Path>,
+            db_key: Option<&nym_sqlcipher::DatabaseKey>,
         ) -> Result<Self, NyxdFetcherError> {
             // recovery never deposits, so the client id is unused
             Ok(Self(
-                NyxdCredentialFetcher::new(client, db_path, Zeroizing::new(Vec::new())).await?,
+                NyxdCredentialFetcher::new(client, db_path, db_key, Zeroizing::new(Vec::new()))
+                    .await?,
             ))
         }
     }
@@ -619,6 +632,7 @@ mod tests {
         let fetcher = NyxdCredentialFetcher::new(
             Arc::new(MockPruneClient {}),
             &db_path,
+            None,
             Zeroizing::new(Vec::new()),
         )
         .await

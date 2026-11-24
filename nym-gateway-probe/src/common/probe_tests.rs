@@ -26,7 +26,7 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::DHKeyPair;
-use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayClient};
+use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
 use nym_topology::HardcodedTopologyProvider;
@@ -182,7 +182,7 @@ pub async fn lp_registration_probe(
         Arc::new(DHKeyPair::new(&mut rng010).map_err(|_| anyhow!("insufficient rng"))?);
 
     // Create LP registration client
-    let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
+    let mut client = LpGatewayControlClient::<TcpStream>::new_with_default_config(
         client_x25519_keypair,
         peer,
         lp_address,
@@ -191,7 +191,7 @@ pub async fn lp_registration_probe(
     );
 
     // Step 1: Perform handshake (connection is implicit in packet-per-connection model)
-    // LpGatewayClient uses packet-per-connection model - connect() is gone,
+    // LpGatewayControlClient uses packet-per-connection model - connect() is gone,
     // connection is established during handshake and registration automatically.
     info!("Performing LP handshake at {lp_address}...");
     let handshake_result =
@@ -509,18 +509,33 @@ pub(crate) async fn do_socks5_connectivity_test(
     let disconnected_socks5_client = socks5_client_builder.build()?;
 
     // connect to mixnet via SOCKS5
-    let socks5_client = match disconnected_socks5_client
-        .connect_to_mixnet_via_socks5()
-        .await
+    // bounded: some gateways never complete (or fail) the connection, which
+    // would otherwise hang the probe (and the agent running it) forever
+    let connect_timeout = Duration::from_secs(socks5_args.connect_timeout_sec);
+    let socks5_client = match tokio::time::timeout(
+        connect_timeout,
+        disconnected_socks5_client.connect_to_mixnet_via_socks5(),
+    )
+    .await
     {
-        Ok(client) => {
+        Err(_elapsed) => {
+            error!(
+                "SOCKS5 connection timed out after {}s",
+                connect_timeout.as_secs()
+            );
+            return Ok(Socks5ProbeResults::error_before_connecting(format!(
+                "SOCKS5 connection timed out after {}s",
+                connect_timeout.as_secs()
+            )));
+        }
+        Ok(Ok(client)) => {
             info!(
                 "🌐 Successfully connected to mixnet via SOCKS5 on entry gateway: {}",
                 client.nym_address().gateway().to_base58_string()
             );
             client
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             error!("Failed to establish SOCKS5 connection: {}", e);
             return Ok(Socks5ProbeResults::error_before_connecting(format!(
                 "SOCKS5 connection failed: {}",

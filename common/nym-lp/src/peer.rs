@@ -11,7 +11,7 @@ use std::sync::Arc;
 #[cfg(feature = "serde")]
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_dh_public_key;
 #[cfg(feature = "serde")]
-use nym_kkt_ciphersuite::HexKEMKeysDigests;
+use nym_kkt_ciphersuite::serde_helpers::hex_kem_keys_digests;
 
 pub use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 pub use nym_kkt::key_utils::{
@@ -106,9 +106,7 @@ pub struct LpRemotePeer {
     pub(crate) x25519_public: DHPublicKey,
 
     /// Expected digests of the remote's KEM key
-    // `serde_as` attributes is not picked up behind the feature, hence the workaround
-    #[cfg_attr(feature = "serde", serde(with = "serde_with::As::<HexKEMKeysDigests>"))]
-    //#[serde_as(as = "HexKEMKeysDigests")]
+    #[cfg_attr(feature = "serde", serde(with = "hex_kem_keys_digests"))]
     pub(crate) expected_kem_key_digests: KEMKeysDigests,
 }
 

@@ -26,6 +26,7 @@ mod tests {
     use std::sync::Arc;
     use tokio::io::AsyncReadExt;
     use tokio::net::{TcpListener, TcpStream};
+    use tokio::sync::mpsc;
     use tokio::task::JoinHandle;
     use tokio::time::error::Elapsed;
 
@@ -33,7 +34,7 @@ mod tests {
         SharedLpControlState {
             local_lp_peer: peer,
             nodes: LpNodes::new_empty(),
-            sessions: Default::default(),
+            sessions: ActiveLpSessions::new(mpsc::channel(100).0),
             metrics: Default::default(),
             lp_config: Default::default(),
         }
@@ -130,7 +131,7 @@ mod tests {
         use nym_lp_data::packet::frame::LpFrameKind;
 
         let peer_ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
-        let sessions = ActiveLpSessions::new();
+        let sessions = ActiveLpSessions::new(mpsc::channel(100).0);
 
         let first = SessionsMock::mock_seeded_post_handshake(1, nym_lp::KEM::MlKem768).initiator;
         let second = SessionsMock::mock_seeded_post_handshake(2, nym_lp::KEM::MlKem768).initiator;

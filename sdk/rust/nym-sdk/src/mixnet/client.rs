@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{connection_state::BuilderState, Config};
+use crate::mixnet::native_client::{LegacyClient, MixnetClientInner};
 use crate::mixnet::{MixnetClient, Recipient};
 use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use log::{debug, warn};
+use nym_client_core::client::base_client::lp_client::LpBaseClientBuilder;
 use nym_client_core::client::base_client::storage::gateways_storage::GatewayRegistration;
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
@@ -24,6 +26,7 @@ use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::init::{refresh_gateway_published_data, setup_gateway};
 use nym_crypto::hkdf::DerivationMaterial;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::RoutingNode;
@@ -105,6 +108,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     remember_me: RememberMe,
     derivation_material: Option<DerivationMaterial>,
     stream_idle_timeout: Option<std::time::Duration>,
+    lp_enabled: bool,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -151,6 +155,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             remember_me: Default::default(),
             derivation_material: None,
             stream_idle_timeout: None,
+            lp_enabled: false,
         })
     }
 }
@@ -185,6 +190,7 @@ where
             remember_me: Default::default(),
             derivation_material: None,
             stream_idle_timeout: None,
+            lp_enabled: false,
         }
     }
 
@@ -214,6 +220,7 @@ where
             remember_me: self.remember_me,
             derivation_material: self.derivation_material,
             stream_idle_timeout: self.stream_idle_timeout,
+            lp_enabled: self.lp_enabled,
         }
     }
 
@@ -251,6 +258,16 @@ where
     #[must_use]
     pub fn with_stream_idle_timeout(mut self, timeout: std::time::Duration) -> Self {
         self.stream_idle_timeout = Some(timeout);
+        self
+    }
+
+    /// Reach the network over the Lewes Protocol rather than the gateway's websocket.
+    ///
+    /// Off by default. A client over LP has no stream mode, no SOCKS5 mode, no topology or lane
+    /// controls and no stats reporting; their accessors panic on it.
+    #[must_use]
+    pub fn with_lp(mut self, lp_enabled: bool) -> Self {
+        self.lp_enabled = lp_enabled;
         self
     }
 
@@ -442,6 +459,7 @@ where
         client.remember_me = self.remember_me;
         client.derivation_material = self.derivation_material;
         client.stream_idle_timeout = self.stream_idle_timeout;
+        client.lp_enabled = self.lp_enabled;
         Ok(client)
     }
 }
@@ -517,6 +535,9 @@ where
     derivation_material: Option<DerivationMaterial>,
 
     stream_idle_timeout: Option<std::time::Duration>,
+
+    /// Reach the network over the Lewes Protocol rather than the gateway's websocket.
+    lp_enabled: bool,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -576,6 +597,7 @@ where
             remember_me,
             derivation_material: None,
             stream_idle_timeout: None,
+            lp_enabled: false,
         })
     }
 
@@ -844,6 +866,71 @@ where
         BandwidthImporter::new(self.storage.credential_store())
     }
 
+    /// Build and start a client over LP.
+    ///
+    /// No websocket and no stored gateway details: the gateway is the requested one, or a random
+    /// one from the LP topology, and the client handshakes and registers with it over LP itself.
+    async fn connect_to_lp(mut self) -> Result<MixnetClient> {
+        if !matches!(self.state, BuilderState::New) {
+            return Err(Error::ReregisteringGatewayNotSupported);
+        }
+
+        let requested_gateway = self
+            .config
+            .user_chosen_gateway
+            .as_deref()
+            .map(NodeIdentity::from_base58_string)
+            .transpose()
+            .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
+
+        let base_config = self
+            .config
+            .as_base_client_config(self.get_nyxd_endpoints(), self.get_api_endpoints());
+
+        let mut lp_builder: LpBaseClientBuilder<_, _> =
+            LpBaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
+                .with_derivation_material(self.derivation_material)
+                .with_nym_api_urls(self.config.network_details.nym_api_urls());
+
+        if let Some(gateway) = requested_gateway {
+            lp_builder = lp_builder.with_gateway(gateway);
+        }
+
+        if let Some(user_agent) = self.user_agent {
+            lp_builder = lp_builder.with_user_agent(user_agent);
+        }
+
+        if let Some(shutdown_tracker) = self.custom_shutdown {
+            lp_builder = lp_builder.with_shutdown(shutdown_tracker);
+        }
+
+        #[cfg(feature = "credentials")]
+        if let Some(bandwidth_provider) = self.custom_bandwidth_provider {
+            lp_builder = lp_builder.with_custom_bandwidth_provider(bandwidth_provider);
+        }
+
+        let lp_client = lp_builder.start().await?;
+        self.state = BuilderState::Registered {};
+
+        let nym_address = lp_client.address();
+        let identity_keys = lp_client.identity_keys().clone();
+        let shutdown_handle = lp_client.shutdown_handle().clone();
+
+        let mut client = MixnetClient::new(
+            nym_address,
+            identity_keys,
+            MixnetClientInner::Lp(Box::new(lp_client)),
+            shutdown_handle,
+            None,
+            self.forget_me,
+            self.remember_me,
+        );
+        if let Some(timeout) = self.stream_idle_timeout {
+            client.stream_idle_timeout = timeout;
+        }
+        Ok(client)
+    }
+
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
         self.setup_client_keys().await?;
         self.setup_gateway().await?;
@@ -934,6 +1021,9 @@ where
     /// ```
     #[cfg(feature = "socks5")]
     pub async fn connect_to_mixnet_via_socks5(self) -> Result<Socks5MixnetClient> {
+        if self.lp_enabled {
+            return Err(Error::Socks5OverLp);
+        }
         let socks5_config = self
             .socks5_config
             .clone()
@@ -990,6 +1080,9 @@ where
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });
         }
+        if self.lp_enabled {
+            return self.connect_to_lp().await;
+        }
         let stream_idle_timeout = self.stream_idle_timeout;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let client_input = started_client.client_input.register_producer();
@@ -1004,11 +1097,13 @@ where
         let mut client = MixnetClient::new(
             nym_address,
             identity_keys,
-            client_input,
-            client_output,
-            client_state,
-            reconstructed_receiver,
-            stats_events_reporter,
+            MixnetClientInner::Legacy(LegacyClient {
+                client_input,
+                client_output,
+                client_state,
+                reconstructed_receiver: Some(reconstructed_receiver),
+                stats_events_reporter,
+            }),
             started_client.shutdown_handle,
             None,
             started_client.forget_me,

@@ -5,12 +5,8 @@ schemaType: "TechArticle"
 section: "Network"
 lastUpdated: "2026-07-29"
 ---
-
-import { GenericScenarioView } from 'components/threat-model/GenericScenarioView'
-import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
-
-export const scenario = requireGenericScenario('unprotected')
+import Intro from '@snippets/nym/network/threat-model/configurations/unprotected/intro.mdx'
 
 # Unprotected on the open internet
 
-<GenericScenarioView scenario={scenario} />
+<Intro />

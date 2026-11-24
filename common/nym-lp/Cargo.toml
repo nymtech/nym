@@ -22,7 +22,6 @@ getrandom = { workspace = true }
 tls_codec = { workspace = true }
 tokio = { workspace = true, features = ["io-util"] }
 serde = { workspace = true, features = ["derive"], optional = true }
-serde_with = { workspace = true, optional = true }
 
 nym-crypto = { workspace = true, features = ["hashing", "asymmetric"] }
 nym-common.workspace = true
@@ -54,8 +53,8 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 mock = ["nym-test-utils"]
 serde = [
     "dep:serde",
-    "dep:serde_with",
     "nym-crypto/libcrux_x25519",
+    "nym-crypto/serde",
     "nym-kkt-ciphersuite/serde",
 ]
 

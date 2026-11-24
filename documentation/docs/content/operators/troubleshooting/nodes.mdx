@@ -4,6 +4,7 @@ description: "Solutions for common nym-node issues including build failures, con
 schemaType: "TechArticle"
 section: "Operators"
 lastUpdated: "2026-02-01"
+diataxis: how-to
 ---
 
 import { Tabs } from 'nextra/components';
@@ -47,7 +48,7 @@ What to do?
 
 ### Where can I find my private and public keys and config?
 
-All config and keys files are stored in a directory named after your node local identifier (`<ID>`) which you chosen (if not, default one is `default-nym-node`), and can be found at the following PATH: `$HOME/.nym/nym-node/<NODE_ID>` where `$HOME` is a home directory of the user (your current user in this case) that launched the node or client.
+All config and keys files are stored in a directory named after your node local identifier (`<ID>`) which you chosen (if not, default one is `default-nym-node`), and can be found at the following PATH: `$HOME/.nym/nym-nodes/<ID>` where `$HOME` is a home directory of the user (your current user in this case) that launched the node or client.
 
 The directory structure for each node will be roughly as follows:
 
@@ -84,8 +85,8 @@ The directory structure for each node will be roughly as follows:
         ├── nr_gateways_info_store.sqlite
         ├── nr_persistent_reply_store.sqlite
         ├── replay-detection
-        │   ├── rot-<XXX>.bloom
-        │   └── rot-<XXX>.bloom
+        │   ├── rot-<ROTATION_ID>.bloom
+        │   └── rot-<ROTATION_ID>.bloom
         ├── stats.sqlite
         ├── stats.sqlite-shm
         ├── stats.sqlite-wal
@@ -112,7 +113,7 @@ If you `cat` the `public_sphinx.pem` key, the output will be different from the 
 
 ### Accidentally killing your node process on exiting session
 
-When you close your current terminal session, you need to make sure you don't kill the Nym Node process! There are multiple ways on how to make it persistent even after exiting your ssh session, the easiest solution is to use `tmux` or `nohup`, and the more elegant solution is to run the node with `systemd`. Read the automation manual [here](#systemd).
+When you close your current terminal session, you need to make sure you don't kill the Nym Node process! There are multiple ways on how to make it persistent even after exiting your ssh session, the easiest solution is to use `tmux` or `nohup`, and the more elegant solution is to run the node with `systemd`. Read the automation manual [here](/operators/nodes/nym-node/configuration#vps-setup-and-automation).
 
 ### What is `verloc` and do I have to configure my Nym Node to implement it?
 
@@ -125,10 +126,7 @@ You don't have to do any additional configuration for your node to implement thi
 **Choose the mode that you want to troubleshoot.**
 
 <div>
-  <Tabs items={[
-    <strong>Mode <code>mixnode</code></strong>,
-    <strong>Mode <code>entry-gateway</code> & <code>exit-gateway</code></strong>,
-    ]} defaultIndex="1">
+  <Tabs items={[<strong>Mode <code>mixnode</code></strong>, <strong>Mode <code>entry-gateway</code> & <code>exit-gateway</code></strong>,]} defaultIndex="1">
     <MyTab>
 ## Mixnode Mode
 
@@ -151,11 +149,11 @@ Enter your **identity key** to find your node. Check the contents of the `Mixnod
 
 If you want more information, or if your node isn't showing up on the explorer of your choice and you want to double-check, here are some examples on how to check if the node is configured properly.
 
-#### Check from your VPS
+### Check from your VPS
 
 Additional details can be obtained via various methods after you connect to your VPS:
 
-##### Socket statistics with `ss`
+#### Socket statistics with `ss`
 
 ```sh
 sudo ss -s -t | grep 1789 # if you have specified a different port in your Mix Node config, change accordingly
@@ -163,7 +161,7 @@ sudo ss -s -t | grep 1789 # if you have specified a different port in your Mix N
 
 This command should return a lot of data containing `ESTAB`. This command should work on every unix based system.
 
-##### List open files and reliant processes with `lsof`
+#### List open files and reliant processes with `lsof`
 
 - Check if lsof is installed:
 ```sh
@@ -189,7 +187,7 @@ nym-node 103349 root   56u  IPv4 1333229975      0t0  TCP nym:52548->vmi572614.c
 nym-node 103349 root   57u  IPv6 1333229976      0t0  TCP [2a03:b0c0:3:d0::ff3:f001]:43244->[2600:1f18:1031:2401:c04b:2f25:ca79:fef3]:1789 (ESTABLISHED)
 ```
 
-##### Query `systemd` journal with `journalctl`
+#### Query `systemd` journal with `journalctl`
 
 ```sh
 sudo journalctl -u nym-node -o cat | grep "Since startup mixed"
@@ -207,7 +205,7 @@ If you have created `nym-node.service` file (i.e. you are running your [Nym Node
 
 You can add ` | tail` to the end of the command to watch for new entries in real time if needed.
 
-##### build-info
+#### build-info
 
 A `build-info` command prints the build information like commit hash, rust version, binary version just like what command `--version` does. However, you can also specify an `--output=json` flag that will format the whole output as a json, making it an order of magnitude easier to parse.
 
@@ -217,11 +215,11 @@ For example `./target/debug/nym-node --no-banner build-info --output json` will 
 {"binary_name":"nym-network-requester","build_timestamp":"2023-07-24T15:38:37.00657Z","build_version":"1.1.23","commit_sha":"c70149400206dce24cf20babb1e64f22202672dd","commit_timestamp":"2023-07-24T14:45:45Z","commit_branch":"feature/simplify-cli-parsing","rustc_version":"1.71.0","rustc_channel":"stable","cargo_profile":"debug"}
 ```
 
-#### Check from your local machine
+### Check from your local machine
 
 <Steps>
 
-###### Scan ports with `nmap`
+#### Scan ports with `nmap` [#scan-ports-with-nmap]
 
 ```sh
 nmap -p 1789 <PUBLIC_IP> -Pn
@@ -238,14 +236,14 @@ PORT     STATE SERVICE
 1789/tcp open  hello
 ```
 
-###### Check with `telnet`
+#### Check with `telnet` [#check-with-telnet]
 
 Your node should connect to telnet when running:
 ```sh
 telnet <PUBLIC_IP> <PORT>
 ```
 
-###### Query online nodes:
+#### Query the online nodes [#query-the-online-nodes]
 
 ```sh
 curl --location --request GET 'https://validator.nymtech.net/api/v1/mixnodes/'
@@ -257,7 +255,7 @@ You can query Gateways by replacing `mixnodes` with `gateways` in the above comm
 
 </Steps>
 
-#### Check with Network API
+### Check with Network API
 
 We currently have an API set up returning our metrics tests of the network. There are two endpoints to ping for information about your Mix Node, `report` and `history`. Find more information about this in the [Mixnodes metrics documentation](/operators/nodes/maintenance#metrics--api-endpoints).
 
@@ -278,7 +276,7 @@ If you are still unable to see your node on the dashboard, or your node is decla
 - You provided incorrect information when bonding your node.
 - You are running your node from a VPS without IPv6 support.
 - You did not configure your router firewall while running the node from your local machine behind NAT, or you are lacking IPv6 support
-- Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the [instructions](/operators/nodes/nym-node/configuration#automating-your-node-with-tmux-and-systemd).
+- Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the [instructions](/operators/nodes/nym-node/configuration#vps-setup-and-automation).
 
 <Callout type="warning" emoji="">
 Your Nym Node **must speak both IPv4 and IPv6** in order to cooperate with other nodes and route traffic. This is a common reason behind many errors we are seeing among node operators, so check with your provider that your VPS is able to do this!
@@ -352,13 +350,15 @@ Let your Gateway run and follow these steps:
 
 <Steps>
 
-###### Check if your [firewall configuration](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall)
+#### Check if your [firewall configuration](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall) [#check-if-your-firewall-configuration]
 
 - If `ufw` is active and if the necessary ports are open / allowed, including the ones for Swagger page and Reversed proxy/WSS if this is your case.
 
-###### See if the Gateway is not on the [list of blacklisted Gateways](https://validator.nymtech.net/api/v1/gateways/blacklisted)
+#### Check the Gateway blacklist [#check-the-gateway-blacklist]
 
-###### If it's blacklisted, check out the [point below](#my-gateway-is-blacklisted)
+See if the Gateway is not on the [list of blacklisted Gateways](https://validator.nymtech.net/api/v1/gateways/blacklisted)
+
+#### If it's blacklisted, check out the [point below](#my-gateway-is-blacklisted) [#if-its-blacklisted-check-out-the-point-below]
 
 </Steps>
 
@@ -384,25 +384,33 @@ Then follow these steps:
 
 <Steps>
 
-###### Make sure your node is on the [latest version](/operators/changelog) and it's running . Do *not* stop it if there is no need!
+#### Check the version and that the node runs [#check-the-version-and-that-the-node-runs]
 
-###### Open all [needed ports](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall)
+Make sure your node is on the [latest version](/operators/changelog) and it's running . Do *not* stop it if there is no need!
 
-###### Check your `config.toml` - often people have filled `hostname` without the domain being registered to `nym-node` IP, or a wrong IP address after moving their node.
+#### Open all [needed ports](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall) [#open-all-needed-ports]
 
-###### [Check Gateway Connectivity](#check-gateway-connectivity)
+#### Check `config.toml` [#check-configtoml]
 
-###### See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
+Check your `config.toml` - often people have filled `hostname` without the domain being registered to `nym-node` IP, or a wrong IP address after moving their node.
+
+#### [Check Gateway Connectivity](#check-gateway-connectivity) [#blacklisted-check-gateway-connectivity]
+
+#### Search the Gateway logs for errors [#search-the-gateway-logs-for-errors]
+
+See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
 
 If your logs show that your Node has `cover down: 0.00` that means that the embedded IPR and NR is not sending any cover traffic.
 
-###### [Check out if your `syslog`s](/operators/troubleshooting/vps-isp#pruning-logs) aren't eating all your disk space and prune them
+#### Check the size of the syslogs [#check-the-size-of-the-syslogs]
 
-###### When all problems are addressed: Restart the node service
+[Check out if your `syslog`s](/operators/troubleshooting/vps-isp#system-hygiene) aren't eating all your disk space and prune them
+
+#### When all problems are addressed: Restart the node service [#when-all-problems-are-addressed-restart-the-node-service]
 
 Don't forget `systemctl daemon-reload`) and wait until your node gets above 50% of performance (average of last 24h) - this will likely take 24-48 hours. During this time your node is tested by `nym-api` and every positive response picks up your routing score.
 
-###### If your node doesn't pick up the routing score within 24h try changing mode
+#### Change the mode if there is no routing score after 24 hours [#change-the-mode-if-there-is-no-routing-score-after-24-hours]
 
 If it stayed on zero performance and you succeed in all the checks above, while your running in `--mode exit-gateway`, run it as `--mode entry-gateway`. When your node is above 75% performance (past 24h), switch back to `--mode exit-gateway`.
 
@@ -418,7 +426,7 @@ Here are a few steps to check whether your Gateway is actually connecting.
 
 <Steps>
 
-###### Check out the API endpoints
+#### Check out the API endpoints [#check-out-the-api-endpoints]
 
 Start with checking if your Gateway IPR and NR is active. To determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
 ```sh
@@ -445,12 +453,12 @@ https://<HOSTNAME>/api/v1/swagger/#/
 ```
 
 
-###### Configure IPv4 and IPv6 tables and rules
+#### Configure IPv4 and IPv6 tables and rules [#configure-ipv4-and-ipv6-tables-and-rules]
 
-In case you haven't lately, follow the steps in the node [configuration](/operators/nodes/nym-node/configuration) chapter [connectivity test and configuration](/operators/nodes/nym-node/configuration#connectivity-test-and-configuration).
+In case you haven't lately, follow the steps in the node [configuration](/operators/nodes/nym-node/configuration) chapter [routing configuration](/operators/nodes/nym-node/configuration#routing-configuration).
 
 
-###### Test connectivity
+#### Test connectivity [#test-connectivity]
 
 Telnet - from your local machine try to connect to your VPS bu running:
 
@@ -466,7 +474,7 @@ sudo apt install node-ws
 ```
 
 - Run `wscat` pointing to the IP of your VPS with port `9000`:
-```
+```sh
 wscat -c ws://<PUBLIC_IP>:<PORT>
 ```
 
@@ -474,7 +482,7 @@ wscat -c ws://<PUBLIC_IP>:<PORT>
 
 ### My Exit Gateway "is still not online..."
 
-The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's essential to start it before the bonding process and let it running. In case it already got [blacklisted](#my-gateway-is-backlisted) check the steps above.
+The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's essential to start it before the bonding process and let it running. In case it already got [blacklisted](#my-gateway-is-blacklisted) check the steps above.
 
     </MyTab>
   </Tabs>

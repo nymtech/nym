@@ -60,7 +60,7 @@
 - [x] 5.10 Confirm `public/_pagefind` reaches the Vercel deploy (`move-to-dist.sh` only rsyncs `.next/server`); adjust the deploy if search is missing in prod. Confirmed on the Vercel preview 2026-10-13 with `documentation/scripts/docs-visual-check.mjs`: search returns results, no deploy change needed.
 - [ ] 5.11 Regenerate the committed `*-build-info.md` / command snippets under release (CI autodoc will on its next path-filtered run; or run `pnpm run generate:commands` once)
 - [ ] 5.12 Re-evaluate the kept (currently dead) `cargo build -p … --release` step in ci-docs/cd-docs; remove if nothing starts consuming the binaries
-- [ ] 5.13 Optional: port the Railgun webpack polyfill block to turbopack and retire `build:webpack` (Railgun now works under turbopack via the aliases; the webpack block is only the fallback's reason to exist)
+- [ ] 5.13 Optional: port the Railgun webpack polyfill block to turbopack and retire `build:webpack` (Railgun now works under turbopack via the aliases; the webpack block is only the fallback's reason to exist). Status 2026-10-19: the Railgun demo widget is removed (Railgun keeps its own Nym demo, linked from the page), and with it the polyfill block and the two aliases. Nothing is left to port; retiring `build:webpack` is a separate decision
 
 ### Docs content (deferred by the plan)
 - [ ] 5.14 `next.config.js` redirect-table dedupe at scale + the anti-rebloat lint (5.9)

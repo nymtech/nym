@@ -1,0 +1,36 @@
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    box Sender
+        participant App1 as Application
+        participant C1 as Nym Client
+    end
+
+    box Mixnet
+        participant Entry as Entry GW
+        participant M1 as Mix L1
+        participant M2 as Mix L2
+        participant M3 as Mix L3
+        participant Exit as Exit GW
+    end
+
+    box Receiver
+        participant C2 as Nym Client
+        participant App2 as Application
+    end
+
+    App1->>C1: Send data
+    C1->>C1: Create Sphinx packet
+    C1->>Entry: Encrypted packet
+    Entry->>M1: Forward
+    M1->>M1: Decrypt, delay
+    M1->>M2: Forward
+    M2->>M2: Decrypt, delay
+    M2->>M3: Forward
+    M3->>M3: Decrypt, delay
+    M3->>Exit: Forward
+    Exit->>C2: Deliver
+    C2->>C2: Decrypt final layer
+    C2->>App2: Received data

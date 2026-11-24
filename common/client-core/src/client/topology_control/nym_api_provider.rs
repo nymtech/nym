@@ -7,6 +7,7 @@ use nym_topology::NymTopology;
 use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nym_api::error::NymAPIError;
+use nym_validator_client::nym_nodes::NodeRole;
 use std::cmp::min;
 use tracing::{debug, error, warn};
 
@@ -31,8 +32,21 @@ impl From<nym_client_core_config_types::Topology> for Config {
 
 impl Config {
     // if we're using 'extended' topology, filter the nodes based on the lowest set performance
-    fn min_node_performance(&self) -> u8 {
+    pub(crate) fn min_node_performance(&self) -> u8 {
         min(self.min_mixnode_performance, self.min_gateway_performance)
+    }
+
+    /// The threshold for a node in this epoch's `role`.
+    ///
+    /// Anything not mixing this epoch can only serve as a gateway, so it is held to that bar.
+    pub(crate) fn min_performance_for(&self, role: &NodeRole) -> u8 {
+        match role {
+            NodeRole::Mixnode { .. } => self.min_mixnode_performance,
+            NodeRole::EntryGateway
+            | NodeRole::ExitGateway
+            | NodeRole::Standby
+            | NodeRole::Inactive => self.min_gateway_performance,
+        }
     }
 }
 

@@ -10,7 +10,7 @@ use nym_client_core::cli_helpers::client_import_coin_index_signatures::{
 pub(crate) async fn execute(
     args: CommonClientImportCoinIndexSignaturesArgs,
 ) -> Result<(), NetworkRequesterError> {
-    import_coin_index_signatures::<CliNetworkRequesterClient, _>(args).await?;
+    import_coin_index_signatures::<CliNetworkRequesterClient, _>(args, None).await?;
     println!("successfully imported coin index signatures!");
     Ok(())
 }

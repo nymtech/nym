@@ -1,0 +1,9 @@
+### Error messages [#error-messages]
+Errors from the app's client, or from the gateway, will be sent down the websocket to your code in the following format:
+
+```json
+{
+  "type": "error",
+  "message": "string message"
+}
+```

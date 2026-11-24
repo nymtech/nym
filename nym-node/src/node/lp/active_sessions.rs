@@ -12,10 +12,12 @@ use nym_lp::session::{LpAction, LpInput};
 use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_sphinx_addressing::ClientAddress;
+use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use std::fmt::{Display, Formatter};
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::mpsc;
 
 /// Who a session belongs to.
 ///
@@ -46,6 +48,17 @@ impl LpPeer {
             // v4-mapped-v6 and plain v4 are the same peer
             LpPeer::Node(ip) => LpPeer::Node(ip.to_canonical()),
             client => client,
+        }
+    }
+}
+
+/// The session a routing address is reached on belongs to this peer. A node's port is dropped, as
+/// sessions are keyed by IP.
+impl From<NymNodeRoutingAddress> for LpPeer {
+    fn from(address: NymNodeRoutingAddress) -> Self {
+        match address {
+            NymNodeRoutingAddress::Node(addr) => LpPeer::node(addr.ip()),
+            NymNodeRoutingAddress::Client(client) => LpPeer::client(client),
         }
     }
 }
@@ -85,25 +98,49 @@ impl Display for LpPeer {
 /// **Anything touching both maps must acquire them in that order.** Taking `sessions` first and
 /// then reaching for `by_peer` while still holding it is a lock-order inversion and will deadlock.
 /// [`Self::remove_stale`] touches both but never nests them, so it cannot take part in a cycle.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct ActiveLpSessions {
+    inner: Arc<ActiveLpSessionsInner>,
+}
+
+struct ActiveLpSessionsInner {
     /// Primary store, keyed by what arrives on the wire.
-    pub(crate) sessions: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
+    sessions: DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>,
 
     /// Newest (sending) session per peer.
-    by_peer: Arc<DashMap<LpPeer, LpReceiverIndex>>,
+    by_peer: DashMap<LpPeer, LpReceiverIndex>,
 
     /// Peer each addressed session belongs to, the reverse of `by_peer`.
     ///
     /// Packets name a session by receiver index, so this is what lets an inbound packet be
     /// attributed to a peer - a client's last-seen address cannot be refreshed otherwise, and
     /// [`Self::remove_stale`] could not tell which TTL applies.
-    peer_by_index: Arc<DashMap<LpReceiverIndex, LpPeer>>,
+    peer_by_index: DashMap<LpReceiverIndex, LpPeer>,
+
+    /// Announces every peer that has just been given a sending session
+    session_established_tx: mpsc::Sender<LpPeer>,
 }
 
 impl ActiveLpSessions {
-    pub fn new() -> Self {
-        Self::default()
+    /// A store that announces on `sender` every peer given a sending session, however it was
+    /// established: dialled by this node, dialling it, or a client registering.
+    ///
+    /// A peer is announced only once it resolves for sending, so a reader that checked it before
+    /// the announcement finds it ready on receiving it. Announcements are a shortcut, not a
+    /// guarantee: binding never waits, so one that finds the channel full is dropped, and the
+    /// reader must still look again on its own from time to time.
+    ///
+    /// For a client, a sending session is not yet somewhere to send to: its address is only known
+    /// from its first data packet.
+    pub fn new(sender: mpsc::Sender<LpPeer>) -> Self {
+        Self {
+            inner: Arc::new(ActiveLpSessionsInner {
+                session_established_tx: sender,
+                sessions: Default::default(),
+                by_peer: Default::default(),
+                peer_by_index: Default::default(),
+            }),
+        }
     }
 
     pub(crate) fn get_state_entry_mut(
@@ -111,7 +148,8 @@ impl ActiveLpSessions {
         receiver_index: LpReceiverIndex,
     ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpTransportSession>>, LpHandlerError>
     {
-        self.sessions
+        self.inner
+            .sessions
             .get_mut(&receiver_index)
             .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })
     }
@@ -133,7 +171,7 @@ impl ActiveLpSessions {
         // Never clobber a live session: indices are derived with a per-handshake seed, so a
         // collision here means something is badly wrong rather than merely unlucky. Checked
         // through the entry API so two concurrent inserts of one index cannot both pass.
-        match self.sessions.entry(receiver_index) {
+        match self.inner.sessions.entry(receiver_index) {
             Entry::Occupied(_) => Err(LpHandlerError::DuplicateLpSession { receiver_index }),
             Entry::Vacant(slot) => {
                 slot.insert(TimestampedState::new(session));
@@ -163,11 +201,13 @@ impl ActiveLpSessions {
         // an index moving to another peer must stop being that peer's sending session, unless
         // it has already been repointed elsewhere
         if let Some(previous_peer) = self
+            .inner
             .peer_by_index
             .insert(receiver_index, peer)
             .filter(|previous_peer| *previous_peer != peer)
         {
-            self.by_peer
+            self.inner
+                .by_peer
                 .remove_if(&previous_peer, |_, sending| *sending == receiver_index);
         }
 
@@ -176,7 +216,7 @@ impl ActiveLpSessions {
         // after it has been demoted, which would cost it the frame it was carrying.
         //
         // This nests `sessions` inside `by_peer`; see the lock order on the struct.
-        match self.by_peer.entry(peer) {
+        match self.inner.by_peer.entry(peer) {
             Entry::Occupied(mut slot) => {
                 // rebinding the sending session must not demote it
                 if *slot.get() != receiver_index {
@@ -188,25 +228,31 @@ impl ActiveLpSessions {
                 slot.insert(receiver_index);
             }
         }
+
+        // We don't really care if nobody is listening, not our problem
+        // If the buffer is full, there is nothing we can do about it either
+        let _ = self.inner.session_established_tx.try_send(peer);
     }
 
     /// Peer a session belongs to, if it has been bound to one.
     pub(crate) fn peer_for(&self, receiver_index: LpReceiverIndex) -> Option<LpPeer> {
-        self.peer_by_index
+        self.inner
+            .peer_by_index
             .get(&receiver_index)
             .map(|entry| *entry.value())
     }
 
     /// Mark a session read-only. It keeps decrypting in-flight packets but can no longer send.
     fn demote(&self, receiver_index: LpReceiverIndex) {
-        if let Some(mut entry) = self.sessions.get_mut(&receiver_index) {
+        if let Some(mut entry) = self.inner.sessions.get_mut(&receiver_index) {
             entry.value_mut().state.demote();
         }
     }
 
     /// Receiver index currently used for sending to `peer`, if any.
     pub(crate) fn sending_index_for(&self, peer: LpPeer) -> Option<LpReceiverIndex> {
-        self.by_peer
+        self.inner
+            .by_peer
             .get(&peer.normalised())
             .map(|entry| *entry.value())
     }
@@ -229,6 +275,7 @@ impl ActiveLpSessions {
         F: FnOnce(&mut LpTransportSession) -> R,
     {
         let mut entry = self
+            .inner
             .sessions
             .get_mut(&receiver_index)
             .ok_or(LpHandlerError::MissingLpSession { receiver_index })?;
@@ -254,7 +301,7 @@ impl ActiveLpSessions {
     where
         F: FnOnce(&mut LpTransportSession) -> R,
     {
-        let sending = self.by_peer.get(&peer.normalised()).ok_or_else(|| {
+        let sending = self.inner.by_peer.get(&peer.normalised()).ok_or_else(|| {
             LpHandlerError::NoSessionForPeer {
                 peer: peer.to_string(),
             }
@@ -305,7 +352,7 @@ impl ActiveLpSessions {
         let mut eviction = Eviction::default();
         let mut evicted = Vec::new();
 
-        self.sessions.retain(|receiver_index, timestamped| {
+        self.inner.sessions.retain(|receiver_index, timestamped| {
             let demoted = timestamped.state.is_read_only();
             let ttl = if demoted {
                 demoted_ttl
@@ -330,13 +377,14 @@ impl ActiveLpSessions {
         });
 
         for receiver_index in evicted {
-            let Some((_, peer)) = self.peer_by_index.remove(&receiver_index) else {
+            let Some((_, peer)) = self.inner.peer_by_index.remove(&receiver_index) else {
                 continue;
             };
             // the peer may already have been repointed at a newer session, which must survive.
             // that this removed anything is precisely the signal that nothing can reach the peer
             // any more - a demoted session expiring under a live one reports nothing.
             if self
+                .inner
                 .by_peer
                 .remove_if(&peer, |_, sending| *sending == receiver_index)
                 .is_some()
@@ -360,9 +408,14 @@ mod tests {
     const FOREVER: Duration = Duration::from_secs(86_400);
     const AGED: Duration = Duration::from_secs(60);
 
+    fn active_sessions() -> ActiveLpSessions {
+        let (tx, _) = mpsc::channel(10);
+        ActiveLpSessions::new(tx)
+    }
+
     /// Age every session, so a TTL test does not have to sleep for one.
     fn age_everything(sessions: &ActiveLpSessions) {
-        for entry in sessions.sessions.iter() {
+        for entry in sessions.inner.sessions.iter() {
             entry.value().backdate(AGED);
         }
     }
@@ -385,7 +438,7 @@ mod tests {
     /// reverse - which is the property that lets the two share a store at all.
     #[test]
     fn node_and_client_sessions_coexist() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let (node, client) = (node_peer(1), client_peer(1));
 
         let node_index = session(1).receiver_index();
@@ -409,7 +462,7 @@ mod tests {
     /// surface as a peer's traffic failing to decrypt for as long as both sessions lived.
     #[test]
     fn a_colliding_index_is_refused_across_kinds() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
 
         // the same seed yields the same receiver index
         let index = session(7).receiver_index();
@@ -430,7 +483,7 @@ mod tests {
     /// A node and a client expire under their own TTLs, chosen per entry.
     #[test]
     fn each_kind_expires_on_its_own_ttl() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         sessions
             .insert_addressed_session(node_peer(1), session(1))
             .unwrap();
@@ -456,7 +509,7 @@ mod tests {
     /// that is perfectly reachable.
     #[test]
     fn a_demoted_session_expiring_does_not_forget_its_peer() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let client = client_peer(1);
 
         sessions
@@ -486,7 +539,7 @@ mod tests {
     /// That is what it is: a client that handshaked and never got as far as registering.
     #[test]
     fn an_unaddressed_session_expires_as_a_client() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         sessions.insert_new_session(session(1)).unwrap();
         age_everything(&sessions);
 
@@ -499,7 +552,7 @@ mod tests {
     /// Binding a peer to the session it already sends on leaves that session live.
     #[test]
     fn rebinding_the_sending_session_does_not_demote_it() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let client = client_peer(1);
         let index = session(1).receiver_index();
 
@@ -509,13 +562,21 @@ mod tests {
         sessions.bind_peer(client, index);
 
         assert_eq!(sessions.sending_index_for(client), Some(index));
-        assert!(!sessions.sessions.get(&index).unwrap().state.is_read_only());
+        assert!(
+            !sessions
+                .inner
+                .sessions
+                .get(&index)
+                .unwrap()
+                .state
+                .is_read_only()
+        );
     }
 
     /// A session bound to a new peer is no longer the previous peer's sending session.
     #[test]
     fn rebinding_an_index_to_another_peer_unbinds_the_previous_one() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let (first, second) = (client_peer(1), client_peer(2));
         let index = session(1).receiver_index();
 
@@ -529,10 +590,43 @@ mod tests {
         assert_eq!(sessions.peer_for(index), Some(second));
     }
 
+    /// Every bind is announced, once the peer already resolves for sending.
+    ///
+    /// The data handler releases frames on this event after checking the peer, so an event that
+    /// arrived before the peer resolved would strand them until the next recheck.
+    #[test]
+    fn binding_a_peer_announces_it_once_sendable() {
+        let (tx, mut rx) = mpsc::channel(10);
+        let sessions = ActiveLpSessions::new(tx);
+        let (node, client) = (node_peer(1), client_peer(1));
+
+        sessions.insert_addressed_session(node, session(1)).unwrap();
+        assert_eq!(rx.try_recv().unwrap(), node);
+        assert!(sessions.has_session_for(node));
+
+        let index = session(2).receiver_index();
+        sessions.insert_new_session(session(2)).unwrap();
+        assert!(rx.try_recv().is_err(), "an unbound session is not ready");
+
+        sessions.bind_peer(client, index);
+        assert_eq!(rx.try_recv().unwrap(), client);
+    }
+
+    /// A routing address maps to the peer its session is keyed by, whatever the port.
+    #[test]
+    fn routing_addresses_map_to_their_session_peer() {
+        let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+        let node = NymNodeRoutingAddress::Node(std::net::SocketAddr::new(ip, 51264));
+        let client = NymNodeRoutingAddress::Client(ClientAddress::from_bytes([1; 20]));
+
+        assert_eq!(LpPeer::from(node), LpPeer::node(ip));
+        assert_eq!(LpPeer::from(client), client_peer(1));
+    }
+
     /// v4-mapped-v6 and plain v4 are the same node however the key was built.
     #[test]
     fn node_addresses_are_canonicalised() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let v4 = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let mapped = IpAddr::V6(Ipv4Addr::new(127, 0, 0, 1).to_ipv6_mapped());
 

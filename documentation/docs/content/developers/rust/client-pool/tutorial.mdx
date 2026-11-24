@@ -4,13 +4,38 @@ description: "Step-by-step Rust tutorial to use Nym ClientPool for handling burs
 schemaType: "HowTo"
 section: "Developers"
 lastUpdated: "2026-04-17"
+diataxis: tutorial
 ---
+import Intro from '@snippets/nym/developers/rust/client-pool/tutorial/intro.mdx'
+import WhatYoullLearn from '@snippets/nym/developers/rust/client-pool/tutorial/what-youll-learn.mdx'
+import Prerequisites from '@snippets/nym/developers/rust/client-pool/tutorial/prerequisites.mdx'
+import SetUpTheProject from '@snippets/nym/developers/rust/client-pool/tutorial/set-up-the-project.mdx'
+import CreateAndStartThePool from '@snippets/nym/developers/rust/client-pool/tutorial/create-and-start-the-pool.mdx'
+import PopClientsAndUseThem from '@snippets/nym/developers/rust/client-pool/tutorial/pop-clients-and-use-them.mdx'
+import ObserveReplenishment from '@snippets/nym/developers/rust/client-pool/tutorial/observe-replenishment.mdx'
+import ShutDownGracefully from '@snippets/nym/developers/rust/client-pool/tutorial/shut-down-gracefully.mdx'
+import RunIt from '@snippets/nym/developers/rust/client-pool/tutorial/run-it.mdx'
+import WhenToUseThePool from '@snippets/nym/developers/rust/client-pool/tutorial/when-to-use-the-pool.mdx'
+import WhatYouveLearned from '@snippets/nym/developers/rust/client-pool/tutorial/what-youve-learned.mdx'
+import CompleteCode from '@snippets/nym/developers/rust/client-pool/tutorial/complete-code.mdx'
+import { RUST_MSRV } from 'components/versions'
 
 # Tutorial: Handle Bursty Traffic with Client Pool
 
-import { Callout } from 'nextra/components'
-import { CodeVerified } from '../../../../components/code-verified'
-import { RUST_MSRV } from '../../../../components/versions'
+<Intro />
+<WhatYoullLearn />
+<Prerequisites />
+<Steps>
+<SetUpTheProject />
+<CreateAndStartThePool />
+<PopClientsAndUseThem />
+<ObserveReplenishment />
+<ShutDownGracefully />
+<RunIt />
+</Steps>
+<WhenToUseThePool />
+<WhatYouveLearned />
+<CompleteCode />
 
 A program that uses `ClientPool` to absorb bursts of concurrent Mixnet operations without paying client-creation latency on the hot path. The pool pre-creates clients in the background; tasks pop them under load; the tutorial also walks through what happens when demand outruns supply.
 
@@ -176,7 +201,7 @@ RUST_LOG=info cargo run
 
 You'll see output like:
 
-```
+```text
 Pool started, waiting for clients to connect...
 Pool has 3 clients ready
 Task 1: got client 8gk4Y...@2xU4d... from pool

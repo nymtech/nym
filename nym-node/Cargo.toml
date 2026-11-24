@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.44.0"
+version = "1.45.0"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
@@ -24,12 +24,12 @@ celes = { workspace = true }
 cfg-if = { workspace = true }# country codes
 colored = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
+crossbeam-channel = { workspace = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 blake3 = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
-hex = { workspace = true }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
 human-repr = { workspace = true }

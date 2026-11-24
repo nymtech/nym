@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## mix-dns configuration [#configuration]
+
+The DNS resolver is configured at tunnel setup, not per-call. Pass the resolver in `setupMixTunnel`:
+
+```ts
+await setupMixTunnel({
+  // Set the DoH resolvers explicitly, tried in order. Each is an HTTPS DoH
+  // endpoint URL. Defaults are Quad9, Cloudflare, and Google.
+  dohEndpoints: ['https://9.9.9.9/dns-query', 'https://1.1.1.1/dns-query'],
+});
+```
+
+Each endpoint must use an IP-literal host, such as `https://1.1.1.1/dns-query`. The tunnel connects to the resolver without a DNS lookup, so it rejects a hostname such as `https://dns.google/dns-query` with an error. An empty list gives the defaults.
+
+The full options surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).

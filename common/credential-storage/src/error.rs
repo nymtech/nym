@@ -27,6 +27,10 @@ pub enum StorageError {
 
     #[error("Database unique constraint violation. Is the credential already imported?")]
     ConstraintUnique,
+
+    #[cfg(all(not(target_arch = "wasm32"), feature = "persistent-storage"))]
+    #[error("Failed to set up database encryption - {0}")]
+    EncryptionError(#[from] nym_sqlcipher::SqlCipherError),
 }
 
 impl StorageError {

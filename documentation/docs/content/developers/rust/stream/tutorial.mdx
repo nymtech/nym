@@ -4,13 +4,38 @@ description: "Step-by-step Rust tutorial to build an echo server and client comm
 schemaType: "HowTo"
 section: "Developers"
 lastUpdated: "2026-04-17"
+diataxis: tutorial
 ---
+import Intro from '@snippets/nym/developers/rust/stream/tutorial/intro.mdx'
+import WhatYoullLearn from '@snippets/nym/developers/rust/stream/tutorial/what-youll-learn.mdx'
+import Prerequisites from '@snippets/nym/developers/rust/stream/tutorial/prerequisites.mdx'
+import SetUpTheProject from '@snippets/nym/developers/rust/stream/tutorial/set-up-the-project.mdx'
+import BuildTheEchoServer from '@snippets/nym/developers/rust/stream/tutorial/build-the-echo-server.mdx'
+import BuildTheClient from '@snippets/nym/developers/rust/stream/tutorial/build-the-client.mdx'
+import RunIt from '@snippets/nym/developers/rust/stream/tutorial/run-it.mdx'
+import HowItWorks from '@snippets/nym/developers/rust/stream/tutorial/how-it-works.mdx'
+import WhatYouveLearned from '@snippets/nym/developers/rust/stream/tutorial/what-youve-learned.mdx'
+import CompleteCode from '@snippets/nym/developers/rust/stream/tutorial/complete-code.mdx'
+import ServerSrcbinserverrs from '@snippets/nym/developers/rust/stream/tutorial/server-srcbinserverrs.mdx'
+import ClientSrcbinclientrs from '@snippets/nym/developers/rust/stream/tutorial/client-srcbinclientrs.mdx'
+import { RUST_MSRV } from 'components/versions'
 
 # Tutorial: Build a Private Echo Server
 
-import { Callout } from 'nextra/components'
-import { CodeVerified } from '../../../../components/code-verified'
-import { RUST_MSRV } from '../../../../components/versions'
+<Intro />
+<WhatYoullLearn />
+<Prerequisites />
+<Steps>
+<SetUpTheProject />
+<BuildTheEchoServer />
+<BuildTheClient />
+<RunIt />
+</Steps>
+<HowItWorks />
+<WhatYouveLearned />
+<CompleteCode />
+<ServerSrcbinserverrs />
+<ClientSrcbinclientrs />
 
 Two programs: a server that listens for incoming streams and echoes back what it receives, and a client that opens a stream, writes data, and reads the echo. Both communicate through the Nym Mixnet using `AsyncRead` and `AsyncWrite`, like a TCP socket pair.
 
@@ -209,7 +234,7 @@ RUST_LOG=info cargo run --bin server
 
 It prints its Nym address:
 
-```
+```text
 Echo server listening at: 8gk4Y...@2xU4d...
 ```
 
@@ -221,7 +246,7 @@ RUST_LOG=info cargo run --bin client -- 8gk4Y...@2xU4d...
 
 You'll see the messages traverse the Mixnet and echo back:
 
-```
+```text
 Client address: F3qR7...@9nK2m...
 Stream opened: 12345678
 Sending message 1 (320 bytes)
@@ -235,7 +260,7 @@ Done!
 
 On the server side:
 
-```
+```text
 Accepted stream 12345678
 Stream 12345678 received 320 bytes
 Stream 12345678 received 25000 bytes

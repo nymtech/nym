@@ -103,6 +103,7 @@ async fn offline_session(
             mnemonic: test_mnemonic(),
             network: NymNetworkDetails::new_mainnet(),
             credential_store_path: None,
+            database_key: None,
             data_path,
             dvpn_directory_url: None,
             automatic_topups: None,

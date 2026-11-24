@@ -42,6 +42,7 @@ sqlx = { workspace = true, optional = true, features = [
     "migrate",
     "time",
 ] }
+nym-sqlcipher = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde = { workspace = true }
@@ -60,11 +61,12 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 # native credential issuance/import, backed by a sqlite pending-requests store.
 # exposes `NyxdCredentialFetcher` and pulls in sqlx. The storage-free
 # `NyxdGlobalDataFetcher` is always available and needs none of this.
-credentials = ["dep:sqlx"]
+credentials = ["dep:sqlx", "dep:nym-sqlcipher"]
 
 # exposes `NyxdRecoveryFetcher`, a recover-only fetcher; implies `credentials`
 # since it uses the same pending-requests store.
 recovery = ["credentials"]
+
 
 [lints]
 workspace = true

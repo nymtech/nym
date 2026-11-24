@@ -2,15 +2,19 @@
    1. Use moniker if provided in inventory
    2. Else strip "nym-exit." prefix if hostname starts with it
    3. Else use hostname unchanged
+   4. Else (no hostname, e.g. mixnodes) use the inventory host name
 #}
 
 {% if moniker is defined and moniker | length > 0 %}
     {% set moniker_final = moniker %}
 {% else %}
-    {% if hostname is defined and hostname.startswith('nym-exit.') %}
-        {% set moniker_final = hostname | regex_replace('^nym-exit\\.', '') %}
+    {% set host = hostname | default('') %}
+    {% if host.startswith('nym-exit.') %}
+        {% set moniker_final = host | regex_replace('^nym-exit\\.', '') %}
+    {% elif host | length > 0 %}
+        {% set moniker_final = host %}
     {% else %}
-        {% set moniker_final = hostname %}
+        {% set moniker_final = inventory_hostname %}
     {% endif %}
 {% endif %}
 

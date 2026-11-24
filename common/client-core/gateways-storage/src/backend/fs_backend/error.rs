@@ -39,4 +39,10 @@ pub enum StorageError {
 
     #[error("gateway {gateway_id} does not exist in the storage")]
     GatewayDoesNotExist { gateway_id: String },
+
+    #[error("failed to set up database encryption: {source}")]
+    EncryptionError {
+        #[from]
+        source: nym_sqlcipher::SqlCipherError,
+    },
 }

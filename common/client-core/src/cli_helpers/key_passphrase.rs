@@ -4,26 +4,21 @@
 use crate::client::key_manager::persistence::Passphrase;
 
 /// Passphrase protecting the client's private keys on disk, flattened into every command that touches them.
-#[cfg_attr(feature = "cli", derive(clap::Args))]
-#[derive(Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct KeyPassphraseArgs {
     /// Passphrase protecting this client's private keys on disk. Keys still stored in plaintext
     /// are encrypted the first time they are loaded with it. Prefer the environment variable: a
     /// flag value is visible in the process list. It must be set in the process environment, as
     /// `--config-env-file` is only read after the arguments are parsed.
-    #[cfg_attr(
-        feature = "cli",
-        clap(
-            long,
-            env = "NYM_CLIENT_KEY_PASSPHRASE",
-            hide_env_values = true,
-            value_parser = parse_passphrase
-        )
+    #[clap(
+        long,
+        env = "NYM_CLIENT_KEY_PASSPHRASE",
+        hide_env_values = true,
+        value_parser = parse_passphrase
     )]
     pub key_passphrase: Option<Passphrase>,
 }
 
-#[cfg(feature = "cli")]
 fn parse_passphrase(raw: &str) -> Result<Passphrase, String> {
     if raw.trim().is_empty() {
         return Err("the key passphrase must not be empty".to_string());
@@ -31,7 +26,7 @@ fn parse_passphrase(raw: &str) -> Result<Passphrase, String> {
     Ok(Passphrase::new(raw))
 }
 
-#[cfg(all(test, feature = "cli"))]
+#[cfg(test)]
 mod tests {
     use super::*;
 

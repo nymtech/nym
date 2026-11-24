@@ -20,5 +20,5 @@ impl AsRef<CommonClientSwitchGatewaysArgs> for Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), NetworkRequesterError> {
-    switch_gateway::<CliNetworkRequesterClient, _>(args).await
+    switch_gateway::<CliNetworkRequesterClient, _>(args, None).await
 }

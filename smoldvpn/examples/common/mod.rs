@@ -115,6 +115,7 @@ pub async fn new_session(example: &str) -> Session {
             mnemonic: mnemonic(),
             network,
             credential_store_path: Some(format!("{data_dir}/creds.db").into()),
+            database_key: None,
             data_path: data_dir.into(),
             dvpn_directory_url: Some(dvpn_directory_url()),
             automatic_topups: None,

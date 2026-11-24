@@ -1,10 +1,20 @@
+---
+diataxis: how-to
+---
+
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
-import AutoTopupNodesClient from 'components/operators/snippets/auto-topup-nodes-client-steps.mdx';
+import AutomatedFundingOfNymNodeClientNyxAccount from '@snippets/nym/operators/shared/auto-topup-nodes-client/automated-funding-of-nym-node-client-nyx-account.mdx'
+import PullNymtechnymMonorepo from '@snippets/nym/operators/shared/auto-topup-nodes-client/pull-nymtechnym-monorepo.mdx'
+import BuildNymCli from '@snippets/nym/operators/shared/auto-topup-nodes-client/build-nym-cli.mdx'
+import GetNodescsv from '@snippets/nym/operators/shared/auto-topup-nodes-client/get-nodescsv.mdx'
+import PopulateNodescsvWithYourData from '@snippets/nym/operators/shared/auto-topup-nodes-client/populate-nodescsv-with-your-data.mdx'
+import CheckNodeBalancesWithShowBalancespy from '@snippets/nym/operators/shared/auto-topup-nodes-client/check-node-balances-with-show_balancespy.mdx'
+import TopupYourNodesWithNodesAccountTopuppy from '@snippets/nym/operators/shared/auto-topup-nodes-client/topup-your-nodes-with-nodes_account_topuppy.mdx'
 
 
 # Bonding Nym Node
@@ -44,7 +54,7 @@ You can bond your `nym-node` via the Desktop wallet. Nym wallet, just like any N
 
 <Steps>
 
-###### Insert bonding information
+### Insert bonding information [#insert-bonding-information]
 
 - Open your wallet, and head to the `Bonding` page and click on `Bond` Button, and input your node details. Press `Next`.
 - To find out your `nym-node` details, run this command in your VPS:
@@ -56,7 +66,7 @@ You can bond your `nym-node` via the Desktop wallet. Nym wallet, just like any N
 echo "$(curl -4 https://ifconfig.me)"
 ```
 
-###### Bond to correct HTTP port
+### Bond to correct HTTP port [#bond-to-correct-http-port]
 
 - In your wallet: Open the box called `Show advanced options` and make sure that your `Custom HTTP port` is set correctly like in your `config.toml`. **We strongly recommend to keep it on default `8080`.** For reference these are the ports used by `nym-node`:
 
@@ -70,9 +80,9 @@ echo "$(curl -4 https://ifconfig.me)"
 
 - Use own `ID_KEY`, and `Host`, which can be either your IPv4 address or hostname:
 
-![](/images/operators/wallet-screenshots/bonding_nym-node.png)
+![Nym Wallet bonding form for a nym-node, with the identity key and host fields](/images/operators/wallet-screenshots/bonding_nym-node.png)
 
-###### Enter your values and sign with your node
+### Enter your values and sign with your node [#enter-your-values-and-sign-with-your-node]
 
 - Enter the `Amount`, `Operating cost` and `Profit margin` and press `Next`
 
@@ -115,7 +125,7 @@ In case you decide to change any settings like `custom HTTP port` or your `host`
 
 - Go back to `Bonding` page, click on `Nym Node Settings` and change the values like in this example:
 
-![](/images/operators/wallet-screenshots/settings_nym-node.png)
+![Nym Wallet Nym Node Settings page with the node values](/images/operators/wallet-screenshots/settings_nym-node.png)
 
 
 ## Migrate to `nym-node` in Mixnet Smart Contract
@@ -124,27 +134,29 @@ From `nym-wallet` version `1.2.15` onward the application allows and prompts ope
 
 <Steps>
 
-###### Download the latest wallet from [the release page](https://github.com/nymtech/nym/releases), verify and make executable
+### Download and verify the wallet [#download-and-verify-the-wallet]
+
+Download the latest wallet from [the release page](https://github.com/nymtech/nym/releases), verify and make executable
 
 Nym wallet, just like any Nym binary can be downloaded, verified and made executable following [these simple steps](../../binaries/pre-built-binaries#setup-binaries).
 
-###### Open the wallet and sign in
+### Open the wallet and sign in [#open-the-wallet-and-sign-in]
 
-###### Migrate!
+### Migrate! [#migrate]
 
 - Go to Bonding and you will be prompted with such message:
 
-![](/images/operators/wallet-screenshots/migrate_nym-node.png)
+![Nym Wallet prompt to migrate a legacy node to a nym-node](/images/operators/wallet-screenshots/migrate_nym-node.png)
 
 - In case you for some reason didn't see the prompt or you closed it - you can click in the upper right corner of the same window on this button:
 
-![](/images/operators/wallet-screenshots/migrate_nym-node2.png)
+![Nym Wallet bonding page with the migrate button in the upper right corner](/images/operators/wallet-screenshots/migrate_nym-node2.png)
 
 - Confirm the transaction
 
-###### Welcome to new episode of `nym-node`!
+### Welcome to new episode of `nym-node`! [#welcome-to-new-episode-of-nym-node]
 
-</ Steps>
+</Steps>
 
 <Callout type="warning" emoji="⚠️">
 Versions older than `nym-wallet v 1.2.15` will not allow bonding new nodes.
@@ -177,10 +189,7 @@ This client account is used for dual pupose:
 Provided that now we the acccount will be used only for the case of updating nodes config on blockchain, in reality this means that there will be such update either on configs update (e.g. different wg port, different description, etc.) or on daily sphinx key rotation, in majority of cases once in 24h. Giving the low transaction cost on Cosmos, funding your client Nyx account with 10 NYM tokens should be more than enough. To do so, follow these steps:
 
 <div>
-  <Tabs items={[
-    "Manual steps",
-    "Orchestration",
-    ]} defaultIndex="0">
+  <Tabs items={["Manual steps", "Orchestration",]} defaultIndex="0">
     <MyTab>
 
 ### Manual Funding of `nym-node` Client Nyx Account
@@ -188,25 +197,25 @@ Provided that now we the acccount will be used only for the case of updating nod
 This setup is recommended for one or a small number of nodes. 
 
 <Steps>
-###### Get the nodes Nyx address
+#### Get the nodes Nyx address [#get-the-nodes-nyx-address]
 - Open your browser and check:
-```
-<NODE_IPv4>:8080/api/v2/auxiliary-details
+```text
+<PUBLIC_IP>:8080/api/v2/auxiliary-details
 # or 
 <HOSTNAME>/api/v2/auxiliary-details
 ```
 - Save the address
 
-###### Check node balance
+#### Check node balance [#check-node-balance]
 - The amount can be checked here
-```
+```text
 https://validator.nymtech.net/api/v2/nym-nodes/annotation/<NODE_ID>
 # aletrnatively use cosmos endpoint
-https://api.nymtech.net/cosmos/bank/v1beta1/balances/<ADDRESS>
+https://api.nymtech.net/cosmos/bank/v1beta1/balances/<ACCOUNT_ADDRESS>
 ```
 - See if the value of `"amount"` is bigger than 1_000_000 unym which equals to 1 NYM. 
 
-###### Topup your balance
+#### Topup your balance [#topup-your-balance]
 
 We reccomend to topup with 10 NYM per node, as that will suffice your node for a long time, while it's a negligible cost in fiat terms.
 
@@ -215,7 +224,15 @@ We reccomend to topup with 10 NYM per node, as that will suffice your node for a
 </Steps>
 </MyTab>
 <MyTab>
-<AutoTopupNodesClient />
+<AutomatedFundingOfNymNodeClientNyxAccount />
+<Steps>
+<PullNymtechnymMonorepo />
+<BuildNymCli />
+<GetNodescsv />
+<PopulateNodescsvWithYourData />
+<CheckNodeBalancesWithShowBalancespy />
+<TopupYourNodesWithNodesAccountTopuppy />
+</Steps>
     </MyTab>
   </Tabs>
 </div>

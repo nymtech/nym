@@ -6644,9 +6644,9 @@ dependencies = [
 
 [[package]]
 name = "nym-bridges"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62efe3323efc9664985776cd1aec802025fe8dc4a081c1dee5866053aa88abe0"
+checksum = "31e99f9820a34268cec382e74d152cdb2686c35c99ead3ecedb3c641f475d8d0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -6674,6 +6674,7 @@ dependencies = [
  "slab",
  "socket2 0.6.4",
  "thiserror 2.0.21",
+ "time",
  "tinyvec",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -6687,9 +6688,9 @@ dependencies = [
 
 [[package]]
 name = "nym-bridges-types"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "826047aa7ea92364811dcf7511d2dfb71710cf5f089c0c23f1b7c08909921a78"
+checksum = "d00033d0444707ea8bb2067cbacbe3170ea543e63f38b06c751662525ddbef6c"
 dependencies = [
  "serde",
  "utoipa",

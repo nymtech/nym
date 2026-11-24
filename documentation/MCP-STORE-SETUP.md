@@ -97,6 +97,12 @@ The producers and the route connect with `node-postgres`, which treats `sslmode=
 
 The writer uses the direct address. A write run is one long transaction on one `pg.Client` (the package rejects a `pg.Pool`), and it needs no pooling. The reader uses the pooled address, because the route's function instances each hold a connection, and the pooler shares them.
 
+The reader can use a read replica in place of the primary, because the route only runs `select`. A physical replica already has the `vector` extension, the `retrieval_reader` role, its grants and its statement timeout, so you do not repeat steps 2 and 3 on it. A write run is one transaction, so a search on the replica sees the whole run or none of it. To use a replica:
+
+- Put the replica's pooled address in the reader string. Without a pooler in front of the replica, each function instance takes a direct connection, and the connection limit of step 3 applies on the replica.
+- Keep the owner and writer strings on the primary. A replica refuses writes, and node-pg-migrate also needs to write in a dry run.
+- Set `hot_standby_feedback = on` on the replica if you can. Without it, vacuum on the primary can remove rows that a search on the replica still reads, and the replica then cancels that search with "canceling statement due to conflict with recovery". The 5 second statement timeout is shorter than the default `max_standby_streaming_delay` of 30 seconds, so this is rare.
+
 Vercel applies a new environment variable only to new deployments. Redeploy, or wait for the next deployment, before you test the route.
 
 ## 5. Check the store
@@ -116,7 +122,7 @@ Vercel applies a new environment variable only to new deployments. Redeploy, or 
 
    Any other `t` means the role has more rights than the grants give. Revoke them before you store the credential.
 
-2. Check that the reader can connect through the pooler:
+2. Check that the reader can connect through the pooler (of the replica, if the reader string points at one):
 
    ```
    psql "<reader string>" -c "select count(*) from chunks"

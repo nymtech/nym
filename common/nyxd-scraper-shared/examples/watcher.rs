@@ -46,7 +46,7 @@ impl TxModule for FancyTxModule {
 async fn main() -> eyre::Result<()> {
     let cfg = WatcherConfig {
         websocket_url: "wss://rpc.nymtech.net/websocket".parse()?,
-        rpc_url: "https://rpc.nymtech.net".parse()?,
+        rpc_urls: vec!["https://rpc.nymtech.net".parse()?],
     };
 
     let watcher = NyxdWatcher::builder(cfg)

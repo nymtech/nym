@@ -28,6 +28,9 @@ pub enum ScraperError {
         source: Box<tendermint_rpc::Error>,
     },
 
+    #[error("no rpc endpoints were provided")]
+    NoRpcEndpoints,
+
     #[error("failed to establish rpc connection to {url}: {source}")]
     HttpConnectionFailure {
         url: String,
@@ -41,38 +44,20 @@ pub enum ScraperError {
         source: Box<tendermint_rpc::Error>,
     },
 
-    #[error("could not obtain basic block information at height: {height}: {source}")]
-    BlockQueryFailure {
+    #[error("could not obtain {query}: {source}")]
+    RpcQueryFailure {
+        query: String,
+        #[source]
+        source: Box<tendermint_rpc::Error>,
+    },
+
+    #[error(
+        "block at height {height} holds {transactions} transaction(s) but came with {results} transaction result(s)"
+    )]
+    TxResultsCountMismatch {
         height: u32,
-        #[source]
-        source: Box<tendermint_rpc::Error>,
-    },
-
-    #[error("could not obtain block results information at height: {height}: {source}")]
-    BlockResultsQueryFailure {
-        height: u32,
-        #[source]
-        source: Box<tendermint_rpc::Error>,
-    },
-
-    #[error("could not obtain validators information at height: {height}: {source}")]
-    ValidatorsQueryFailure {
-        height: u32,
-        #[source]
-        source: Box<tendermint_rpc::Error>,
-    },
-
-    #[error("could not obtain tx results for tx: {hash}: {source}")]
-    TxResultsQueryFailure {
-        hash: Hash,
-        #[source]
-        source: Box<tendermint_rpc::Error>,
-    },
-
-    #[error("could not obtain current abci info: {source}")]
-    AbciInfoQueryFailure {
-        #[source]
-        source: Box<tendermint_rpc::Error>,
+        transactions: usize,
+        results: usize,
     },
 
     #[error("could not parse tx {hash}: {source}")]

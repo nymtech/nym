@@ -88,6 +88,11 @@ nyxd_urls = [
     {{#each nyx.nyxd_urls }}'{{this}}',{{/each}}
 ]
 
+# Addresses to nyxd tried, in order, only once every one of `nyxd_urls` has failed.
+nyxd_fallback_urls = [
+    {{#each nyx.nyxd_fallback_urls }}'{{this}}',{{/each}}
+]
+
 
 [storage_paths.keys]
 # Path to file containing ed25519 identity private key.

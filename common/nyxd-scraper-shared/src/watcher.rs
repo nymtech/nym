@@ -17,8 +17,9 @@ pub struct WatcherConfig {
     /// Url to the websocket endpoint of a validator, for example, `wss://rpc.nymtech.net/websocket`
     pub websocket_url: Url,
 
-    /// Url to the rpc endpoint of a validator, for example, `https://rpc.nymtech.net/`
-    pub rpc_url: Url,
+    /// Urls to the rpc endpoints of validators, for example, `https://rpc.nymtech.net/`, in order
+    /// of preference: a later one is only queried once the earlier ones have failed.
+    pub rpc_urls: Vec<Url>,
 }
 
 pub struct NyxdWatcherBuilder {
@@ -75,7 +76,7 @@ impl NyxdWatcherBuilder {
         }
 
         let watcher = NyxdWatcher::new();
-        let rpc_client = RpcClient::new(&self.config.rpc_url)?;
+        let rpc_client = RpcClient::new(&self.config.rpc_urls)?;
 
         let (processing_tx, processing_rx) = unbounded_channel();
         let (req_tx, req_rx) = channel(5);

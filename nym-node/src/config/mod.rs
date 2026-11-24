@@ -593,6 +593,9 @@ pub struct Nyx {
 
     /// Addresses to nyxd which the node uses to interact with the nyx chain.
     pub nyxd_urls: Vec<Url>,
+
+    /// Addresses to nyxd tried, in order, only once every one of `nyxd_urls` has failed.
+    pub nyxd_fallback_urls: Vec<Url>,
     // pub watcher: NyxdWatcher,
 }
 
@@ -605,6 +608,13 @@ impl Nyx {
         }
         Ok(())
     }
+
+    /// Every nyxd address in the order it should be tried.
+    pub fn nyxd_urls_with_fallbacks(&self) -> Vec<Url> {
+        let mut urls = self.nyxd_urls.clone();
+        urls.extend(self.nyxd_fallback_urls.iter().cloned());
+        urls
+    }
 }
 
 impl Default for Nyx {
@@ -613,21 +623,27 @@ impl Default for Nyx {
         // our hardcoded values should always be valid
         // is if there's anything set in the environment, otherwise fallback to mainnet
         #[allow(clippy::expect_used)]
-        let nyxd_urls = if let Ok(env_value) = env::var(var_names::NYXD_QUERY_LITE) {
-            // 1. try the lite node if available
-            parse_urls(&env_value)
-        } else if let Ok(env_value) = env::var(var_names::NYXD) {
-            // 2. then fallback to the main rpc node
-            parse_urls(&env_value)
-        } else {
+        let (nyxd_urls, mut nyxd_fallback_urls) = match (
+            env::var(var_names::NYXD_QUERY_LITE),
+            env::var(var_names::NYXD),
+        ) {
+            // 1. the lite node takes the queries, with the main rpc node behind it
+            (Ok(lite), Ok(main)) => (parse_urls(&lite), parse_urls(&main)),
+            (Ok(lite), Err(_)) => (parse_urls(&lite), Vec::new()),
+            // 2. without a lite node the main rpc node takes them, with nothing behind it
+            (Err(_), Ok(main)) => (parse_urls(&main), Vec::new()),
             // finally fallback to mainnet nodes
-            vec![
-                mainnet::NYXD_QUERY_LITE
-                    .parse()
-                    .expect("invalid default nyxd lite URL"),
-                mainnet::NYXD_URL.parse().expect("invalid default nyxd URL"),
-            ]
+            (Err(_), Err(_)) => (
+                vec![
+                    mainnet::NYXD_QUERY_LITE
+                        .parse()
+                        .expect("invalid default nyxd lite URL"),
+                ],
+                vec![mainnet::NYXD_URL.parse().expect("invalid default nyxd URL")],
+            ),
         };
+        // a network whose lite and main nodes are one and the same has nothing to fall back to
+        nyxd_fallback_urls.retain(|url| !nyxd_urls.contains(url));
 
         #[allow(clippy::expect_used)]
         let nyxd_websocket_url = if let Ok(env_value) = env::var(var_names::NYXD_WS_LITE) {
@@ -646,6 +662,7 @@ impl Default for Nyx {
         Nyx {
             nyxd_websocket_url,
             nyxd_urls,
+            nyxd_fallback_urls,
         }
     }
 }

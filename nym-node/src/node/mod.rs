@@ -1163,7 +1163,7 @@ impl NymNode {
 
         let config = WatcherConfig {
             websocket_url: self.config.nyx.nyxd_websocket_url.clone(),
-            rpc_url: self.config.nyx.nyxd_urls[0].clone(),
+            rpc_urls: self.config.nyx.nyxd_urls_with_fallbacks(),
         };
         let watcher = NyxdWatcher::builder(config)
             .with_msg_module(nm_agents)

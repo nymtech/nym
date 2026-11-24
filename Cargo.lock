@@ -6635,8 +6635,9 @@ dependencies = [
 
 [[package]]
 name = "nym-bridges"
-version = "0.3.0"
-source = "git+https://github.com/nymtech/nym-bridges?rev=1ff8fd426907b5db735566c397b090392a40e2e7#1ff8fd426907b5db735566c397b090392a40e2e7"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31e99f9820a34268cec382e74d152cdb2686c35c99ead3ecedb3c641f475d8d0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -6664,6 +6665,7 @@ dependencies = [
  "slab",
  "socket2 0.6.4",
  "thiserror 2.0.21",
+ "time",
  "tinyvec",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -6677,8 +6679,9 @@ dependencies = [
 
 [[package]]
 name = "nym-bridges-types"
-version = "0.3.0"
-source = "git+https://github.com/nymtech/nym-bridges?rev=1ff8fd426907b5db735566c397b090392a40e2e7#1ff8fd426907b5db735566c397b090392a40e2e7"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d00033d0444707ea8bb2067cbacbe3170ea543e63f38b06c751662525ddbef6c"
 dependencies = [
  "serde",
  "utoipa",
@@ -8730,7 +8733,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "2.0.2"
+version = "2.0.4"
 dependencies = [
  "anyhow",
  "clap",

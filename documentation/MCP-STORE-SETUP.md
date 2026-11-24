@@ -42,7 +42,7 @@ The schema is the SQL files in `migrations/` of `nymtech/retrieval-indexer`. Tha
 
 1. In `nymtech/retrieval-indexer`, create a GitHub Environment, for example `retrieval-store`, with two secrets:
    - `PG_URL`: the owner's connection string to the direct address, with the password and without `sslrootcert`. Do not use the PgBouncer address: node-pg-migrate holds a session advisory lock, which transaction pooling does not keep.
-   - `PG_CA_CERT`: the contents of the CA certificate file. The workflow writes it to a file and adds it to the connection with `sslmode=verify-full`.
+   - `PG_CA_CERT`: the CA certificate of the database service as PEM text, from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`. Do not encode it with base64: the workflow writes the value to a file as it is, and Node accepts a value that is not a certificate without an error, so the connection then fails with `self-signed certificate in certificate chain`. The workflow adds the file to the connection with `sslmode=verify-full`.
 
    Add a required reviewer to the Environment if a second person must approve each run.
 2. Run the workflow as a dry run: Actions, `store-migrate`, "Run workflow", the Environment name, and `dry_run` checked. The log lists `0001_initial`. A dry run applies no migration, but it creates the empty `pgmigrations` table.

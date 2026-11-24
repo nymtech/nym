@@ -5,14 +5,14 @@ title: "`nym-socks5-client` Binary Commands"
 | Command | What it does |
 |---|---|
 | `init` | Creates the configuration, keys and data directory of a client under `--id`, sets the SOCKS5 provider to use (`--provider`), and registers the client with a gateway. Run it once, before `run`. |
-| `run` | Starts the client with its stored configuration and opens the local SOCKS5 proxy. `--port`, `--host` and `--provider` override the stored values for this run. |
+| `run` | Starts the client with its stored configuration and opens the local SOCKS5 proxy. `--port` and `--host` override the stored values for this run. |
 | `ecash show-ticket-books` | Shows the ticketbooks that the client has imported. |
 | `ecash import-ticket-book` | Imports a ticketbook that was issued elsewhere, for example with `nym-cli ecash issue-ticket-book`. |
 | `ecash import-coin-index-signatures` | Imports the coin index signatures that ticketbooks need. |
 | `ecash import-expiration-date-signatures` | Imports the expiration date signatures that ticketbooks need. |
 | `ecash import-master-verification-key` | Imports the master verification key that ticketbooks need. |
 | `list-gateways` | Lists the gateways that the client is registered with. |
-| `add-gateway` | Registers the client with one more gateway (`--gateway-id`, or one chosen at random or by latency) and makes it the active gateway. `--set-active false` keeps the current one active. |
+| `add-gateway` | Registers the client with one more gateway (`--gateway-id`, or one chosen at random or by latency) and makes it the active gateway. |
 | `switch-gateway` | Makes another registered gateway the active one. The client must be registered with it already. |
 | `refresh-gateway-keys` | Registers the client again with a gateway (the active one by default) under new keys, so that the gateway sees a new client. The client must not be running. |
 | `reset-client-identity` | Gives the client new keys. It removes every gateway registration and stored reply, and keeps the ticketbooks. The client must not be running, and needs `add-gateway` afterwards. |

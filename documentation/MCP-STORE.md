@@ -228,7 +228,7 @@ The cutover goes in steps, so the live route never depends on an untested path. 
 
 | Role | Used by | Can do |
 |---|---|---|
-| owner | a person, once | Create the extension and the tables (`ensureSchema`) |
+| owner | the `store-migrate` workflow of `nymtech/retrieval-indexer`, which a person runs | Create the extension and the tables, and apply later migrations |
 | writer | producer CI: nym on pushes to develop, and later `nym-vpn-client` | Read and change rows in `chunks` and `shards` |
 | reader | `/api/mcp` on Vercel, production and preview | Read `chunks` and `shards` only |
 
@@ -242,7 +242,7 @@ The store holds only public content, so the reader credential discloses nothing 
 
 ## The data model
 
-The package defines the schema (`SCHEMA` in `store.ts`).
+The package defines the schema, as node-pg-migrate SQL files in its `migrations/` folder (from `v0.3.0`).
 
 - `shards` has one row for each (repository, modality): its model, the vector dimension, the source revision, and the time of the last run.
 - `chunks` has one row for each chunk: its text, the deep link, the shard it belongs to, a content hash, and the vector.

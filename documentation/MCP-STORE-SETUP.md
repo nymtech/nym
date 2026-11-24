@@ -8,7 +8,7 @@ The guide covers task 4.1 of the OpenSpec change `add-shared-retrieval-index`, f
 
 - Our Postgres server on Exoscale, with the `pgvector` extension installed and a PgBouncer pooler (transaction mode) in front of it.
 - `psql` on your machine.
-- A checkout of `nym` with `pnpm install` done in `documentation/docs`, so that the package `@nymproject/retrieval-indexer` is installed.
+- Admin access to `nymtech/retrieval-indexer`, to create a GitHub Environment and run its `store-migrate` workflow.
 - Admin access to the `nymtech/nym` repository secrets and to the docs Vercel project's environment variables.
 
 ## 1. Create the database
@@ -38,16 +38,18 @@ The guide covers task 4.1 of the OpenSpec change `add-shared-retrieval-index`, f
 
 ## 2. Create the schema
 
-Run this from `documentation/docs`. It prints the package's schema statements and runs them on the database:
+The schema is the SQL files in `migrations/` of `nymtech/retrieval-indexer`. That repository's `store-migrate` workflow applies them with node-pg-migrate, which records each applied file in the store's `pgmigrations` table. This is the same setup as the VPN API's `vpn-api-postgres-migrate` workflow.
 
-```
-node --input-type=module -e "import { SCHEMA } from '@nymproject/retrieval-indexer/store'; console.log(SCHEMA.join(';\n') + ';')" | psql -v ON_ERROR_STOP=1 -1 "$OWNER_URL"
-```
+1. In `nymtech/retrieval-indexer`, create a GitHub Environment, for example `retrieval-store`, with two secrets:
+   - `PG_URL`: the owner's connection string to the direct address, with the password and without `sslrootcert`. Do not use the PgBouncer address: node-pg-migrate holds a session advisory lock, which transaction pooling does not keep.
+   - `PG_CA_CERT`: the contents of the CA certificate file. The workflow writes it to a file and adds it to the connection with `sslmode=verify-full`.
 
-1. `node -e` imports `SCHEMA` from the installed package, so the tables match the package version that the producers use.
-2. `SCHEMA.join(';\n') + ';'` ends each statement with a semicolon, so that `psql` can read them from standard input.
-3. `-v ON_ERROR_STOP=1` makes `psql` stop at the first failed statement and exit non-zero. `-1` runs all statements in one transaction, so a failure leaves no half-made schema.
-4. The first statement, `create extension if not exists vector`, needs the owner's privileges.
+   Add a required reviewer to the Environment if a second person must approve each run.
+2. Run the workflow as a dry run: Actions, `store-migrate`, "Run workflow", the Environment name, and `dry_run` checked. The log lists `0001_initial`. A dry run applies no migration, but it creates the empty `pgmigrations` table.
+3. Run it again with `dry_run` cleared. The log ends with `Migrations complete!`.
+
+- The first migration runs `create extension if not exists vector`, so the owner needs the privilege to create extensions. node-pg-migrate also needs `create` on the schema, for its `pgmigrations` table.
+- Each run logs `Can't determine timestamp for 0001`. node-pg-migrate expects a timestamp prefix, and it orders the numbered files by their number instead. Nothing is wrong.
 
 ## 3. Create the writer and reader roles
 
@@ -124,7 +126,7 @@ Vercel applies a new environment variable only to new deployments. Redeploy, or 
 
 ## After a package release
 
-`SCHEMA` uses `create ... if not exists`, so step 2 does not change a table that exists. A package release that changes `SCHEMA` needs its own migration, and a new table needs the grants of step 3.
+A package release that adds a migration file needs a `store-migrate` run, dry run first, as in step 2. node-pg-migrate applies only the files that `pgmigrations` does not list. A migration that adds a table names the grants the writer and reader need, and you run those grants as in step 3.
 
 ## Next
 

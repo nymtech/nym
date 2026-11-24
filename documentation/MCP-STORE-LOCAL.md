@@ -27,7 +27,7 @@ until docker exec retrieval-store-dev pg_isready -U postgres -d retrieval >/dev/
 ## 2. Create the schema and the roles
 
 ```sh
-node --input-type=module -e "import { SCHEMA } from '@nymproject/retrieval-indexer/store'; console.log(SCHEMA.join(';\n') + ';')" | docker exec -i retrieval-store-dev psql -U postgres -d retrieval -v ON_ERROR_STOP=1 -1 -q
+node --input-type=module -e "import pg from 'pg'; import { ensureSchema } from '@nymproject/retrieval-indexer/store'; const db = new pg.Client({ connectionString: 'postgresql://postgres:$STORE_PASSWORD@127.0.0.1:54329/retrieval?sslmode=disable' }); await db.connect(); await ensureSchema(db); await db.end()"
 export WRITER_PASSWORD=$(head -c 18 /dev/urandom | base64 | tr -d '/+=') READER_PASSWORD=$(head -c 18 /dev/urandom | base64 | tr -d '/+=')
 docker exec -i retrieval-store-dev psql -U postgres -d retrieval -v ON_ERROR_STOP=1 -q <<SQL
 create role retrieval_writer login password '$WRITER_PASSWORD';
@@ -39,7 +39,7 @@ alter role retrieval_reader set statement_timeout = '5s';
 SQL
 ```
 
-These are the schema and the grants of the public store (`MCP-STORE-SETUP.md` steps 2 and 3). `psql` runs inside the container, so you do not need it on your machine. The passwords are in the SQL text here, which is acceptable for a store that holds only public content and listens only on this machine.
+These are the schema and the grants of the public store (`MCP-STORE-SETUP.md` steps 2 and 3). `ensureSchema` applies the package's schema without node-pg-migrate, which is enough for a store you delete afterwards. The grants run with `psql` inside the container, so you do not need it on your machine. The passwords are in the SQL text here, which is acceptable for a store that holds only public content and listens only on this machine.
 
 ## 3. Save the connection strings
 

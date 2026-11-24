@@ -30,10 +30,10 @@ export const SMOLDVPN_VERSION = "3.0.0";
 // TypeScript SDK packages (published to npm). mix-fetch is on its own 3.x track
 // after the v2 to v3 break; the tunnel + mix-dns + mix-websocket facades share
 // a 0.x line for now. Bump these to match the published npm versions.
-export const MIX_FETCH_VERSION = "3.0.3";
-export const MIX_TUNNEL_VERSION = "0.3.3";
-export const MIX_DNS_VERSION = "0.3.3";
-export const MIX_WEBSOCKET_VERSION = "0.3.3";
+export const MIX_FETCH_VERSION = "3.0.4";
+export const MIX_TUNNEL_VERSION = "0.3.4";
+export const MIX_DNS_VERSION = "0.3.4";
+export const MIX_WEBSOCKET_VERSION = "0.3.4";
 
 // Minimum supported Rust version (matches workspace rust-version in root Cargo.toml)
 export const RUST_MSRV = "1.87";

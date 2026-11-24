@@ -276,6 +276,9 @@ impl NetworkRequester {
         match self {
             Self::Exact(addr) => Ok(**addr),
             Self::Any => discovery::discover(&[]).await,
+            Self::InCountries(countries) if countries.is_empty() => {
+                Err(Error::NoCountriesSpecified)
+            }
             Self::InCountries(countries) => discovery::discover(countries).await,
         }
     }

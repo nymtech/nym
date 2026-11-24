@@ -8519,6 +8519,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-monitor-route-records"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
 name = "nym-network-monitors-contract-common"
 version = "3.0.0"
 dependencies = [

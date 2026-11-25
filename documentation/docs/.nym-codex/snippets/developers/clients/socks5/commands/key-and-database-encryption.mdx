@@ -1,0 +1,10 @@
+## Key and database encryption [#key-and-database-encryption]
+
+Two flags encrypt the data that `nym-socks5-client` keeps on disk. Give each one as an environment variable, not as a flag value, because a flag value shows in the process list. Set the variable in the process environment: `nym-socks5-client` reads the file of `--config-env-file` only after it parses the arguments, so a value in that file has no effect on these flags.
+
+| Flag | Environment variable | What it does | Commands |
+|---|---|---|---|
+| `--key-passphrase` | `NYM_CLIENT_KEY_PASSPHRASE` | Encrypts the client's private keys on disk. Keys that are still in plaintext are encrypted the first time the client loads them with the passphrase. | `init`, `run`, `add-gateway`, `refresh-gateway-keys`, `reset-client-identity` |
+| `--database-key` | `NYM_CLIENT_DATABASE_KEY` | Encrypts the client's databases with SQLCipher, with a raw 256-bit key given as 64 hex characters. Databases that are still in plaintext are encrypted the first time the client opens them with the key, and you must then give the same key on each run. The binary must be built with SQLCipher. | every command that opens the databases: `init`, `run`, the `ecash` commands, `list-gateways`, `add-gateway`, `switch-gateway`, `refresh-gateway-keys`, `reset-client-identity` |
+
+Run `nym-socks5-client <command> --help` for all options.

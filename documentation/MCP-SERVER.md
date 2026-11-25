@@ -5,7 +5,7 @@ is the contributor reference for that machinery: the retrieval pipeline, how the
 MCP route serves from it, where the key goes, what is tunable, and how to test a
 deployment.
 
-A move of the index to a Postgres store is planned: see [`MCP-STORE.md`](MCP-STORE.md). Until then, this file describes what runs.
+Production reads the index from the public Postgres store (`MCP_RETRIEVAL_SOURCE=store`), which [`MCP-STORE.md`](MCP-STORE.md) describes. This file covers the index build, the embedding, the tools and the checks, which both sources share, and the bundle source. The route reads the bundle when `MCP_RETRIEVAL_SOURCE` is unset, so the bundle is also the rollback.
 
 Read this before changing anything under `docs/lib/retrieval/`, `docs/lib/mcp/`,
 `docs/pages/api/`, or `scripts/next-scripts/generate-*`.
@@ -25,7 +25,7 @@ tool catalogue and client setup, and
   button, to fetch it as clean Markdown.
 - **`llms.txt` and `llms-full.txt`**, generated during the build.
 
-The [MCP server](docs/content/use-with-ai/mcp.mdx) serves one thing: a semantic index built at deploy time and shipped as a static file. There is no vector database and no separate service to operate. This page explains that pipeline, for anyone extending it or judging what its answers are worth.
+The [MCP server](docs/content/use-with-ai/mcp.mdx) serves one thing: a semantic index of the docs and the code, which producer CI writes to a Postgres store and the route searches. This page explains that pipeline, for anyone extending it or judging what its answers are worth.
 
 ## The shape
 
@@ -47,8 +47,8 @@ Everything is built during the docs deploy and read from disk at runtime.
         │                     │
         ├─────────────┬───────┘
         │             │
-              /api/mcp                              loads the index at cold
-              (agents)                              start, searches in memory
+              /api/mcp                              reads the store (see
+              (agents)                              MCP-STORE.md), or the bundle
 ```
 
 The `build` script runs the generators before `next build`, in this order: `generate-llms-txt.mjs`, `generate-index.mjs`, `generate-code-index.mjs`, `generate-page-markdown.mjs`.
@@ -104,9 +104,9 @@ Anything that changes chunk *boundaries* rather than page content, such as
 `MAX_CHARS` or the chunker's splitting logic, invalidates effectively every entry.
 Expect a slow first build after chunker work.
 
-### Why no vector database
+### The size of the bundled index
 
-Both indexes are small enough to ship with the app and load into memory on cold start, so retrieval is a cosine scan over an in-memory array rather than a network call:
+In bundle mode, the route loads both indexes into memory at cold start, and retrieval is a cosine scan over an in-memory array:
 
 | Index | Chunks | Dimensions | Model | On disk |
 |---|---|---|---|---|
@@ -119,11 +119,11 @@ Almost all of that is the vectors, and most of the vector bytes are serialisatio
 
 A float32 is 4 bytes. Written into JSON it becomes a string such as `-0.017815014`, which costs about 12. That is a 3.1x penalty for holding binary data in a text format. It is paid again at load: the parser converts a decimal string to a double 1,024 times per chunk.
 
-Two cheap levers follow, both well before anything as heavy as a database. Base64-encoding the raw float32 bytes is lossless and cuts the vectors to 5,464 bytes per chunk. Quantising each number to a single signed byte cuts them to 1,024. Measured against this corpus, that returns an identical top ten, with scores shifted by about 0.002.
+Two cheap levers follow. Base64-encoding the raw float32 bytes is lossless and cuts the vectors to 5,464 bytes per chunk. Quantising each number to a single signed byte cuts them to 1,024. Measured against this corpus, that returns an identical top ten, with scores shifted by about 0.002.
 
 Re-embedding the whole corpus costs well under a cent, so the real price of a rebuild is build latency rather than money.
 
-A vector database would add a service to operate, a network hop per query, and a consistency problem between the deployed docs and the indexed docs. At this corpus size it buys none of that back. The constraint to watch is the serverless bundle: both files are traced into the MCP function, so roughly 120 MB of the platform's limit is spent before any code, and every cold start pays to parse them.
+Both files are traced into the MCP function, so roughly 120 MB of the platform's limit is spent before any code, and every cold start pays to parse them. [`MCP-STORE.md`](MCP-STORE.md) explains why the index is in a store.
 
 ## Serving
 
@@ -131,7 +131,7 @@ A vector database would add a service to operate, a network hop per query, and a
 
 `pages/api/mcp.ts` mounts the server as a pages-router API route, so it deploys with the docs app rather than as a second service. It is **stateless**: `sessionIdGenerator` is undefined, and a fresh `Server` and transport are constructed per request, which is what suits serverless invocations that share nothing.
 
-The index is loaded once per instance at module scope, not per request, so the cost lands on cold start. On Vercel, `public/` is not automatically available to a lambda, so `next.config.js` traces the artifacts in explicitly:
+In bundle mode, the index is loaded once per instance at module scope, not per request, so the cost lands on cold start. On Vercel, `public/` is not automatically available to a lambda, so `next.config.js` traces the artifacts in explicitly:
 
 ```js
 outputFileTracingIncludes: {
@@ -139,7 +139,7 @@ outputFileTracingIncludes: {
 }
 ```
 
-The code index is optional. If `public/code-index.json` is absent, or present but built without vectors, the route still starts and simply does not expose `search_code`, which keeps a docs-only build working.
+In bundle mode, the code index is optional. If `public/code-index.json` is absent, or present but built without vectors, the route still starts and simply does not expose `search_code`, which keeps a docs-only build working.
 
 
 ## The key
@@ -270,8 +270,8 @@ What each layer needs:
 |------------|-------|
 | `validate_sdk_config` | nothing; pure logic |
 | `network_summary`, `circulating_supply`, `chain_status`, `list_gateways`, `get_gateway` | network access to the Nym APIs |
-| `search_docs`, `get_section` | `VOYAGE_API_KEY` **and** a vectored `public/docs-index.json` |
-| `search_code` | the above plus a vectored `public/code-index.json`; the tool is simply not exposed when that file is absent or vectorless |
+| `search_docs`, `get_section` | `VOYAGE_API_KEY` **and** the store (`RETRIEVAL_STORE_READ_URL`, `RETRIEVAL_STORE_CA_CERT`), or in bundle mode a vectored `public/docs-index.json` |
+| `search_code` | the above plus a code shard in the store, or in bundle mode a vectored `public/code-index.json`. In store mode the tool is always listed and returns an error with no code shard; in bundle mode it is not exposed when that file is absent or vectorless |
 
 Against a deployment, swap the host for the deployment URL. If `tools/list`
 answers but `search_docs` fails, that is the Voyage key or a vectorless index
@@ -280,11 +280,11 @@ missing, so `tools/list` failing outright points at the key while `tools/list`
 succeeding and `search_docs` failing points at the index.
 
 **All of the above at once, against a deployment.**
-`scripts/check-mcp-server.sh` runs 46 checks over HTTP: the tool list, transport
+`scripts/check-mcp-server.sh` runs 50 checks over HTTP: the tool list, transport
 negotiation, retrieval and a `get_section` round-trip, code search, index
 coverage, config validation, every live network tool, argument-schema rejection,
 and error shapes. It covers what unit tests cannot,
-namely that the index was traced into the lambda, that the keys exist in *that*
+namely that the route reaches its index, that the keys exist in *that*
 environment, and that the Nym API still returns the field names the tools read.
 
 The **index coverage** group asserts that `search_code` can cite each root in

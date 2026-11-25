@@ -4,7 +4,7 @@ This page explains the Postgres store that holds the MCP server's index, and the
 
 Status: production reads the store (`MCP_RETRIEVAL_SOURCE=store`), and nym CI writes it on each push to develop (`cd-retrieval-store.yml`, with `RETRIEVAL_STORE_ENABLED=1`). The docs build still makes and bundles the index files, so removing `MCP_RETRIEVAL_SOURCE` and redeploying returns the route to the bundle. [`MCP-SERVER.md`](MCP-SERVER.md) describes the bundle path. The public store is created with `bootstrap/init.sql` and the `store-migrate` workflow in [`nymtech/retrieval-indexer`](https://github.com/nymtech/retrieval-indexer). To run a store on your machine, follow [`MCP-STORE-LOCAL.md`](MCP-STORE-LOCAL.md).
 
-## What goes into the index today
+## What goes into the index
 
 Each docs build runs two generators. `generate-index.mjs` makes the docs index from the pages, and `generate-code-index.mjs` makes the code index from the source.
 
@@ -50,7 +50,7 @@ assertNoSilentDrops, assertRootsYieldChunks: the build fails on an unknown
 public/code-index.json                            7,788 chunks, GitHub links at develop
 ```
 
-## How embedding works today
+## How embedding works
 
 ```
                      Nym side                       │  third party: Voyage AI
@@ -86,9 +86,11 @@ REQUEST TIME (/docs/api/mcp, a Vercel function      │
   top K: default 6, at most 20 ─► the agent         │
 ```
 
+The request-time part of the diagram is the bundle source. With the store, the route sends the query vector to Postgres and the scan runs there (see "How the MCP reads the store").
+
 The index and the query must use the same model, because vectors from two models are not comparable. The same `VOYAGE_API_KEY` serves the build and the route. So two kinds of text leave the Nym side: every changed chunk of the public docs and code at build time, and the query text of every search. Both are public or come from the agent; no private content is indexed on this side. The private side has its own embedding service and never calls Voyage (see "The private side"). The live tools (`network_summary`, `list_gateways` and the others) call the Nym API directly and use no index.
 
-## How an agent uses the tools today
+## How an agent uses the tools
 
 ```
 agent ──search_docs {query, topK}──► /docs/api/mcp
@@ -99,7 +101,7 @@ agent ──search_code {query, topK}──► code chunks, each with a GitHub l
 
 An agent usually calls `search_docs`, then `get_section` on a hit whose text it needs in full, and `search_code` for a question about the implementation. A hit on a split page holds the inlined snippet text and the inlined code, so the agent gets the same text that a reader sees on the page.
 
-## How the MCP reads today
+## How the bundle source reads
 
 The index files are not in git: `documentation/docs/.gitignore` excludes `public/docs-index.json` and `public/code-index.json`.
 
@@ -151,7 +153,7 @@ Postgres also gives three properties that the plan depends on:
 
 The cost: one more service (a managed Postgres), one network hop for each search, and a PR preview answers from the develop index, not from the PR's content.
 
-## How the MCP reads after the cutover
+## How the MCP reads the store
 
 ```
 nym CI (push to develop)                 nym-vpn-client CI (push to develop)

@@ -145,7 +145,7 @@ Task sections and the stages in `design.md` do not share numbers. Task ids stay 
 - [ ] 8.2 Decide the first viewpoint, its owner, the site that renders it, and who runs the generator (P27). TBD(Max)
 - [ ] 8.3 Write the viewpoint file format and its validation: stakeholder, concerns, pages with selections, edge traversals, coverage sections, and generated sections
 - [ ] 8.4 Write the generator: read viewpoint files, records, and the link map. Write the pages of each view as Markdown files under `views/<viewpoint>/` in the archive (D16). Set each heading from the template
-- [ ] 8.5 Generated prose: store each output as a prose record with `meta.generated` (viewpoint, input ids, input hashes). Generate again only on an input hash change. Write "no evidence in the corpus" for a section with no input
+- [ ] 8.5 Generated prose: store each output as a prose record with `meta.generated` (viewpoint, prompt hash, input ids, input hashes). Generate again on an input hash change or a prompt hash change. Write "no evidence in the corpus" for a section with no input
 - [ ] 8.6 Regeneration test: generate a view that matches one hand-made audit page. Write down the claims, specs, and links in one version and not the other, and the share that levels 0 and 1 make
 
 ## 9. Archetypes and the runbook lint (plan stage 8)

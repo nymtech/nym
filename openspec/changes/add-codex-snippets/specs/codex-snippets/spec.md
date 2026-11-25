@@ -375,7 +375,7 @@ A link from a snippet body to other content of the knowledge base SHALL have the
 
 ### Requirement: A viewpoint generates a view from records
 
-A viewpoint SHALL be a data file in the archive that names a stakeholder and concerns. For each page, it SHALL give the records to select by kind and facets, the edges to follow with their direction, and a template. Each facet value SHALL be on a closed list. The generator SHALL write the pages of each view from records and the link map, as Markdown files under `views/<viewpoint>/` in the archive, and SHALL set each heading level from the template. The generator SHALL use prompted text only for a section that the viewpoint marks as generated. The output of such a section SHALL be a prose record whose `meta.generated` holds the viewpoint, the input ids, and their hashes. The generator SHALL make that output again only when an input hash changes. For a section with no input, the generator SHALL state that the corpus has no evidence and SHALL NOT generate text.
+A viewpoint SHALL be a data file in the archive that names a stakeholder and concerns. For each page, it SHALL give the records to select by kind and facets, the edges to follow with their direction, and a template. Each facet value SHALL be on a closed list. The generator SHALL write the pages of each view from records and the link map, as Markdown files under `views/<viewpoint>/` in the archive, and SHALL set each heading level from the template. The generator SHALL use prompted text only for a section that the viewpoint marks as generated. The output of such a section SHALL be a prose record whose `meta.generated` holds the viewpoint, the hash of its prompt, the input ids, and their hashes. The generator SHALL make that output again when an input hash or the prompt hash changes. For a section with no input, the generator SHALL state that the corpus has no evidence and SHALL NOT generate text.
 
 #### Scenario: A view is deterministic
 
@@ -477,7 +477,7 @@ A public repository SHALL push to codex. No other repository SHALL push to codex
 
 ### Requirement: codex holds data and no site
 
-codex SHALL hold the records, snippet files, link maps, and manifests of each repository under `snippets/<repo>/`, the viewpoints under `viewpoints/`, and the generated views under `views/`. codex SHALL hold no pages and no site build. On each push branch and on the default branch, the codex checks SHALL fail on a change to a path outside the pusher's `snippets/<repo>/`, on a line that is not a record of its file's kind, on a record id that does not start with `<repo>/`, on an edge to an id that no `snippets/*/` provides, on a link map entry for an id with no record, and on a manifest with no source commit.
+codex SHALL hold the records, snippet files, link maps, and manifests of each repository under `snippets/<repo>/`, the viewpoints under `viewpoints/`, and the generated views under `views/`. codex SHALL hold no pages and no site build. On each push branch and on the default branch, the codex checks SHALL fail on a change to a path that `.github/snippet-owners.json` does not assign to the pusher (a producer's `snippets/<repo>/`, or `viewpoints/` and `views/` for the view generator), on a line that is not a record of its file's kind, on a record id that does not start with `<repo>/`, on an edge to an id that no `snippets/*/` provides, on a link map entry for an id with no record, and on a manifest with no source commit.
 
 #### Scenario: A push outside the owned path
 

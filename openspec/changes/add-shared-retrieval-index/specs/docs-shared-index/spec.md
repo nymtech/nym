@@ -62,7 +62,7 @@ The public MCP endpoint SHALL keep its URL, tool names, argument schemas, and re
 
 ### Requirement: Per-modality embedding space
 
-Within the store, all rows of one modality SHALL be embedded with one model, recorded on the shard; prose and code MAY use different models (the public store keeps one for prose and one for code). A query for a modality SHALL be embedded with that modality's model and scanned only against those rows. Rows embedded with different models SHALL NOT be compared by raw similarity score; any cross-model combination SHALL be by rank.
+Within the store, all rows of one modality SHALL be embedded with one model and one dimension, both recorded on the shard; prose and code MAY use different models (the public store keeps one for prose and one for code). A query for a modality SHALL be embedded with that modality's model and scanned only against those rows. Rows embedded with different models SHALL NOT be compared by raw similarity score; any cross-model combination SHALL be by rank.
 
 #### Scenario: A query is scored only within its model's space
 

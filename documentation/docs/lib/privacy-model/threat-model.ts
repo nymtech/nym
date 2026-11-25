@@ -1,7 +1,7 @@
 // The generic Nym threat model: the app-agnostic spine.
 //
 // Sourced from Claudia Diaz's note "Network privacy" (§2–§3, §5) and
-// generalised (decision D1): the primary adversary is "the destination", not
+// generalised: the primary adversary is "the destination", not
 // any one application's server. Worked examples (wallet, messaging, browsing)
 // instantiate this spine and add their own L1 actor and invariants.
 

@@ -1,4 +1,4 @@
-// `snippet:<id>` links on the docs site (D9 fallback, task 10.6): each id becomes
+// `snippet:<id>` links on the docs site: each id becomes
 // the route and anchor of the page that imports the target. The routes come
 // from `.nym-codex/build/links-docs.json`, which lib/snippets/links.mts writes in
 // `predev` and the builds, so the site bundles no tool code. A target that no

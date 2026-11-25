@@ -50,7 +50,7 @@ export function absoluteLinks(body, siteUrl = SITE_URL) {
 export const SKIP_DIRS = new Set(['api', 'archive', 'playground']);
 
 /**
- * What a generator needs to compose a page that imports snippets (D18): the
+ * What a generator needs to compose a page that imports snippets: the
  * `@snippets` alias, the extracted code, and the docs link map. NYM_CODEX_ROOT
  * points at another repository root, for a dry run of a split.
  */

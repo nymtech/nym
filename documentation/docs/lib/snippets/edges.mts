@@ -1,4 +1,4 @@
-// Authored edges on records that have no frontmatter (D4c, task 2b.4):
+// Authored edges on records that have no frontmatter:
 // `.nym-codex/edges.json` is a list of { from, to, rel }. A `realises` edge from
 // a code item to a requirement goes here.
 

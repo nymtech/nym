@@ -944,6 +944,7 @@ mod tests {
         );
     }
 
+    // r[verify delay.node-holds]
     #[test]
     fn excessive_delay_is_clamped() {
         let (mut pipeline, state) = mock_pipeline();

@@ -326,6 +326,7 @@ impl ReplayProtectionBloomfiltersInner {
         }
     }
 
+    // r[impl sphinx.replay-drop]
     fn batch_check_and_set(
         &mut self,
         reply_tags: &HashMap<u32, Vec<&[u8; REPLAY_TAG_SIZE]>>,
@@ -432,5 +433,40 @@ impl RotationFilter {
             })?;
 
         RotationFilter::try_from_bytes(buf)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn filters_for_rotation(rotation_id: u32) -> ReplayProtectionBloomfilters {
+        let primary = RotationFilter::new(1_000, 1e-5, 0, rotation_id).unwrap();
+        ReplayProtectionBloomfilters::new(primary, None)
+    }
+
+    // r[verify sphinx.replay-drop]
+    #[test]
+    fn a_seen_tag_is_reported_as_replayed() {
+        let filters = filters_for_rotation(7);
+        let tag = [42u8; REPLAY_TAG_SIZE];
+        let tags = HashMap::from([(7, vec![&tag])]);
+
+        assert_eq!(filters.batch_check_and_set(&tags).unwrap()[&7], vec![false]);
+        assert_eq!(filters.batch_check_and_set(&tags).unwrap()[&7], vec![true]);
+    }
+
+    // r[related sphinx.replay-drop]
+    // The batch check treats a tag whose rotation has no filter as not seen, although the comment
+    // in batch_check_and_set says that the function marks such a tag as replayed. This test
+    // records the current behaviour.
+    #[test]
+    fn a_tag_with_no_filter_for_its_rotation_is_reported_as_not_seen() {
+        let filters = filters_for_rotation(7);
+        let tag = [42u8; REPLAY_TAG_SIZE];
+        let tags = HashMap::from([(9, vec![&tag])]);
+
+        assert_eq!(filters.batch_check_and_set(&tags).unwrap()[&9], vec![false]);
+        assert_eq!(filters.batch_check_and_set(&tags).unwrap()[&9], vec![false]);
     }
 }

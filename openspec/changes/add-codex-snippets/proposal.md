@@ -10,7 +10,7 @@ A fourth need is a checked form for procedures. The operator guides and the Rust
 
 **The investigation for this change also found that no OpenSpec spec defines the core mixnet mechanisms: the Sphinx packet format, how the client sends cover traffic, and the delay that a mix node adds.** The specs mention them only as inputs. So the code that gives the network its privacy properties has no requirement to link to. Stage 5 starts with these specs (task 6e.5).
 
-This change defines one unit, the snippet, and one typed record format. It defines one path from a source repository to codex. People author prose and diagram snippets as files. A tool extracts code snippets by symbol. A page is an MDX file that imports snippet files in order. The change starts with this monorepo. The plan with the flow and the format is `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
+This change defines one unit, the snippet, and one typed record format. It defines one path from a source repository to codex. People author prose and diagram snippets as files. A tool extracts code snippets by symbol. A page is an MDX file that imports snippet files in order. The change starts with this monorepo. `design.md` gives the flow and the format.
 
 ## What Changes
 
@@ -60,7 +60,7 @@ None in this change. `add-shared-retrieval-index` changes the indexer input to s
 
 ## Placeholders
 
-Owners, dates, baseline numbers, and some design values are not known yet. A `TBD(<who>)` marker in `design.md` and `tasks.md` shows each one. `documentation/NYM-CODEX-SNIPPETS-PLAN.md` has the full table.
+Owners, dates, baseline numbers, and some design values are not known yet. A `TBD(<who>)` marker in `design.md` and `tasks.md` shows each one.
 
 ## Non-Goals
 

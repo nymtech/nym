@@ -224,6 +224,7 @@ impl Config {
         Ok(())
     }
 
+    // r[impl delay.named-settings]
     pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.traffic.average_packet_delay = Duration::from_millis(10);
         // basically don't really send cover messages
@@ -260,6 +261,7 @@ impl Config {
         self
     }
 
+    // r[impl cover.defaults-and-settings]
     pub fn set_no_cover_traffic(&mut self) {
         self.debug.cover_traffic.disable_loop_cover_traffic_stream = true;
         self.debug.traffic.disable_main_poisson_packet_distribution = true;
@@ -288,6 +290,7 @@ impl Config {
         self
     }
 
+    // r[impl delay.named-settings]
     pub fn set_no_per_hop_delays(&mut self) {
         self.debug.traffic.average_packet_delay = Duration::ZERO;
         self.debug.acknowledgements.average_ack_delay = Duration::ZERO;
@@ -461,6 +464,8 @@ impl Traffic {
 }
 
 impl Default for Traffic {
+    // r[impl delay.per-hop-exponential]
+    // r[impl cover.same-format]
     fn default() -> Self {
         Traffic {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
@@ -498,6 +503,7 @@ pub struct CoverTraffic {
 }
 
 impl Default for CoverTraffic {
+    // r[impl cover.loop-exponential]
     fn default() -> Self {
         CoverTraffic {
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
@@ -547,6 +553,7 @@ pub struct Acknowledgements {
 }
 
 impl Default for Acknowledgements {
+    // r[impl delay.acks-replies-cover]
     fn default() -> Self {
         Acknowledgements {
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
@@ -936,5 +943,102 @@ impl RememberMe {
 
     pub fn stats(&self) -> bool {
         self.stats
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // r[verify cover.defaults-and-settings]
+    // r[verify delay.per-hop-exponential]
+    // r[verify cover.loop-exponential]
+    // r[verify cover.main-stream-slots]
+    // r[verify cover.same-format]
+    #[test]
+    fn traffic_defaults() {
+        let traffic = Traffic::default();
+        assert_eq!(traffic.average_packet_delay, Duration::from_millis(15));
+        assert_eq!(
+            traffic.message_sending_average_delay,
+            Duration::from_millis(20)
+        );
+        assert!(!traffic.disable_main_poisson_packet_distribution);
+        assert_eq!(traffic.primary_packet_size, PacketSize::RegularPacket);
+        assert!(traffic.secondary_packet_size.is_none());
+
+        let cover = CoverTraffic::default();
+        assert_eq!(
+            cover.loop_cover_traffic_average_delay,
+            Duration::from_millis(200)
+        );
+        assert!(!cover.disable_loop_cover_traffic_stream);
+
+        assert_eq!(
+            Acknowledgements::default().average_ack_delay,
+            Duration::from_millis(15)
+        );
+    }
+
+    // r[verify cover.defaults-and-settings]
+    #[test]
+    fn no_cover_traffic_turns_both_streams_off() {
+        let mut config = Config::new("test", "0.0.0");
+        config.set_no_cover_traffic();
+        assert!(config.debug.cover_traffic.disable_loop_cover_traffic_stream);
+        assert!(
+            config
+                .debug
+                .traffic
+                .disable_main_poisson_packet_distribution
+        );
+    }
+
+    // r[verify delay.named-settings]
+    #[test]
+    fn named_settings_set_the_delays() {
+        let mut config = Config::new("test", "0.0.0");
+        config.set_no_per_hop_delays();
+        assert!(config.debug.traffic.average_packet_delay.is_zero());
+        assert!(config.debug.acknowledgements.average_ack_delay.is_zero());
+
+        let mut config = Config::new("test", "0.0.0");
+        config.set_high_default_traffic_volume();
+        assert_eq!(
+            config.debug.traffic.average_packet_delay,
+            Duration::from_millis(10)
+        );
+        assert_eq!(
+            config.debug.acknowledgements.average_ack_delay,
+            Duration::from_millis(15)
+        );
+
+        let mut config = Config::new("test", "0.0.0");
+        config.set_experimental_medium_toggle();
+        assert!(config.debug.traffic.average_packet_delay.is_zero());
+        assert!(config.debug.acknowledgements.average_ack_delay.is_zero());
+    }
+
+    // r[verify cover.defaults-and-settings]
+    #[test]
+    fn keepalive_settings_turn_the_main_stream_off_and_slow_the_loop() {
+        for set in [
+            Config::set_no_cover_traffic_with_keepalive,
+            Config::set_experimental_medium_toggle,
+        ] {
+            let mut config = Config::new("test", "0.0.0");
+            set(&mut config);
+            assert!(
+                config
+                    .debug
+                    .traffic
+                    .disable_main_poisson_packet_distribution
+            );
+            assert!(!config.debug.cover_traffic.disable_loop_cover_traffic_stream);
+            assert_eq!(
+                config.debug.cover_traffic.loop_cover_traffic_average_delay,
+                Duration::from_secs(5)
+            );
+        }
     }
 }

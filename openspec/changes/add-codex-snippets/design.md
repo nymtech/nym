@@ -26,7 +26,7 @@ A source whose format a different tool owns stays a whole file: `openspec/specs/
 
 ### D2: Four kinds, one record
 
-`prose`, `code`, `diagram`, `model`. One `Snippet` interface holds all four (the plan has the full type). A record holds content and no fact about a site or a push. It has no URL, no page title, and no commit. A URL and a page title differ for each site that shows the snippet. If each record holds a commit, each push rewrites each line of each file. The indexer builds a `Chunk` from a record and the pages of the site it serves. `source` comes from `repo` and `kind`. `heading` comes from the snippet `title`. `title` and `url` come from the first page in path order that imports the snippet. `text` comes from `body`, with the title of its target in place of each citation tag.
+`prose`, `code`, `diagram`, `model`. One `Snippet` interface holds all four. A record holds content and no fact about a site or a push. It has no URL, no page title, and no commit. A URL and a page title differ for each site that shows the snippet. If each record holds a commit, each push rewrites each line of each file. The indexer builds a `Chunk` from a record and the pages of the site it serves. `source` comes from `repo` and `kind`. `heading` comes from the snippet `title`. `title` and `url` come from the first page in path order that imports the snippet. `text` comes from `body`, with the title of its target in place of each citation tag.
 
 The alternative, a type for each kind, gives a consumer four loaders for no gain. The fields that differ (`lang`, `lines`) are optional in one type.
 
@@ -198,7 +198,7 @@ A snippet has no visibility field. A public repository pushes to codex. A privat
 
 The corpus does not meet the rules of this design today. A reader can understand about one section in five without the rest of its page. No OpenSpec requirement names a threat-model entity, and 1,845 links are routes. No spec defines the Sphinx packet format, client cover traffic, or the mix-node delay, so the most important code has no requirement to link to. These facts are an argument for the page as the unit of authoring, and the context file lists that alternative.
 
-The decision is to keep the target and change the data in stages. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP, first viewpoint, archetypes, and the docs site split. The plan has the table. The archetype stage runs on the docs pages and does not wait for the split. A stage does not wait for the corpus to be clean: the tools report a missing edge as missing.
+The decision is to keep the target and change the data in stages. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP, first viewpoint, archetypes, and the docs site split. The archetype stage runs on the docs pages and does not wait for the split. A stage does not wait for the corpus to be clean: the tools report a missing edge as missing.
 
 The rules that the corpus cannot meet at the start are warnings with a count. Each becomes an error when its stage ends: the standalone rule after stage 3, the link that each requirement must have after stage 5. If a rule is an error from day one, it blocks the first push.
 
@@ -232,7 +232,7 @@ The design rejects views written by an agent from a free prompt at each build. S
 
 ### D17: Procedures follow an archetype, and the runbook lint checks it
 
-An archetype is the form of the pages of one Diataxis type. It lists the sections of a page, maps each section to mdast nodes, and gives the constraints. This change defines two: `runbook` for a how-to page and `tutorial` for a tutorial page. A page states its type in a `diataxis` frontmatter field, and the linter reads it there. Reference and explanation pages have no archetype. The sections come from the DITA task topic. The plan has the section tables.
+An archetype is the form of the pages of one Diataxis type. It lists the sections of a page, maps each section to mdast nodes, and gives the constraints. This change defines two: `runbook` for a how-to page and `tutorial` for a tutorial page. A page states its type in a `diataxis` frontmatter field, and the linter reads it there. Reference and explanation pages have no archetype. The sections come from the DITA task topic.
 
 The main runbook constraints:
 
@@ -340,7 +340,7 @@ Until stage 6, the docs index reads composed pages. Stage 6 moves it to records 
 
 ### Placeholders
 
-The plan has the full table. These are the ones that change this design when an owner fills them.
+These are the placeholders that change this design when an owner fills them.
 
 | Placeholder | Where it lands |
 |---|---|

@@ -63,6 +63,14 @@ describe('edges.json and coverage', () => {
     expect(errors).toHaveLength(3);
     expect(requirement.refs).toEqual([{ id: prop.id, rel: 'realises' }]);
     const [line] = coverage({ requirement: [requirement], prose: [], code: [codeRecord], model: [model] });
-    expect(line).toEqual({ id: req.id, spec: 'x', threatModel: [prop.id], realisedBy: [code.id] });
+    expect(line).toEqual({ id: req.id, spec: 'x', threatModel: [prop.id], realisedBy: [code.id], tests: [] });
+  });
+});
+
+describe('tracey markers in a requirement block', () => {
+  it('moves the r[id] line out of the body and into the block', () => {
+    const [block] = requirementBlocks('### Requirement: Fills\n\nr[sphinx.payload-fills+2]\nThe client SHALL pad.\n');
+    expect(block?.body).toBe('The client SHALL pad.');
+    expect(block?.tracey).toEqual({ id: 'sphinx.payload-fills', version: 2 });
   });
 });

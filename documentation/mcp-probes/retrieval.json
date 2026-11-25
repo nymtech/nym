@@ -1,0 +1,378 @@
+{
+  "version": 1,
+  "name": "nym-retrieval",
+  "probes": [
+    {
+      "group": "Retrieval",
+      "label": "search_docs ranks the threat-model actors page for a short jargon query",
+      "tool": "search_docs",
+      "args": {
+        "query": "Who is L2 and why does it matter?",
+        "topK": 5
+      },
+      "match": "threat-model/actors"
+    },
+    {
+      "group": "Retrieval",
+      "label": "search_docs finds SOCKS5 client setup",
+      "tool": "search_docs",
+      "args": {
+        "query": "run a socks5 client and point curl at it",
+        "topK": 5
+      },
+      "match": "socks5|SOCKS5"
+    },
+    {
+      "group": "Retrieval",
+      "label": "an off-topic query still returns hits (the server applies no floor)",
+      "tool": "search_docs",
+      "args": {
+        "query": "What is the capital of France?",
+        "topK": 3
+      },
+      "notMatch": "No documentation matched",
+      "advisory": true
+    },
+    {
+      "group": "Retrieval",
+      "label": "get_section round-trips a URL from search_docs",
+      "tool": "search_docs",
+      "args": {
+        "query": "Who is L2 and why does it matter?",
+        "topK": 5
+      },
+      "roundTrip": true
+    },
+    {
+      "group": "Retrieval",
+      "label": "search_docs reaches the service-provider page from a build-it question",
+      "tool": "search_docs",
+      "args": {
+        "query": "how do I write a backend that receives requests over the mixnet and replies",
+        "topK": 5
+      },
+      "match": "developers/service-providers"
+    },
+    {
+      "group": "Retrieval",
+      "label": "search_docs surfaces the service-provider examples",
+      "tool": "search_docs",
+      "args": {
+        "query": "echo service provider example nym sdk",
+        "topK": 5
+      },
+      "match": "echo-service|service-providers"
+    },
+    {
+      "group": "Retrieval",
+      "label": "diagram-only pages contribute their scenario text",
+      "tool": "search_docs",
+      "args": {
+        "query": "both ends run Nym, no exit gateway, replies via SURBs",
+        "topK": 6
+      },
+      "match": "developers/service-providers|threat-model/configurations/end-to-end"
+    },
+    {
+      "group": "Retrieval",
+      "label": "get_section reports a miss legibly",
+      "tool": "get_section",
+      "args": {
+        "ref": "not-a-real-chunk-id"
+      },
+      "match": "No section found"
+    },
+    {
+      "group": "Retrieval",
+      "label": "get_section handles an empty ref",
+      "tool": "get_section",
+      "args": {
+        "ref": ""
+      },
+      "match": "No section found"
+    },
+    {
+      "group": "Code search",
+      "label": "search_code finds connect_new with a GitHub deep link",
+      "tool": "search_code",
+      "args": {
+        "query": "MixnetClient connect_new",
+        "topK": 5
+      },
+      "match": [
+        "connect_new",
+        "github\\.com/nymtech/nym/blob"
+      ]
+    },
+    {
+      "group": "Code search",
+      "label": "search_code resolves a bare type name",
+      "tool": "search_code",
+      "args": {
+        "query": "NetworkRequesterSelector",
+        "topK": 5
+      },
+      "match": "NetworkRequesterSelector"
+    },
+    {
+      "group": "Index coverage",
+      "label": "smolmix: the userspace TCP/UDP tunnel",
+      "tool": "search_code",
+      "args": {
+        "query": "Tunnel new_with_ipr get_best_ipr from_stream",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "smolmix"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "smoldvpn: the WireGuard datapath",
+      "tool": "search_code",
+      "args": {
+        "query": "wireguard peer configuration and tunnel engine setup",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "smoldvpn"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "sdk/rust: nym-swizzle start obfuscation",
+      "tool": "search_code",
+      "args": {
+        "query": "obfuscated_start snap grid floor jitter",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "sdk/rust/nym-swizzle"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "sdk/typescript/packages: the mix-fetch and mix-tunnel packages",
+      "tool": "search_code",
+      "args": {
+        "query": "createMixFetch createTunnel getMixTunnel",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "sdk/typescript/packages"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "sdk/typescript/examples: the browser examples",
+      "tool": "search_code",
+      "args": {
+        "query": "createChatEntry appendOutput createISOTimeStamp",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "sdk/typescript/examples"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "sdk/ffi: the Go and C++ bindings",
+      "tool": "search_code",
+      "args": {
+        "query": "RustBufferFromExternal FfiRustBufConverter go-nym bindings",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "sdk/ffi"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "wasm/smolmix: the wasm tunnel device",
+      "tool": "search_code",
+      "args": {
+        "query": "WasmDevice parse_outbound_tcp WasmTxToken",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "wasm/smolmix"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "wasm/client: the wasm mixnet client",
+      "tool": "search_code",
+      "args": {
+        "query": "ResponsePusher EncodedPayloadMetadata parse_payload",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "wasm/client"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "wasm/zknym-lib: zk-nym ticketbooks in wasm",
+      "tool": "search_code",
+      "args": {
+        "query": "SerialisedNymTicketBook NymVpnApiClient",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "wasm/zknym-lib"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "common/nymsphinx: packet construction",
+      "tool": "search_code",
+      "args": {
+        "query": "sphinx packet header construction and layer encryption",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "common/nymsphinx"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "common/smol-core: the userspace network stack",
+      "tool": "search_code",
+      "args": {
+        "query": "ChannelDevice client_mtu StackConfig SmolCoreError",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "common/smol-core"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "common/client-core: the client internals",
+      "tool": "search_code",
+      "args": {
+        "query": "client topology refresh and gateway selection",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "common/client-core"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "common/client-libs: the gateway and mixnet clients",
+      "tool": "search_code",
+      "args": {
+        "query": "BandwidthClaimGuard connect_async_with_hickory",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "common/client-libs"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "clients/native: the native websocket client",
+      "tool": "search_code",
+      "args": {
+        "query": "native client websocket handler ClientRequest SelfAddress",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "clients/native"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "clients/socks5: the socks5 client",
+      "tool": "search_code",
+      "args": {
+        "query": "CliSocks5Client socks5 client listener accepting a connection",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "clients/socks5"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "service-providers: the IP packet router",
+      "tool": "search_code",
+      "args": {
+        "query": "ip packet router exit policy and tunnel address allocation",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "service-providers/ip-packet-router"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "service-providers: the network requester",
+      "tool": "search_code",
+      "args": {
+        "query": "network requester socks5 connect request handling",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "service-providers/network-requester"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "common/gateway-requests: the gateway protocol",
+      "tool": "search_code",
+      "args": {
+        "query": "gateway client authentication and registration handshake",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "common/gateway-requests"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "common/credentials: bandwidth credentials",
+      "tool": "search_code",
+      "args": {
+        "query": "bandwidth credential issuance and verification",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "common/credentials"
+      }
+    },
+    {
+      "group": "Index coverage",
+      "label": "nym-node: the node implementation",
+      "tool": "search_code",
+      "args": {
+        "query": "nym-node configuration and mode selection on startup",
+        "topK": 8
+      },
+      "path": {
+        "repo": "nymtech/nym",
+        "path": "nym-node"
+      }
+    }
+  ]
+}

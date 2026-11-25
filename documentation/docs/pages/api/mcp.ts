@@ -22,6 +22,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { buildMcpServer } from '../../lib/mcp/build-server';
 import { createTools, type McpTool } from '../../lib/mcp/tools';
 import { indexSource, retryDroppedConnection, storeSource, type RetrievalSource } from '../../lib/retrieval/retrieval-source';
+import { storeConnection } from '../../lib/retrieval/store-tls.mjs';
 import type { DocIndex } from '@nymproject/retrieval-indexer/types';
 // allowJs resolves the plain-ESM embed module; types are inferred from the .mjs.
 import { voyageProvider, embedQuery } from '@nymproject/retrieval-indexer/embed';
@@ -87,15 +88,16 @@ function storeSourceFromEnv(): RetrievalSource {
   if (!url) {
     throw new Error('MCP route: MCP_RETRIEVAL_SOURCE is "store", but RETRIEVAL_STORE_READ_URL is not set. Set it to the reader connection string (documentation/MCP-STORE-SETUP.md).');
   }
-  // A pool, not one client, so a dropped connection (a PgBouncer restart, an idle
+  // A pool, not one client, so a dropped connection (a server restart, an idle
   // timeout) is replaced on the next query without a redeploy. Reads are single
   // statements, so pooling is safe here; only the write path needs one connection
   // for a whole transaction.
   //
   // The timeouts make an unreachable store an error the agent can read, not a
-  // request that hangs until the function times out. query_timeout is above the
-  // reader role's 5 s statement_timeout, so a slow query gets the server's error.
-  const pool = new pg.Pool({ connectionString: url, max: 2, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5_000, query_timeout: 8_000 });
+  // request that hangs until the function times out. statement_timeout makes the
+  // server stop a slow query; query_timeout is above it, so a slow query gets the
+  // server's error, and only a store that stops answering hits the client limit.
+  const pool = new pg.Pool({ ...storeConnection(url, process.env.RETRIEVAL_STORE_CA_CERT), max: 2, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5_000, statement_timeout: 5_000, query_timeout: 8_000 });
   // An idle connection that dies emits 'error' on the pool. With no listener,
   // Node treats it as unhandled and the instance exits.
   pool.on('error', (e) => console.error(`MCP route: retrieval store connection error: ${e.message}`));

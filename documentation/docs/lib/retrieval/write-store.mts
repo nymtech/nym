@@ -8,7 +8,7 @@
 //
 // Run from documentation/docs after both generators, with REQUIRE_EMBEDDINGS set
 // so that they fail rather than write files without vectors:
-//   RETRIEVAL_STORE_WRITE_URL=... node lib/retrieval/write-store.mts
+//   RETRIEVAL_STORE_WRITE_URL=... RETRIEVAL_STORE_CA_CERT="$(cat ca.pem)" node lib/retrieval/write-store.mts
 //
 // The two shards are written in two transactions. If the code shard fails after
 // the docs shard is written, the store holds the new docs shard beside the old
@@ -22,6 +22,7 @@ import { embedText, type EmbedProvider } from '@nymproject/retrieval-indexer/emb
 import { indexShard, type Modality } from '@nymproject/retrieval-indexer/store';
 import type { DocIndex } from '@nymproject/retrieval-indexer/types';
 import { PUBLIC_DIR } from './pages-source.mjs';
+import { storeConnection } from './store-tls.mjs';
 
 const REPO = 'nym';
 const DIM = 1024;
@@ -65,7 +66,7 @@ async function main(): Promise<void> {
   const maxShrink = process.env.ALLOW_SHRINK === '1' ? undefined : MAX_SHRINK;
 
   // One client, not a pool: a write run is one transaction on one connection.
-  const db = new pg.Client({ connectionString: url });
+  const db = new pg.Client(storeConnection(url, process.env.RETRIEVAL_STORE_CA_CERT));
   await db.connect();
   try {
     // A run waits for the store-wide lock while another producer writes, which

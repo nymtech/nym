@@ -7,7 +7,7 @@
 //  - the concrete scenarios, whose destination node renders as "lightwalletd".
 //
 // Content reconciled from Claudia Diaz's note and the original Zcash scenario
-// doc (https://nymtech.atlassian.net/wiki/spaces/KB/pages/899907585/zcash).
+// doc.
 
 import type { Invariant, MatrixCell, Scenario, ThreatActor, Tri } from "../types";
 

@@ -299,7 +299,7 @@ its probe.
 ```bash
 # from documentation/
 ./scripts/check-mcp-server.sh https://nym.com
-./scripts/check-mcp-server.sh https://docs-nextra-git-my-branch.vercel.app "$BYPASS"
+./scripts/check-mcp-server.sh https://<preview-host> "$BYPASS"
 ```
 
 It exits non-zero on any failure, so it can gate a deploy step. Run it after

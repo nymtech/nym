@@ -13,7 +13,7 @@ The guide covers task 4.1 of the OpenSpec change `add-shared-retrieval-index`, f
 
 ## 1. Create the database
 
-1. Create a database for the store on the Exoscale Postgres server. Our store database is `codex`. The store is about 64 MB today and about 130 MB at 20,000 chunks, and the server needs enough RAM to keep it cached.
+1. As the server admin (`avnadmin`), connected to `defaultdb`, run `bootstrap/init.sql` from `nymtech/retrieval-indexer`. It creates the store database `codex`, the owner role `retrieval_ddl` (it runs the migrations of step 2), the roles `retrieval_writer` and `retrieval_reader`, and the default privileges that give those two roles rights on each table the owner creates. Then set real passwords for the three roles with `\password <role>`: the file holds placeholders. The store is about 64 MB today and about 130 MB at 20,000 chunks, and the server needs enough RAM to keep it cached.
 2. Note the server's address. Every connection string in this guide uses it, and each one ends in `/<database>`. The connection URI in the Exoscale console ends in `/defaultdb`, the server's default database. Change that part to the store database every time you copy the URI, or the schema and the data go to `defaultdb`.
 3. Put the owner password in `~/.pgpass`, so that it does not go into your shell history or into a connection string:
 
@@ -51,30 +51,25 @@ The schema is the SQL files in `migrations/` of `nymtech/retrieval-indexer`. Tha
 - The first migration runs `create extension if not exists vector`, so the owner needs the privilege to create extensions. node-pg-migrate also needs `create` on the schema, for its `pgmigrations` table.
 - Each run logs `Can't determine timestamp for 0001`. node-pg-migrate expects a timestamp prefix, and it orders the numbered files by their number instead. Nothing is wrong.
 
-## 3. Create the writer and reader roles
+## 3. Finish the writer and reader roles
 
-Open a session as the owner:
+`bootstrap/init.sql` gives the writer `select`, `insert` and `update`, and the reader `select`, on each table that the migrations create. Two settings are left.
 
-```
-psql "$OWNER_URL"
-```
-
-Then run:
+As the owner (`retrieval_ddl`), after step 2:
 
 ```sql
-create role retrieval_writer login;
-\password retrieval_writer
-grant select, insert, update, delete on chunks to retrieval_writer;
-grant select, insert, update on shards to retrieval_writer;
-
-create role retrieval_reader login connection limit 20;
-\password retrieval_reader
-grant select on chunks, shards to retrieval_reader;
+grant delete on chunks to retrieval_writer;
 ```
 
-1. `\password` asks for the password and sends it hashed, so the password does not go into your shell history or the server log. Use a new random password for each role.
-2. The writer gets what a write run uses: all four privileges on `chunks`, and `select`, `insert`, and `update` on `shards`. A run never deletes a shard.
-3. The reader gets `select` only. Every warm function instance holds a connection, and preview deployments use the same credential, so the connection limit stops one deployment from using the whole database. The route sets a 5 second `statement_timeout` on each of its connections, so the server stops a slow search.
+As the server admin:
+
+```sql
+alter role retrieval_reader connection limit 20;
+```
+
+1. A write run deletes the chunks that left a shard, and Postgres checks the right before it reads any row, so without the grant even the first run fails with `permission denied for table chunks`. The writer gets no `delete` on `shards`: a run never deletes a shard, and a shard delete would remove all its chunks.
+2. Every warm function instance of the route holds a connection, and preview deployments use the same credential, so the connection limit stops one deployment from using the whole database. The route sets a 5 second `statement_timeout` on each of its connections, so the server stops a slow search. `bootstrap/init.sql` also sets one on the reader role in `codex`.
+3. To check the rights of both roles, use the query in step 5.
 
 ## 4. Store the credentials
 
@@ -93,7 +88,7 @@ The strings have no `sslmode` or `sslrootcert`. The server certificate is signed
 | `RETRIEVAL_STORE_READ_URL` | The reader string | Vercel environment variable of the docs project, for Production and Preview |
 | `RETRIEVAL_STORE_CA_CERT` | The CA certificate as PEM text, the same value as `PG_CA_CERT` in step 2 | GitHub Actions secret in `nymtech/nym` and in `nymtech/nym-vpn-client`, like `PG_CA_CERT`, and a Vercel environment variable of the docs project beside `RETRIEVAL_STORE_READ_URL` |
 | `RETRIEVAL_STORE_ENABLED` | `1` | GitHub Actions repository variable (not a secret) in `nymtech/nym` and in `nymtech/nym-vpn-client`. The `cd-retrieval-store` workflow of each repository writes the store only while it is `1`; set it to `0` to stop writes without deleting the secret |
-| `VOYAGE_API_KEY` | The Voyage API key | GitHub Actions secret in `nymtech/nym-vpn-client`. `nymtech/nym` has it already, for its docs builds |
+| `VOYAGE_API_KEY` | The Voyage API key | GitHub Actions secret in `nymtech/nym` and in `nymtech/nym-vpn-client`. The docs site's own key is a Vercel variable, which the write workflow cannot read |
 
 Both roles use the direct address. A write run is one long transaction on one `pg.Client` (the package rejects a `pg.Pool`). The route keeps a `pg.Pool` of at most 2 connections in each warm function instance, and closes a connection after 30 seconds idle. The reader's connection limit of 20 caps all instances together. If traffic ever reaches that limit, searches fail with `too many connections for role "retrieval_reader"`, and the writer is not affected; raise the limit or add a pooler then.
 

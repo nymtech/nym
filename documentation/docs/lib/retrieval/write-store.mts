@@ -19,10 +19,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { embedText, type EmbedProvider } from '@nymproject/retrieval-indexer/embed';
-import { indexShard, type Modality } from '@nymproject/retrieval-indexer/store';
+import { indexShard, storeConnection, type Modality } from '@nymproject/retrieval-indexer/store';
 import type { DocIndex } from '@nymproject/retrieval-indexer/types';
 import { PUBLIC_DIR } from './pages-source.mjs';
-import { storeConnection } from './store-tls.mjs';
 
 const REPO = 'nym';
 const DIM = 1024;

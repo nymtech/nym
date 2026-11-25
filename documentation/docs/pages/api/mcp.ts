@@ -22,10 +22,10 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { buildMcpServer } from '../../lib/mcp/build-server';
 import { createTools, type McpTool } from '../../lib/mcp/tools';
 import { indexSource, retryDroppedConnection, storeSource, type RetrievalSource } from '../../lib/retrieval/retrieval-source';
-import { storeConnection } from '../../lib/retrieval/store-tls.mjs';
 import type { DocIndex } from '@nymproject/retrieval-indexer/types';
 // allowJs resolves the plain-ESM embed module; types are inferred from the .mjs.
 import { voyageProvider, embedQuery } from '@nymproject/retrieval-indexer/embed';
+import { storeConnection } from '@nymproject/retrieval-indexer/store';
 
 // Fail at cold start, naming the variable. Otherwise an agent connects, gets a
 // full tool list, and hits an opaque 401 inside its first search.

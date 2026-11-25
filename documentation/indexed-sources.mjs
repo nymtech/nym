@@ -21,11 +21,10 @@
 // skipped rather than failing the build, so a branch that predates a crate still
 // builds.
 //
-// After changing this list: rebuild the index with VOYAGE_API_KEY set, then run
-// `scripts/check-mcp-server.sh <deployment>`. Its index-coverage group asserts
-// that every root here is actually citable. Each root needs a probe in
-// `scripts/index-coverage-probes.mjs`; `lib/retrieval/index-coverage.test.ts`
-// fails until it has one.
+// Each root needs a `path` probe in `mcp-probes/retrieval.json`;
+// `lib/retrieval/index-coverage.test.ts` fails until it has one. After the next
+// store write, `scripts/check-mcp-server.sh <deployment>` asserts that every root
+// here is citable.
 
 export const ROOTS = [
   // Standalone crates

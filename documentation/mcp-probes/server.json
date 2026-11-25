@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "name": "nym-server",
+  "tools": [
+    "chain_status",
+    "circulating_supply",
+    "get_gateway",
+    "get_section",
+    "list_gateways",
+    "network_summary",
+    "search_code",
+    "search_docs",
+    "validate_sdk_config"
+  ],
+  "probes": [
+    {
+      "group": "Config validation",
+      "label": "a type mismatch is an error",
+      "tool": "validate_sdk_config",
+      "args": {
+        "config": {
+          "preferredIpr": 123
+        }
+      },
+      "match": "should be string"
+    },
+    {
+      "group": "Config validation",
+      "label": "a typo is a warning with a suggestion",
+      "tool": "validate_sdk_config",
+      "args": {
+        "config": {
+          "disableCoverTrafic": true
+        }
+      },
+      "match": "Did you mean"
+    },
+    {
+      "group": "Config validation",
+      "label": "a clean config passes",
+      "tool": "validate_sdk_config",
+      "args": {
+        "config": {}
+      },
+      "match": "valid"
+    },
+    {
+      "group": "Live network data",
+      "label": "network_summary returns counts",
+      "tool": "network_summary",
+      "match": "[0-9]+ total, [0-9]+ gateways, [0-9]+ mixnodes"
+    },
+    {
+      "group": "Live network data",
+      "label": "network_summary warns that the counts do not sum",
+      "tool": "network_summary",
+      "match": "do not sum"
+    },
+    {
+      "group": "Live network data",
+      "label": "circulating_supply returns NYM figures",
+      "tool": "circulating_supply",
+      "match": "Circulating: [0-9,]+"
+    },
+    {
+      "group": "Live network data",
+      "label": "chain_status names the connected nyxd",
+      "tool": "chain_status",
+      "match": "Connected nyxd: http"
+    },
+    {
+      "group": "Live network data",
+      "label": "list_gateways paginates",
+      "tool": "list_gateways",
+      "args": {
+        "size": 3
+      },
+      "match": "gateways total"
+    },
+    {
+      "group": "Live network data",
+      "label": "network_summary has no undefined or NaN fields",
+      "tool": "network_summary",
+      "notMatch": "undefined|NaN"
+    },
+    {
+      "group": "Live network data",
+      "label": "circulating_supply has no undefined or NaN fields",
+      "tool": "circulating_supply",
+      "notMatch": "undefined|NaN"
+    },
+    {
+      "group": "Live network data",
+      "label": "chain_status has no undefined or NaN fields",
+      "tool": "chain_status",
+      "notMatch": "undefined|NaN"
+    },
+    {
+      "group": "Error handling",
+      "label": "an unknown tool is an error result",
+      "tool": "no_such_tool",
+      "isError": true
+    },
+    {
+      "group": "Error handling",
+      "label": "a bad gateway identity is an error result",
+      "tool": "get_gateway",
+      "args": {
+        "identity": "NOT_A_REAL_IDENTITY"
+      },
+      "isError": true
+    },
+    {
+      "group": "Error handling",
+      "label": "a wrong argument type is rejected at the schema",
+      "tool": "search_docs",
+      "args": {
+        "query": 123
+      },
+      "match": "Invalid arguments"
+    },
+    {
+      "group": "Error handling",
+      "label": "a missing required argument is rejected",
+      "tool": "search_docs",
+      "args": {},
+      "match": "Invalid arguments"
+    }
+  ]
+}

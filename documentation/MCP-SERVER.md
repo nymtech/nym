@@ -61,7 +61,7 @@ All paths are under `documentation/`. The chunkers, the embedder, the embed cach
 
 | File | What it does | Test |
 |---|---|---|
-| `indexed-sources.mjs` | `ROOTS`: the source trees that the code index reads. `search_code` can cite only a path inside this list | `docs/lib/retrieval/index-coverage.test.ts`: each root has a probe in `scripts/index-coverage-probes.mjs` |
+| `indexed-sources.mjs` | `ROOTS`: the source trees that the code index reads. `search_code` can cite only a path inside this list | `docs/lib/retrieval/index-coverage.test.ts`: each root has a `path` probe in `mcp-probes/retrieval.json` |
 | `scripts/next-scripts/generate-index.mjs` | Builds `public/docs-index.json`: walks the pages, chunks them with the package chunker, embeds the changed chunks | `docs/lib/retrieval/coverage.test.ts` |
 | `scripts/next-scripts/generate-code-index.mjs` | Builds `public/code-index.json` from `ROOTS` with the package's tree-sitter chunker | `index-coverage.test.ts`, and the build fails on a root with no chunks or a dropped language |
 | `scripts/next-scripts/generate-page-markdown.mjs`, `generate-llms-txt.mjs` | The `.md` copy of each page and `llms-full.txt`, from the same page walk | `pages-source.test.ts` (`absoluteLinks`) |
@@ -201,7 +201,7 @@ A missing key announces itself rather than degrading quietly:
 | A vectorless index reaching production | The route detects it (`embedding.dim` is null). The docs index refuses at cold start; a vectorless code index is dropped instead, so `search_code` is not exposed rather than the route serving `200` with every code search empty. |
 
 **Health check.** `tools/list` against a deployment is the one-request answer to
-"is this wired up", and `scripts/check-mcp-server.sh` wraps it with 37 more.
+"is this wired up", and `scripts/check-mcp-server.sh` runs it with 49 more.
 
 Keys live in GitHub Actions and Vercel secrets, never in the repo.
 
@@ -317,7 +317,11 @@ succeeding and `search_docs` failing points at the index.
 `scripts/check-mcp-server.sh` runs 50 checks over HTTP: the tool list, transport
 negotiation, retrieval and a `get_section` round-trip, code search, index
 coverage, config validation, every live network tool, argument-schema rejection,
-and error shapes. It covers what unit tests cannot,
+and error shapes. The checks are data in two probe files: `mcp-probes/server.json`
+(the tool list, config validation, the live tools, the error cases) and
+`mcp-probes/retrieval.json` (what the store serves). The runner is
+`retrieval-mcp-check` from `@nymproject/retrieval-indexer`, whose README gives
+the format. It covers what unit tests cannot,
 namely that the route reaches its index, that the keys exist in *that*
 environment, and that the Nym API still returns the field names the tools read.
 
@@ -325,10 +329,19 @@ The **index coverage** group asserts that `search_code` can cite each root in
 `ROOTS`, matching on the returned file path rather than on the search term, since
 prose elsewhere in the corpus mentions all of these by name. A failure there
 normally means the deployed index predates a `ROOTS` change, not that the tool
-broke; rebuild with `VOYAGE_API_KEY` set and redeploy. The probe queries live in
-`scripts/index-coverage-probes.mjs`, and `lib/retrieval/index-coverage.test.ts`
+broke: the next store write after the `ROOTS` change adds it. Each root has a
+`path` probe in `mcp-probes/retrieval.json`, and `lib/retrieval/index-coverage.test.ts`
 fails at PR time if a root in `ROOTS` has no probe, so adding a root means adding
-its probe.
+its probe. Prefer a symbol that only one crate defines over a description of what
+the crate does: a description competes with every crate that does something
+similar, and it stops discriminating as the index grows.
+
+Three places run the probe files. `cd-retrieval-store` runs `retrieval.json`
+against production after each store write, so a write that leaves a root
+unsearchable turns that run red. The `mcp-checks` workflow of
+`nymtech/retrieval-indexer` runs both files against nym.com each day, opens a
+tracking issue on a failure and closes it on the next pass. A person runs
+`check-mcp-server.sh` against a preview.
 
 ```bash
 # from documentation/

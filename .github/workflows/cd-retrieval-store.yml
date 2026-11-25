@@ -100,3 +100,9 @@ jobs:
           RETRIEVAL_STORE_WRITE_URL: ${{ secrets.RETRIEVAL_STORE_WRITE_URL }}
           RETRIEVAL_STORE_CA_CERT: ${{ secrets.RETRIEVAL_STORE_CA_CERT }}
           ALLOW_SHRINK: ${{ inputs.allow_shrink && '1' || '' }}
+
+      # The route reads the store, so production serves the new shards at once.
+      # A failure here turns this run red and blocks nothing else.
+      - name: Check that production serves the shards
+        if: steps.head.outputs.stale != '1'
+        run: node_modules/.bin/retrieval-mcp-check https://nym.com/docs/api/mcp ../mcp-probes/retrieval.json

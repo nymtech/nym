@@ -11,8 +11,7 @@
 // http.ServerResponse from createServer.
 //
 // Public, unauthenticated, and every search costs an embedding call. There is
-// no rate limiter: a spend alert on the Voyage account bounds the cost (design Q2
-// of the add-shared-retrieval-index change).
+// no rate limiter: a spend alert on the Voyage account bounds the cost.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { readFileSync } from 'node:fs';
@@ -105,7 +104,7 @@ function storeSourceFromEnv(): RetrievalSource {
 
 // MCP_RETRIEVAL_SOURCE picks the index: "bundle" (the default) reads the files
 // the docs build traces into this function; "store" reads the public Postgres
-// store (task 5.2 of the add-shared-retrieval-index change, documentation/MCP-STORE.md).
+// store (documentation/MCP-STORE.md).
 const SOURCE = process.env.MCP_RETRIEVAL_SOURCE || 'bundle';
 if (SOURCE !== 'bundle' && SOURCE !== 'store') {
   throw new Error(`MCP route: MCP_RETRIEVAL_SOURCE is "${SOURCE}"; use "bundle" or "store".`);

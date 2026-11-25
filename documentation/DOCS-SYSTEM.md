@@ -133,8 +133,8 @@ The work on branches and in plans:
 
 | Part | State | What it changes |
 |---|---|---|
-| A shared indexer package, `@nymproject/retrieval-indexer` | branch `max/shared-mcp`. The package is public at v0.1.1, and the branch imports it | The chunkers, the tree-sitter item finder, the embedder and the store move out of `lib/retrieval/`, so other repositories (`nym-vpn-client` first) can index with the same code |
-| A Postgres and pgvector store for the public index | branch `max/shared-mcp` (`max/shared-mcp:documentation/MCP-STORE.md`). The cutover is planned: tasks 5.0 to 5.3 | The index leaves the function bundle. `MCP-SERVER.md` measures it at about 114 MB, and `MCP-STORE.md` estimates about 120 MB at the chunk counts of 2026-11-13. Each producer repository writes its own shard from its own CI |
+| A shared indexer package, `@nymproject/retrieval-indexer` | done. The package is public, and nym pins `v0.4.0` | The chunkers, the tree-sitter item finder, the embedder and the store move out of `lib/retrieval/`, so other repositories (`nym-vpn-client` first) can index with the same code |
+| A Postgres and pgvector store for the public index | production reads it, and nym CI writes it ([`MCP-STORE.md`](MCP-STORE.md)). Removing the bundled files is left | The index leaves the function bundle. `MCP-SERVER.md` measures it at about 114 MB, and `MCP-STORE.md` estimates about 120 MB at the chunk counts of 2026-11-13. Each producer repository writes its own shard from its own CI |
 | A private store, separate from the public one | planned | Private content goes only to a self-hosted store with a self-hosted embedding model. No query through the public server can return it, because the data is not in the public store |
 | A coverage gate for code index roots | branch `max/shared-mcp` (`add-code-index-coverage-gate`, 5 of 8 tasks) | A test fails when a root in `ROOTS` has no probe. 8 of the 20 roots had none |
 | The indexer reads snippet records | planned (`add-codex-snippets` 6.0 to 6.3) | The indexer makes no cut of its own. A snippet is a chunk |
@@ -257,5 +257,5 @@ The record format stays the same in both cases, so no consumer changes.
 | Retrieval and MCP | `documentation/docs/lib/retrieval/`, `documentation/docs/lib/mcp/`, `documentation/docs/pages/api/mcp.ts` |
 | Snippets design and tasks | `openspec/changes/add-codex-snippets/` |
 | Mixnet core specs, Tracey gate, assurance | `openspec/changes/add-mixnet-core-specs/`, `add-spec-trace-gate/`, `add-codex-assurance/` on `max/mixnet-core-specs` |
-| Shared index and store | `openspec/changes/add-shared-retrieval-index/`, `add-code-index-coverage-gate/` on `max/shared-mcp` |
+| Shared index and store | `openspec/changes/add-shared-retrieval-index/`, `openspec/changes/add-code-index-coverage-gate/`, [`MCP-STORE.md`](MCP-STORE.md) |
 | Writing style | `documentation/docs/STE-STYLE.md` |

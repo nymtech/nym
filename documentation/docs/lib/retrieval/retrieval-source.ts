@@ -1,6 +1,6 @@
 // Where the MCP tools read the index from: the files the docs build bundles into
-// the function, or the public Postgres store (task 5.2 of the
-// add-shared-retrieval-index change). The tools see only this interface.
+// the function, or the public Postgres store (documentation/MCP-STORE.md). The
+// tools see only this interface.
 
 import type { DocIndex } from '@nymproject/retrieval-indexer/types';
 import type { Connection, Modality } from '@nymproject/retrieval-indexer/store';

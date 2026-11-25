@@ -8538,6 +8538,7 @@ dependencies = [
  "rand 0.10.2",
  "time",
  "tokio",
+ "tracing",
  "url",
 ]
 

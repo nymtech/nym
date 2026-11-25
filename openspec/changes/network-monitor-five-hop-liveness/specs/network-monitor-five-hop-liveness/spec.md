@@ -30,7 +30,7 @@ The session SHALL reach its gateway exactly as a default client does. It MUST de
 
 Because the client's default topology settings apply, a mixnode whose performance as nym-api reports it is below the client's default minimum is left out of the topology, as it is for clients. A session does not route through it, so that mixnode gets no test message from the session and, if no session of an epoch crosses it, no five-hop liveness for that epoch.
 
-A session SHALL send for a time drawn uniformly at random between two thirds and four thirds of the configured sending duration, wait the configured straggler time for packets and acks still in flight, ask the gateway to forget the client, and close. The draw exists so that a route session has no fixed length for a mixnode to recognise.
+A session SHALL send for a time drawn uniformly at random between two thirds and four thirds of the configured sending duration, wait for packets and acks still in flight until every one is back or the configured straggler time has passed, ask the gateway to forget the client, and close. The draw exists so that a route session has no fixed length for a mixnode to recognise.
 
 A session that cannot connect, register, obtain bandwidth or build routes (the gateway is missing from the client's topology, or a layer is empty) MUST report an error and no records. The other sessions of the run are unaffected.
 
@@ -59,6 +59,10 @@ Working without the exemption is what lets the same test run as a plain client b
 #### Scenario: Session length varies
 - **WHEN** the sending duration is configured as 45 seconds
 - **THEN** each session sends for a time between 30 and 60 seconds, drawn for that session
+
+#### Scenario: The wait ends once everything is back
+- **WHEN** every payload and ack of a session has come back before its straggler time has passed
+- **THEN** the session stops waiting at once
 
 ### Requirement: A route run is handed out on its own cadence, ahead of every per-node test
 

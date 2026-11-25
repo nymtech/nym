@@ -20,7 +20,7 @@ pub struct RouteSessionConfig {
     /// The configured sending time, around which each session draws its own.
     pub sending_duration: Duration,
 
-    /// How long a session waits for packets and acks still in flight once sending has finished.
+    /// The longest a session waits for packets and acks still in flight once sending has finished.
     pub waiting_duration: Duration,
 
     /// The traffic a session sends.

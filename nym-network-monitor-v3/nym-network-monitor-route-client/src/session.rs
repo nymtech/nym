@@ -5,6 +5,7 @@ use crate::config::{RouteNodeSelection, RouteSessionConfig};
 use crate::packets_in_flight::PacketsInFlight;
 use crate::poisson_ticker::PoissonTicker;
 use anyhow::{Context, bail, ensure};
+use futures::StreamExt;
 use futures::channel::mpsc;
 use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
 use nym_client_core::client::key_manager::ClientKeys;
@@ -17,12 +18,15 @@ use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter,
 };
 use nym_network_monitor_route_records::NodeId;
+use nym_network_monitor_route_records::batch::{Batch, BatchHeader};
 use nym_sphinx::Node as SphinxNode;
+use nym_sphinx::acknowledgements::identifier::recover_identifier;
 use nym_sphinx::acknowledgements::surb_ack::SurbAck;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::cover::generate_loop_packet_on_route;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::SphinxKeyRotation;
+use nym_sphinx::receiver::{MessageReceiver, SphinxMessageReceiver};
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
 use nym_topology::{NymRouteProvider, Role, RoutingNode};
@@ -30,6 +34,7 @@ use rand::CryptoRng;
 use rand::seq::IndexedRandom;
 use std::pin::pin;
 use tokio::time::sleep;
+use tracing::warn;
 
 /// The gateway a route session runs through, as a route run names it.
 #[derive(Debug, Clone, Copy)]
@@ -72,6 +77,7 @@ pub struct RouteSession {
     gateway_client: GatewayClient,
     payloads: MixnetMessageReceiver,
     acks: AcknowledgementReceiver,
+    message_receiver: SphinxMessageReceiver,
     in_flight: PacketsInFlight,
     shutdown_token: ShutdownToken,
 }
@@ -125,6 +131,7 @@ impl RouteSession {
             gateway_client,
             payloads,
             acks,
+            message_receiver: SphinxMessageReceiver::new(),
             in_flight: PacketsInFlight::default(),
             shutdown_token,
         })
@@ -180,6 +187,53 @@ impl RouteSession {
             SphinxKeyRotation::from(self.topology.current_key_rotation()),
         )?;
         Ok(packet)
+    }
+
+    /// Receives what came back during sending, then any more until all is back or the straggler wait ends.
+    async fn receive_until_all_back(&mut self) {
+        let mut waiting_end = pin!(sleep(self.config.waiting_duration));
+
+        while !self.in_flight.all_back() {
+            tokio::select! {
+                _ = &mut waiting_end => return,
+                Some(payloads) = self.payloads.next() => self.receive_payloads(payloads),
+                Some(acks) = self.acks.next() => self.receive_acks(acks),
+            }
+        }
+    }
+
+    /// Decrypts returning payloads as the client's receiver does and marks their packets' payloads back.
+    fn receive_payloads(&mut self, payloads: Vec<Vec<u8>>) {
+        for mut payload in payloads {
+            match self.message_receiver.recover_plaintext_from_regular_packet(
+                self.keys.encryption_keypair().private_key(),
+                &mut payload,
+            ) {
+                Ok(content) => self.in_flight.payload_back(content),
+                Err(err) => warn!("could not decrypt a returning payload: {err}"),
+            }
+        }
+    }
+
+    /// Recovers returning acks' identifiers and marks their packets' acks back.
+    fn receive_acks(&mut self, acks: Vec<Vec<u8>>) {
+        for ack in acks {
+            match recover_identifier(&self.keys.ack_key(), &ack) {
+                Some(identifier) => self.in_flight.ack_back(&identifier),
+                None => warn!("could not recover the identifier of a returning ack"),
+            }
+        }
+    }
+
+    /// Closes the table of packets in flight into the session's batch.
+    fn into_batch(self) -> Batch {
+        Batch {
+            header: BatchHeader {
+                gateway_node_id: self.gateway.node_id,
+                mixnet_epoch: self.topology.absolute_epoch_id(),
+            },
+            records: self.in_flight.into_records(),
+        }
     }
 }
 

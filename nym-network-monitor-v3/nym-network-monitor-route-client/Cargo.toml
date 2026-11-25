@@ -17,6 +17,7 @@ futures = { workspace = true }
 rand = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["macros", "time"] }
+tracing = { workspace = true }
 url = { workspace = true }
 
 nym-bandwidth-controller = { workspace = true }

@@ -33,7 +33,7 @@ The network monitor tests every node on its own: an agent sends packets through 
 ## Impact
 
 - `nym-network-monitor-v3`: two new crates, the agent (a route run path, a manual command, configuration), the orchestrator requests crate (the work response, the route run submission, the aggregates read type, the route session export) and the orchestrator (one migration, the node refresher, route run assignment and ingestion, a materialiser step, the submission plan, the aggregates API, the results API, eviction).
-- `common/nymsphinx`: route-taking forms of the loop cover and SURB-ack builders. `nym-node-requests`: a client call for a gateway's root details.
+- `common/nymsphinx`: route-taking forms of the loop cover and SURB-ack builders. `nym-node-requests`: a client call for a gateway's root details. `nym-topology`: an iterator over the nodes that declare the mixnode role, for the manual command's widest selection.
 - New dependencies for the agent: the client stack's gateway client, bandwidth handling and topology provider.
 - No change to the performance contract, nym-api or nym-node.
 - Scoring: reward-affecting once liveness carries weight. Every active mixnode's liveness is multiplied by a value at or below 1.

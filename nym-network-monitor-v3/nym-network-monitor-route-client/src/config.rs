@@ -1,8 +1,12 @@
 // Copyright 2026 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_client_core_config_types::{Acknowledgements, CoverTraffic, Traffic};
+use anyhow::Context;
+use nym_client_core::client::topology_control::nym_api_provider::NymApiTopologyProvider;
+use nym_client_core_config_types::{Acknowledgements, CoverTraffic, Topology, Traffic};
+use nym_topology::{NymRouteProvider, TopologyProvider};
 use rand::RngExt;
+use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
 
@@ -29,6 +33,49 @@ impl RouteSessionConfig {
     /// A session's sending time, drawn uniformly between two thirds and four thirds of the configured one.
     pub fn draw_sending_time(&self) -> Duration {
         rand::rng().random_range(self.sending_duration * 2 / 3..=self.sending_duration * 4 / 3)
+    }
+
+    /// Reads the network once: the topology provider's default read for the active set, its extended read otherwise.
+    pub(crate) async fn read_topology(&self) -> anyhow::Result<NymRouteProvider> {
+        let topology = self
+            .topology_provider()?
+            .get_new_topology()
+            .await
+            .context("could not read the network from nym-api")?;
+
+        Ok(NymRouteProvider::new(
+            Arc::new(topology),
+            self.topology_config().ignore_egress_epoch_role,
+        ))
+    }
+
+    /// The client stack's nym-api topology provider, with the client's default settings.
+    pub(crate) fn topology_provider(&self) -> anyhow::Result<NymApiTopologyProvider> {
+        Ok(NymApiTopologyProvider::new(
+            self.topology_config(),
+            self.nym_api_client()?,
+        ))
+    }
+
+    /// The HTTP client the topology provider reads nym-api through, built as the monitor's other clients are.
+    pub(crate) fn nym_api_client(&self) -> anyhow::Result<nym_http_api_client::Client> {
+        Ok(
+            nym_http_api_client::Client::builder(self.nym_api_url.clone())?
+                .no_hickory_dns()
+                .with_user_agent(format!(
+                    "nym-network-monitor-route-client/{}",
+                    env!("CARGO_PKG_VERSION")
+                ))
+                .build()?,
+        )
+    }
+
+    /// The client's default topology settings, with the extended read for a selection wider than the active set.
+    fn topology_config(&self) -> Topology {
+        Topology {
+            use_extended_topology: self.node_selection != RouteNodeSelection::ActiveSet,
+            ..Topology::default()
+        }
     }
 }
 

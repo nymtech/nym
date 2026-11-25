@@ -2,19 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::{RouteNodeSelection, RouteSessionConfig};
-use anyhow::Context;
+use anyhow::{Context, bail, ensure};
 use futures::channel::mpsc;
 use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
 use nym_client_core::client::key_manager::ClientKeys;
+use nym_client_core::init::types::SelectedGateway;
+use nym_client_core_config_types::GatewayConnection;
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::client::GatewayListeners;
+use nym_gateway_client::client::config::GatewayClientConfig;
+use nym_gateway_client::client::{GatewayConfig, GatewayListeners};
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter,
 };
 use nym_network_monitor_route_records::NodeId;
+use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
-use nym_topology::{NymRouteProvider, RoutingNode};
-use url::Url;
+use nym_topology::{NymRouteProvider, Role, RoutingNode};
 
 /// The gateway a route session runs through, as a route run names it.
 #[derive(Debug, Clone, Copy)]
@@ -23,16 +26,31 @@ pub struct SessionGateway {
     pub identity_key: ed25519::PublicKey,
 }
 
+impl SessionGateway {
+    /// The gateway's listeners as a default client derives them from the topology (design Decision 16).
+    fn listeners(&self, topology: &NymRouteProvider) -> anyhow::Result<GatewayListeners> {
+        let node = topology
+            .egress_by_identity(self.identity_key)
+            .context("the gateway is missing from the topology")?;
+
+        // the client's default gateway selection: no forced TLS, hostnames allowed
+        let SelectedGateway::Remote {
+            gateway_listeners, ..
+        } = SelectedGateway::from_topology_node(node.clone(), false, false)?
+        else {
+            bail!("the client's gateway selection did not return a remote gateway");
+        };
+        Ok(gateway_listeners)
+    }
+}
+
 /// A route session registered with its gateway, with bandwidth claimed and its mixnodes read.
 pub struct RouteSession {
     config: RouteSessionConfig,
     gateway: SessionGateway,
     keys: ClientKeys,
     topology: NymRouteProvider,
-
-    /// The mixnodes the session draws from, one list per layer.
-    layers: [Vec<RoutingNode>; 3],
-
+    layers: MixLayers,
     gateway_client: GatewayClient,
     payloads: MixnetMessageReceiver,
     acks: AcknowledgementReceiver,
@@ -47,9 +65,9 @@ impl RouteSession {
         bandwidth_controller: BandwidthControllerRequestSender,
     ) -> anyhow::Result<RouteSession> {
         let keys = ClientKeys::generate_new(&mut rand::rng());
-        let topology = read_topology(&config.nym_api_url, config.node_selection).await?;
-        let layers = mix_layers(&topology, config.node_selection, gateway)?;
-        let gateway_listeners = gateway_listeners(&topology, gateway)?;
+        let topology = config.read_topology().await?;
+        let layers = MixLayers::new(&topology, config.node_selection)?;
+        let gateway_listeners = gateway.listeners(&topology)?;
 
         let shutdown_token = ShutdownToken::default();
         let (ack_sender, acks) = mpsc::unbounded();
@@ -87,33 +105,56 @@ impl RouteSession {
     }
 }
 
-/// Reads the network once through the client stack's nym-api topology provider: its default read for the active set, its extended read otherwise.
-async fn read_topology(
-    nym_api_url: &Url,
-    node_selection: RouteNodeSelection,
-) -> anyhow::Result<NymRouteProvider> {
-    todo!("NymApiTopologyProvider with Topology::default(), use_extended_topology unless ActiveSet")
+/// The mixnodes a session draws from, by layer.
+struct MixLayers {
+    layer1: Vec<RoutingNode>,
+    layer2: Vec<RoutingNode>,
+    layer3: Vec<RoutingNode>,
 }
 
-/// The selected mixnodes by layer: active nodes keep their layer, any other goes to layer `node_id % 3 + 1`.
-fn mix_layers(
-    topology: &NymRouteProvider,
-    node_selection: RouteNodeSelection,
-    gateway: SessionGateway,
-) -> anyhow::Result<[Vec<RoutingNode>; 3]> {
-    todo!(
-        "the three lists for the selection, without the session's gateway; an empty layer is an error"
-    )
-}
+impl MixLayers {
+    /// The selected mixnodes by layer: active nodes keep their layer, any other goes to layer `node_id % 3 + 1`.
+    fn new(
+        topology: &NymRouteProvider,
+        node_selection: RouteNodeSelection,
+    ) -> anyhow::Result<MixLayers> {
+        let network = &topology.topology;
+        let mut layers = MixLayers {
+            layer1: network.nodes_with_role(Role::Layer1).cloned().collect(),
+            layer2: network.nodes_with_role(Role::Layer2).cloned().collect(),
+            layer3: network.nodes_with_role(Role::Layer3).cloned().collect(),
+        };
 
-/// The gateway's listeners as a default client derives them from the topology (design Decision 16).
-fn gateway_listeners(
-    topology: &NymRouteProvider,
-    gateway: SessionGateway,
-) -> anyhow::Result<GatewayListeners> {
-    todo!(
-        "find the gateway in the topology, then SelectedGateway::from_topology_node with the default selection"
-    )
+        let outside_active_set: Vec<&RoutingNode> = match node_selection {
+            RouteNodeSelection::ActiveSet => Vec::new(),
+            RouteNodeSelection::RewardedSet => network
+                .nodes_with_role(Role::Standby)
+                .filter(|node| node.supported_roles.mixnode)
+                .collect(),
+            RouteNodeSelection::AllMixnodes => network
+                .mixnode_capable_nodes()
+                .filter(|node| !network.rewarded_set().is_active_mixnode(&node.node_id))
+                .collect(),
+        };
+        for node in outside_active_set {
+            layers.layer_for(node.node_id).push(node.clone());
+        }
+
+        ensure!(
+            !layers.layer1.is_empty() && !layers.layer2.is_empty() && !layers.layer3.is_empty(),
+            "a mix layer has no node to route through"
+        );
+        Ok(layers)
+    }
+
+    /// The layer a node outside the active set is placed in: `node_id % 3 + 1`.
+    fn layer_for(&mut self, node_id: NodeId) -> &mut Vec<RoutingNode> {
+        match node_id % 3 {
+            0 => &mut self.layer1,
+            1 => &mut self.layer2,
+            _ => &mut self.layer3,
+        }
+    }
 }
 
 /// The stock gateway client, with tickets not required and the caller's bandwidth controller sender.
@@ -125,5 +166,20 @@ fn new_gateway_client(
     bandwidth_controller: BandwidthControllerRequestSender,
     shutdown_token: ShutdownToken,
 ) -> GatewayClient {
-    todo!("GatewayClient::new with the session's identity and disabled credentials mode")
+    let config = GatewayClientConfig::new_default()
+        .with_disabled_credentials_mode(true)
+        .with_response_timeout(GatewayConnection::default().gateway_response_timeout);
+
+    GatewayClient::new(
+        config,
+        GatewayConfig::new(gateway.identity_key, gateway_listeners),
+        keys.identity_keypair(),
+        None,
+        packet_router,
+        Box::new(bandwidth_controller),
+        ClientStatsSender::new(None, shutdown_token.clone()),
+        #[cfg(unix)]
+        None,
+        shutdown_token,
+    )
 }

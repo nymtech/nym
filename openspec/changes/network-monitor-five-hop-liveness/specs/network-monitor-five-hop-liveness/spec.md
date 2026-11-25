@@ -186,7 +186,7 @@ The orchestrator MUST store each accepted batch exactly as it was received, besi
 
 ### Requirement: Records become test messages by two rules about the ack
 
-Before scoring, each record SHALL be turned into test messages, a test message being the time it was sent, the three mixnodes on its path in path order, and whether it came back. The session's gateway is not on a test message: a gateway is never blamed for a loss, and a session whose gateway is suspected is discarded whole instead (see the next requirement). Two rules apply. An ack is a test message only if its packet reached the gateway, which is known when the payload or the ack came back. And when the ack came back while the payload did not, the three mixnodes of the test packet delivered it, so the packet counts as delivered.
+Before scoring, each record SHALL be turned into test messages, a test message being the time it was sent, the three mixnodes on its path in path order, and whether it came back. The session's gateway is not on a test message as the gateway: a gateway is never blamed for a loss, and a session whose gateway is suspected is discarded whole instead (see the next requirement). A node that is the session's gateway and also sits in a mix layer of the epoch, which a client allows, appears only on the test messages on which it was drawn as a mixnode, and is scored there as one. Two rules apply. An ack is a test message only if its packet reached the gateway, which is known when the payload or the ack came back. And when the ack came back while the payload did not, the three mixnodes of the test packet delivered it, so the packet counts as delivered.
 
 A record therefore yields:
 
@@ -213,9 +213,9 @@ Every test message of a record carries the record's send time. These rules belon
 - **WHEN** neither the payload nor the ack of a record came back
 - **THEN** it yields a failed test message for the packet's three mixnodes and none for the ack
 
-#### Scenario: The gateway is never on a test message
+#### Scenario: The gateway is on a test message only as a mixnode
 - **WHEN** a session's records are turned into test messages
-- **THEN** every test message names three mixnodes and no gateway
+- **THEN** every test message names the three mixnodes of its path, and the session's gateway appears only where it was drawn as one of them
 
 ### Requirement: A session whose gateway is suspected is discarded before scoring
 
@@ -428,7 +428,7 @@ Every knob MUST be overridable by CLI flag or environment variable.
 
 The agent binary SHALL provide a `test-five-hop-liveness` command that takes a nym-api url, the gateways to use and the agent's route session settings with their defaults, runs one session through each as a route run does, and prints the scores computed with the same rules for test messages and the same scoring strategy the orchestrator uses. The command MUST need no orchestrator, no noise key and no on-chain authorisation.
 
-For experiments, the command SHALL also take which mixnodes to route through: the active set by default, the rewarded set, or every node declaring the mixnode role except the session's own gateway. Nodes of the active set keep their layer, and any other selected node is placed in layer `node_id % 3 + 1`. A route run handed out by the orchestrator always uses the active set.
+For experiments, the command SHALL also take which mixnodes to route through: the active set by default, the rewarded set, or every node declaring the mixnode role. Nodes of the active set keep their layer, and any other selected node is placed in layer `node_id % 3 + 1`. A route run handed out by the orchestrator always uses the active set.
 
 #### Scenario: A manual run prints scores
 - **WHEN** `test-five-hop-liveness` is run with a nym-api url and two gateways

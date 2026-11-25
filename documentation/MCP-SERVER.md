@@ -53,6 +53,40 @@ Everything is built during the docs deploy and read from disk at runtime.
 
 The `build` script runs the generators before `next build`, in this order: `generate-llms-txt.mjs`, `generate-index.mjs`, `generate-code-index.mjs`, `generate-page-markdown.mjs`.
 
+## Where the code is
+
+All paths are under `documentation/`. The chunkers, the embedder, the embed cache, the store schema and the store's read and write functions are in the shared package [`@nymproject/retrieval-indexer`](https://github.com/nymtech/retrieval-indexer). The files below are the nym side: the page walk, the nym-specific content rules, the route and the tools.
+
+### Build time
+
+| File | What it does | Test |
+|---|---|---|
+| `indexed-sources.mjs` | `ROOTS`: the source trees that the code index reads. `search_code` can cite only a path inside this list | `docs/lib/retrieval/index-coverage.test.ts`: each root has a probe in `scripts/index-coverage-probes.mjs` |
+| `scripts/next-scripts/generate-index.mjs` | Builds `public/docs-index.json`: walks the pages, chunks them with the package chunker, embeds the changed chunks | `docs/lib/retrieval/coverage.test.ts` |
+| `scripts/next-scripts/generate-code-index.mjs` | Builds `public/code-index.json` from `ROOTS` with the package's tree-sitter chunker | `index-coverage.test.ts`, and the build fails on a root with no chunks or a dropped language |
+| `scripts/next-scripts/generate-page-markdown.mjs`, `generate-llms-txt.mjs` | The `.md` copy of each page and `llms-full.txt`, from the same page walk | `pages-source.test.ts` (`absoluteLinks`) |
+| `docs/lib/retrieval/pages-source.mjs` | The page walk: reads the content tree in `_meta.js` order, inlines the snippet imports, strips MDX, makes root links absolute, and gives one page record for each page | `pages-source.test.ts`, `coverage.test.ts` |
+| `docs/lib/retrieval/projections.mjs` | Turns component-rendered content (the threat-model actors, vectors and scenarios) into text, so the index sees what a reader sees | `projections.test.ts` |
+| `docs/lib/retrieval/ts-data.mjs` | Loads a TypeScript data module (`lib/privacy-model/*.ts`) from a plain Node build script | `projections.test.ts` |
+| `docs/lib/retrieval/embed-key.mts` | The nym rule for the Voyage key: which builds must have it and fail without it | |
+| `docs/lib/retrieval/indexer.mts` | Re-exports the package, so the scripts outside `documentation/docs` can import it | |
+| `docs/lib/retrieval/write-store.mts` | Writes the `nym/docs` and `nym/code` shards to the store from the two index files. It embeds nothing: it uses the vectors in the files | `write-store.test.ts` (`fileProvider`) |
+
+### Request time
+
+| File | What it does | Test |
+|---|---|---|
+| `docs/pages/api/mcp.ts` | The route: reads the environment, chooses the source (`MCP_RETRIEVAL_SOURCE`), makes the store pool, builds the server for each request | `scripts/check-mcp-server.sh` against a deployment |
+| `docs/lib/mcp/build-server.ts` | Registers the tools on an MCP SDK `Server` | `tools.test.ts` |
+| `docs/lib/mcp/tools.ts` | The tool registry: the name, description, input schema and handler of each of the nine tools, with no SDK dependency | `tools.test.ts` |
+| `docs/lib/mcp/validate-args.ts` | Checks the arguments of each call against the tool's JSON Schema before the handler runs | `validate-args.test.ts` |
+| `docs/lib/mcp/validate-config.ts` | `validate_sdk_config`: checks a `SetupMixTunnelOpts` object | `validate-config.test.ts` |
+| `docs/lib/retrieval/retrieval-source.ts` | The one interface the tools read: the bundle source (`indexSource`) or the store source (`storeSource`), and the retry of a dropped store connection | `retrieval-source.test.ts` |
+| `docs/lib/retrieval/retrieval.ts` | The bundle source's search: cosine similarity over the in-memory index, and `getSection` | `retrieval.test.ts` |
+| `docs/lib/nym-api/client.ts` | The client for the live tools (Nym API and Node Status API) | `client.test.ts`; `live-check.mjs` checks the real APIs by hand |
+
+The unit tests run with `pnpm test` in `documentation/docs`, and `ci-docs-test` runs them on each push to the docs. They use no network and no store. `check-mcp-server.sh` and `scripts/next-scripts/check-retrieval-scores.mjs` need a deployment or a Voyage key.
+
 ## Building the index
 
 ### Chunking

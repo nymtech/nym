@@ -4,9 +4,10 @@
 use crate::config::{RouteNodeSelection, RouteSessionConfig};
 use crate::packets_in_flight::PacketsInFlight;
 use crate::poisson_ticker::PoissonTicker;
-use anyhow::{Context, bail, ensure};
+use anyhow::{Context, anyhow, bail, ensure};
 use futures::StreamExt;
 use futures::channel::mpsc;
+use futures::future::join_all;
 use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
 use nym_client_core::client::key_manager::ClientKeys;
 use nym_client_core::init::types::SelectedGateway;
@@ -17,6 +18,7 @@ use nym_gateway_client::client::{GatewayConfig, GatewayListeners};
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter,
 };
+use nym_gateway_requests::ClientRequest;
 use nym_network_monitor_route_records::NodeId;
 use nym_network_monitor_route_records::batch::{Batch, BatchHeader};
 use nym_sphinx::Node as SphinxNode;
@@ -32,8 +34,10 @@ use nym_task::ShutdownToken;
 use nym_topology::{NymRouteProvider, Role, RoutingNode};
 use rand::CryptoRng;
 use rand::seq::IndexedRandom;
+use std::mem;
 use std::pin::pin;
-use tokio::time::sleep;
+use std::time::Duration;
+use tokio::time::{Instant, sleep, timeout_at};
 use tracing::warn;
 
 /// The gateway a route session runs through, as a route run names it.
@@ -88,6 +92,7 @@ impl RouteSession {
         config: RouteSessionConfig,
         gateway: SessionGateway,
         bandwidth_controller: BandwidthControllerRequestSender,
+        shutdown_token: ShutdownToken,
     ) -> anyhow::Result<RouteSession> {
         let keys = ClientKeys::generate_new(&mut rand::rng());
         let address = Recipient::new(
@@ -99,7 +104,6 @@ impl RouteSession {
         let layers = MixLayers::new(&topology, config.node_selection, gateway)?;
         let gateway_listeners = gateway.listeners(&topology)?;
 
-        let shutdown_token = ShutdownToken::default();
         let (ack_sender, acks) = mpsc::unbounded();
         let (payload_sender, payloads) = mpsc::unbounded();
         let packet_router = PacketRouter::new(ack_sender, payload_sender, shutdown_token.clone());
@@ -120,6 +124,9 @@ impl RouteSession {
             .claim_initial_bandwidth()
             .await
             .context("the gateway refused the bandwidth claim")?;
+        gateway_client
+            .start_listening_for_mixnet_messages()
+            .context("could not start listening for returning packets")?;
 
         Ok(RouteSession {
             config,
@@ -135,6 +142,14 @@ impl RouteSession {
             in_flight: PacketsInFlight::default(),
             shutdown_token,
         })
+    }
+
+    /// Sends, receives what comes back, asks the gateway to forget the client and closes, giving the session's batch.
+    pub async fn run(mut self) -> anyhow::Result<Batch> {
+        self.send_packets().await?;
+        self.receive_until_all_back().await;
+        self.forget_and_close().await;
+        Ok(self.into_batch())
     }
 
     /// Sends one Poisson stream at a client's combined rate for the session's drawn sending time.
@@ -225,16 +240,75 @@ impl RouteSession {
         }
     }
 
+    /// Asks the gateway to forget the client and closes the connection; a failure is only logged, as the records stand.
+    async fn forget_and_close(&mut self) {
+        let forget_me = ClientRequest::ForgetMe {
+            client: true,
+            stats: true,
+        };
+        if let Err(err) = self.gateway_client.send_client_request(forget_me).await {
+            warn!("could not ask the gateway to forget the client: {err}");
+        }
+        if let Err(err) = self.gateway_client.close_connection().await {
+            warn!("could not close the connection to the gateway: {err}");
+        }
+    }
+
     /// Closes the table of packets in flight into the session's batch.
-    fn into_batch(self) -> Batch {
+    fn into_batch(mut self) -> Batch {
         Batch {
             header: BatchHeader {
                 gateway_node_id: self.gateway.node_id,
                 mixnet_epoch: self.topology.absolute_epoch_id(),
             },
-            records: self.in_flight.into_records(),
+            records: mem::take(&mut self.in_flight).into_records(),
         }
     }
+}
+
+impl Drop for RouteSession {
+    fn drop(&mut self) {
+        // before any field goes, so the gateway client's router never sends into a closed channel
+        self.shutdown_token.cancel();
+    }
+}
+
+/// What became of the session through one gateway of a run.
+pub struct SessionOutcome {
+    pub gateway: SessionGateway,
+
+    /// The session's batch, or why it has none.
+    pub batch: anyhow::Result<Batch>,
+}
+
+/// Runs one session through each gateway side by side, all of them ending by the same deadline.
+pub async fn run_sessions(
+    config: &RouteSessionConfig,
+    gateways: Vec<SessionGateway>,
+    bandwidth_controller: &BandwidthControllerRequestSender,
+    shutdown_token: &ShutdownToken,
+    run_timeout: Duration,
+) -> Vec<SessionOutcome> {
+    let deadline = Instant::now() + run_timeout;
+    let sessions = gateways.into_iter().map(|gateway| {
+        let session = RouteSession::establish(
+            config.clone(),
+            gateway,
+            bandwidth_controller.clone(),
+            shutdown_token.child_token(),
+        );
+        async move {
+            let batch = timeout_at(deadline, async { session.await?.run().await })
+                .await
+                .unwrap_or_else(|_| {
+                    Err(anyhow!(
+                        "the session did not finish before the run's deadline"
+                    ))
+                });
+            SessionOutcome { gateway, batch }
+        }
+    });
+    join_all(sessions).await
 }
 
 /// The mixnodes a session draws from, by layer, and the gateway every route ends at.

@@ -137,3 +137,23 @@ impl Default for RouteTrafficConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_two_streams_combine_at_the_sum_of_their_rates() {
+        let traffic = RouteTrafficConfig {
+            message_sending_average_delay: Duration::from_millis(20),
+            loop_cover_traffic_average_delay: Duration::from_millis(200),
+            ..RouteTrafficConfig::default()
+        };
+
+        // 50 and 5 packets a second make 55
+        assert_eq!(
+            traffic.combined_average_delay(),
+            Duration::from_secs(1) / 55
+        );
+    }
+}

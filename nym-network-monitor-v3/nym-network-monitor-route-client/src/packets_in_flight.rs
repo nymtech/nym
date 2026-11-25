@@ -79,3 +79,74 @@ impl PacketsInFlight {
 fn unix_time_ms() -> u64 {
     (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000) as u64
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ROUTE: [NodeId; 3] = [11, 22, 33];
+
+    #[test]
+    fn a_returned_payload_and_ack_mark_only_their_own_record() {
+        let mut table = PacketsInFlight::default();
+        let first = table.insert(ROUTE, ROUTE);
+        table.insert(ROUTE, ROUTE);
+
+        table.payload_back(&decrypted_content(first));
+        table.ack_back(&first);
+
+        let records = table.into_records();
+        assert!(records[0].payload_back && records[0].ack_back);
+        assert!(!records[1].payload_back && !records[1].ack_back);
+    }
+
+    #[test]
+    fn a_repeated_arrival_counts_once() {
+        let mut table = PacketsInFlight::default();
+        let first = table.insert(ROUTE, ROUTE);
+        let second = table.insert(ROUTE, ROUTE);
+
+        table.payload_back(&decrypted_content(first));
+        table.payload_back(&decrypted_content(first));
+        table.ack_back(&first);
+        table.ack_back(&first);
+        assert!(!table.all_back());
+
+        table.payload_back(&decrypted_content(second));
+        table.ack_back(&second);
+        assert!(table.all_back());
+    }
+
+    #[test]
+    fn an_identifier_naming_no_packet_is_ignored() {
+        let mut table = PacketsInFlight::default();
+        table.insert(ROUTE, ROUTE);
+
+        // sequence number 1, never sent, and a content too short to carry one
+        table.payload_back(&[0, 0, 0, 1, 0]);
+        table.ack_back(&[0, 0, 0, 1, 0]);
+        table.payload_back(&[0, 0]);
+        table.ack_back(&[0, 0]);
+
+        assert!(!table.all_back());
+        let records = table.into_records();
+        assert!(!records[0].payload_back && !records[0].ack_back);
+    }
+
+    #[test]
+    fn all_back_needs_the_payload_and_the_ack() {
+        let mut table = PacketsInFlight::default();
+        let identifier = table.insert(ROUTE, ROUTE);
+
+        table.payload_back(&decrypted_content(identifier));
+        assert!(!table.all_back());
+
+        table.ack_back(&identifier);
+        assert!(table.all_back());
+    }
+
+    /// A returning payload's decrypted content: the identifier, padded as the loop packet builder pads it.
+    fn decrypted_content(identifier: SerializedFragmentIdentifier) -> Vec<u8> {
+        identifier.into_iter().chain([1]).chain([0; 32]).collect()
+    }
+}

@@ -90,8 +90,8 @@ importers:
         specifier: ^0.3.2
         version: 0.3.2
       '@nymproject/retrieval-indexer':
-        specifier: github:nymtech/retrieval-indexer#v0.4.0
-        version: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/c8240572c07152f89580a80a1fb6016fb1825f16
+        specifier: github:nymtech/retrieval-indexer#v0.5.0
+        version: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/75e9e3575d5d3dfbefcff5fd2a6e54f87fcecee2
       '@nymproject/sdk-full-fat':
         specifier: '>=1.5.1-rc.0 || ^1.4.1'
         version: 1.4.1
@@ -1455,10 +1455,11 @@ packages:
   '@nymproject/mix-websocket@0.3.2':
     resolution: {integrity: sha512-UfX4t87Y/BA/rRLDwWGYbR4QOcs3fz57u49emSWcDGcgguV6h02qi3t5dRs0jwHDuhAGsNeQnCweBaA+u4n5Ag==}
 
-  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/c8240572c07152f89580a80a1fb6016fb1825f16':
-    resolution: {gitHosted: true, tarball: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/c8240572c07152f89580a80a1fb6016fb1825f16}
-    version: 0.4.0
+  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/75e9e3575d5d3dfbefcff5fd2a6e54f87fcecee2':
+    resolution: {gitHosted: true, integrity: sha512-6086/9aS1plK34IwVKD6VoJ2nC/0UMzowot3RSqe/AejqfI8IubOH/evseDH9IXLLRQm4y7+Ce14YQ/jTK8aUg==, tarball: https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/75e9e3575d5d3dfbefcff5fd2a6e54f87fcecee2}
+    version: 0.5.0
     engines: {node: '>=20'}
+    hasBin: true
 
   '@nymproject/sdk-full-fat@1.4.1':
     resolution: {integrity: sha512-dh5bvMUj3m8nEssvO8Nl66WpcJAjwRZrGNwqfczJWLG4nX3Vt95tPLv4v0/Z1W3DQWQFW6WmEPPYHNjl18V/fA==}
@@ -8266,7 +8267,7 @@ snapshots:
     dependencies:
       '@nymproject/mix-tunnel': 0.3.2
 
-  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/c8240572c07152f89580a80a1fb6016fb1825f16':
+  '@nymproject/retrieval-indexer@https://codeload.github.com/nymtech/retrieval-indexer/tar.gz/75e9e3575d5d3dfbefcff5fd2a6e54f87fcecee2':
     dependencies:
       github-slugger: 2.0.0
       gray-matter: 4.0.3

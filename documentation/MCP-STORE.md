@@ -189,7 +189,7 @@ The route reads the store when `MCP_RETRIEVAL_SOURCE` is `store`, with the reade
 
 | Area | Before | After |
 |---|---|---|
-| Docs build | Embeds the changed chunks, and needs `VOYAGE_API_KEY` | Does not embed. The two `outputFileTracingIncludes` entries go |
+| Docs build | Embeds the changed chunks, and needs `VOYAGE_API_KEY` | After the final cutover step (below): does not embed, and the two `outputFileTracingIncludes` entries go. Until then the build still embeds and keeps `VOYAGE_API_KEY`, so the bundle stays available as the rollback |
 | `/api/mcp` | Reads two JSON files from the bundle | Reads the store. It still needs `VOYAGE_API_KEY` at runtime to embed queries |
 | When the index changes | On each deployment | On each producer run that writes. A PR preview answers from the develop index, not from the PR's content |
 | Other repositories | Not indexed | Each writes its own shard |

@@ -82,7 +82,17 @@ const apiKey = resolveEmbedKey('the docs index');
 if (apiKey) {
   const provider = voyageProvider({ apiKey });
   const cache = loadCache(CACHE_FILE);
-  const { embedded, cache: updated, stats } = await embedChunks(chunks, provider, cache);
+  // Persist the cache as we go, so a kill/re-run resumes.
+  let logged = 0;
+  const { embedded, cache: updated, stats } = await embedChunks(chunks, provider, cache, {
+    onProgress: ({ done, total, cache: c }) => {
+      if (done - logged >= 200 || done === total) {
+        console.log(`  embedded ${done}/${total} chunks ...`);
+        logged = done;
+        saveCache(CACHE_FILE, c);
+      }
+    },
+  });
   saveCache(CACHE_FILE, updated);
   index.embedding = { provider: provider.name, model: provider.model, dim: provider.dim };
   index.chunks = embedded;

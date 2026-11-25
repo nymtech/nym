@@ -1,9 +1,9 @@
 ## How all of this works [#how-all-of-this-works]
 
-All three surfaces come from the same build. The MCP server reads a semantic index
-constructed when the docs deploy, served as a static file rather than from a vector
-database. The Markdown files and `llms.txt` are written by the same pass over the
-same pages.
+The Markdown files and `llms.txt` come from the docs build, in one pass over the
+pages. The MCP server searches a shared semantic index, which each indexed Nym
+repository updates from its own CI: the docs and the Nym source, and the NymVPN
+client's code and docs.
 
 Every search result carries a deep link to the section it came from. Any claim an
 agent makes can be checked against the page behind it.

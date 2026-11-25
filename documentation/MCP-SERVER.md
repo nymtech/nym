@@ -338,10 +338,13 @@ similar, and it stops discriminating as the index grows.
 
 Three places run the probe files. `cd-retrieval-store` runs `retrieval.json`
 against production after each store write, so a write that leaves a root
-unsearchable turns that run red. The `mcp-checks` workflow of
-`nymtech/retrieval-indexer` runs both files against nym.com each day, opens a
-tracking issue on a failure and closes it on the next pass. A person runs
-`check-mcp-server.sh` against a preview.
+unsearchable turns that run red. nym-vpn-client does the same with its own
+probe file, `.github/indexer/mcp-probes.json`, after each release write. The
+`mcp-checks` workflow of `nymtech/retrieval-indexer` runs every producer's
+probe files against nym.com each day. A failure there opens a tracking issue
+and a pass closes it, and a Zulip direct message goes out when the checks start
+failing and on each passing run. None of these blocks another repository. A
+person runs `check-mcp-server.sh` against a preview.
 
 ```bash
 # from documentation/

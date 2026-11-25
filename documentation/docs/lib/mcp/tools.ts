@@ -95,7 +95,7 @@ export function createTools(deps: ToolDeps): McpTool[] {
     {
       name: 'search_docs',
       description:
-        'Search the Nym developer documentation and internal knowledge base for relevant sections. Returns ranked excerpts with deep-link URLs. Use this first for any "how do I / what is" question about Nym.',
+        'Search the Nym developer and network documentation and the NymVPN client docs for relevant sections. Returns ranked excerpts with deep-link URLs. Use this first for any "how do I / what is" question about Nym or NymVPN.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -226,7 +226,7 @@ export function createTools(deps: ToolDeps): McpTool[] {
           {
             name: 'search_code',
             description:
-              'Search the Nym source code (SDK crates/packages, wasm, and the Sphinx/smolmix internals) for relevant functions, types and examples. Returns ranked snippets with GitHub deep-links. Use for "how is X implemented / show me the code" questions the prose docs do not answer.',
+              'Search the Nym source code (SDK crates/packages, wasm, and the Sphinx/smolmix internals) and the NymVPN client source (core, desktop, Android and Apple apps) for relevant functions, types and examples. Returns ranked snippets with GitHub deep-links. Use for "how is X implemented / show me the code" questions the prose docs do not answer.',
             inputSchema: {
               type: 'object',
               properties: {

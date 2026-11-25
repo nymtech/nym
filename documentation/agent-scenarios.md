@@ -13,7 +13,10 @@ Two things are being tested, and they fail differently:
   editorially or at generation, and the fix is in the prose and in what the index
   surfaces.
 
-Automated coverage lives in `scripts/check-mcp-server.sh`. The scenarios below are
+Automated coverage lives in the probe files `mcp-probes/server.json` and
+`mcp-probes/retrieval.json`, which `scripts/check-mcp-server.sh` runs against a
+deployment and the `mcp-checks` workflow of `nymtech/retrieval-indexer` runs
+against nym.com each day. The scenarios below are
 the wider suite, including the ones a human still has to read.
 
 The MCP server returns sections and the calling agent writes the answer, so scope
@@ -152,7 +155,7 @@ assistant to do, because every incentive in a retrieval system points at finding
 
 ## E. Retrieval regressions
 
-Cheap, mechanical, already automated in `scripts/check-mcp-server.sh`:
+Cheap, mechanical, already automated in the probe files (`mcp-probes/`):
 
 - Every root in `indexed-sources.mjs` is citable by `search_code`.
 - The threat-model spine is individually addressable: `#actor-L2`, `#actor-L3L`,

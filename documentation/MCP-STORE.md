@@ -156,14 +156,15 @@ The cost: one more service (a managed Postgres), one network hop for each search
 ## How the MCP reads the store
 
 ```
-nym CI (push to develop)                 nym-vpn-client CI (push to develop)
+nym CI (push to develop)                 nym-vpn-client CI (published release)
 cd-retrieval-store.yml                   cd-retrieval-store.yml
   @nymproject/retrieval-indexer            @nymproject/retrieval-indexer
   chunk; embed only changed chunks         chunk; embed only changed chunks
   (Voyage, input_type "document")          (Voyage, input_type "document")
      │ writer role                              │ writer role
      │ nym/docs, nym/code                       │ nym-vpn-client/code,
-     │                                          │ nym-vpn-client/docs
+     │ links at develop                         │ nym-vpn-client/docs,
+     │                                          │ links at the release tag
      ▼                                          ▼
 ┌──────────────────────────────────────────────────────────────┐
 │ public store: Postgres + pgvector                            │
@@ -201,8 +202,10 @@ The last step of the cutover removes the bundled files and the embedding from th
 | Role | Used by | Can do |
 |---|---|---|
 | owner | the `store-migrate` workflow of `nymtech/retrieval-indexer`, which a person runs | Create the extension and the tables, and apply later migrations |
-| writer | producer CI: nym on pushes to develop, and later `nym-vpn-client` | Read and change rows in `chunks` and `shards` |
+| writer | producer CI: nym on pushes to develop, `nym-vpn-client` on each published `nym-vpn-v*` release | Read and change rows in `chunks` and `shards` |
 | reader | `/api/mcp` on Vercel, production and preview | Read `chunks` and `shards` only |
+
+nym writes develop, because nym.com/docs is built from develop. nym-vpn-client writes its newest published release, with links at the tag: users run releases, and a tag link does not move. Its workflow runs on a published release and by dispatch with a tag, and writes only when the tag is the newest release.
 
 The public store is a managed Postgres database. One writer role serves all producers: a role for each producer could not be limited to its own shard without row-level security, which the design dropped.
 
@@ -242,7 +245,7 @@ Search is a sequential scan with no vector index. A `search_code` query reads ev
 |---|---|---|
 | The store is unreachable or slow | `search_docs`, `search_code` and `get_section` return a tool error the agent can read. The live network tools keep working | Each query fails on its own limit: 5 s to connect, the route's 5 s `statement_timeout` for a slow query (`canceling statement due to statement timeout`), and 8 s for a store that stops answering (`Query read timeout`). A tool call that runs two queries can take twice as long. When both pooled connections of an instance are busy, a third call waits up to 5 s for one. A query on a connection that was dropped while the instance was frozen is retried once |
 | The store has no shard for a modality, or a shard with another model | The search of that modality returns a tool error, not an empty result | The error text names the modality, and for another model, both models |
-| A producer stops writing | Its shard ages, and the answers drift from the source | `staleShards` in the package reports the age of each shard. No job runs it yet |
+| A producer stops writing | Its shard ages, and the answers drift from the source | `staleShards` in the package reports the age of each shard. No job runs it. A write that leaves a root unsearchable fails the producer's own run at its post-write check |
 | Two runs write the same shard at once | One fails and must run again | The CI `concurrency` group prevents it |
 | The model of a modality changes | Every shard of the modality needs new vectors. One producer cannot switch alone: the package rejects its run while other shards keep the old model | Run all producers of the modality in one `indexShards` call, one run for each shard, so that the shards change model in one transaction. Do not delete the shards first: the delete cascades to their chunks, and the modality has no rows until the producers commit. The route embeds queries with the model set in `pages/api/mcp.ts`, and each search refuses rows of another model, so change the model there and in `write-store.mts` in the same PR. From the deploy until the producers have written the new vectors, searches of that modality return an error. The develop push that deploys the route also starts the nym producer, so the gap is the time between the two. The code modality has producers in two repositories (nym and nym-vpn-client), and each CI writes only its own shard, so their runs cannot share one transaction. So turn writes off in both (`RETRIEVAL_STORE_ENABLED=0`), write both code shards by hand in one `indexShards` call with the new model, deploy the route change, and turn writes on again |
 | The store is lost | The index is gone until the producers run again | Create the database, the roles and the schema first (`bootstrap/init.sql` and the `store-migrate` workflow in [`nymtech/retrieval-indexer`](https://github.com/nymtech/retrieval-indexer)), then run each producer once. The cost is one full embedding run |

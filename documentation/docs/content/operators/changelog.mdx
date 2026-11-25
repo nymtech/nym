@@ -33,6 +33,58 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.23-jakarta`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.23-jakarta)
+- [`nym-node`](/operators/nodes/nym-node) version `1.45.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-11-24T12:15:47.165204007Z
+Build Version:      1.45.0
+Commit SHA:         5656a4ada84526d18c7e2a129ecba4226ac2de07
+Commit Date:        2026-11-24T13:12:59.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.98.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="error" emoji="⚠️">
+**Five critical nginx vulnerabilities were published on 18 November 2026!** Two of them affect Nym nodes setup from our guides, because that setup enables HTTP/2. Until your distribution ships a patched nginx, disabling HTTP/2 is the best protection — and you lose nothing, since WSS runs over HTTP/1.1 anyway.
+
+Follow the fixing steps manually or with Ansible: [CVE `nginx2root` Mitigation](/operators/changelog#cve-nginx2root-mitigation).
+</Callout>
+
+- [**NIP-16: Opening port `4242` for Nebula Networks**](https://forum.nym.com/t/nip-16-nym-exit-policy-update-opening-port-4242-for-nebula-networks/2833) is up on the forum opened for discussion
+
+### Features
+
+- [Add SQLCipher encryption for client storage](https://github.com/nymtech/nym/pull/7417)
+
+- [Nym Node: publish noise key, operator T&C and legacy LP signature to the directory](https://github.com/nymtech/nym/pull/7399)
+
+- [Adding bridges to probe tests](https://github.com/nymtech/nym/pull/7415)
+
+- [[LP-DATA] Experimental LP client](https://github.com/nymtech/nym/pull/7411)
+
+### Bugfix
+
+- [Bound SOCKS5 mixnet connect with a timeout in gateway-probe](https://github.com/nymtech/nym/pull/7433)
+
+- [Accept key passphrase in nym-cli ecash issue-ticket-book](https://github.com/nymtech/nym/pull/7421)
+
+### Refactors & Maintenance
+
+- [[LP-DATA] Gateway Control Client](https://github.com/nymtech/nym/pull/7396)
+
+- [[LP-DATA] NymNodes improvements](https://github.com/nymtech/nym/pull/7394)
+
+- [No longer check for homepage in cargo.toml](https://github.com/nymtech/nym/pull/7404)
+
 ## CVE `nginx2root` Mitigation
 
 Five critical nginx vulnerabilities were published on 18 November 2026, plus a Linux kernel bug that can be chained with them to get root. Two of the vulnerabilities affect gateways set up from our docs or `setup-nginx-proxy-wss.sh`, because that setup enables HTTP/2. nginx fixed them in 1.30.7 and 1.31.9 on 18 November. Distributions ship their own fixed packages on their own schedule, and until yours has, disabling HTTP/2 is the protection.

@@ -1,10 +1,10 @@
 {
   "interval": {
-    "reward_pool": "155246099954152.111030251377780754",
-    "staking_supply": "62029365584660.927388376273113342",
+    "reward_pool": "153443784749073.738118146513050308",
+    "staking_supply": "62161707643669.410826669388257244",
     "staking_supply_scale_factor": "0.07342892",
-    "epoch_reward_budget": "4312391665.393114195284760493",
-    "stake_saturation_point": "258455689936.087197451567804638",
+    "epoch_reward_budget": "4262327354.140937169948514251",
+    "stake_saturation_point": "259007115181.955878444455784405",
     "sybil_resistance": "0.3",
     "active_set_work_factor": "10",
     "interval_pool_emission": "0.02"

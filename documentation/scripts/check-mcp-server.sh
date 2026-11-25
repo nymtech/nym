@@ -18,7 +18,7 @@
 # from the browser works as-is:
 #
 #   ./check-mcp-server.sh https://nym.com
-#   ./check-mcp-server.sh https://docs-nextra-git-my-branch.vercel.app "$BYPASS"
+#   ./check-mcp-server.sh https://<preview-host> "$BYPASS"
 #
 # The bypass token is only needed for Vercel preview deployments, which sit
 # behind Deployment Protection. Without it every request is answered with an
@@ -45,7 +45,7 @@ BYPASS="${2:-${BYPASS:-}}"
 if [[ -z "$BASE" ]]; then
   echo "usage: $0 <base-url> [vercel-bypass-token]" >&2
   echo "  e.g. $0 https://nym.com" >&2
-  echo "       $0 https://docs-nextra-git-my-branch.vercel.app \"\$BYPASS\"" >&2
+  echo "       $0 https://<preview-host> \"\$BYPASS\"" >&2
   echo "  the token is only needed for protected Vercel previews;" >&2
   echo "  it may also be exported as \$BYPASS." >&2
   exit 2

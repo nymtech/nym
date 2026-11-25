@@ -88,7 +88,7 @@ REQUEST TIME (/docs/api/mcp, a Vercel function      │
 
 The request-time part of the diagram is the bundle source. With the store, the route sends the query vector to Postgres and the scan runs there (see "How the MCP reads the store").
 
-The index and the query must use the same model, because vectors from two models are not comparable. The same `VOYAGE_API_KEY` serves the build and the route. So two kinds of text leave the Nym side: every changed chunk of the public docs and code at build time, and the query text of every search. Both are public or come from the agent; no private content is indexed on this side. The private side has its own embedding service and never calls Voyage (see "The private side"). The live tools (`network_summary`, `list_gateways` and the others) call the Nym API directly and use no index.
+The index and the query must use the same model, because vectors from two models are not comparable. The same `VOYAGE_API_KEY` serves the build and the route. So two kinds of text leave the Nym side: every changed chunk of the public docs and code at build time, and the query text of every search. Both are public or come from the agent; no private content is indexed on this side. The live tools (`network_summary`, `list_gateways` and the others) call the Nym API directly and use no index.
 
 ## How an agent uses the tools
 
@@ -116,7 +116,7 @@ Vercel docs build (production builds from develop)
 
 ## Why the MCP needs a database
 
-The bundle works for one repository. The plan needs more than one producer and a private side, and the bundle cannot serve either.
+The bundle works for one repository, and the index has more than one producer.
 
 Measured on a local build of 2026-11-18, with the four shards that the local store holds:
 
@@ -133,7 +133,7 @@ The local store holds the same four shards in 143 MB, with the vectors as binary
 The reasons, most important first:
 
 1. **More than one producer writes the index.** A bundle holds only the index that its own build made. For `nym-vpn-client` to be searchable, its chunks must be in the nym docs build, so the nym build must check out, chunk and embed another repository. A store lets each repository write its own shard from its own CI, at its own time, and the route reads all of them.
-2. **Private content needs a store of its own.** The public/private boundary is physical: the public store holds no private row. Private content cannot go in a bundle that a public deployment serves. The private store runs the same schema and package on private infrastructure.
+2. **The public store holds no private row.** Private content is in a separate store, and never in a bundle that a public deployment serves.
 3. **The bundle does not grow with the corpus.** With the vpn shards, the JSON is about 304 MB, which is more than the 250 MB that Vercel allows for an uncompressed function. In memory, each number is an 8-byte double, so 22,019 vectors take about 180 MB of heap on each warm instance, and each cold start parses all of it again.
 4. **A docs build stops being an embedding run.** Today each build needs the Voyage key and embeds the changed chunks. A PR preview builds and serves its own index.
 
@@ -185,36 +185,6 @@ The route uses the package's read side: `search` and `getSection` from `@nymproj
 
 The route reads the store when `MCP_RETRIEVAL_SOURCE` is `store`, with the reader connection string in `RETRIEVAL_STORE_READ_URL` and the store's CA certificate in `RETRIEVAL_STORE_CA_CERT`. When the variable is unset, empty, or `bundle`, it reads the bundled files as before. Each search names the model the route embedded its query with, and the package refuses rows of another model, because such a query would return confident, wrong neighbours. In store mode `search_code` is always listed; with no code shard, it returns an error.
 
-## The private side (planned)
-
-A second store holds the private content. The public side never touches it.
-
-```
-public repositories (nym, nym-vpn-client)        private repositories
-        │                                                │
-        │ CI, as above                                   │
-        ▼                                                │
-  public store ──► public MCP (/docs/api/mcp, Vercel)    │
-                                                         │
-private infrastructure                                   │
-┌────────────────────────────────────────────────────────┼──────┐
-│ private pipeline: the same indexer package             │      │
-│   reads the private repositories ◄─────────────────────┘      │
-│   and the public ones                                         │
-│   embeds with the private model, through the                  │
-│   embedding service (self-hosted, next to Postgres)           │
-│   writes every shard: the private store is a superset         │
-│        ▼                                                      │
-│ private store: Postgres + pgvector                            │
-│        ▼                                                      │
-│ private MCP (Go): search_docs, search_code                    │
-│   embeds the query with the same embedding service            │
-│   per-person tokens, stored hashed, with an expiry            │
-└───────────────────────────────────────────────────────────────┘
-```
-
-Each MCP reads one store. The private MCP needs neither the public store nor Voyage, because its store holds the public content too. No credential for the private store or the private repositories leaves the private infrastructure. The model of the private store is an open decision.
-
 ## What changes for contributors
 
 | Area | Before | After |
@@ -240,7 +210,7 @@ Only pushes to develop write, because Vercel builds the production docs from dev
 
 Two write runs on one shard must not overlap. A run embeds before it takes the store lock, and when it takes the lock it checks that no other run changed its shard in the meantime. If one did, the run fails with "another run changed it while this one was embedding; run again". The workflow's `concurrency` group queues a second run behind the first, so two quick pushes to develop do not fail a job.
 
-The store holds only public content, so the reader credential discloses nothing that is not already public. The writer credential can change what agents read, so it goes only to the CI of the producer repositories. The private store is a separate database on Nym infrastructure, and no credential for it reaches Vercel or a public repository's CI.
+The store holds only public content, so the reader credential discloses nothing that is not already public. The writer credential can change what agents read, so it goes only to the CI of the producer repositories.
 
 ## The data model
 

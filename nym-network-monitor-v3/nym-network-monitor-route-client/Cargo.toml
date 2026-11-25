@@ -1,0 +1,30 @@
+[package]
+name = "nym-network-monitor-route-client"
+description = "Client sessions of the Nym network monitor's five-hop liveness route test"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+futures = { workspace = true }
+rand = { workspace = true }
+url = { workspace = true }
+
+nym-bandwidth-controller = { workspace = true }
+nym-client-core = { workspace = true }
+nym-client-core-config-types = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-gateway-client = { workspace = true }
+nym-network-monitor-route-records = { path = "../nym-network-monitor-route-records" }
+nym-task = { workspace = true }
+nym-topology = { workspace = true }
+
+[lints]
+workspace = true

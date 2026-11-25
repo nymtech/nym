@@ -4,7 +4,7 @@
 
 The subsystem SHALL test the mixnodes of the current active set by sending packets along full client routes: from a client session at a gateway, through one mixnode of each of the three layers, back to the same gateway and on to the same client. This is the route a client's loop cover traffic takes, and the score it produces for a mixnode is that mixnode's five-hop liveness.
 
-Every test packet MUST be built by the packet builders the client stack itself uses for loop cover traffic, so that its size, its sphinx format, its framing, its per-hop delays and its SURB-ack are a client's by construction and cannot drift from it. The mixnode of each layer MUST be drawn uniformly at random from that layer, afresh for every packet and independently for the packet and for its SURB-ack, from a cryptographically secure random source that is not seeded from anything predictable. Packets MUST be sent as a Poisson stream at the combined default rate of a client's main and cover streams.
+Every test packet MUST be built by the packet builders the client stack itself uses for loop cover traffic, so that its size, its sphinx format, its framing, the way its per-hop delays are drawn and its SURB-ack are a client's by construction and cannot drift from it. The mixnode of each layer MUST be drawn uniformly at random from that layer, afresh for every packet and independently for the packet and for its SURB-ack, from a cryptographically secure random source that is not seeded from anything predictable. Packets MUST be sent as a Poisson stream at the combined rate of the configured main and cover streams, which default to a client's.
 
 The test measures mixnodes only. A gateway is the door the traffic enters and leaves through: carrying sessions MUST NOT give it a five-hop liveness, and does not affect its liveness. The test does not attempt to be indistinguishable to the gateway it enters through.
 
@@ -412,7 +412,7 @@ An epoch's test messages and each node's one-hop runs, which the results surface
 
 The orchestrator SHALL be configured with: an enable flag for five-hop liveness, expressible as an explicit value and defaulting to on; the interval between route runs, 5 minutes; the number of gateways a run carries, 2; a run's timeout, 3 minutes; the minimum score a gateway's latest gateway liveness run must reach, 1.0; the share of candidate gateways that must reach that minimum for it to be the bar, 40%; and the fallback minimum that is the bar otherwise, 0.98. Nearly every mainnet gateway's liveness is 1.0, so the minimum starts there. The share and the fallback are for when that stops being true, which is expected once gateway stress joins the filter. It SHALL also be configured with the margin by which a session's loss rate may exceed that of the other session of its run before it is discarded, 5 percentage points. The decay rate of 0.1 per epoch and the 48-epoch limit are fixed, not configured.
 
-The agent SHALL be configured with: the nym-api url its route sessions read the active set from, which is required; a sending duration for a route session, 40 seconds; a straggler wait, 10 seconds; and a timeout for a whole route run, 2 minutes, which has to sit inside the orchestrator's run timeout and, as with the other timeouts, is not validated against it. Packet size, per-hop delay and sending rate are not knobs: they are taken from the client stack's defaults.
+The agent SHALL be configured with: the nym-api url its route sessions read the active set from, which is required; a sending duration for a route session, 40 seconds; a straggler wait, 10 seconds; a timeout for a whole route run, 2 minutes, which has to sit inside the orchestrator's run timeout and, as with the other timeouts, is not validated against it; and, for network experiments, the average delays of a client's main and cover streams, whose combined rate a session sends at, and the average per-hop delays of test packets and of their acks. Each of these four defaults to the client stack's own default, read from its configuration rather than copied, so that unchanged they send a default client's traffic. The packet size is the client stack's default and is not configurable.
 
 Every knob MUST be overridable by CLI flag or environment variable.
 
@@ -426,7 +426,9 @@ Every knob MUST be overridable by CLI flag or environment variable.
 
 ### Requirement: The route test can be run by hand without being a network monitor
 
-The agent binary SHALL provide a `test-five-hop-liveness` command that takes a nym-api url and the gateways to use, runs one session through each as a route run does, and prints the scores computed with the same rules for test messages and the same scoring strategy the orchestrator uses. The command MUST need no orchestrator, no noise key and no on-chain authorisation.
+The agent binary SHALL provide a `test-five-hop-liveness` command that takes a nym-api url, the gateways to use and the agent's route session settings with their defaults, runs one session through each as a route run does, and prints the scores computed with the same rules for test messages and the same scoring strategy the orchestrator uses. The command MUST need no orchestrator, no noise key and no on-chain authorisation.
+
+For experiments, the command SHALL also take which mixnodes to route through: the active set by default, the rewarded set, or every node declaring the mixnode role except the session's own gateway. Nodes of the active set keep their layer, and any other selected node is placed in layer `node_id % 3 + 1`. A route run handed out by the orchestrator always uses the active set.
 
 #### Scenario: A manual run prints scores
 - **WHEN** `test-five-hop-liveness` is run with a nym-api url and two gateways

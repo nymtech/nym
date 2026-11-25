@@ -13,11 +13,11 @@
 
 ## 3. Route client
 
-- [ ] 3.1 Create `nym-network-monitor-v3/nym-network-monitor-route-client`, set up like the records crate: the session's configuration (nym-api url, sending duration, straggler wait) and the per-session draw of the sending time between two thirds and four thirds of the configured duration
-- [ ] 3.2 Session setup: a fresh client identity and keys, the active set read once from nym-api through the client stack's topology provider with the client's default settings, the gateway's listeners derived from that topology through the client's own `SelectedGateway::from_topology_node` with the default selection (design Decision 16), registration through the stock `GatewayClient` with tickets not required and a bandwidth provider that never issues one, and the bandwidth claim; every failure here is the session's error
-- [ ] 3.3 The sending loop: a Poisson stream at the combined rate of the client defaults' two streams; for each packet, draw the packet's and the ack's mixnodes with the ordinary random source, build both through the route-taking builders at the client's default size and delays, record them and send
+- [x] 3.1 Create `nym-network-monitor-v3/nym-network-monitor-route-client`, set up like the records crate: the session's configuration (nym-api url, sending duration, straggler wait, and the traffic knobs: the main and cover stream delays and the per-hop delays of packets and acks, defaulting to the client config types' defaults; and which mixnodes to route through: the active set by default, the rewarded set or all mixnodes) and the per-session draw of the sending time between two thirds and four thirds of the configured duration
+- [ ] 3.2 Session setup: a fresh client identity and keys, the active set read once from nym-api through the client stack's topology provider with the client's default settings (its extended read for a wider selection), the three per-layer lists of mixnodes (active nodes keep their layer, any other selected node goes to layer `node_id % 3 + 1`; design Decision 16), the gateway's listeners derived from that topology through the client's own `SelectedGateway::from_topology_node` with the default selection, registration through the stock `GatewayClient` with tickets not required and the caller's bandwidth controller request sender, and the bandwidth claim; every failure here is the session's error
+- [ ] 3.3 The sending loop: a Poisson stream at the combined rate of the configured two streams; for each packet, draw the packet's and the ack's mixnodes, one from each per-layer list, with the ordinary random source, build both through the route-taking builders at the client's default size and the configured delays, record them and send
 - [ ] 3.4 Receiving: decrypt returning payloads and recover returning acks' identifiers (design Decision 6), match both to the session's table of packets in flight, each counted once; when the straggler wait ends, close the table and produce the session's batch
-- [ ] 3.5 Finishing: ask the gateway to forget the client through the gateway client's `send_client_request`, and close; and one function that runs several sessions side by side on one clock under one deadline
+- [ ] 3.5 Finishing: ask the gateway to forget the client through the gateway client's `send_client_request`, and close; and one function that runs several sessions side by side on one clock under one deadline, each given a clone of the caller's bandwidth controller request sender
 - [ ] 3.6 Unit tests for what needs no live session: the bounds of the sending-time draw, and the table of packets in flight for a returned, a late and a repeated arrival
 
 ## 4. Wire types
@@ -56,9 +56,9 @@
 
 ## 8. Agent
 
-- [ ] 8.1 Config and CLI: a required `--nym-api-url`, `--five-hop-liveness-sending-duration` (40s), `--five-hop-liveness-waiting-duration` (10s) and `--five-hop-liveness-run-timeout` (2m), each with its environment variable
-- [ ] 8.2 Dispatch a route run: its sessions through the route client under the run's deadline, submitted once
-- [ ] 8.3 The manual `test-five-hop-liveness` command: a nym-api url and gateways, sessions through the route client, scores printed through the records crate
+- [ ] 8.1 Config and CLI: a required `--nym-api-url`, `--five-hop-liveness-sending-duration` (40s), `--five-hop-liveness-waiting-duration` (10s), `--five-hop-liveness-run-timeout` (2m), and the four traffic knobs (`--five-hop-liveness-message-sending-average-delay`, `--five-hop-liveness-loop-cover-traffic-average-delay`, `--five-hop-liveness-average-packet-delay`, `--five-hop-liveness-average-ack-delay`), which fall back to the route client's defaults when unset, each with its environment variable
+- [ ] 8.2 Dispatch a route run: its sessions through the route client under the run's deadline, always over the active set, with a bandwidth controller request sender that has no controller behind it while tickets are off, submitted once
+- [ ] 8.3 The manual `test-five-hop-liveness` command: a nym-api url, gateways, the route session settings of 8.1 and, for experiments, which mixnodes to route through (active set by default, rewarded set, all mixnodes), sessions through the route client, scores printed through the records crate
 - [ ] 8.4 Unit test, as the gateway kinds have one: a route run whose sessions cannot be established is submitted with an error for each gateway
 
 ## 9. Verification and close-out

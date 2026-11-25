@@ -15,7 +15,7 @@ The network monitor tests every node on its own: an agent sends packets through 
 - The node registry also records whether a gateway enforces zk-nyms.
 - Two new crates: one with the record format, the rules for test messages and the scoring interface with its first strategy, with no I/O; one with the route client. A manual `test-five-hop-liveness` command runs sessions through named gateways and prints the scores, and needs neither an orchestrator nor a monitor's authorisation.
 - The sphinx builders for loop cover packets and SURB-acks gain a form that takes the route, so the packet layout keeps one implementation.
-- Orchestrator: `--five-hop-liveness-enabled` (on by default), an interval, the number of gateways per run, a run timeout, a minimum gateway score with the share of gateways that must reach it and a fallback, and a session loss margin. Agent: a sending duration for a route session, a straggler wait and a timeout for a whole run, and a nym-api url.
+- Orchestrator: `--five-hop-liveness-enabled` (on by default), an interval, the number of gateways per run, a run timeout, a minimum gateway score with the share of gateways that must reach it and a fallback, and a session loss margin. Agent: a sending duration for a route session, a straggler wait and a timeout for a whole run, a nym-api url, and, for network experiments, the two stream rates and the per-hop delays of packets and acks, each defaulting to a client's.
 - **BREAKING** (agent and orchestrator wire types): the work response can carry a route run, which an agent built before this change cannot parse, so the two are deployed together.
 - **BREAKING** (agent configuration): the agent requires a nym-api url, so the agents' deployment scripts change in the same redeploy.
 

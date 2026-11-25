@@ -8519,6 +8519,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-monitor-route-client"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "nym-bandwidth-controller",
+ "nym-client-core",
+ "nym-client-core-config-types",
+ "nym-crypto",
+ "nym-gateway-client",
+ "nym-network-monitor-route-records",
+ "nym-task",
+ "nym-topology",
+ "rand 0.10.2",
+ "url",
+]
+
+[[package]]
 name = "nym-network-monitor-route-records"
 version = "3.0.0"
 dependencies = [

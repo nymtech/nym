@@ -1,11 +1,8 @@
-// Where the MCP tools read the index from: the files the docs build bundles into
-// the function, or the public Postgres store (documentation/MCP-STORE.md). The
-// tools see only this interface.
+// The interface the MCP tools read the index through, and its store
+// implementation (documentation/MCP-SERVER.md, "The store").
 
-import type { DocIndex } from '@nymproject/retrieval-indexer/types';
 import type { Connection, Modality } from '@nymproject/retrieval-indexer/store';
 import { search as storeSearch, getSection as storeGetSection } from '@nymproject/retrieval-indexer/search';
-import { search as indexSearch, getSection as indexGetSection } from './retrieval';
 
 export interface RetrievedChunk {
   id: string;
@@ -25,14 +22,6 @@ export interface RetrievalSource {
   getSection(ref: string): Promise<RetrievedChunk | null>;
   /** Absent when this source has no code index; search_code is then not exposed. */
   searchCode?: (queryVector: number[], topK: number) => Promise<RetrievedHit[]>;
-}
-
-export function indexSource(index: DocIndex, codeIndex?: DocIndex): RetrievalSource {
-  return {
-    searchDocs: async (queryVector, topK) => indexSearch(queryVector, index, { topK }),
-    getSection: async (ref) => indexGetSection(index, ref),
-    ...(codeIndex ? { searchCode: async (queryVector: number[], topK: number) => indexSearch(queryVector, codeIndex, { topK }) } : {}),
-  };
 }
 
 /**

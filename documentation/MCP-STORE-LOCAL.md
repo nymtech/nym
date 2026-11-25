@@ -1,6 +1,6 @@
 # Run a local retrieval store
 
-This guide runs a Postgres + pgvector store on your machine, fills it with the nym docs and code index, and runs the docs site with the MCP route reading it. Use it to work on the store path before or without the public store. For what the store is, read [`MCP-STORE.md`](MCP-STORE.md). The public store is created with `bootstrap/init.sql` and the `store-migrate` workflow in [`nymtech/retrieval-indexer`](https://github.com/nymtech/retrieval-indexer).
+This guide runs a Postgres + pgvector store on your machine, fills it with the nym docs and code index, and runs the docs site with the MCP route reading it. Use it to work on the write or the read path without the public store. For what the store is, read [`MCP-SERVER.md`](MCP-SERVER.md). The public store is created with `bootstrap/init.sql` and the `store-migrate` workflow in [`nymtech/retrieval-indexer`](https://github.com/nymtech/retrieval-indexer).
 
 The local store has no TLS and no PgBouncer, and it listens on `127.0.0.1` only.
 
@@ -73,7 +73,7 @@ Expected result: one line for each shard, for example `nym/docs (voyage-3-large)
 
 ```sh
 pnpm run build:data
-MCP_RETRIEVAL_SOURCE=store npx next dev -p 3999
+npx next dev -p 3999
 ```
 
 `build:data` writes the threat-model records and the snippet link map that pages render from. `pnpm dev` runs it in `predev`, and `npx next dev` does not. The route reads `RETRIEVAL_STORE_READ_URL` from the environment of step 4, and embeds queries with `VOYAGE_API_KEY`. In a second terminal, from `documentation`, check it:
@@ -82,7 +82,7 @@ MCP_RETRIEVAL_SOURCE=store npx next dev -p 3999
 bash scripts/check-mcp-server.sh http://localhost:3999
 ```
 
-Expected result: `50 passed, 0 failed`.
+Expected result: `0 failed` on the last line.
 
 ## Stop or remove the store
 

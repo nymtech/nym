@@ -10,7 +10,7 @@
  *   VOYAGE_API_KEY=xxx node ../scripts/next-scripts/check-retrieval-scores.mjs
  *   VOYAGE_API_KEY=xxx node ../scripts/next-scripts/check-retrieval-scores.mjs "my own query"
  *
- * Reads public/docs-index.json, so build the index first.
+ * Reads public/docs-index.json, so run generate-index.mjs first.
  */
 
 import fs from 'node:fs';
@@ -18,9 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { voyageProvider, embedQuery } from '../../docs/lib/retrieval/indexer.mts';
 
-// Mirrors cosineSimilarity in lib/retrieval/retrieval.ts. Duplicated rather than
-// imported because that module is TypeScript and this script runs under plain
-// node; keep the two in step if the scoring there changes.
+// The store's SEARCH_SQL ranks by the same cosine, less a penalty for test code.
 function cosine(a, b) {
   let dot = 0;
   let na = 0;

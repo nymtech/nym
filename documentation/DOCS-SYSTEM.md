@@ -10,8 +10,8 @@ Other files have the details, and this file does not repeat them:
 |---|---|
 | [`README.md`](README.md) | The structure, the tools and the messages of the build |
 | [`docs/.nym-codex/README.md`](docs/.nym-codex/README.md) | The procedures and the snippet rules |
-| [`MCP-SERVER.md`](MCP-SERVER.md) | The index build, the embedding, the MCP tools and their checks |
-| [`MCP-STORE.md`](MCP-STORE.md) | The public retrieval store that the MCP route reads |
+| [`MCP-SERVER.md`](MCP-SERVER.md) | The MCP server: the index, the store, the route, the tools and their checks |
+| [`MCP-STORE-LOCAL.md`](MCP-STORE-LOCAL.md) | How to run a retrieval store on your machine |
 
 ## The problem
 
@@ -101,11 +101,11 @@ The placeholder table on `operators/variables.mdx` renders from `placeholders.js
 
 ### 5. Machine-readable surfaces and the MCP server
 
-The build writes three surfaces for agents: a Markdown copy of each page (add `.md` to the URL), `llms-full.txt`, and the search index. `public/llms.txt` is a hand-written list of pages.
+The build writes two surfaces for agents: a Markdown copy of each page (add `.md` to the URL) and `llms-full.txt`. `public/llms.txt` is a hand-written list of pages. The search index is not part of the build.
 
 The MCP server at `/docs/api/mcp` has nine tools: `search_docs` and `get_section` over the docs index, `search_code` over the code index, five live network tools (`network_summary`, `list_gateways`, `get_gateway`, `circulating_supply`, `chain_status`), and `validate_sdk_config`. The server returns sections, and the calling agent writes the answer. So the server needs no LLM key. It needs `VOYAGE_API_KEY`, and a search call costs one Voyage embedding.
 
-The index is in a Postgres store. Producer CI writes it (nym from develop, nym-vpn-client at each release), and the route searches it with a cosine scan in SQL. The chunking, the embedding and the store come from the shared package `@nymproject/retrieval-indexer`, so other Nym repositories index with the same code and write their own shards. [`MCP-STORE.md`](MCP-STORE.md) explains the store.
+The index is in a Postgres store. Producer CI writes it (nym from develop, nym-vpn-client at each release), and the route searches it with a cosine scan in SQL. The chunking, the embedding and the store come from the shared package `@nymproject/retrieval-indexer`, so other Nym repositories index with the same code and write their own shards. [`MCP-SERVER.md`](MCP-SERVER.md) explains the store and the route.
 
 The server applies no similarity floor, because no threshold separates on-topic from off-topic questions: an off-topic question can score higher than a correct on-topic one.
 

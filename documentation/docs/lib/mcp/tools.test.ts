@@ -1,18 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { createTools } from './tools';
-import { indexSource } from '../retrieval/retrieval-source';
 import type { ToolDeps } from './tools';
-import type { DocIndex, EmbeddedChunk } from '@nymproject/retrieval-indexer/types';
+import type { RetrievalSource, RetrievedChunk } from '../retrieval/retrieval-source';
 
-function chunk(id: string, vector: number[], text: string): EmbeddedChunk {
-  return { id, source: 'nym-docs', title: 'Quick Start', heading: id, url: `https://nym.com/docs/${id}`, text, tokensEst: 1, vector };
+function chunk(id: string, text: string): RetrievedChunk {
+  return { id, title: 'Quick Start', heading: id, url: `https://nym.com/docs/${id}`, text };
 }
 
-const index: DocIndex = {
-  schema: 1,
-  generated: null,
-  embedding: { provider: 'mock', model: 'mock', dim: 2 },
-  chunks: [chunk('install', [1, 0], 'run npm i @nymproject/sdk'), chunk('other', [0, 1], 'unrelated')],
+// Two chunks in score order, as the store returns them.
+const chunks = [chunk('install', 'run npm i @nymproject/sdk'), chunk('other', 'unrelated')];
+const fakeRetrieval: RetrievalSource = {
+  searchDocs: async (_vector, topK) => chunks.slice(0, topK).map((c, i) => ({ chunk: c, score: 1 - i })),
+  getSection: async (ref) => chunks.find((c) => c.id === ref) ?? null,
 };
 
 const fakeNym = {
@@ -37,7 +36,7 @@ const fakeNym = {
   getGateway: async (identity: string) => ({ gateway_identity_key: identity, bonded: true, performance: 97, routing_score: 0, config_score: 0 }),
 };
 
-const deps: ToolDeps = { retrieval: indexSource(index), embedQuery: async () => [1, 0], nym: fakeNym };
+const deps: ToolDeps = { retrieval: fakeRetrieval, embedQuery: async () => [1, 0], nym: fakeNym };
 const tools = createTools(deps);
 const tool = (name: string) => tools.find((t) => t.name === name)!;
 const runText = async (name: string, args: Record<string, any> = {}) => (await tool(name).handler(args)).content[0].text;
@@ -88,7 +87,7 @@ describe('retrieval tools', () => {
     const out = await runText('search_docs', { query: 'how to install', topK: 1 });
     expect(out).toContain('https://nym.com/docs/install');
     expect(out).toContain('run npm i');
-    expect(out).not.toContain('unrelated'); // orthogonal chunk ranked out at topK=1
+    expect(out).not.toContain('unrelated'); // the second chunk is cut at topK=1
   });
 
   it('get_section resolves a section by id', async () => {

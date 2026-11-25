@@ -266,7 +266,7 @@ NEXT_PUBLIC_SITE_URL=https://nym.com/docs
 
 The docs are built for AI agents and LLMs as well as for people. There is an MCP server at `/docs/api/mcp` for coding agents, a Markdown copy of each page (add `.md` to any docs URL), and generated `llms.txt` and `llms-full.txt`. The **Use with AI** button on each page shows how to connect an agent to the server.
 
-[MCP-SERVER.md](MCP-SERVER.md) documents all of it: the retrieval pipeline, chunking and the embedding cache, how the route serves from a static index with no vector database, where to set the API key, each tunable, and how to test a deployment. Read it before you change anything under `docs/lib/retrieval/`, `docs/lib/mcp/`, `docs/pages/api/`, or `scripts/next-scripts/generate-*`.
+[MCP-SERVER.md](MCP-SERVER.md) documents all of it: what goes into the retrieval index, how producers write it to the public store, how the route answers a call, where to set the API key, each tunable, and how to test a deployment. Read it before you change anything under `docs/lib/retrieval/`, `docs/lib/mcp/`, `docs/pages/api/`, or `scripts/next-scripts/generate-*`.
 
 For readers rather than contributors: `/docs/use-with-ai/mcp` is the tool catalogue and client setup, `/docs/use-with-ai` is the guide for users, and `/docs/about/how-these-docs-are-checked` explains the checks.
 

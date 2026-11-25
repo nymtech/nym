@@ -1,0 +1,22 @@
+## Choosing a tool [#choosing-a-tool]
+
+An agent picks the tools of the Nym docs MCP server from their descriptions, so a question in your own words is usually enough. When an agent picks the wrong tool, name the tool in the prompt. Each row gives a question and the tool that answers it.
+
+| Question | Tool | Why this tool |
+|---|---|---|
+| "How do I send a message through the mixnet with the Rust SDK?" | `search_docs` | A question about documented behaviour or a how-to. The answer cites the docs section |
+| "Show me the whole section that answer came from." | `get_section` | Pass the deep-link URL or chunk id from a `search_docs` result, to get the section text that the excerpt cut short |
+| "Where does the client split a message into Sphinx packets?" | `search_code` | A question about how the code does something, not what the docs say. The answer links to the source on GitHub |
+| "How many nym-nodes are bonded right now?" | `network_summary` | Live counts from the Node Status API |
+| "Which gateways have the best performance scores?" | `list_gateways` | Live, paged list of bonded gateways with their scores |
+| "Is the gateway with identity key `<key>` healthy?" | `get_gateway` | Live health and scores for one gateway |
+| "What is the circulating NYM supply?" | `circulating_supply` | Live circulating and total supply |
+| "Can the Nym API reach the Nyx chain?" | `chain_status` | Live chain connection status |
+| "Is this mix-fetch config correct before I write it into my app?" | `validate_sdk_config` | Checks a `SetupMixTunnelOpts` object for wrong types, unknown keys, and privacy trade-offs |
+
+Two patterns cover most questions:
+
+- **Docs, then code.** Ask `search_docs` what a feature does, then `search_code` how it is built.
+- **Search, then read.** When a `search_docs` excerpt stops mid-section, call `get_section` with its URL.
+
+The parameters and return values of each tool are in [Tools](snippet:nym/use-with-ai/mcp/tools).

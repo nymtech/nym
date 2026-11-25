@@ -184,5 +184,256 @@
   "expect": [
    "operators/nodes/maintenance"
   ]
+ },
+ {
+  "query": "how is the reward for my node worked out",
+  "expect": [
+   "operators/tokenomics/mixnet-rewards",
+   "operators/performance-and-testing",
+   "operators/tokenomics",
+   "operators/faq/nym-nodes-faq"
+  ]
+ },
+ {
+  "query": "upgrade nym-node automatically when a new version comes out",
+  "expect": [
+   "operators/nodes/maintenance/nymvisor-upgrade",
+   "operators/nodes/maintenance/nymvisor-upgrade/nymvisor-configuration"
+  ]
+ },
+ {
+  "query": "why did my validator get jailed",
+  "expect": [
+   "operators/troubleshooting/validators",
+   "operators/nodes/maintenance/manual-upgrade",
+   "operators/nodes/validator-setup/nyx-validator"
+  ]
+ },
+ {
+  "query": "what is the difference between NYM and uNYM",
+  "expect": [
+   "operators/faq/nyx-faq"
+  ]
+ },
+ {
+  "query": "group several nodes I run under one operator identity",
+  "expect": [
+   "operators/nodes/nym-node/families"
+  ]
+ },
+ {
+  "query": "deploy many nodes at once with a playbook",
+  "expect": [
+   "operators/orchestration/ansible",
+   "operators/orchestration"
+  ]
+ },
+ {
+  "query": "my hosting provider forwards abuse complaints about my exit gateway",
+  "expect": [
+   "operators/community-counsel/legal",
+   "operators/community-counsel/exit-gateway",
+   "operators/community-counsel/templates"
+  ]
+ },
+ {
+  "query": "get an IP address for an exit gateway that services do not flag as a datacentre",
+  "expect": [
+   "operators/residential-ip",
+   "operators/residential-ip/vps",
+   "operators/residential-ip/byoip",
+   "operators/residential-ip/isp"
+  ]
+ },
+ {
+  "query": "try my node on a test network before mainnet",
+  "expect": [
+   "operators/sandbox"
+  ]
+ },
+ {
+  "query": "see my node's metrics on a dashboard",
+  "expect": [
+   "operators/performance-and-testing/prometheus-grafana",
+   "operators/performance-and-testing/prometheus-grafana/explorenym-scripts"
+  ]
+ },
+ {
+  "query": "check that the binary I downloaded is genuine",
+  "expect": [
+   "operators/binaries/pre-built-binaries"
+  ]
+ },
+ {
+  "query": "put a web page with a contact email in front of my node",
+  "expect": [
+   "operators/nodes/nym-node/configuration/proxy-configuration",
+   "operators/community-counsel/landing-pages"
+  ]
+ },
+ {
+  "query": "register my node on chain with the desktop wallet",
+  "expect": [
+   "operators/nodes/nym-node/bonding"
+  ]
+ },
+ {
+  "query": "how much stake can a node take before extra stake earns less",
+  "expect": [
+   "operators/tokenomics",
+   "operators/tokenomics/mixnet-rewards"
+  ]
+ },
+ {
+  "query": "API endpoint for the circulating supply of the token",
+  "expect": [
+   "apis/nym-api",
+   "apis/introduction",
+   "operators/tokenomics"
+  ]
+ },
+ {
+  "query": "which API gives node performance and network statistics",
+  "expect": [
+   "apis/ns-api",
+   "apis/introduction"
+  ]
+ },
+ {
+  "query": "is the old explorer API still available",
+  "expect": [
+   "apis/explorer-api",
+   "apis/introduction"
+  ]
+ },
+ {
+  "query": "what changes on the network at the end of each epoch",
+  "expect": [
+   "network/reference/epochs"
+  ]
+ },
+ {
+  "query": "how does the sender know that a packet arrived",
+  "expect": [
+   "network/reference/acks"
+  ]
+ },
+ {
+  "query": "can a censor detect and block the WireGuard traffic of the VPN",
+  "expect": [
+   "network/dvpn-mode/censorship-resistance"
+  ]
+ },
+ {
+  "query": "stop someone from spending the same credential twice",
+  "expect": [
+   "network/cryptography/zk-nym/double-spend-prot"
+  ]
+ },
+ {
+  "query": "what does the blockchain do in the Nym network",
+  "expect": [
+   "network/infrastructure/nyx"
+  ]
+ },
+ {
+  "query": "why does metadata matter if the content is encrypted",
+  "expect": [
+   "network/overview/privacy-problem"
+  ]
+ },
+ {
+  "query": "which modes can a node run in",
+  "expect": [
+   "network/infrastructure/nym-nodes",
+   "operators/nodes/nym-node/setup"
+  ]
+ },
+ {
+  "query": "open a websocket to a server from browser code through the mixnet",
+  "expect": [
+   "developers/mix-websocket",
+   "developers/mix-websocket/get-started",
+   "developers/mix-websocket/guides"
+  ]
+ },
+ {
+  "query": "upgrade from mix-fetch v2 to v3",
+  "expect": [
+   "developers/mix-fetch/migration"
+  ]
+ },
+ {
+  "query": "share one mixnet connection between several browser packages",
+  "expect": [
+   "developers/mix-tunnel",
+   "developers/mix-architecture"
+  ]
+ },
+ {
+  "query": "make sure my web app sends no request outside the tunnel",
+  "expect": [
+   "developers/browser-routing",
+   "developers/integrating"
+  ]
+ },
+ {
+  "query": "hide my wallet's RPC calls from the node provider",
+  "expect": [
+   "developers/anon-rpc",
+   "developers/demos/ens",
+   "developers/demos/railgun"
+  ]
+ },
+ {
+  "query": "the timing of my requests gives away what the user is doing",
+  "expect": [
+   "developers/swizzle",
+   "developers/swizzle/zcash"
+  ]
+ },
+ {
+  "query": "send UDP from Rust through the mixnet",
+  "expect": [
+   "developers/smolmix"
+  ]
+ },
+ {
+  "query": "send messages from a program that is not written in Rust over a local websocket",
+  "expect": [
+   "developers/clients/websocket",
+   "developers/clients/websocket/usage",
+   "developers/clients"
+  ]
+ },
+ {
+  "query": "connect a browser wallet to Nyx in a React app",
+  "expect": [
+   "developers/typescript/cosmos-kit"
+  ]
+ },
+ {
+  "query": "query the mixnet contract from TypeScript",
+  "expect": [
+   "developers/typescript/smart-contracts"
+  ]
+ },
+ {
+  "query": "use a hardware wallet with Nyx",
+  "expect": [
+   "developers/chain/ledger-live"
+  ]
+ },
+ {
+  "query": "run NymVPN on a server with no desktop app",
+  "expect": [
+   "developers/nymvpncli"
+  ]
+ },
+ {
+  "query": "should my app stop or go direct when the mixnet is not reachable",
+  "expect": [
+   "developers/integrating"
+  ]
  }
 ]

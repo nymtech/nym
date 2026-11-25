@@ -22,8 +22,10 @@
 // builds.
 //
 // After changing this list: rebuild the index with VOYAGE_API_KEY set, then run
-// `scripts/check-mcp-server.sh <deployment>` — its index-coverage group asserts
-// that every root here is actually citable.
+// `scripts/check-mcp-server.sh <deployment>`. Its index-coverage group asserts
+// that every root here is actually citable. Each root needs a probe in
+// `scripts/index-coverage-probes.mjs`; `lib/retrieval/index-coverage.test.ts`
+// fails until it has one.
 
 export const ROOTS = [
   // Standalone crates

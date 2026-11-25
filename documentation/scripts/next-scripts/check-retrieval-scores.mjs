@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { voyageProvider, embedQuery } from '../../docs/lib/retrieval/embed.mjs';
+import { voyageProvider, embedQuery } from '../../docs/lib/retrieval/indexer.mts';
 
 // Mirrors cosineSimilarity in lib/retrieval/retrieval.ts. Duplicated rather than
 // imported because that module is TypeScript and this script runs under plain

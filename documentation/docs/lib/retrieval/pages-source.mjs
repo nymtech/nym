@@ -13,7 +13,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, frontmatterLines, absoluteLinks } from './mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, frontmatterLines, fenceTracker } from '@nymproject/retrieval-indexer/mdx';
+import { mdxOptions } from './projections.mjs';
 import { openRepo, citationText, pageLinks, linkRoute, routeOf } from '../snippets/repo.mts';
 import { extractCode } from '../snippets/extract.mts';
 
@@ -31,6 +32,19 @@ export const PUBLIC_DIR = path.resolve(__dirname, '../..', process.env.DOCS_PUBL
 // tsconfig baseUrl: bare specifiers like 'components/...' resolve from here.
 export const DOCS_ROOT = path.resolve(__dirname, '../..');
 export const SITE_URL = 'https://nym.com/docs';
+
+/**
+ * Make root-relative Markdown links absolute, outside code fences. Next.js adds
+ * the site's base path (`/docs`) only to links that it renders, so in a text copy
+ * of a page (the `.md` files, the search index) `/developers` resolves to a 404.
+ */
+export function absoluteLinks(body, siteUrl = SITE_URL) {
+  const fence = fenceTracker();
+  return body
+    .split('\n')
+    .map((line) => (fence(line) ? line : line.replace(/\]\(\/(?!\/)/g, `](${siteUrl}/`)))
+    .join('\n');
+}
 
 // Auto-generated / non-content trees, skipped by every generator.
 export const SKIP_DIRS = new Set(['api', 'archive', 'playground']);
@@ -131,7 +145,7 @@ export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, val
       // Partials first: their text is part of the page, so it must be present
       // before headings are split and components are expanded.
       const whole = inlineMdxPartials(content, { ...composeOptions(filePath, snippets), lineOffset: frontmatterLines(raw, content) });
-      const body = absoluteLinks(stripMdx(whole, { expand, values }), SITE_URL);
+      const body = absoluteLinks(stripMdx(whole, mdxOptions({ expand, values })));
       if (body.length > 0) {
         pages.push({
           source,

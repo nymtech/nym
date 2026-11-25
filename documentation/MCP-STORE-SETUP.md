@@ -6,15 +6,15 @@ The guide covers task 4.1 of the OpenSpec change `add-shared-retrieval-index`, f
 
 ## Before you start
 
-- Our Postgres server on Exoscale (DBaaS), with the `pgvector` extension available. The store uses no pooler: the route keeps its own small connection pool (see step 4).
+- Our Postgres server on Exoscale (DBaaS), with the `pgvector` extension available. No pooler: the route keeps its own connection pool (step 4).
 - `psql` on your machine.
 - Admin access to `nymtech/retrieval-indexer`, to create a GitHub Environment and run its `store-migrate` workflow.
 - Admin access to the `nymtech/nym` repository secrets and to the docs Vercel project's environment variables.
 
 ## 1. Create the database
 
-1. As the server admin (`avnadmin`), connected to `defaultdb`, run `bootstrap/init.sql` from `nymtech/retrieval-indexer`. It creates the store database `codex`, the owner role `retrieval_ddl` (it runs the migrations of step 2), the roles `retrieval_writer` and `retrieval_reader`, and the default privileges that give those two roles rights on each table the owner creates. Then set real passwords for the three roles with `\password <role>`: the file holds placeholders. The store is about 64 MB today and about 130 MB at 20,000 chunks, and the server needs enough RAM to keep it cached.
-2. Note the server's address. Every connection string in this guide uses it, and each one ends in `/<database>`. The connection URI in the Exoscale console ends in `/defaultdb`, the server's default database. Change that part to the store database every time you copy the URI, or the schema and the data go to `defaultdb`.
+1. As the server admin (`avnadmin`), connected to `defaultdb`, run `bootstrap/init.sql` from `nymtech/retrieval-indexer`. It creates the `codex` database, the owner role `retrieval_ddl`, the roles `retrieval_writer` and `retrieval_reader`, and their default privileges. Replace the placeholder passwords with `\password <role>`. The store takes about 130 MB at 20,000 chunks; give the server enough RAM to keep it cached.
+2. Note the server's address. Every connection string in this guide ends in `/codex`. The connection URI in the Exoscale console ends in `/defaultdb`: change it when you copy it.
 3. Put the owner password in `~/.pgpass`, so that it does not go into your shell history or into a connection string:
 
    ```
@@ -41,8 +41,8 @@ The guide covers task 4.1 of the OpenSpec change `add-shared-retrieval-index`, f
 The schema is the SQL files in `migrations/` of `nymtech/retrieval-indexer`. That repository's `store-migrate` workflow applies them with node-pg-migrate, which records each applied file in the store's `pgmigrations` table. This is the same setup as the VPN API's `vpn-api-postgres-migrate` workflow.
 
 1. In `nymtech/retrieval-indexer`, create a GitHub Environment, for example `retrieval-store`, with two secrets:
-   - `PG_URL`: the owner's connection string, with the password and without `sslrootcert`. It must end in the store database (`/codex`), not `/defaultdb`. Do not put a transaction-mode pooler between the workflow and the server: node-pg-migrate holds a session advisory lock, which transaction pooling does not keep.
-   - `PG_CA_CERT`: the CA certificate of the database service as PEM text, from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`. Do not encode it with base64: the workflow writes the value to a file as it is, and Node accepts a value that is not a certificate without an error, so the connection then fails with `self-signed certificate in certificate chain`. The workflow adds the file to the connection with `sslmode=verify-full`.
+   - `PG_URL`: the owner's (`retrieval_ddl`) connection string, ending in `/codex`, with the password and without `sslrootcert`. Connect directly, not through a transaction-mode pooler: node-pg-migrate holds a session advisory lock.
+   - `PG_CA_CERT`: the CA certificate of the database service as PEM text, from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`, not base64-encoded. A wrong value fails with `self-signed certificate in certificate chain`. The workflow connects with `sslmode=verify-full`.
 
    Add a required reviewer to the Environment if a second person must approve each run.
 2. Run the workflow as a dry run: Actions, `store-migrate`, "Run workflow", the Environment name, and `dry_run` checked. The log lists `0001_initial`. A dry run applies no migration, but it creates the empty `pgmigrations` table.
@@ -53,7 +53,7 @@ The schema is the SQL files in `migrations/` of `nymtech/retrieval-indexer`. Tha
 
 ## 3. Finish the writer and reader roles
 
-`bootstrap/init.sql` gives the writer `select`, `insert` and `update`, and the reader `select`, on each table that the migrations create. Two settings are left.
+`bootstrap/init.sql` gives the writer `select`, `insert` and `update`, and the reader `select`, on each table the migrations create. Two settings remain.
 
 As the owner (`retrieval_ddl`), after step 2:
 
@@ -67,8 +67,8 @@ As the server admin:
 alter role retrieval_reader connection limit 20;
 ```
 
-1. A write run deletes the chunks that left a shard, and Postgres checks the right before it reads any row, so without the grant even the first run fails with `permission denied for table chunks`. The writer gets no `delete` on `shards`: a run never deletes a shard, and a shard delete would remove all its chunks.
-2. Every warm function instance of the route holds a connection, and preview deployments use the same credential, so the connection limit stops one deployment from using the whole database. The route sets a 5 second `statement_timeout` on each of its connections, so the server stops a slow search. `bootstrap/init.sql` also sets one on the reader role in `codex`.
+1. A write run deletes the chunks that left a shard, and never deletes a shard, so the writer has `delete` on `chunks` only.
+2. The connection limit covers every route instance and preview together. The route sets a 5 second `statement_timeout` on its connections.
 3. To check the rights of both roles, use the query in step 5.
 
 ## 4. Store the credentials
@@ -80,7 +80,7 @@ writer: postgresql://retrieval_writer:<password>@<direct address>/<database>
 reader: postgresql://retrieval_reader:<password>@<direct address>/<database>
 ```
 
-The strings have no `sslmode` or `sslrootcert`. The server certificate is signed by the provider's own CA, which GitHub runners and Vercel do not trust, and they have no CA file. So the producers and the route take the CA as PEM text in `RETRIEVAL_STORE_CA_CERT`, and `node-postgres` then checks the certificate chain and the host name (`verify-full`). `node-postgres` lets TLS settings in a URL replace that CA, so the code refuses a URL that sets them, and it refuses a CA that is not PEM text. If a password contains `@`, `:`, `/`, `#` or `?`, percent-encode it (`@` becomes `%40`).
+The strings carry no `sslmode` or `sslrootcert`. The producers and the route read the CA from `RETRIEVAL_STORE_CA_CERT` and verify the certificate chain and the host name. They refuse a string that sets TLS parameters, and a CA that is not PEM text. Percent-encode `@`, `:`, `/`, `#` or `?` in a password (`@` becomes `%40`).
 
 | Secret | Value | Where |
 |---|---|---|
@@ -88,9 +88,9 @@ The strings have no `sslmode` or `sslrootcert`. The server certificate is signed
 | `RETRIEVAL_STORE_READ_URL` | The reader string | Vercel environment variable of the docs project, for Production and Preview |
 | `RETRIEVAL_STORE_CA_CERT` | The CA certificate as PEM text, the same value as `PG_CA_CERT` in step 2 | GitHub Actions secret in `nymtech/nym` and in `nymtech/nym-vpn-client`, like `PG_CA_CERT`, and a Vercel environment variable of the docs project beside `RETRIEVAL_STORE_READ_URL` |
 | `RETRIEVAL_STORE_ENABLED` | `1` | GitHub Actions repository variable (not a secret) in `nymtech/nym` and in `nymtech/nym-vpn-client`. The `cd-retrieval-store` workflow of each repository writes the store only while it is `1`; set it to `0` to stop writes without deleting the secret |
-| `VOYAGE_API_KEY` | The Voyage API key | GitHub Actions secret in `nymtech/nym` and in `nymtech/nym-vpn-client`. The docs site's own key is a Vercel variable, which the write workflow cannot read |
+| `VOYAGE_API_KEY` | The Voyage API key | GitHub Actions secret in `nymtech/nym` and in `nymtech/nym-vpn-client`, apart from the docs site's Vercel variable |
 
-Both roles use the direct address. A write run is one long transaction on one `pg.Client` (the package rejects a `pg.Pool`). The route keeps a `pg.Pool` of at most 2 connections in each warm function instance, and closes a connection after 30 seconds idle. The reader's connection limit of 20 caps all instances together. If traffic ever reaches that limit, searches fail with `too many connections for role "retrieval_reader"`, and the writer is not affected; raise the limit or add a pooler then.
+Both roles use the direct address. A write run is one transaction on one `pg.Client`. The route keeps a `pg.Pool` of at most 2 connections in each function instance, closed after 30 seconds idle, and the reader's limit of 20 caps them together. At the limit, searches fail with `too many connections for role "retrieval_reader"`; raise the limit or add a pooler.
 
 
 Vercel applies a new environment variable only to new deployments. Redeploy, or wait for the next deployment, before you test the route.
@@ -118,7 +118,7 @@ Vercel applies a new environment variable only to new deployments. Redeploy, or 
    psql "<reader string>?sslmode=verify-full&sslrootcert=<CA certificate file>" -c "select count(*) from chunks"
    ```
 
-   Expected result: `0`, because no producer has written yet. `psql` takes the CA from a file, so this check adds the TLS settings that the stored string leaves out.
+   Expected result: `0`, because no producer has written yet. The stored string has no TLS settings, so this command adds them for `psql`.
 
 ## After a package release
 

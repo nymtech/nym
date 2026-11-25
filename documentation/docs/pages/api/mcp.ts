@@ -93,10 +93,9 @@ function storeSourceFromEnv(): RetrievalSource {
   // statements, so pooling is safe here; only the write path needs one connection
   // for a whole transaction.
   //
-  // The timeouts make an unreachable store an error the agent can read, not a
-  // request that hangs until the function times out. statement_timeout makes the
-  // server stop a slow query; query_timeout is above it, so a slow query gets the
-  // server's error, and only a store that stops answering hits the client limit.
+  // The timeouts turn an unreachable or slow store into an error the agent can
+  // read. statement_timeout stops a slow query on the server; query_timeout, above
+  // it, catches a store that stops answering.
   const pool = new pg.Pool({ ...storeConnection(url, process.env.RETRIEVAL_STORE_CA_CERT), max: 2, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5_000, statement_timeout: 5_000, query_timeout: 8_000 });
   // An idle connection that dies emits 'error' on the pool. With no listener,
   // Node treats it as unhandled and the instance exits.

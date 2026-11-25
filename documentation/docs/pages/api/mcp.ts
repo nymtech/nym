@@ -86,7 +86,7 @@ function bundleSource(): RetrievalSource {
 function storeSourceFromEnv(): RetrievalSource {
   const url = process.env.RETRIEVAL_STORE_READ_URL;
   if (!url) {
-    throw new Error('MCP route: MCP_RETRIEVAL_SOURCE is "store", but RETRIEVAL_STORE_READ_URL is not set. Set it to the reader connection string (documentation/MCP-STORE-SETUP.md).');
+    throw new Error('MCP route: MCP_RETRIEVAL_SOURCE is "store", but RETRIEVAL_STORE_READ_URL is not set. Set it to the reader connection string (documentation/MCP-STORE.md).');
   }
   // A pool, not one client, so a dropped connection (a server restart, an idle
   // timeout) is replaced on the next query without a redeploy. Reads are single

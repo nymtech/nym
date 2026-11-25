@@ -270,7 +270,7 @@ The docs are built for AI agents and LLMs as well as for people. There is an MCP
 
 For readers rather than contributors: `/docs/use-with-ai/mcp` is the tool catalogue and client setup, `/docs/use-with-ai` is the guide for users, and `/docs/about/how-these-docs-are-checked` explains the checks.
 
-[`DOCS-SYSTEM.md`](DOCS-SYSTEM.md) explains how the parts of the docs system fit together, and the state of each part: merged, on a branch, or planned.
+[`DOCS-SYSTEM.md`](DOCS-SYSTEM.md) explains how the parts of the docs system fit together, and the checks that keep them true to their sources.
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

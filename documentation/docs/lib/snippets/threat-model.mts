@@ -1,4 +1,4 @@
-// Threat-model adapter (D4b, tasks 6b.2 and 6b.4): one `model` record for each
+// Threat-model adapter: one `model` record for each
 // entity of the typed data in lib/privacy-model, and the integrity check.
 //
 //   node lib/snippets/threat-model.mts                 print the records and the integrity report
@@ -164,7 +164,7 @@ export async function buildThreatModel({ repo = 'nym' }: { repo?: string } = {})
       else errors.push(`${where}: no assessment for spine actor ${a}, and not on the exception list`);
     }
     if (specialises) refs.push({ id: specialises, rel: 'specialises' });
-    // Each cell of the comparison matrix is one claim (D15, task 6b.9): a
+    // Each cell of the comparison matrix is one claim: a
     // configuration, a property, an actor, a verdict, and its condition.
     const scenarioId = `${prefix.replace(/ /g, '/')}scenario/${s.id}`;
     for (const [key, cell] of cells(s)) {

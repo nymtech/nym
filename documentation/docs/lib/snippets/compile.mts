@@ -1,4 +1,4 @@
-// Per-snippet compile check (D10, task 1.10): compile each prose snippet alone
+// Per-snippet compile check: compile each prose snippet alone
 // with Nextra's `compileMdx`. The round trip cannot see a cut through a JSX
 // element, because the broken parts join back to a correct page; a compile of
 // each part alone can.

@@ -38,7 +38,7 @@ const pages = walk(PAGES);
 // projected component.
 let expand: unknown;
 let values: unknown;
-// A page split into snippets composes the way the build composes it (D18).
+// A page split into snippets composes the way the build composes it.
 let snippets: { repo: { aliases: Record<string, string> } } | null;
 beforeAll(async () => {
   expand = await loadProjections();

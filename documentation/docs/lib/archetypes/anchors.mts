@@ -1,4 +1,4 @@
-// Anchor check for stage 8 (task 9.12): each link with a `#anchor` on a docs
+// Anchor check: each link with a `#anchor` on a docs
 // page must name an id on the page it goes to, as Nextra 4.6.1 makes the ids.
 // A step heading change can break such a link on another page.
 //

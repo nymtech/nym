@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 // Each tutorial example in the SDK (sdk/rust/nym-sdk/examples/tutorial_*.rs) holds
 // the complete code of a docs tutorial, so cargo checks that code. Its header
-// names the snippet with the same code; the two must stay the same (task 9.15).
+// names the snippet with the same code; the two must stay the same.
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const EXAMPLES = path.join(REPO, 'sdk/rust/nym-sdk/examples');
 

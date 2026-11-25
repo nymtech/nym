@@ -1,4 +1,4 @@
-// Code extractor (D5, D6): a citation is the request to extract. Scan each prose
+// Code extractor: a citation is the request to extract. Scan each prose
 // snippet for `<Snippet id="<repo>/<path>#<symbol>" />`, find the item in the
 // source file with tree-sitter, and build one `code` record for it.
 //

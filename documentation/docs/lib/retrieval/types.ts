@@ -1,5 +1,5 @@
 // Snippet records: the contract between a source repository and each consumer
-// (codex, the docs site, the index). See openspec/changes/add-codex-snippets.
+// (codex, the docs site, the index). See documentation/DOCS-SYSTEM.md.
 //
 // The retrieval index types (pages, chunks, the index file) live in
 // @nymproject/retrieval-indexer (types).
@@ -18,7 +18,7 @@ export type RefRel =
   | "assessed-against"; // model: a scenario, to an actor or a property
 
 /**
- * Which records are commitments (P9, decided 2026-10-16): the OpenSpec
+ * Which records are commitments: the OpenSpec
  * requirements and the threat model are normative, a specification or an
  * explanation describes, and a guide (a how-to or a tutorial) illustrates.
  */

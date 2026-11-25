@@ -499,7 +499,7 @@ describe('excerpt comment', () => {
   });
 });
 
-describe('page descriptions from a section list (2b.2)', () => {
+describe('page descriptions from a section list', () => {
   const load = () => import('./describe.mts');
 
   it('writes a plain-text description, and keeps a description a page already has', async () => {

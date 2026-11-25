@@ -1,4 +1,4 @@
-// The PR comment of the snippet check (D7, task 4.1): each code excerpt that
+// The PR comment of the snippet check: each code excerpt that
 // changes between two record sets, as a diff, and the pages that show it.
 //
 //   node lib/snippets/excerpt-diff.mts --base <records dir> --head <records dir> [--base-root <base tree>] [--root <repo root>] > comment.md

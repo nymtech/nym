@@ -1,4 +1,4 @@
-// Acceptance check for a docs split (D18 item 6, task 10.4.6): the text outputs
+// Acceptance check for a docs split: the text outputs
 // of the docs site before and after a split must be the same.
 //
 //   node lib/snippets/text-outputs.mts --save <dir>        run the three generators, keep the outputs

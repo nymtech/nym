@@ -5,8 +5,8 @@ import { walk } from './util.mts';
 
 export const id = 'placeholder';
 
-// The D17 token grammar: `<` + `[A-Z][A-Za-z0-9_./-]*` + `>`. A placeholder
-// starts with a capital letter (decided 2026-10-16), so a hostname such as
+// The token grammar: `<` + `[A-Z][A-Za-z0-9_./-]*` + `>`. A placeholder
+// starts with a capital letter, so a hostname such as
 // `<api.nyx.yourdomain.tld>` or a word such as `<file>` is not one. `(?<!<)`
 // skips a heredoc (`<<EOF`), and `(?<!\/)` a self-closing tag (`<br/>`).
 const TOKEN = /(?<!<)<([A-Z][\w./-]*?)(?<!\/)>/g;

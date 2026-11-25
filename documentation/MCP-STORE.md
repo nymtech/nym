@@ -149,7 +149,7 @@ Postgres also gives three properties that the plan depends on:
 - **Transactions.** A run replaces a shard in one transaction, so a reader never sees half a shard.
 - **The scan runs next to the data.** The function holds no vectors: it sends one query vector and gets back K rows.
 
-The cost: one more service (Exoscale Postgres), one network hop for each search, and a PR preview answers from the develop index, not from the PR's content.
+The cost: one more service (a managed Postgres), one network hop for each search, and a PR preview answers from the develop index, not from the PR's content.
 
 ## How the MCP reads after the cutover
 
@@ -164,7 +164,7 @@ cd-retrieval-store.yml                   cd-retrieval-store.yml
      │                                          │ nym-vpn-client/docs
      ▼                                          ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ public store: Postgres + pgvector (Exoscale)                 │
+│ public store: Postgres + pgvector                            │
 │ shards: one row for each (repository, modality), with model  │
 │ chunks: text, URL, content hash, vector                      │
 │ one model for each modality: docs voyage-3-large,            │
@@ -232,7 +232,7 @@ The last step of the cutover removes the bundled files and the embedding from th
 | writer | producer CI: nym on pushes to develop, and later `nym-vpn-client` | Read and change rows in `chunks` and `shards` |
 | reader | `/api/mcp` on Vercel, production and preview | Read `chunks` and `shards` only |
 
-The public store runs on our own Postgres server on Exoscale. One writer role serves all producers: a role for each producer could not be limited to its own shard without row-level security, which the design dropped.
+The public store is a managed Postgres database. One writer role serves all producers: a role for each producer could not be limited to its own shard without row-level security, which the design dropped.
 
 Only pushes to develop write, because Vercel builds the production docs from develop. A run from another branch would put unmerged content in the public index.
 

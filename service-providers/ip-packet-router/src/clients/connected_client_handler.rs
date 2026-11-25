@@ -13,9 +13,7 @@ use nym_ip_packet_requests::{
 use nym_lp_data::packet::frame::{
     LpFrame, LpFrameHeader, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
-use nym_sdk::mixnet::{
-    InputMessage, MixnetClientSender, MixnetMessageSender, MixnetMessageSinkTranslator,
-};
+use nym_sdk::mixnet::{AnonymousSenderTag, InputMessage, MixnetMessageSinkTranslator};
 use tokio::{
     sync::{mpsc, oneshot},
     time::{Interval, interval},
@@ -23,7 +21,7 @@ use tokio::{
 use tokio_util::codec::Encoder;
 
 use crate::{
-    clients::ConnectedClientId,
+    clients::ReplySender,
     constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
     error::{IpPacketRouterError, Result},
     messages::ClientVersion,
@@ -50,7 +48,7 @@ pub(crate) fn encode_stream_frame(stream_id: u64, sequence_num: u32, payload: Ve
 // encodes it, and then sends to mixnet.
 pub(crate) struct ConnectedClientHandler {
     // The client that sent the packets
-    sent_by: ConnectedClientId,
+    sent_by: AnonymousSenderTag,
 
     // Channel to receive packets from the tun_listener
     forward_from_tun_rx: mpsc::UnboundedReceiver<Vec<u8>>,
@@ -70,16 +68,16 @@ pub(crate) struct ConnectedClientHandler {
     // Used to convert the bundled IP packets into a IPR packet response
     input_message_creator: ToIprDataResponse,
 
-    // The mixnet client sender that will send the IPR packet responses across the mixnet
-    mixnet_client_sender: MixnetClientSender,
+    // Where the IPR packet responses go: back the way the client connected
+    reply_sender: ReplySender,
 }
 
 impl ConnectedClientHandler {
     pub(crate) fn start(
-        client_id: ConnectedClientId,
+        client_id: AnonymousSenderTag,
         buffer_timeout: Duration,
         client_version: ClientVersion,
-        mixnet_client_sender: MixnetClientSender,
+        reply_sender: ReplySender,
         stream_id: Option<u64>,
     ) -> (
         mpsc::UnboundedSender<Vec<u8>>,
@@ -104,7 +102,7 @@ impl ConnectedClientHandler {
         let packet_bundler = MultiIpPacketCodec::new();
 
         let input_message_creator = ToIprDataResponse {
-            send_to: client_id.clone(),
+            send_to: client_id,
             client_version,
             stream_id,
             // Start at 1 — seq=0 is reserved for inline control responses
@@ -123,7 +121,7 @@ impl ConnectedClientHandler {
             payload_topup_interval,
             packet_bundler,
             input_message_creator,
-            mixnet_client_sender,
+            reply_sender,
         };
 
         let handle = tokio::spawn(async move {
@@ -157,19 +155,17 @@ impl ConnectedClientHandler {
 
         self.payload_topup_interval.reset();
 
-        let input_packet = self
+        let payload = self
             .input_message_creator
-            .to_input_message(&bundled_packets)
+            .to_payload(&bundled_packets)
             .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet {
-                source: Box::new(source),
+                source: Box::new(source.into()),
             })?;
 
-        self.mixnet_client_sender
-            .send(input_packet)
+        // data is never retransmitted: a late IP packet is worse than a lost one
+        self.reply_sender
+            .send(&self.sent_by, payload, Some(0))
             .await
-            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet {
-                source: Box::new(source),
-            })
     }
 
     async fn run(mut self) -> Result<()> {
@@ -224,7 +220,7 @@ fn create_ip_packet_response(
 // wrapped in LP Stream frames so the client's stream router can dispatch them.
 #[derive(Debug)]
 struct ToIprDataResponse {
-    send_to: ConnectedClientId,
+    send_to: AnonymousSenderTag,
     client_version: ClientVersion,
     /// When Some, wrap responses in LP Stream frames with this stream_id.
     stream_id: Option<u64>,
@@ -232,11 +228,12 @@ struct ToIprDataResponse {
     next_response_seq: AtomicU32,
 }
 
-impl MixnetMessageSinkTranslator for ToIprDataResponse {
-    fn to_input_message(
+impl ToIprDataResponse {
+    /// The response carrying these bundled packets, as it goes on the wire on either path.
+    fn to_payload(
         &self,
         bundled_ip_packets: &[u8],
-    ) -> std::result::Result<InputMessage, nym_sdk::Error> {
+    ) -> std::result::Result<Vec<u8>, bincode::Error> {
         let response_packet = create_ip_packet_response(bundled_ip_packets, self.client_version)?;
 
         // Optionally wrap in LP Stream frame for stream-mode clients.
@@ -253,9 +250,20 @@ impl MixnetMessageSinkTranslator for ToIprDataResponse {
             response_packet
         };
 
-        let input_message =
-            crate::util::create_message::create_input_message(&self.send_to, final_packet)
-                .with_max_retransmissions(0);
+        Ok(final_packet)
+    }
+}
+
+impl MixnetMessageSinkTranslator for ToIprDataResponse {
+    fn to_input_message(
+        &self,
+        bundled_ip_packets: &[u8],
+    ) -> std::result::Result<InputMessage, nym_sdk::Error> {
+        let input_message = crate::util::create_message::create_input_message(
+            &self.send_to,
+            self.to_payload(bundled_ip_packets)?,
+        )
+        .with_max_retransmissions(0);
 
         Ok(input_message)
     }
@@ -320,11 +328,11 @@ mod tests {
     async fn test_combining_framed_write_and_mixnet_client_ip_packet_sender() {
         let mixnet_client_sender = MockMixnetClientSender::new();
         let sender_tag = AnonymousSenderTag::new_random(&mut rand::rng());
-        let client_id = ConnectedClientId::AnonymousSenderTag(sender_tag);
+        let client_id = sender_tag;
         let client_version = ClientVersion::V8;
 
         let bytes_to_input_message = ToIprDataResponse {
-            send_to: client_id.clone(),
+            send_to: client_id,
             client_version,
             stream_id: None,
             next_response_seq: AtomicU32::new(0),

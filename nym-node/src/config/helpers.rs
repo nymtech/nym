@@ -7,10 +7,7 @@ use crate::error::NymNodeError;
 use clap::crate_version;
 use nym_config::defaults::var_names;
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway::node::{
-    LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
-};
-use nym_gateway::nym_authenticator;
+use nym_gateway::node::{LocalIpPacketRouterOpts, LocalNetworkRequesterOpts};
 use std::env;
 use tracing::{error, warn};
 
@@ -72,6 +69,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
                 .gateway_tasks
                 .debug
                 .upgrade_mode_min_staleness_recheck,
+            sp_inbound_workers: config.lp.debug.sp_inbound_worker_count.get(),
         },
     )
 }
@@ -91,7 +89,6 @@ pub struct GatewayTasksConfig {
     pub gateway: nym_gateway::config::Config,
     pub nr_opts: Option<LocalNetworkRequesterOpts>,
     pub ipr_opts: Option<LocalIpPacketRouterOpts>,
-    pub auth_opts: Option<LocalAuthenticatorOpts>,
     #[allow(dead_code)]
     pub wg_opts: LocalWireguardOpts,
 }
@@ -181,33 +178,6 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
         ipr_opts.config.base.set_no_poisson_process()
     }
 
-    let mut auth_opts = LocalAuthenticatorOpts {
-        config: nym_authenticator::Config {
-            base: nym_client_core_config_types::Config {
-                client: base_client_config(config),
-                debug: config.service_providers.authenticator.debug.client_debug,
-            },
-            authenticator: config.wireguard.clone().into(),
-            storage_paths: nym_authenticator::config::AuthenticatorPaths {
-                common_paths: config
-                    .service_providers
-                    .storage_paths
-                    .authenticator
-                    .to_common_client_paths(),
-            },
-        },
-        custom_mixnet_path: None,
-    };
-
-    if config
-        .service_providers
-        .authenticator
-        .debug
-        .disable_poisson_rate
-    {
-        auth_opts.config.base.set_no_poisson_process();
-    }
-
     let wg_opts = LocalWireguardOpts {
         config: super::Wireguard {
             enabled: config.wireguard.enabled,
@@ -228,7 +198,6 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
         gateway: ephemeral_gateway_config(config),
         nr_opts: Some(nr_opts),
         ipr_opts: Some(ipr_opts),
-        auth_opts: Some(auth_opts),
         wg_opts,
     }
 }

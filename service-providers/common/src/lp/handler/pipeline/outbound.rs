@@ -22,7 +22,6 @@ use std::time::{Duration, Instant};
 use nym_client_core::client::lp::data::handler::pipeline::outbound::LpOutboundOptions;
 use nym_client_core::client::topology_control::LpTopologyAccessor;
 use nym_client_core::config::DebugConfig;
-use nym_crypto::rng::OsRng;
 use nym_lp_data::clients::helpers::{NoOpObfuscation, NoOpReliability};
 use nym_lp_data::clients::traits::{Chunking, ClientWrappingPipeline, RoutingSecurity};
 use nym_lp_data::common::traits::{Framing, Transport, WireWrappingPipeline};
@@ -32,7 +31,7 @@ use nym_lp_data::{AddressedTimedData, PipelinePayload};
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::preparer::FragmentPreparer;
-use rand::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng, RngExt};
 use tracing::warn;
 
 use crate::lp::error::LpProviderError;
@@ -55,25 +54,20 @@ pub struct SpOutboundPipeline<R> {
     topology_accessor: LpTopologyAccessor,
 }
 
-impl<R> SpOutboundPipeline<R> {
-    pub fn new(rng: R, debug_config: DebugConfig, topology_accessor: LpTopologyAccessor) -> Self {
+impl<R> SpOutboundPipeline<R>
+where
+    R: CryptoRng + Rng,
+{
+    pub fn new(
+        mut rng: R,
+        debug_config: DebugConfig,
+        topology_accessor: LpTopologyAccessor,
+    ) -> Self {
         SpOutboundPipeline {
+            nonce: rng.random(),
             rng,
-            nonce: 0,
             debug_config,
             topology_accessor,
-        }
-    }
-}
-
-// Implementing on purpose only for OsRng which is stateless
-impl Clone for SpOutboundPipeline<OsRng> {
-    fn clone(&self) -> Self {
-        SpOutboundPipeline {
-            rng: self.rng,
-            nonce: self.nonce,
-            debug_config: self.debug_config,
-            topology_accessor: self.topology_accessor.clone(),
         }
     }
 }

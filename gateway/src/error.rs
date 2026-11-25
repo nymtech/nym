@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
-use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
 use crate::node::wireguard::GatewayWireguardError;
 use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_gateway_stats_storage::error::StatsStorageError;
@@ -54,9 +53,6 @@ pub enum GatewayError {
     #[error("Path to ip packet router configuration file hasn't been specified. Perhaps try to run `setup-ip-packet-router`?")]
     UnspecifiedIpPacketRouterConfig,
 
-    #[error("Path to authenticator configuration file hasn't been specified. Perhaps try to run `setup-authenticator`?")]
-    UnspecifiedAuthenticatorConfig,
-
     #[error("there was an issue with the local network requester: {source}")]
     NetworkRequesterFailure {
         #[from]
@@ -68,9 +64,6 @@ pub enum GatewayError {
         #[from]
         source: IpPacketRouterError,
     },
-
-    #[error("there was an issue with the local authenticator: {source}")]
-    AuthenticatorFailure { source: Box<AuthenticatorError> },
 
     #[error("failed to startup local {typ}")]
     ServiceProviderStartupFailure { typ: &'static str },
@@ -119,11 +112,6 @@ pub enum GatewayError {
     #[error("internal wireguard error {0}")]
     InternalWireguardError(String),
 
-    #[error("failed to start authenticator: {source}")]
-    AuthenticatorStartError {
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
     #[error("{0}")]
     CredentialVerificationError(#[from] nym_credential_verification::Error),
 
@@ -154,14 +142,6 @@ impl From<ClientCoreError> for GatewayError {
         // if we ever get a client core error, it must have come from the network requester
         GatewayError::NetworkRequesterFailure {
             source: value.into(),
-        }
-    }
-}
-
-impl From<AuthenticatorError> for GatewayError {
-    fn from(error: AuthenticatorError) -> Self {
-        GatewayError::AuthenticatorFailure {
-            source: Box::new(error),
         }
     }
 }

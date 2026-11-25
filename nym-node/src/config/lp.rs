@@ -159,7 +159,7 @@ pub struct LpDebug {
     ///
     /// Per provider, not shared between them: on the LP path a provider is the final sphinx hop, so
     /// the x25519 operation and AEAD open per packet happen here rather than in the pool above.
-    pub sp_inbound_worker_count: usize,
+    pub sp_inbound_worker_count: NonZero<usize>,
 }
 
 impl LpConfig {
@@ -244,7 +244,9 @@ impl LpDebug {
 
     // Fewer than the node's own pool, and per provider: a hosted provider sees its own traffic
     // rather than everything this node forwards, and there may be three of them on one machine.
-    pub const DEFAULT_SP_INBOUND_WORKER_COUNT: usize = 2;
+    #[allow(clippy::expect_used)]
+    pub const DEFAULT_SP_INBOUND_WORKER_COUNT: NonZero<usize> =
+        NonZero::new(1).expect("0 in a non zero type");
 }
 
 impl Default for LpDebug {

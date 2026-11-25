@@ -63,7 +63,7 @@ impl From<(ConnectRequestV8, AnonymousSenderTag, ClientVersion)> for DynamicConn
         Self {
             version,
             request_id: request.request_id,
-            sent_by: sender_tag.into(),
+            sent_by: sender_tag,
             buffer_timeout: request.buffer_timeout,
         }
     }
@@ -76,7 +76,7 @@ impl From<(DisconnectRequestV8, AnonymousSenderTag, ClientVersion)> for Disconne
         Self {
             version,
             request_id: request.request_id,
-            sent_by: sender_tag.into(),
+            sent_by: sender_tag,
         }
     }
 }
@@ -88,7 +88,7 @@ impl From<(PingRequestV8, AnonymousSenderTag, ClientVersion)> for PingRequest {
         Self {
             version,
             request_id: request.request_id,
-            sent_by: sender_tag.into(),
+            sent_by: sender_tag,
         }
     }
 }
@@ -100,7 +100,7 @@ impl From<(HealthRequestV8, AnonymousSenderTag, ClientVersion)> for HealthReques
         Self {
             version,
             request_id: request.request_id,
-            sent_by: sender_tag.into(),
+            sent_by: sender_tag,
         }
     }
 }

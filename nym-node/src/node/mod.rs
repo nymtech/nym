@@ -55,6 +55,7 @@ use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::rng::os_rng;
 use nym_gateway::node::ClientRegistry;
+use nym_gateway::node::EmbeddedServiceProviders;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender, start_lp_topology};
 use nym_kkt::key_utils::{
@@ -68,6 +69,7 @@ use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::events::MetricEventsSender;
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
+use nym_service_providers_common::embedded::{ProviderOutputReceiver, provider_output_channel};
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
 use nym_validator_client::UserAgent;
 use nym_validator_client::nyxd::AccountId;
@@ -91,10 +93,7 @@ use crate::node::directory_publisher::{
 };
 use crate::node::node_details::{NodeDescription, NodeDetails, ServiceProvidersKeys};
 pub use nym_gateway::node::ActiveClientsStore;
-use nym_gateway::node::EmbeddedServiceProviders;
 pub use nym_gateway::node::GatewayStorage;
-use nym_service_providers_common::lp::ServiceProviderOutputReceiver;
-use nym_service_providers_common::mode::HostedProvidersLp;
 
 mod authorised_agents;
 pub mod bonding_information;
@@ -193,8 +192,11 @@ struct GatewayTasksLpHandles {
     /// The control plane's, for registering wireguard peers.
     peer_registrator: Option<PeerRegistrator>,
 
-    /// The data plane's: one per provider this node hosts, carrying what each wants forwarded.
-    provider_egress: Vec<ServiceProviderOutputReceiver>,
+    /// The data plane's: where it delivers what arrives for each provider this node hosts.
+    service_providers: EmbeddedServiceProviders,
+
+    /// The data plane's: what every provider this node hosts wants forwarded.
+    from_providers: ProviderOutputReceiver,
 }
 
 pub struct NymNode {
@@ -357,7 +359,7 @@ impl NymNode {
         clients: ClientRegistry,
         sessions_established_rx: mpsc::Receiver<LpPeer>,
         service_providers: EmbeddedServiceProviders,
-        provider_rxs: Vec<ServiceProviderOutputReceiver>,
+        from_providers: ProviderOutputReceiver,
         dialer: LpDialer,
     ) -> Result<LpDataSetup, NymNodeError> {
         let shared_state = lp::data::shared::SharedLpDataState::new(
@@ -380,7 +382,7 @@ impl NymNode {
             shared_state,
             gateway_state,
             sessions_established_rx,
-            provider_rxs,
+            from_providers,
             dialer,
             self.shutdown_manager.shutdown_tracker().clone(),
         )
@@ -608,13 +610,10 @@ impl NymNode {
             self.config.gateway_tasks.debug.minimum_mix_performance,
         ));
 
-        // what this node gives the LP data plane of every provider it hosts. The topology is built
-        // here beside the provider that feeds it because the two go together: that provider belongs
-        // to the embedded mixnet clients, and both leave when those do
-        let hosted_lp = HostedProvidersLp {
-            topology: start_lp_topology(self.shutdown_tracker(), topology_provider.clone()).await,
-            inbound_workers: self.config.lp.debug.sp_inbound_worker_count,
-        };
+        // where every provider this node hosts sends its LP frames: the network requester and the
+        // IP packet router. On a node that hosts none, the sender is dropped and the data plane's
+        // end stays closed
+        let (to_node, from_providers) = provider_output_channel(2);
 
         let mut gateway_tasks_builder = GatewayTasksBuilder::new(
             config.gateway,
@@ -629,7 +628,6 @@ impl NymNode {
             self.upgrade_mode_state.clone(),
             self.config.lp.debug.use_mock_ecash,
             self.shutdown_tracker().clone(),
-            hosted_lp,
         );
 
         // start task for watching the changes in upgrade mode attestation
@@ -664,9 +662,9 @@ impl NymNode {
         // return to the caller for the LP control plane
         let lp_peer_registrator = wg_peer_registrator.clone();
 
-        // one per provider this node ends up hosting, collected as each starts and handed to the
-        // LP data plane, which is built after all of them
-        let mut provider_egress = Vec::new();
+        // where the LP data plane delivers to each provider, collected as each starts and handed to
+        // the plane, which is built after all of them
+        let mut service_providers = EmbeddedServiceProviders::default();
 
         if let Some(wg_peer_registrator) = wg_peer_registrator.as_ref() {
             let cleanup_task = wg_peer_registrator.cleanup_task(self.shutdown_token());
@@ -701,15 +699,26 @@ impl NymNode {
             gateway_tasks_builder.set_network_requester_opts(config.nr_opts);
             gateway_tasks_builder.set_ip_packet_router_opts(config.ipr_opts);
 
+            // the view both providers route their LP replies against. Built here beside the
+            // provider that feeds it because the two go together: that provider belongs to the
+            // embedded mixnet clients, and both leave when those do
+            let lp_topology =
+                start_lp_topology(self.shutdown_tracker(), topology_provider.clone()).await;
+
             let exit_sps = gateway_tasks_builder.build_exit_service_providers(
                 topology_provider.clone(),
                 topology_provider.clone(),
+                lp_topology,
+                to_node,
             )?;
 
             // note, this has all the joinhandles for when we want to use joinset
             let (started_nr, started_ipr) = exit_sps.start_service_providers().await?;
-            provider_egress.push(started_nr.lp_output_rx);
-            provider_egress.push(started_ipr.lp_output_rx);
+            service_providers.insert(started_nr.on_start_data.address, started_nr.lp_to_provider);
+            service_providers.insert(
+                started_ipr.on_start_data.address,
+                started_ipr.lp_to_provider,
+            );
             active_clients_store.insert_embedded(started_nr.handle);
             active_clients_store.insert_embedded(started_ipr.handle);
             info!("started NR at: {}", started_nr.on_start_data.address);
@@ -720,43 +729,21 @@ impl NymNode {
             );
         }
 
-        // if we're running wireguard, start the authenticator
-        // and the actual wireguard listener
+        // if we're running wireguard, start the actual wireguard listener. The authenticator
+        // service provider is not started: wireguard peers register over LP
         if self.config.wireguard.enabled {
-            info!(
-                "starting the wireguard tasks: authenticator service provider + wireguard peer controller"
-            );
+            info!("starting the wireguard tasks: wireguard peer controller");
 
-            gateway_tasks_builder.set_authenticator_opts(config.auth_opts);
-
-            let Some(peer_registrator) = wg_peer_registrator else {
+            if wg_peer_registrator.is_none() {
                 return Err(NymNodeError::WireguardDataUnavailable);
-            };
-
-            let authenticator = gateway_tasks_builder
-                .build_wireguard_authenticator(
-                    peer_registrator,
-                    upgrade_mode_common_state.clone(),
-                    topology_provider,
-                )
-                .await?;
-            let started_authenticator = authenticator.start_service_provider().await?;
-            provider_egress.push(started_authenticator.lp_output_rx);
-            active_clients_store.insert_embedded(started_authenticator.handle);
-
-            info!(
-                "started authenticator at: {}",
-                started_authenticator.on_start_data.address
-            );
+            }
 
             gateway_tasks_builder
                 .try_start_wireguard(upgrade_mode_common_state)
                 .await
                 .map_err(NymNodeError::GatewayTasksStartupFailure)?;
         } else {
-            info!(
-                "node not running with wireguard: authenticator service provider and wireguard will remain unavailable"
-            );
+            info!("node not running with wireguard: wireguard will remain unavailable");
         }
 
         // start task for removing stale and un-retrieved client messages
@@ -769,7 +756,8 @@ impl NymNode {
 
         Ok(GatewayTasksLpHandles {
             peer_registrator: lp_peer_registrator,
-            provider_egress,
+            service_providers,
+            from_providers,
         })
     }
 
@@ -1330,7 +1318,8 @@ impl NymNode {
 
         let GatewayTasksLpHandles {
             peer_registrator: lp_peer_registrator,
-            provider_egress,
+            service_providers,
+            from_providers,
         } = self
             .start_gateway_tasks(
                 node_address,
@@ -1373,8 +1362,8 @@ impl NymNode {
             sessions,
             clients,
             sessions_established_rx,
-            active_clients_store.embedded_service_providers(),
-            provider_egress,
+            service_providers,
+            from_providers,
             dialer,
         )?;
         lp_data_tasks.start_tasks();

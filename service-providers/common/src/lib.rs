@@ -11,10 +11,10 @@ use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 pub mod interface;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod lp;
+pub mod embedded;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod mode;
+pub mod lp;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod storage;
@@ -24,6 +24,17 @@ pub const DEFAULT_SERVICE_PROVIDERS_DIR: &str = "service-providers";
 // FUTURE WORK:
 // for next version (v4) of the interface, refactor `reply::MixnetAddress` from the socks5 SP
 // and move it here so that you could optionally attach your sender address with any request for easier responses
+
+/// Which way a request reached the provider, which is the way its reply has to leave: nothing in
+/// the bytes says which that was.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RequestPath {
+    /// Through the mixnet client.
+    Legacy,
+
+    /// Over the Lewes Protocol.
+    Lp,
+}
 
 /// Trait that every ServiceProvider on the Nym network should implement and adhere to.
 #[async_trait]
@@ -37,21 +48,19 @@ where
     // TODO: refactor to use some version of `reply::MixnetAddress`
     // in case explicit address was provided
     //
-    /// `legacy` says which transport carried the request, because the reply has to leave the way it
-    /// arrived and nothing in the bytes says which way that was: `true` for the mixnet client,
-    /// `false` for the Lewes Protocol.
+    /// `path` says which transport carried the request, so the reply can leave the same way.
     async fn on_request(
         &mut self,
         sender: Option<AnonymousSenderTag>,
         request: Request<T>,
-        legacy: bool,
+        path: RequestPath,
     ) -> Result<(), Self::ServiceProviderError>;
 
     async fn handle_request(
         &mut self,
         sender: Option<AnonymousSenderTag>,
         request: Request<T>,
-        legacy: bool,
+        path: RequestPath,
     ) -> Result<Option<Response<T>>, Self::ServiceProviderError> {
         match request.content {
             RequestContent::Control(control_request) => self
@@ -68,7 +77,7 @@ where
                     sender,
                     provider_data_request,
                     request.interface_version,
-                    legacy,
+                    path,
                 )
                 .await
                 .map(|maybe_res| {
@@ -131,14 +140,14 @@ where
         })
     }
 
-    /// `legacy` travels with the request so the answer can leave the way it came - see
+    /// `path` travels with the request so the answer can leave the way it came - see
     /// [`on_request`](Self::on_request).
     async fn handle_provider_data_request(
         &mut self,
         sender: Option<AnonymousSenderTag>,
         request: T,
         interface_version: ProviderInterfaceVersion,
-        legacy: bool,
+        path: RequestPath,
     ) -> Result<Option<T::Response>, Self::ServiceProviderError>;
 }
 

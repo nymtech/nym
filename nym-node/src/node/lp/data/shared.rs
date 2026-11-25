@@ -346,7 +346,8 @@ impl SharedLpDataState {
             replay_protection_filter: ReplayProtectionBloomfilters::new_disabled(),
             message_reconstructor: MessageReconstructor::default(),
             routing_filter: NetworkRoutingFilter::new_empty(true),
-            sessions: ActiveLpSessions::new(mpsc::channel(0).0),
+            // tokio channels need a capacity of at least 1
+            sessions: ActiveLpSessions::new(mpsc::channel(1).0),
             clients: ClientRegistry::from_iter(clients),
             metrics: NymNodeMetrics::default(),
             shutdown_token: ShutdownToken::new(),

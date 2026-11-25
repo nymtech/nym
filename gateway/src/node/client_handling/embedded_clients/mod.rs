@@ -6,12 +6,13 @@ use crate::node::client_handling::websocket::message_receiver::{
 };
 use futures::StreamExt;
 use nym_network_requester::{GatewayPacketRouter, PacketRouter};
-use nym_service_providers_common::lp::ServiceProviderInputSender;
+use nym_service_providers_common::embedded::ProviderInputSender;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::ClientAddress;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use std::collections::HashMap;
+use std::sync::mpsc::TrySendError;
 use tracing::{debug, error, trace};
 
 #[derive(Debug)]
@@ -24,38 +25,18 @@ pub struct LocalEmbeddedClientHandle {
     /// Carries **plaintext**: the gateway is the last sphinx hop on the legacy path, so it peels
     /// before handing anything over.
     pub(crate) mix_message_sender: MixMessageSender,
-
-    /// Where sphinx packets go: what arrives for this provider over LP.
-    ///
-    /// A second channel rather than a second use of the one above, because the two carry different
-    /// things: on LP the *provider* is the last sphinx hop, so what arrives is still wrapped. Both
-    /// are live at once - a provider is reachable by legacy clients either way.
-    pub(crate) lp_input_sender: ServiceProviderInputSender,
 }
 
 impl LocalEmbeddedClientHandle {
-    pub(crate) fn new(
-        address: Recipient,
-        mix_message_sender: MixMessageSender,
-        lp_input_sender: ServiceProviderInputSender,
-    ) -> Self {
+    pub(crate) fn new(address: Recipient, mix_message_sender: MixMessageSender) -> Self {
         Self {
             address,
             mix_message_sender,
-            lp_input_sender,
         }
     }
 
     pub(crate) fn client_destination(&self) -> DestinationAddressBytes {
         self.address.identity().derive_destination_address()
-    }
-
-    /// How the LP data plane addresses this client.
-    ///
-    /// Covers the encryption key as well as the identity, unlike [`Self::client_destination`] -
-    /// neither derives from the other, so a client reachable by both has to be indexed under both.
-    pub(crate) fn client_address(&self) -> ClientAddress {
-        ClientAddress::from_keys(self.address.identity(), self.address.encryption_key())
     }
 }
 
@@ -66,14 +47,24 @@ impl LocalEmbeddedClientHandle {
 /// built once at startup and never mutated - a plain map, with no locking on the packet path.
 #[derive(Default)]
 pub struct EmbeddedServiceProviders {
-    by_address: HashMap<ClientAddress, ServiceProviderInputSender>,
+    by_address: HashMap<ClientAddress, ProviderInputSender>,
 }
 
 impl EmbeddedServiceProviders {
-    pub(crate) fn new(providers: HashMap<ClientAddress, ServiceProviderInputSender>) -> Self {
+    #[cfg(test)]
+    fn new(providers: HashMap<ClientAddress, ProviderInputSender>) -> Self {
         EmbeddedServiceProviders {
             by_address: providers,
         }
+    }
+
+    /// Index a provider under the address the LP data plane reaches it by.
+    ///
+    /// Covers the encryption key as well as the identity, unlike the legacy path's destination -
+    /// neither derives from the other.
+    pub fn insert(&mut self, address: Recipient, to_provider: ProviderInputSender) {
+        let client = ClientAddress::from_keys(address.identity(), address.encryption_key());
+        self.by_address.insert(client, to_provider);
     }
 
     /// Whether this node hosts `client` itself.
@@ -85,19 +76,35 @@ impl EmbeddedServiceProviders {
         self.by_address.contains_key(&client)
     }
 
-    /// Hand a sphinx packet to the provider, which is the hop it is addressed to, returning whether
-    /// it accepted it.
-    ///
-    /// The channel is the current mechanism, not the contract: when providers move to their own
-    /// process this becomes some form of IPC, and only this method changes. The sender is
-    /// deliberately not handed out for that reason.
-    pub fn deliver_sp_payload(&self, client: ClientAddress, packet: Vec<u8>) -> bool {
+    /// Hand a sphinx packet to the provider, which is the hop it is addressed to.
+    pub fn deliver_sp_payload(
+        &self,
+        client: ClientAddress,
+        packet: Vec<u8>,
+    ) -> Result<(), SpDeliveryError> {
         let Some(sender) = self.by_address.get(&client) else {
-            return false;
+            return Err(SpDeliveryError::NotHosted);
         };
 
-        sender.try_send(packet).is_ok()
+        sender.try_send(packet).map_err(|err| match err {
+            TrySendError::Full(_) => SpDeliveryError::Full,
+            TrySendError::Disconnected(_) => SpDeliveryError::Gone,
+        })
     }
+}
+
+/// Why a packet could not be handed to a provider this node hosts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpDeliveryError {
+    /// This node hosts no provider at that address.
+    NotHosted,
+
+    /// The provider is behind: its queue is full, and the packet is dropped as it would be at a
+    /// full socket.
+    Full,
+
+    /// The provider has stopped taking packets.
+    Gone,
 }
 
 // we could have just passed a `PacketRouter` around instead of creating a dedicated task for
@@ -153,7 +160,7 @@ impl MessageRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_service_providers_common::lp::PROVIDER_CHANNEL_DEPTH;
+    use nym_service_providers_common::embedded::PROVIDER_CHANNEL_DEPTH;
 
     fn client(n: u8) -> ClientAddress {
         ClientAddress::from_bytes([n; 20])
@@ -168,9 +175,13 @@ mod tests {
         assert!(providers.hosts(client(1)));
         assert!(!providers.hosts(client(2)));
 
-        assert!(providers.deliver_sp_payload(client(1), b"mine".to_vec()));
-        assert!(
-            !providers.deliver_sp_payload(client(2), b"not mine".to_vec()),
+        assert_eq!(
+            providers.deliver_sp_payload(client(1), b"mine".to_vec()),
+            Ok(())
+        );
+        assert_eq!(
+            providers.deliver_sp_payload(client(2), b"not mine".to_vec()),
+            Err(SpDeliveryError::NotHosted),
             "a client we do not host must not be reported as delivered"
         );
 
@@ -189,6 +200,25 @@ mod tests {
         drop(receiver);
 
         assert!(providers.hosts(client(1)));
-        assert!(!providers.deliver_sp_payload(client(1), b"nobody home".to_vec()));
+        assert_eq!(
+            providers.deliver_sp_payload(client(1), b"nobody home".to_vec()),
+            Err(SpDeliveryError::Gone)
+        );
+    }
+
+    /// A provider that is only behind is told apart from one that has gone.
+    #[test]
+    fn a_full_provider_is_not_reported_gone() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(1);
+        let providers = EmbeddedServiceProviders::new(HashMap::from([(client(1), sender)]));
+
+        assert_eq!(
+            providers.deliver_sp_payload(client(1), b"fits".to_vec()),
+            Ok(())
+        );
+        assert_eq!(
+            providers.deliver_sp_payload(client(1), b"does not".to_vec()),
+            Err(SpDeliveryError::Full)
+        );
     }
 }

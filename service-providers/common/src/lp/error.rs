@@ -10,12 +10,6 @@ use thiserror::Error;
 /// same process.
 #[derive(Debug, Error)]
 pub enum LpProviderError {
-    #[error("the sphinx packet could not be peeled: {0}")]
-    Peel(String),
-
-    #[error("the gateway is no longer taking frames from this provider")]
-    GatewayGone,
-
     #[error("could not read the {provider} keys its LP pipelines peel with: {source}")]
     UnreadableKeys {
         provider: &'static str,

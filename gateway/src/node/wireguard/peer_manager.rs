@@ -345,7 +345,6 @@ impl PeerManager {
 mod tests {
     use super::*;
     use crate::node::wireguard::PeerRegistrator;
-    use crate::nym_authenticator::config::Authenticator;
     use defguard_wireguard_rs::net::IpAddrMask;
     use nym_credential_verification::upgrade_mode::testing::mock_dummy_upgrade_mode_details;
     use nym_credential_verification::{
@@ -354,9 +353,14 @@ mod tests {
     use nym_credentials_interface::Bandwidth;
     use nym_crypto::asymmetric::x25519::KeyPair;
     use nym_gateway_storage::traits::{mock::MockGatewayStorage, BandwidthGatewayStorage};
+    use nym_network_defaults::{
+        WG_METADATA_PORT, WG_TUNNEL_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6,
+        WG_TUN_DEVICE_NETMASK_V4, WG_TUN_DEVICE_NETMASK_V6,
+    };
     use nym_task::ShutdownManager;
     use nym_test_utils::helpers::{deterministic_rng, DeterministicRng, Rng010};
     use nym_wireguard::peer_controller::{start_controller, stop_controller};
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::{str::FromStr, sync::Arc};
     use time::{Duration, OffsetDateTime};
     use tokio::sync::RwLock;
@@ -435,6 +439,19 @@ mod tests {
         task_manager: ShutdownManager,
     }
 
+    /// What a node runs wireguard with by default.
+    fn mock_wireguard_config() -> nym_wireguard_types::Config {
+        nym_wireguard_types::Config {
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_TUNNEL_PORT),
+            private_ipv4: WG_TUN_DEVICE_IP_ADDRESS_V4,
+            private_ipv6: WG_TUN_DEVICE_IP_ADDRESS_V6,
+            announced_tunnel_port: WG_TUNNEL_PORT,
+            announced_metadata_port: WG_METADATA_PORT,
+            private_network_prefix_v4: WG_TUN_DEVICE_NETMASK_V4,
+            private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
+        }
+    }
+
     struct GeneratedPeer {
         peer: Peer,
         client_id: i64,
@@ -450,7 +467,7 @@ mod tests {
         fn new() -> TestSetup {
             let mut rng = deterministic_rng();
             let (wireguard_data, request_rx) = WireguardGatewayData::new(
-                Authenticator::default().into(),
+                mock_wireguard_config(),
                 Arc::new(KeyPair::new(&mut rng)),
             );
 

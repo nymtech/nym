@@ -549,18 +549,13 @@ impl NodeDetails {
             address: self.exit_ip_packet_router_address().to_string(),
         };
 
-        let auth_details = api_requests::v1::authenticator::models::Authenticator {
-            encoded_identity_key: self.service_providers.auth_ed25519.to_base58_string(),
-            encoded_x25519_key: self.service_providers.auth_x25519.to_base58_string(),
-            address: self.exit_authenticator_address().to_string(),
-        };
-
+        // no authenticator details: the authenticator service provider is not started, and
+        // wireguard peers register over LP
         http_config
             .with_mixnode_details(mixnode_details)
             .with_gateway_details(gateway_details)
             .with_network_requester_details(nr_details)
             .with_ip_packet_router_details(ipr_details)
-            .with_authenticator_details(auth_details)
     }
 
     pub(crate) fn build_http_app_static_node_information(
@@ -647,9 +642,8 @@ impl NodeDetails {
             internet_packet_router: Some(nym_directory_types::InternetPacketRouter {
                 address: self.exit_ip_packet_router_address().to_bytes().to_vec(),
             }),
-            authenticator: Some(nym_directory_types::Authenticator {
-                address: self.exit_authenticator_address().to_bytes().to_vec(),
-            }),
+            // the authenticator service provider is not started
+            authenticator: None,
         }
     }
 

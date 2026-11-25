@@ -9,11 +9,10 @@ use std::{
 };
 
 use nym_ip_packet_requests::IpPair;
+use nym_sdk::mixnet::AnonymousSenderTag;
 use tokio::sync::{RwLock, mpsc, oneshot};
 
 use crate::{constants::CLIENT_MIXNET_INACTIVITY_TIMEOUT, tun_listener};
-
-use super::ConnectedClientId;
 
 pub(crate) struct ConnectedClients {
     // The set of connected clients
@@ -44,13 +43,13 @@ impl ConnectedClients {
         }
     }
 
-    pub(crate) fn is_client_connected(&self, client_id: &ConnectedClientId) -> bool {
+    pub(crate) fn is_client_connected(&self, client_id: &AnonymousSenderTag) -> bool {
         self.clients_ipv4_mapping
             .values()
             .any(|client| client.client_id == *client_id)
     }
 
-    pub(crate) fn disconnect_client(&mut self, client_id: &ConnectedClientId) {
+    pub(crate) fn disconnect_client(&mut self, client_id: &AnonymousSenderTag) {
         if let Some(ips) = self.lookup_ip_from_client_id(client_id) {
             log::debug!("Disconnect client that requested to do so: {ips}");
             self.disconnect_client_handle(ips);
@@ -68,7 +67,10 @@ impl ConnectedClients {
             .ok();
     }
 
-    pub(crate) fn lookup_ip_from_client_id(&self, client_id: &ConnectedClientId) -> Option<IpPair> {
+    pub(crate) fn lookup_ip_from_client_id(
+        &self,
+        client_id: &AnonymousSenderTag,
+    ) -> Option<IpPair> {
         self.clients_ipv4_mapping
             .iter()
             .find_map(|(ipv4, connected_client)| {
@@ -81,7 +83,7 @@ impl ConnectedClients {
     }
 
     #[allow(unused)]
-    fn lookup_client(&self, client_id: &ConnectedClientId) -> Option<&ConnectedClient> {
+    fn lookup_client(&self, client_id: &AnonymousSenderTag) -> Option<&ConnectedClient> {
         self.clients_ipv4_mapping
             .values()
             .find(|connected_client| connected_client.client_id == *client_id)
@@ -90,7 +92,7 @@ impl ConnectedClients {
     pub(crate) fn connect(
         &mut self,
         ips: IpPair,
-        client_id: ConnectedClientId,
+        client_id: AnonymousSenderTag,
         forward_from_tun_tx: mpsc::UnboundedSender<Vec<u8>>,
         close_tx: oneshot::Sender<()>,
         handle: tokio::task::JoinHandle<()>,
@@ -98,7 +100,7 @@ impl ConnectedClients {
         // The map of connected clients that the mixnet listener keeps track of. It monitors
         // activity and disconnects clients that have been inactive for too long.
         let client = ConnectedClient {
-            client_id: client_id.clone(),
+            client_id,
             ipv6: ips.ipv6,
             last_activity: Arc::new(RwLock::new(Instant::now())),
             close_tx: Arc::new(CloseTx {
@@ -126,14 +128,14 @@ impl ConnectedClients {
     }
 
     // Identify connected client handlers that have stopped without being told to stop
-    pub(crate) fn get_finished_client_handlers(&mut self) -> Vec<(IpPair, ConnectedClientId)> {
+    pub(crate) fn get_finished_client_handlers(&mut self) -> Vec<(IpPair, AnonymousSenderTag)> {
         self.clients_ipv4_mapping
             .iter_mut()
             .filter_map(|(ip, connected_client)| {
                 if connected_client.handle.is_finished() {
                     Some((
                         IpPair::new(*ip, connected_client.ipv6),
-                        connected_client.client_id.clone(),
+                        connected_client.client_id,
                     ))
                 } else {
                     None
@@ -142,7 +144,7 @@ impl ConnectedClients {
             .collect()
     }
 
-    pub(crate) async fn get_inactive_clients(&mut self) -> Vec<(IpPair, ConnectedClientId)> {
+    pub(crate) async fn get_inactive_clients(&mut self) -> Vec<(IpPair, AnonymousSenderTag)> {
         let now = Instant::now();
         let mut ret = vec![];
         for (ip, connected_client) in self.clients_ipv4_mapping.iter() {
@@ -151,7 +153,7 @@ impl ConnectedClients {
             {
                 ret.push((
                     IpPair::new(*ip, connected_client.ipv6),
-                    connected_client.client_id.clone(),
+                    connected_client.client_id,
                 ))
             }
         }
@@ -160,7 +162,7 @@ impl ConnectedClients {
 
     pub(crate) fn disconnect_stopped_client_handlers(
         &mut self,
-        stopped_clients: Vec<(IpPair, ConnectedClientId)>,
+        stopped_clients: Vec<(IpPair, AnonymousSenderTag)>,
     ) {
         for (ips, _) in &stopped_clients {
             log::info!("Disconnect stopped client: {ips}");
@@ -170,7 +172,7 @@ impl ConnectedClients {
 
     pub(crate) fn disconnect_inactive_clients(
         &mut self,
-        inactive_clients: Vec<(IpPair, ConnectedClientId)>,
+        inactive_clients: Vec<(IpPair, AnonymousSenderTag)>,
     ) {
         for (ips, _) in &inactive_clients {
             log::info!("Disconnect inactive client: {ips}");
@@ -187,8 +189,7 @@ impl ConnectedClients {
 }
 
 pub(crate) struct CloseTx {
-    // pub(crate) nym_address: Recipient,
-    pub(crate) client_id: ConnectedClientId,
+    pub(crate) client_id: AnonymousSenderTag,
     // Send to connected clients listener to stop. This is option only because we need to take
     // ownership of it when the client is dropped.
     pub(crate) inner: Option<oneshot::Sender<()>>,
@@ -198,8 +199,7 @@ pub(crate) struct CloseTx {
 pub(crate) struct ConnectedClient {
     // The nym address of the connected client that we are communicating with on the other side of
     // the mixnet
-    // pub(crate) nym_address: Recipient,
-    pub(crate) client_id: ConnectedClientId,
+    pub(crate) client_id: AnonymousSenderTag,
 
     // The assigned IPv6 address of this client
     pub(crate) ipv6: Ipv6Addr,

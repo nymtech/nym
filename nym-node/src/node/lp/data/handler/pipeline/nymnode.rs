@@ -3,6 +3,7 @@
 
 use std::{net::SocketAddr, sync::Arc, time::Instant};
 
+use nym_gateway::node::SpDeliveryError;
 use nym_lp_data::{
     AddressedTimedData, PipelinePayload, TimedData, TimedPayload,
     common::traits::{Framing, FramingUnwrap, Transport, TransportUnwrap},
@@ -135,19 +136,29 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress> for NymNo
                     // final hop, so it is the one holding the key to peel it. The last-hop delay
                     // goes unhonoured, which costs nothing: it is a by-product of the sender
                     // choosing a route, not something this delivery owes anybody.
-                    if self
+                    match self
                         .gateway_state
                         .service_providers
                         .deliver_sp_payload(client_address, packet_to_forward.data.data)
                     {
-                        self.state.internal_sp_routed();
-                    } else {
-                        warn!(
-                            event = "packet.dropped.service_provider_undeliverable",
-                            client = %client_address,
-                            "dropping packet: the service provider is no longer accepting packets"
-                        );
-                        self.state.internal_sp_undeliverable();
+                        Ok(()) => self.state.internal_sp_routed(),
+                        Err(SpDeliveryError::Full) => {
+                            warn!(
+                                event = "packet.dropped.service_provider_full",
+                                client = %client_address,
+                                "dropping packet: the service provider is not keeping up"
+                            );
+                            self.state.internal_sp_undeliverable();
+                        }
+                        // not hosted is unreachable: checked just above, on a map fixed at startup
+                        Err(SpDeliveryError::Gone | SpDeliveryError::NotHosted) => {
+                            warn!(
+                                event = "packet.dropped.service_provider_undeliverable",
+                                client = %client_address,
+                                "dropping packet: the service provider is no longer accepting packets"
+                            );
+                            self.state.internal_sp_undeliverable();
+                        }
                     }
                     Vec::new()
                 } else {

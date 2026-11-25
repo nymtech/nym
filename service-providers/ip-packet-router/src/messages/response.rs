@@ -9,18 +9,16 @@ use nym_ip_packet_requests::{
     IpPair, v8::response::IpPacketResponse as IpPacketResponseV8,
     v10::response::IpPacketResponse as IpPacketResponseV10,
 };
+use nym_sdk::mixnet::AnonymousSenderTag;
 
-use crate::{
-    clients::ConnectedClientId,
-    error::{IpPacketRouterError, Result},
-};
+use crate::error::{IpPacketRouterError, Result};
 
 use super::ClientVersion;
 
 #[derive(Debug)]
 pub(crate) struct VersionedResponse {
     pub(crate) version: ClientVersion,
-    pub(crate) reply_to: ConnectedClientId,
+    pub(crate) reply_to: AnonymousSenderTag,
     pub(crate) response: Response,
 }
 

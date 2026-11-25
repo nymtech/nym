@@ -5,7 +5,7 @@ use nym_sdk::mixnet::InputMessage;
 use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, RequestVersion,
 };
-use nym_service_providers_common::lp::handler::outbound::ServiceProviderReply;
+use nym_service_providers_common::lp::handler::outbound::{ReplyTarget, ServiceProviderReply};
 use nym_socks5_requests::{
     ConnectionId, SocketData, Socks5ProviderRequest, Socks5ProviderResponse, Socks5Request,
     Socks5RequestContent, Socks5Response, Socks5ResponseContent,
@@ -157,13 +157,13 @@ impl MixnetMessage {
         match self.address {
             MixnetAddress::Lewes(recipient) => OutgoingMessage::Lewes(ServiceProviderReply {
                 data: self.data,
-                recipient: *recipient,
+                to: ReplyTarget::Recipient(recipient),
             }),
-            address => OutgoingMessage::Mixnet(address.send_back_to(
+            address => OutgoingMessage::Mixnet(Box::new(address.send_back_to(
                 self.data,
                 self.connection_id,
                 packet_type,
-            )),
+            ))),
         }
     }
 }
@@ -171,7 +171,7 @@ impl MixnetMessage {
 /// A reply on its way out, and the path it takes.
 pub(crate) enum OutgoingMessage {
     /// Through the mixnet client.
-    Mixnet(InputMessage),
+    Mixnet(Box<InputMessage>),
 
     /// Straight to the gateway hosting us, over the channel between the two.
     Lewes(ServiceProviderReply),

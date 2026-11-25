@@ -4,10 +4,7 @@
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket;
-use crate::node::internal_service_providers::authenticator::Authenticator;
-use crate::node::internal_service_providers::{
-    authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
-};
+use crate::node::internal_service_providers::{ExitServiceProviders, ServiceProviderBeingBuilt};
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use crate::node::wireguard::{PeerManager, PeerRegistrator};
 use futures::channel::oneshot;
@@ -29,7 +26,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
-use nym_service_providers_common::mode::HostedProvidersLp;
+use nym_service_providers_common::embedded::ProviderOutputSender;
 use nym_task::ShutdownTracker;
 use nym_topology::TopologyProvider;
 use nym_validator_client::nyxd::AccountId;
@@ -43,7 +40,7 @@ use tracing::*;
 pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use client_handling::client_registry::ClientRegistry;
-pub use client_handling::embedded_clients::EmbeddedServiceProviders;
+pub use client_handling::embedded_clients::{EmbeddedServiceProviders, SpDeliveryError};
 pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
@@ -124,13 +121,6 @@ pub struct LocalIpPacketRouterOpts {
     pub custom_mixnet_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone)]
-pub struct LocalAuthenticatorOpts {
-    pub config: authenticator::Config,
-
-    pub custom_mixnet_path: Option<PathBuf>,
-}
-
 pub struct GatewayTasksBuilder {
     config: Config,
 
@@ -140,9 +130,6 @@ pub struct GatewayTasksBuilder {
 
     ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
 
-    authenticator_opts: Option<LocalAuthenticatorOpts>,
-
-    // TODO: combine with authenticator, since you have to start both
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
     user_agent: UserAgent,
@@ -174,13 +161,6 @@ pub struct GatewayTasksBuilder {
     wireguard_peers: Option<Vec<defguard_wireguard_rs::host::Peer>>,
 
     wireguard_networks: Option<Vec<IpAddr>>,
-
-    /// What every provider this node hosts is given for its LP data plane.
-    ///
-    /// One topology accessor and one refresher for all of them, rather than one each: route
-    /// selection is a wait-free read, so sharing costs nothing and refreshing once costs a great
-    /// deal less than refreshing per provider.
-    hosted_lp: HostedProvidersLp,
 }
 
 impl GatewayTasksBuilder {
@@ -198,14 +178,12 @@ impl GatewayTasksBuilder {
         upgrade_mode_state: UpgradeModeState,
         use_mock_ecash: bool,
         shutdown_tracker: ShutdownTracker,
-        hosted_lp: HostedProvidersLp,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
             config,
             network,
             network_requester_opts: None,
             ip_packet_router_opts: None,
-            authenticator_opts: None,
             wireguard_data: None,
             user_agent,
             identity_keypair: identity,
@@ -220,7 +198,6 @@ impl GatewayTasksBuilder {
             ecash_manager: None,
             wireguard_peers: None,
             wireguard_networks: None,
-            hosted_lp,
         }
     }
 
@@ -236,10 +213,6 @@ impl GatewayTasksBuilder {
         ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
     ) {
         self.ip_packet_router_opts = ip_packet_router_opts;
-    }
-
-    pub fn set_authenticator_opts(&mut self, authenticator_opts: Option<LocalAuthenticatorOpts>) {
-        self.authenticator_opts = authenticator_opts;
     }
 
     pub fn set_wireguard_data(&mut self, wireguard_data: nym_wireguard::WireguardData) {
@@ -382,22 +355,17 @@ impl GatewayTasksBuilder {
     fn build_network_requester(
         &mut self,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        lp_topology: LpTopologyAccessor,
+        to_node: ProviderOutputSender,
     ) -> Result<ServiceProviderBeingBuilt<NRServiceProviderBuilder>, GatewayError> {
         // if network requester is enabled, configuration file must be provided!
         let Some(nr_opts) = &self.network_requester_opts else {
             return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
         };
 
-        let mut message_router_builder = SpMessageRouterBuilder::new(
-            *self.identity_keypair.public_key(),
-            self.mix_packet_sender.clone(),
-        );
-        let embedded = message_router_builder.embedded_setup(&self.hosted_lp);
-
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut nr_builder =
             NRServiceProviderBuilder::new(nr_opts.config.clone(), self.shutdown_tracker.clone())
-                .with_embedded(embedded)
                 .with_wait_for_gateway(true)
                 .with_wait_for_initial_topology(true)
                 .with_minimum_gateway_performance(0)
@@ -411,7 +379,11 @@ impl GatewayTasksBuilder {
         Ok(ServiceProviderBeingBuilt::new(
             on_start_rx,
             nr_builder,
-            message_router_builder,
+            *self.identity_keypair.public_key(),
+            self.mix_packet_sender.clone(),
+            lp_topology,
+            self.config.debug.sp_inbound_workers,
+            to_node,
             self.shutdown_tracker.clone(),
         ))
     }
@@ -419,21 +391,16 @@ impl GatewayTasksBuilder {
     fn build_ip_router(
         &mut self,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        lp_topology: LpTopologyAccessor,
+        to_node: ProviderOutputSender,
     ) -> Result<ServiceProviderBeingBuilt<IpPacketRouter>, GatewayError> {
         let Some(ip_opts) = &self.ip_packet_router_opts else {
             return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
         };
 
-        let mut message_router_builder = SpMessageRouterBuilder::new(
-            *self.identity_keypair.public_key(),
-            self.mix_packet_sender.clone(),
-        );
-        let embedded = message_router_builder.embedded_setup(&self.hosted_lp);
-
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut ip_packet_router =
             IpPacketRouter::new(ip_opts.config.clone(), self.shutdown_tracker.clone())
-                .with_embedded(embedded)
                 .with_wait_for_gateway(true)
                 .with_wait_for_initial_topology(true)
                 .with_minimum_gateway_performance(0)
@@ -447,7 +414,11 @@ impl GatewayTasksBuilder {
         Ok(ServiceProviderBeingBuilt::new(
             on_start_rx,
             ip_packet_router,
-            message_router_builder,
+            *self.identity_keypair.public_key(),
+            self.mix_packet_sender.clone(),
+            lp_topology,
+            self.config.debug.sp_inbound_workers,
+            to_node,
             self.shutdown_tracker.clone(),
         ))
     }
@@ -458,10 +429,16 @@ impl GatewayTasksBuilder {
         // (or use concrete types)
         nr_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         ipr_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        lp_topology: LpTopologyAccessor,
+        to_node: ProviderOutputSender,
     ) -> Result<ExitServiceProviders, GatewayError> {
         Ok(ExitServiceProviders {
-            network_requester: self.build_network_requester(nr_topology_provider)?,
-            ip_router: self.build_ip_router(ipr_topology_provider)?,
+            network_requester: self.build_network_requester(
+                nr_topology_provider,
+                lp_topology.clone(),
+                to_node.clone(),
+            )?,
+            ip_router: self.build_ip_router(ipr_topology_provider, lp_topology, to_node)?,
         })
     }
 
@@ -501,55 +478,6 @@ impl GatewayTasksBuilder {
 
         self.wireguard_networks = Some(used_private_network_ips);
         Ok(peers)
-    }
-
-    pub async fn build_wireguard_authenticator(
-        &mut self,
-        peer_registrator: PeerRegistrator,
-        upgrade_mode_common: UpgradeModeDetails,
-        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
-    ) -> Result<ServiceProviderBeingBuilt<Authenticator>, GatewayError> {
-        let Some(opts) = &self.authenticator_opts else {
-            return Err(GatewayError::UnspecifiedAuthenticatorConfig);
-        };
-        let Some(wireguard_data) = &self.wireguard_data else {
-            return Err(GatewayError::InternalWireguardError(
-                "wireguard not set".to_string(),
-            ));
-        };
-
-        let mut message_router_builder = SpMessageRouterBuilder::new(
-            *self.identity_keypair.public_key(),
-            self.mix_packet_sender.clone(),
-        );
-        let embedded = message_router_builder.embedded_setup(&self.hosted_lp);
-
-        let (on_start_tx, on_start_rx) = oneshot::channel();
-
-        let mut authenticator_server = Authenticator::new(
-            opts.config.clone(),
-            peer_registrator,
-            upgrade_mode_common,
-            wireguard_data.inner.clone(),
-            embedded,
-            self.shutdown_tracker.clone(),
-        )
-        .with_wait_for_gateway(true)
-        .with_wait_for_initial_topology(true)
-        .with_minimum_gateway_performance(0)
-        .with_custom_topology_provider(topology_provider)
-        .with_on_start(on_start_tx);
-
-        if let Some(custom_mixnet) = &opts.custom_mixnet_path {
-            authenticator_server = authenticator_server.with_stored_topology(custom_mixnet)?
-        }
-
-        Ok(ServiceProviderBeingBuilt::new(
-            on_start_rx,
-            authenticator_server,
-            message_router_builder,
-            self.shutdown_tracker.clone(),
-        ))
     }
 
     pub fn build_stale_messages_cleaner(&self) -> StaleMessagesCleaner {

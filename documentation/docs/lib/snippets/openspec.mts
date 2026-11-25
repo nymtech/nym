@@ -1,4 +1,4 @@
-// OpenSpec adapter (D15, tasks 7.1 and 7.1b): one statement record for each
+// OpenSpec adapter: one statement record for each
 // requirement block in openspec/specs/<spec>/spec.md.
 //
 //   node lib/snippets/openspec.mts     print the counts by level and status

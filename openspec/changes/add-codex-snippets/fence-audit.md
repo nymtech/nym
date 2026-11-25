@@ -31,9 +31,9 @@ Date: 2026-10-16. Source: `codex/content/specifications/nym-network/technical-de
 
 Totals: 12 whole and current, 7 elided, 2 part of a body, 2 with two items, 1 formula.
 
-Effect on the plan:
+Effect on the design:
 
-- An elided fence becomes the whole item after the citation, so the page shows more lines than today (7 fences). The plan accepts this (D5); the PR of task 2.9 lists each one.
+- An elided fence becomes the whole item after the citation, so the page shows more lines than today (7 fences). The design accepts this (D5); the PR of task 2.9 lists each one.
 - Qualifier cases for task 2.3: a method in an `impl` block (`Type::method`), the same method name in three impls of one file (row 17), a trait method in a trait definition (row 4), a module (row 24), two items with one name in two files of one crate (row 2/3, solved by the file path).
 - The two part-of-a-body fences (rows 5, 11) wait for P21. Its recommendation is to cite the whole function: `build_dvpn_gateway_list` is 131 lines, so for row 5 a fence that stays may serve the reader better.
 - Row 17 shows a condition that looks wrong in the source: `if env.block.time.seconds() > self.period_duration_secs` compares a timestamp with a duration, so it is true for any real block time. The fence copies it as it is. This is not a docs fault; it is for the contract owner to check.

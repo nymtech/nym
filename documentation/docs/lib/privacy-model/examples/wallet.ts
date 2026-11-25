@@ -1,13 +1,13 @@
 // Worked example: wallet block-sync (the Zcash / lightwalletd case).
 //
 // Instantiates the generic threat-model spine (../threat-model) with the
-// application-specific parts that decision D1 demoted out of the spine:
+// application-specific parts that the spine leaves out:
 //  - an L1 "chain-only observer" actor (public on-chain data);
 //  - the invariants a wallet must hold (identity↔balance, tx grouping);
 //  - the concrete scenarios, whose destination node renders as "lightwalletd".
 //
 // Content reconciled from Claudia Diaz's note and the original Zcash scenario
-// doc (https://nymtech.atlassian.net/wiki/spaces/KB/pages/899907585/zcash).
+// doc.
 
 import type { Invariant, MatrixCell, Scenario, ThreatActor, Tri } from "../types";
 

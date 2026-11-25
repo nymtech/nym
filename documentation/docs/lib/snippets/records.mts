@@ -28,7 +28,7 @@ const RELS: ReadonlySet<string> = new Set<RefRel>(['cites', 'relates-to', 'depen
 const isRel = (x: unknown): x is RefRel => typeof x === 'string' && RELS.has(x);
 // The indexer splits a chunk at this size, so a body over it is more than one chunk.
 const MAX_BODY = 2400;
-// Wrapper elements a page may hold, by Diataxis type (D17).
+// Wrapper elements a page may hold, by Diataxis type.
 const WRAPPERS: ReadonlyMap<unknown, ReadonlySet<string>> = new Map([['how-to', new Set(['Steps'])], ['tutorial', new Set(['Steps'])]]);
 
 const LINK = /\]\(snippet:([^)\s]+)\)/g;
@@ -235,7 +235,7 @@ export function buildRecords(repo: Repo, { code = new Map(), failed = new Set(),
       else refs.push({ id: ref.id, rel: ref.rel });
     }
 
-    // The JSX elements the body renders, which each site that shows it must give (D18).
+    // The JSX elements the body renders, which each site that shows it must give.
     // Inline code is not JSX, so `<PATH>` in backticks is not a component.
     const components = [...new Set(lines.flatMap((l) => [...l.line.replace(/`[^`]*`/g, '').matchAll(/<([A-Z][\w]*)[\s/>.]/g)].flatMap((m) => m[1] ?? [])))].filter((c) => c !== 'Snippet').sort();
     info.set(id, { anchor, fmTitle: headings.length === 0 ? fmTitle ?? null : null, links, where, components });
@@ -296,7 +296,7 @@ interface PageCheckInput {
 }
 
 /**
- * The page check (D9): a page holds frontmatter, one `# ` line, snippet
+ * The page check: a page holds frontmatter, one `# ` line, snippet
  * imports, one tag for each import, and the wrapper its archetype names.
  */
 function checkPages(repo: Repo, { kinds, info, errors, warnings }: PageCheckInput): CheckedPage[] {
@@ -315,7 +315,7 @@ function checkPages(repo: Repo, { kinds, info, errors, warnings }: PageCheckInpu
       const offset: number = frontmatterLines(raw, content);
       const imports = snippetImports(content).map((i) => ({ ...i, line: i.line + offset }));
       // On a site split in place, a page that imports no snippet is a whole page
-      // that is not split yet (D18), not a fault. A page under CODEX_DIR is always checked.
+      // that is not split yet, not a fault. A page under CODEX_DIR is always checked.
       if (imports.length === 0 && !conf.pages.startsWith(`${CODEX_DIR}/`)) continue;
       const own = imports.filter((i) => i.id.startsWith(`${repo.repo}/`));
       for (const i of imports) if (!own.includes(i)) warnings.push(`${where}:${i.line}: ${i.id} is from another repository; the codex build checks it`);
@@ -418,7 +418,7 @@ export async function buildAll(repo: Repo): Promise<AllRecords> {
   const warnings = [...built.warnings, ...model.warnings.map((w) => `threat model: ${w}`)];
   const all = [...built.prose, ...requirements.records, ...built.diagram, ...built.code, ...model.records];
   errors.push(...applyEdges(loadEdges(repo), all));
-  // Inline source paths: a warning until stage 2 ends (D14).
+  // A missing inline source path is a warning.
   const paths = checkPaths(built.prose.map((p) => path.join(repo.root, p.path)), repo.root);
   for (const [p, where] of paths.missing) warnings.push(`${where[0]}: inline path ${p} does not exist${where.length > 1 ? ` (and ${where.length - 1} more)` : ''}`);
   return { ...built, requirement: requirements.records, model: model.records, errors, warnings, paths };
@@ -435,7 +435,7 @@ async function main(argv: string[]): Promise<void> {
   const links = prose.flatMap((p) => p.refs.filter((r) => r.rel === 'relates-to')).length;
   console.log(`${counts.pages} pages, ${counts.snippets} prose snippets, ${counts.diagrams} diagrams, ${counts.code} code items, ${model.length} model records, ${requirement.length} requirements`);
   console.log(`snippet: links ${links}; inline paths ${paths.distinct - paths.missing.size} of ${paths.distinct} exist`);
-  // The standalone lint is a count until stage 3 ends (task 4b.4); `standalone.mts --list` names each fault.
+  // The standalone lint is a count, not an error; `standalone.mts --list` names each fault.
   const standalone = lintSnippets(repo.snippets);
   const clean = standalone.filter((r) => r.faults.length === 0).length;
   console.log(`standalone: ${clean} of ${standalone.length} prose snippets have no fault (standalone.mts --list names the rest)`);

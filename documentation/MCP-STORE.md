@@ -1,10 +1,10 @@
 # The public retrieval store
 
-This page explains the planned move of the MCP server's index from files in the function bundle to a Postgres store. It also explains what the index holds today, how embedding works, how an agent uses the tools, and why the move needs a database. It is for contributors who change the retrieval pipeline or the `/api/mcp` route, and for whoever runs the store.
+This page explains the Postgres store that holds the MCP server's index, and the files in the function bundle that it replaces. It also explains what the index holds, how embedding works, how an agent uses the tools, and why the index needs a database. It is for contributors who change the retrieval pipeline or the `/api/mcp` route, and for whoever runs the store.
 
-Status (2026-11-18): the read path (`/api/mcp` behind `MCP_RETRIEVAL_SOURCE`) and the write path (`cd-retrieval-store.yml` behind `RETRIEVAL_STORE_ENABLED`) are built, and both are off by default, so the route reads the bundled files. Not done: creating the store and switching both on (tasks 4.1, 5.2 and 5.3 of the OpenSpec change `add-shared-retrieval-index`). Until task 5.3, [`MCP-SERVER.md`](MCP-SERVER.md) describes the system that runs by default. To create the public store, follow [`MCP-STORE-SETUP.md`](MCP-STORE-SETUP.md). To run a store on your machine, follow [`MCP-STORE-LOCAL.md`](MCP-STORE-LOCAL.md).
+Status: production reads the store (`MCP_RETRIEVAL_SOURCE=store`), and nym CI writes it on each push to develop (`cd-retrieval-store.yml`, with `RETRIEVAL_STORE_ENABLED=1`). The docs build still makes and bundles the index files, so removing `MCP_RETRIEVAL_SOURCE` and redeploying returns the route to the bundle. [`MCP-SERVER.md`](MCP-SERVER.md) describes the bundle path. The public store is created with `bootstrap/init.sql` and the `store-migrate` workflow in [`nymtech/retrieval-indexer`](https://github.com/nymtech/retrieval-indexer). To run a store on your machine, follow [`MCP-STORE-LOCAL.md`](MCP-STORE-LOCAL.md).
 
-## What goes into the index today
+## What goes into the index
 
 Each docs build runs two generators. `generate-index.mjs` makes the docs index from the pages, and `generate-code-index.mjs` makes the code index from the source.
 
@@ -34,7 +34,7 @@ public/docs-index.json                            2,039 chunks
 
 So the MCP sees a snippet only as text inside a page section. A snippet has no row of its own, and a hit is always a page section with the page URL and the heading anchor. The snippet records (`lib/snippets/records.mts`: `prose.jsonl`, `code.jsonl` and the others) feed the codex push, the `ci-codex-snippets` checks and `benchmark.mts`. The MCP does not read them. `generate-page-markdown.mjs` inlines the snippets in the same way for the Markdown copy of each page (`/docs/<route>.md`), so an agent that fetches a page directly also sees the snippet text.
 
-Decision 12 of `add-shared-retrieval-index` changes this after the cutover: each snippet that has a record becomes one chunk, and the chunker keeps only the text that no record covers.
+A planned change: each snippet that has a record becomes one chunk, and the chunker keeps only the text that no record covers.
 
 ### Code: the source tree
 
@@ -50,7 +50,7 @@ assertNoSilentDrops, assertRootsYieldChunks: the build fails on an unknown
 public/code-index.json                            7,788 chunks, GitHub links at develop
 ```
 
-## How embedding works today
+## How embedding works
 
 ```
                      Nym side                       │  third party: Voyage AI
@@ -86,9 +86,11 @@ REQUEST TIME (/docs/api/mcp, a Vercel function      │
   top K: default 6, at most 20 ─► the agent         │
 ```
 
-The index and the query must use the same model, because vectors from two models are not comparable. The same `VOYAGE_API_KEY` serves the build and the route. So two kinds of text leave the Nym side: every changed chunk of the public docs and code at build time, and the query text of every search. Both are public or come from the agent; no private content is indexed on this side. The private side has its own embedding service and never calls Voyage (see "The private side"). The live tools (`network_summary`, `list_gateways` and the others) call the Nym API directly and use no index.
+The request-time part of the diagram is the bundle source. With the store, the route sends the query vector to Postgres and the scan runs there (see "How the MCP reads the store").
 
-## How an agent uses the tools today
+The index and the query must use the same model, because vectors from two models are not comparable. The same `VOYAGE_API_KEY` serves the build and the route. So two kinds of text leave the Nym side: every changed chunk of the public docs and code at build time, and the query text of every search. Both are public or come from the agent; no private content is indexed on this side. The live tools (`network_summary`, `list_gateways` and the others) call the Nym API directly and use no index.
+
+## How an agent uses the tools
 
 ```
 agent ──search_docs {query, topK}──► /docs/api/mcp
@@ -99,7 +101,7 @@ agent ──search_code {query, topK}──► code chunks, each with a GitHub l
 
 An agent usually calls `search_docs`, then `get_section` on a hit whose text it needs in full, and `search_code` for a question about the implementation. A hit on a split page holds the inlined snippet text and the inlined code, so the agent gets the same text that a reader sees on the page.
 
-## How the MCP reads today
+## How the bundle source reads
 
 The index files are not in git: `documentation/docs/.gitignore` excludes `public/docs-index.json` and `public/code-index.json`.
 
@@ -114,7 +116,7 @@ Vercel docs build (production builds from develop)
 
 ## Why the MCP needs a database
 
-The bundle works for one repository. The plan needs more than one producer and a private side, and the bundle cannot serve either.
+The bundle works for one repository, and the index has more than one producer.
 
 Measured on a local build of 2026-11-18, with the four shards that the local store holds:
 
@@ -131,7 +133,7 @@ The local store holds the same four shards in 143 MB, with the vectors as binary
 The reasons, most important first:
 
 1. **More than one producer writes the index.** A bundle holds only the index that its own build made. For `nym-vpn-client` to be searchable, its chunks must be in the nym docs build, so the nym build must check out, chunk and embed another repository. A store lets each repository write its own shard from its own CI, at its own time, and the route reads all of them.
-2. **Private content needs a store of its own.** Decision 2 of `add-shared-retrieval-index` keeps the public/private boundary physical: the public store holds no private row. Private content cannot go in a bundle that a public deployment serves. The private store runs the same schema and package on private infrastructure.
+2. **The public store holds no private row.** Private content is in a separate store, and never in a bundle that a public deployment serves.
 3. **The bundle does not grow with the corpus.** With the vpn shards, the JSON is about 304 MB, which is more than the 250 MB that Vercel allows for an uncompressed function. In memory, each number is an 8-byte double, so 22,019 vectors take about 180 MB of heap on each warm instance, and each cold start parses all of it again.
 4. **A docs build stops being an embedding run.** Today each build needs the Voyage key and embeds the changed chunks. A PR preview builds and serves its own index.
 
@@ -149,9 +151,9 @@ Postgres also gives three properties that the plan depends on:
 - **Transactions.** A run replaces a shard in one transaction, so a reader never sees half a shard.
 - **The scan runs next to the data.** The function holds no vectors: it sends one query vector and gets back K rows.
 
-The cost: one more service (Exoscale Postgres), one network hop for each search, and a PR preview answers from the develop index, not from the PR's content.
+The cost: one more service (a managed Postgres), one network hop for each search, and a PR preview answers from the develop index, not from the PR's content.
 
-## How the MCP reads after the cutover
+## How the MCP reads the store
 
 ```
 nym CI (push to develop)                 nym-vpn-client CI (push to develop)
@@ -164,7 +166,7 @@ cd-retrieval-store.yml                   cd-retrieval-store.yml
      │                                          │ nym-vpn-client/docs
      ▼                                          ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ public store: Postgres + pgvector (Exoscale)                 │
+│ public store: Postgres + pgvector                            │
 │ shards: one row for each (repository, modality), with model  │
 │ chunks: text, URL, content hash, vector                      │
 │ one model for each modality: docs voyage-3-large,            │
@@ -183,46 +185,16 @@ The route uses the package's read side: `search` and `getSection` from `@nymproj
 
 The route reads the store when `MCP_RETRIEVAL_SOURCE` is `store`, with the reader connection string in `RETRIEVAL_STORE_READ_URL` and the store's CA certificate in `RETRIEVAL_STORE_CA_CERT`. When the variable is unset, empty, or `bundle`, it reads the bundled files as before. Each search names the model the route embedded its query with, and the package refuses rows of another model, because such a query would return confident, wrong neighbours. In store mode `search_code` is always listed; with no code shard, it returns an error.
 
-## The private side (planned)
-
-Decisions 2, 3, 6 and 8 of `add-shared-retrieval-index`, with its tasks 4.2, 6.2 and 6.3, add a second store that the public side never touches.
-
-```
-public repositories (nym, nym-vpn-client)        private repositories
-        │                                                │
-        │ CI, as above                                   │
-        ▼                                                │
-  public store ──► public MCP (/docs/api/mcp, Vercel)    │
-                                                         │
-private infrastructure                                   │
-┌────────────────────────────────────────────────────────┼──────┐
-│ private pipeline: the same indexer package             │      │
-│   reads the private repositories ◄─────────────────────┘      │
-│   and the public ones                                         │
-│   embeds with the private model, through the                  │
-│   embedding service (self-hosted, next to Postgres)           │
-│   writes every shard: the private store is a superset         │
-│        ▼                                                      │
-│ private store: Postgres + pgvector                            │
-│        ▼                                                      │
-│ private MCP (Go): search_docs, search_code                    │
-│   embeds the query with the same embedding service            │
-│   per-person tokens, stored hashed, with an expiry            │
-└───────────────────────────────────────────────────────────────┘
-```
-
-Each MCP reads one store. The private MCP needs neither the public store nor Voyage, because its store holds the public content too. No credential for the private store or the private repositories leaves the private infrastructure. Which model the private store uses is open question Q1.
-
 ## What changes for contributors
 
 | Area | Before | After |
 |---|---|---|
-| Docs build | Embeds the changed chunks, and needs `VOYAGE_API_KEY` | Does not embed (task 5.3). The two `outputFileTracingIncludes` entries go |
+| Docs build | Embeds the changed chunks, and needs `VOYAGE_API_KEY` | After the final cutover step (below): does not embed, and the two `outputFileTracingIncludes` entries go. Until then the build still embeds and keeps `VOYAGE_API_KEY`, so the bundle stays available as the rollback |
 | `/api/mcp` | Reads two JSON files from the bundle | Reads the store. It still needs `VOYAGE_API_KEY` at runtime to embed queries |
 | When the index changes | On each deployment | On each producer run that writes. A PR preview answers from the develop index, not from the PR's content |
 | Other repositories | Not indexed | Each writes its own shard |
 
-The cutover goes in steps, so the live route never depends on an untested path. Task 5.0 checks that the package reproduces the live results. Task 5.1 writes to the store and keeps the bundled files. Task 5.2 reads the store behind a flag on a preview. Task 5.3 flips the flag and removes the bundled files.
+The last step of the cutover removes the bundled files and the embedding from the docs build. Until then, the bundle is the rollback.
 
 ## Who writes and who reads
 
@@ -232,13 +204,13 @@ The cutover goes in steps, so the live route never depends on an untested path. 
 | writer | producer CI: nym on pushes to develop, and later `nym-vpn-client` | Read and change rows in `chunks` and `shards` |
 | reader | `/api/mcp` on Vercel, production and preview | Read `chunks` and `shards` only |
 
-The public store runs on our own Postgres server on Exoscale. One writer role serves all producers: a role for each producer could not be limited to its own shard without row-level security, which the design dropped.
+The public store is a managed Postgres database. One writer role serves all producers: a role for each producer could not be limited to its own shard without row-level security, which the design dropped.
 
-Only pushes to develop are to write, because Vercel builds the production docs from develop. A PR run that wrote would put unmerged content in the public index, so the plan for task 5.1 is that PR runs build the chunks and do not write.
+Only pushes to develop write, because Vercel builds the production docs from develop. A run from another branch would put unmerged content in the public index.
 
-Two write runs on one shard must not overlap. A run embeds before it takes the store lock, and when it takes the lock it checks that no other run changed its shard in the meantime. If one did, the run fails with "another run changed it while this one was embedding; run again". So two quick pushes to develop would fail one job. The write job needs a CI `concurrency` group, so that a second run waits for the first (task 5.1).
+Two write runs on one shard must not overlap. A run embeds before it takes the store lock, and when it takes the lock it checks that no other run changed its shard in the meantime. If one did, the run fails with "another run changed it while this one was embedding; run again". The workflow's `concurrency` group queues a second run behind the first, so two quick pushes to develop do not fail a job.
 
-The store holds only public content, so the reader credential discloses nothing that is not already public. The writer credential can change what agents read, so it goes only to the CI of the producer repositories. The private store is a separate database on Nym infrastructure (design decisions 1 and 2), and no credential for it reaches Vercel or a public repository's CI.
+The store holds only public content, so the reader credential discloses nothing that is not already public. The writer credential can change what agents read, so it goes only to the CI of the producer repositories.
 
 ## The data model
 
@@ -262,7 +234,7 @@ Measured on 2026-11-13: the chunks of a local nym build (2026-11-07) loaded into
 
 The vectors take most of the space: about 4 KB for each 1024-dimension vector. At 20,000 chunks the store is about 130 MB.
 
-Search is a sequential scan with no vector index (design decision 5). A `search_code` query reads every code vector, about 31 MB today. This is fast when the data stays in the database's memory, so the instance needs enough RAM to cache the whole store. A vector index (HNSW) is worth adding only at about 100,000 chunks.
+Search is a sequential scan with no vector index. A `search_code` query reads every code vector, about 31 MB at 7,800 code chunks. This is fast when the data stays in the database's memory, so the instance needs enough RAM to cache the whole store. A vector index (HNSW) is worth adding only at about 100,000 chunks.
 
 ## Failure modes
 
@@ -273,5 +245,5 @@ Search is a sequential scan with no vector index (design decision 5). A `search_
 | A producer stops writing | Its shard ages, and the answers drift from the source | `staleShards` in the package reports the age of each shard. No job runs it yet |
 | Two runs write the same shard at once | One fails and must run again | The CI `concurrency` group prevents it |
 | The model of a modality changes | Every shard of the modality needs new vectors. One producer cannot switch alone: the package rejects its run while other shards keep the old model | Run all producers of the modality in one `indexShards` call, one run for each shard, so that the shards change model in one transaction. Do not delete the shards first: the delete cascades to their chunks, and the modality has no rows until the producers commit. The route embeds queries with the model set in `pages/api/mcp.ts`, and each search refuses rows of another model, so change the model there and in `write-store.mts` in the same PR. From the deploy until the producers have written the new vectors, searches of that modality return an error. The develop push that deploys the route also starts the nym producer, so the gap is the time between the two. The code modality has producers in two repositories (nym and nym-vpn-client), and each CI writes only its own shard, so their runs cannot share one transaction. So turn writes off in both (`RETRIEVAL_STORE_ENABLED=0`), write both code shards by hand in one `indexShards` call with the new model, deploy the route change, and turn writes on again |
-| The store is lost | The index is gone until the producers run again | Create the database, the schema and the roles first (`MCP-STORE-SETUP.md` steps 1 to 3), then run each producer once. The cost is one full embedding run |
+| The store is lost | The index is gone until the producers run again | Create the database, the roles and the schema first (`bootstrap/init.sql` and the `store-migrate` workflow in [`nymtech/retrieval-indexer`](https://github.com/nymtech/retrieval-indexer)), then run each producer once. The cost is one full embedding run |
 

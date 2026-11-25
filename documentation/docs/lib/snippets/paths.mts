@@ -1,4 +1,4 @@
-// Inline source path check (D14, task 2b.1): each repository path that a prose
+// Inline source path check: each repository path that a prose
 // text names in inline code exists in the repository.
 //
 //   node lib/snippets/paths.mts [--from <content dir>] [--root <repo root>]

@@ -103,11 +103,11 @@ A snippet does not import components or data. It cites a record, and the site re
 
 `components/snippet.tsx` reads `model.jsonl` at build time, so a page does not import the model modules, and the text of the tables is in the static HTML that Pagefind indexes. To change a table, a diagram, or a verdict, edit the data in `lib/privacy-model/`, not a page.
 
-The procedures (change a section, add a section, split a page) are in [`docs/.nym-codex/README.md`](docs/.nym-codex/README.md). The design is in `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
+The procedures (change a section, add a section, split a page) are in [`docs/.nym-codex/README.md`](docs/.nym-codex/README.md). The design is the OpenSpec change `openspec/changes/add-codex-snippets/`.
 
 ### Requirements and the threat model
 
-Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. The branch `max/mixnet-core-specs` drafts the specs for the Sphinx packet format, cover traffic and the mix-node delay, with proposed edges, and extends the records with what backs a claim. [`NYM-CODEX-AFTER-MERGE.md`](NYM-CODEX-AFTER-MERGE.md) explains it, with the other work that follows this change.
+Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. The branch `max/mixnet-core-specs` drafts the specs for the Sphinx packet format, cover traffic and the mix-node delay, with proposed edges, and extends the records with what backs a claim.
 
 ### The threat-model step of the build
 
@@ -270,7 +270,7 @@ The docs are built for AI agents and LLMs as well as for people. There is an MCP
 
 For readers rather than contributors: `/docs/use-with-ai/mcp` is the tool catalogue and client setup, `/docs/use-with-ai` is the guide for users, and `/docs/about/how-these-docs-are-checked` explains the checks.
 
-[`DOCS-SYSTEM.md`](DOCS-SYSTEM.md) explains how the parts of the docs system fit together, and the state of each part: merged, on a branch, or planned.
+[`DOCS-SYSTEM.md`](DOCS-SYSTEM.md) explains how the parts of the docs system fit together, and the checks that keep them true to their sources.
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

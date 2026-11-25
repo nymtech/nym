@@ -34,7 +34,7 @@ function SnippetAwareLink(props) {
   return <ThemeLink {...props} href={snippetHref(props.href)} />;
 }
 
-// The components a snippet may render (D18).
+// The components a snippet may render.
 // `Demo` is a small registry: each demo loads as its own chunk (components/demos/demo.tsx).
 // `AccordionTemplate` loads its MUI code as its own chunk (components/accordion-template.tsx).
 const snippetComponents = { Callout, Steps, Tabs, LewesPending, NetworkTabCallout, MixnetGlossary, Version, Stat, TimeNow, CodeVerified, Demo, VarInfo, MyTab, AccordionTemplate, PlaceholderTable, Output, Clt };

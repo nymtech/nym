@@ -1,4 +1,4 @@
-// The variables table of `content/operators/variables.mdx` (task 9.14), made from
+// The variables table of `content/operators/variables.mdx`, made from
 // `lib/archetypes/placeholders.json`, the list that the runbook lint checks the
 // `<...>` tokens against, so the page and the lint read one list.
 

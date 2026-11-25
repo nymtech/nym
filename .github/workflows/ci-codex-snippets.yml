@@ -1,6 +1,6 @@
 name: ci-codex-snippets
 
-# The snippet check on each PR (openspec/changes/add-codex-snippets, task 4.1).
+# The snippet check on each PR.
 # It builds every record (snippets, extracted code, threat model, OpenSpec
 # requirements), runs the page check and link resolution, and compiles each
 # snippet alone. It fails on an error. It also posts one PR comment with each

@@ -1,4 +1,4 @@
-// Page summaries to page descriptions (task 2b.2, decided 2026-10-16).
+// Page summaries to page descriptions.
 //
 //   node lib/snippets/describe.mts [--site codex] [--write]
 //

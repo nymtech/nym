@@ -1,6 +1,6 @@
 # Run a local retrieval store
 
-This guide runs a Postgres + pgvector store on your machine, fills it with the nym docs and code index, and runs the docs site with the MCP route reading it. Use it to work on the store path before or without the public store. For what the store is, read [`MCP-STORE.md`](MCP-STORE.md). For the public store, follow [`MCP-STORE-SETUP.md`](MCP-STORE-SETUP.md).
+This guide runs a Postgres + pgvector store on your machine, fills it with the nym docs and code index, and runs the docs site with the MCP route reading it. Use it to work on the store path before or without the public store. For what the store is, read [`MCP-STORE.md`](MCP-STORE.md). The public store is created with `bootstrap/init.sql` and the `store-migrate` workflow in [`nymtech/retrieval-indexer`](https://github.com/nymtech/retrieval-indexer).
 
 The local store has no TLS and no PgBouncer, and it listens on `127.0.0.1` only.
 
@@ -39,7 +39,7 @@ alter role retrieval_reader set statement_timeout = '5s';
 SQL
 ```
 
-These are the schema and the grants of the public store (`MCP-STORE-SETUP.md` steps 2 and 3). `ensureSchema` applies the package's schema without node-pg-migrate, which is enough for a store you delete afterwards. The grants run with `psql` inside the container, so you do not need it on your machine. The passwords are in the SQL text here, which is acceptable for a store that holds only public content and listens only on this machine.
+These are the schema and the grants of the public store. `ensureSchema` applies the package's schema without node-pg-migrate, which is enough for a store you delete afterwards. The grants run with `psql` inside the container, so you do not need it on your machine. The passwords are in the SQL text here, which is acceptable for a store that holds only public content and listens only on this machine.
 
 ## 3. Save the connection strings
 
@@ -72,10 +72,11 @@ Expected result: one line for each shard, for example `nym/docs (voyage-3-large)
 ## 5. Run the site on the store
 
 ```sh
+pnpm run build:data
 MCP_RETRIEVAL_SOURCE=store npx next dev -p 3999
 ```
 
-The route reads `RETRIEVAL_STORE_READ_URL` from the environment of step 4, and embeds queries with `VOYAGE_API_KEY`. In a second terminal, from `documentation`, check it:
+`build:data` writes the threat-model records and the snippet link map that pages render from. `pnpm dev` runs it in `predev`, and `npx next dev` does not. The route reads `RETRIEVAL_STORE_READ_URL` from the environment of step 4, and embeds queries with `VOYAGE_API_KEY`. In a second terminal, from `documentation`, check it:
 
 ```sh
 bash scripts/check-mcp-server.sh http://localhost:3999

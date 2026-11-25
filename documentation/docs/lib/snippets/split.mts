@@ -3,7 +3,7 @@
 //   node lib/snippets/split.mts --from <content dir> --dir <page dir under it>[,<dir>...] [--out <repo root>]
 //   node lib/snippets/split.mts --site docs --dir network,developers [--out <repo root>]
 //
-// Example, the pilot of stage 1:
+// Example:
 //   node lib/snippets/split.mts --from ../../../codex/content \
 //     --dir specifications/nym-network/technical-details/discovery-urls
 //
@@ -73,7 +73,7 @@ const TAG_SELF = new RegExp(String.raw`^\s*<[A-Za-z][\w.-]*${ATTRS}\/>\s*$`);
 // An element that opens and closes on one line: `<Callout>text</Callout>`.
 const TAG_INLINE = /^\s*<([A-Za-z][\w.-]*)(\s[^>]*)?>.*<\/\1>\s*$/;
 const VOID = new Set(['br', 'hr', 'img', 'input', 'wbr']);
-// Wrapper elements whose headings are cut, by Diataxis type (D17).
+// Wrapper elements whose headings are cut, by Diataxis type.
 const WRAPPERS: ReadonlyMap<unknown, ReadonlySet<string>> = new Map([['how-to', new Set(['Steps'])], ['tutorial', new Set(['Steps'])]]);
 
 /** A run of lines of a page: the intro, a section under a heading, or the text next to a wrapper tag (slug null). */
@@ -151,7 +151,7 @@ export function cutPage(raw: string, { file, policy = {} }: { file: string; poli
   const scan = fenceTracker();
   lines.forEach((line, i) => {
     if (scan(line)) return;
-    if (/^export\s/.test(line)) throw wait(`line ${i + 1} is an export; a snippet cannot hold one (stage 4 for scenario data)`);
+    if (/^export\s/.test(line)) throw wait(`line ${i + 1} is an export; a snippet cannot hold one`);
     if (!/^import\s/.test(line)) return;
     // Two imports can share a line: `import A from 'a';import B from 'b'`.
     for (const statement of line.split(/;\s*(?=import\s)/)) {
@@ -251,7 +251,7 @@ export function cutPage(raw: string, { file, policy = {} }: { file: string; poli
   if (comment) throw wait('a {/* comment is not closed');
   if (open.length) throw wait(`<${open.at(-1)}> is not closed`);
   // A heading that is not a cut (inside an element, at depth 5 or 6, indented,
-  // or in a blockquote) would give a snippet a second heading (D4).
+  // or in a blockquote) would give a snippet a second heading.
   for (const sec of sections) {
     const inner = fenceTracker();
     let inComment = false;
@@ -261,7 +261,7 @@ export function cutPage(raw: string, { file, policy = {} }: { file: string; poli
       if (l.includes('{/*') && !l.includes('*/}')) { inComment = true; return false; }
       return /^\s*(>\s*)*#{1,6}\s/.test(l);
     });
-    if (extra) throw wait(`"${extra.trim().slice(0, 50)}" is a heading that split does not cut (inside an element, at depth 5 or 6, indented, or quoted); the page needs its runbook form first (stage 8)`);
+    if (extra) throw wait(`"${extra.trim().slice(0, 50)}" is a heading that split does not cut (inside an element, at depth 5 or 6, indented, or quoted); the page needs its runbook form first`);
   }
   // Text between a wrapper tag and the next heading has no snippet of its own.
   for (const s of sections) {
@@ -376,7 +376,7 @@ export function splitPages({ from, files, repo, pagesOut = `${CODEX_DIR}/pages`,
     }
     try {
       if (policy.components && rel.endsWith('.md')) throw new PageWaits(rel, 'a .md page; a page that imports snippets is .mdx, so rename it first');
-      if (policy.diagrams === false && /^\s*(`{3,}|~{3,})\s*mermaid\s*$/m.test(raw)) throw new PageWaits(rel, 'a mermaid block, and the site has no diagram renderer yet (task 10.6)');
+      if (policy.diagrams === false && /^\s*(`{3,}|~{3,})\s*mermaid\s*$/m.test(raw)) throw new PageWaits(rel, 'a mermaid block, and the site has no diagram renderer');
       const { importRoot } = policy;
       const resolveSource = importRoot ? (spec: string): string => (spec.startsWith('.')
         ? path.relative(importRoot, path.resolve(path.dirname(path.join(from, rel)), spec))

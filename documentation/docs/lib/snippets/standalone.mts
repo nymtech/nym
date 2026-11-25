@@ -1,4 +1,4 @@
-// Standalone lint (stage 3, task 4b.1): a snippet must read alone, with no page
+// Standalone lint: a snippet must read alone, with no page
 // around it, because a second site or the index can show it anywhere.
 //
 //   node lib/snippets/standalone.mts [--root <repo root>] [--list]
@@ -7,7 +7,7 @@
 // - a body that refers to text around it ("as described above", "the table
 //   below", "the previous section", "this page");
 // - a title that is a template word with no subject ("Code", "Used by").
-// Each is a warning with a count until stage 3 ends (task 4b.4).
+// Each is a warning with a count, not an error.
 
 import fs from 'node:fs';
 import path from 'node:path';

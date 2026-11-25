@@ -18,7 +18,7 @@ import type { Property, ThreatActor, Vector } from "lib/privacy-model/types";
 // defined in pages/threat-model-viz.css, scoped under .nym-threat-viz.
 
 /**
- * L1 is app-parameterised (decision D1): the spine ACTORS array holds only the
+ * L1 is app-parameterised: the spine ACTORS array holds only the
  * universal L2/L3L/L3G, and each worked example supplies what L1 observes. The
  * actors reference page still documents L1 as a concept, so its card content is
  * authored here rather than read from the spine.

@@ -1,4 +1,4 @@
-// Local push (D8, task 1.6): write this repository's snippets, records, and
+// Local push: write this repository's snippets, records, and
 // pages into a codex checkout.
 //
 //   node lib/snippets/push.mts --target <codex checkout> [--root <repo root>]

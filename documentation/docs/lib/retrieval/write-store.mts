@@ -1,5 +1,5 @@
-// Writes the nym docs and code shards to the public retrieval store (task 5.1 of
-// the add-shared-retrieval-index change; documentation/MCP-STORE.md).
+// Writes the nym docs and code shards to the public retrieval store
+// (documentation/MCP-STORE.md).
 //
 // It reads the index files that generate-index.mjs and generate-code-index.mjs
 // wrote in this run, and writes their vectors: it embeds nothing itself, so the
@@ -19,10 +19,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { embedText, type EmbedProvider } from '@nymproject/retrieval-indexer/embed';
-import { indexShard, type Modality } from '@nymproject/retrieval-indexer/store';
+import { indexShard, storeConnection, type Modality } from '@nymproject/retrieval-indexer/store';
 import type { DocIndex } from '@nymproject/retrieval-indexer/types';
 import { PUBLIC_DIR } from './pages-source.mjs';
-import { storeConnection } from './store-tls.mjs';
 
 const REPO = 'nym';
 const DIM = 1024;

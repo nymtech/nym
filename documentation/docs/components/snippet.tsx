@@ -1,4 +1,4 @@
-// `<Snippet id="..." />` on the docs site (D9 fallback, tasks 10.6 and 6b.5): a
+// `<Snippet id="..." />` on the docs site: a
 // server component that renders a citation at build time.
 // - A diagram citation renders its `.mmd` file.
 // - A citation of a whole kind (`nym/threat-model/actor` with `view="reference"`,

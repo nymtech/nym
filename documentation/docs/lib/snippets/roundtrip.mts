@@ -1,11 +1,11 @@
-// Round trip (D10): compose each split page back into one text and compare it
+// Round trip: compose each split page back into one text and compare it
 // with the page it came from.
 //
 //   node lib/snippets/roundtrip.mts --site codex --from <original content dir> [--dir <page dir>] [--root <repo root>]
 //   node lib/snippets/roundtrip.mts --site codex --print <page file under the page root>
 //
 // --print writes one composed page to stdout, for a writer or a reviewer who
-// wants to read the page as one text (task 5.1).
+// wants to read the page as one text.
 //
 // Compose puts the text of each snippet in place of its import, each diagram
 // back as a `mermaid` fence, and each `snippet:` link back as its route. The

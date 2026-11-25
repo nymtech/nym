@@ -104,4 +104,4 @@ The threat-model owner reviews each link to the threat model. The branch `max/mi
 | `node lib/archetypes/anchors.mts --list` | That each `#anchor` link names an id on its page |
 | `pnpm test` | The unit tests |
 
-The `ci-codex-snippets` workflow runs the first two on each PR. The design is in `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
+The `ci-codex-snippets` workflow runs the first two on each PR. The design is the OpenSpec change `openspec/changes/add-codex-snippets/`.

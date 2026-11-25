@@ -119,7 +119,7 @@ export function modelCitation(id: string): ModelCitation | null {
 /**
  * Resolve a `<Snippet id>` citation to Markdown text. A diagram is a `mermaid`
  * fence, and a code item a fence in its language, from the records that
- * `extractCode` built. A prose snippet is not citable (D4). A threat-model citation
+ * `extractCode` built. A prose snippet is not citable. A threat-model citation
  * (`view` from MODEL_VIEWS) stays a tag, after a check against `models` when given.
  */
 export function citationText(repo: Repo, id: string, { code, attrs = '', models }: { code?: Map<string, Pick<Snippet, 'body' | 'lang'>>; attrs?: string; models?: Set<string> } = {}): string {

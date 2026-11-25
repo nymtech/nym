@@ -1,4 +1,4 @@
-// Coverage report (D4c, task 6e.2): for each requirement record, the
+// Coverage report: for each requirement record, the
 // threat-model entities it links to and the records that realise it. A consumer
 // that judges a statement needs to see where the graph is empty.
 //

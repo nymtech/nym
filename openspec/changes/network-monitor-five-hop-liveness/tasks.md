@@ -7,9 +7,9 @@
 
 ## 2. Sphinx builders
 
-- [ ] 2.1 In `nym-sphinx`'s acknowledgements crate, a SURB-ack constructor that takes the route; the existing constructor draws a route and calls it
-- [ ] 2.2 In `nym-sphinx`'s cover crate, a loop cover packet builder that takes the route, the SURB-ack and the content; `generate_loop_cover_packet` draws a route and calls it
-- [ ] 2.3 The existing tests of both crates and of their callers still pass, with no behaviour change for the client
+- [x] 2.1 In `nym-sphinx`'s acknowledgements crate, a SURB-ack constructor that takes the route; the existing constructor draws a route and calls it
+- [x] 2.2 In `nym-sphinx`'s cover crate, a loop cover packet builder that takes the route, the SURB-ack and the content; `generate_loop_cover_packet` draws a route and calls it
+- [x] 2.3 The existing tests of both crates and of their callers still pass, with no behaviour change for the client
 
 ## 3. Route client
 

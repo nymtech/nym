@@ -10,7 +10,7 @@ use nym_sphinx_addressing::nodes::{
 use nym_sphinx_params::PacketType;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_types::delays::Delay;
-use nym_sphinx_types::{NymPacket, NymPacketError};
+use nym_sphinx_types::{Node, NymPacket, NymPacketError};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::CryptoRng;
 use std::time;
@@ -66,6 +66,28 @@ impl SurbAck {
             topology.random_route_to_egress(rng, recipient.gateway())?
         };
 
+        Self::construct_legacy_on_route(
+            rng,
+            recipient,
+            ack_key,
+            marshaled_fragment_id,
+            average_delay,
+            &route,
+        )
+    }
+
+    /// Builds a SURB-ack on a route that ends at the recipient's gateway.
+    pub fn construct_legacy_on_route<R>(
+        rng: &mut R,
+        recipient: &Recipient,
+        ack_key: &AckKey,
+        marshaled_fragment_id: [u8; 5],
+        average_delay: time::Duration,
+        route: &[Node],
+    ) -> Result<Self, NymTopologyError>
+    where
+        R: CryptoRng,
+    {
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 
@@ -75,7 +97,7 @@ impl SurbAck {
         let surb_ack_packet = NymPacket::sphinx_build_legacy(
             packet_size,
             surb_ack_payload,
-            &route,
+            route,
             &destination,
             &delays,
         )?;

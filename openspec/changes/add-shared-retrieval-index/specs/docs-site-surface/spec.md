@@ -36,8 +36,7 @@ output.
 ### Requirement: Access by deployment protection
 
 A restricted docs-site deployment SHALL gate reader access through platform deployment
-protection, distinct from the private MCP endpoint's per-person tokens. This is
-sufficient because a correctly built surface carries no content above its
+protection. This is sufficient because a correctly built surface carries no content above its
 deployment's visibility.
 
 #### Scenario: Unauthenticated reader

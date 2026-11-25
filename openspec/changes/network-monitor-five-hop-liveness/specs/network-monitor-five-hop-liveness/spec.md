@@ -162,11 +162,11 @@ A returning payload and a returning ack MUST be matched to their record by an id
 
 ### Requirement: A session's records are submitted as one binary batch, and the orchestrator stores it as received
 
-A session's records SHALL be packed into one binary batch that states the gateway's node id, the mixnet epoch of the active set the session used and the session's start time, and then one fixed-width record per packet in the order sent. A record names its mixnodes by their node ids.
+A session's records SHALL be packed into one binary batch that states the gateway's node id and the mixnet epoch of the active set the session used, and then one fixed-width record per packet in the order sent. A record names its mixnodes by their node ids.
 
 The agent SHALL submit a run once, with one entry per gateway of the run: the session's batch, or its error. The orchestrator MUST accept a submission only for the run that is in flight, and MUST reject it, storing nothing, when the run is unknown, already submitted or past its timeout, when an entry names a gateway the run was not given, or when a batch cannot be read. A rejected run stays in flight until its timeout passes.
 
-The orchestrator MUST store each accepted batch exactly as it was received, beside the gateway, the epoch, the start time and the record count read from it, and MUST NOT expand it into one stored row per packet. Stored sessions are evicted at the age test runs are.
+The orchestrator MUST store each accepted batch exactly as it was received, beside the gateway, the epoch and the record count read from it, and MUST NOT expand it into one stored row per packet. Stored sessions are evicted at the age test runs are.
 
 #### Scenario: A run's sessions are stored
 - **WHEN** an agent submits a run in flight with two entries
@@ -382,7 +382,7 @@ The orchestrator's aggregates API SHALL carry, for a node and an epoch, a five-h
 
 The orchestrator SHALL serve the route sessions that name a given mixnet epoch at `GET /v1/results/route-sessions/epoch/{mixnet_epoch}`, on its results surface and behind the `metrics_and_results_token`. The epoch is the one the sessions ran in, which is the epoch before the one their five-hop liveness is filed under.
 
-The response SHALL list the sessions in the order they started. For each session it MUST carry the route run it belonged to, the gateway's node id, the start time, the session's error if it had one, whether the scoring keeps or discards it, and its test messages in the order sent: for each, the time it was sent, the node ids of the three mixnodes on its path in path order, and whether it came back. The test messages MUST be produced from the stored batch by the step that feeds the scoring, and the mark by the rule that discards a suspected session, under the current configuration. A discarded session's test messages are served like any other's. A session stored with an error has none.
+The response SHALL list the sessions in the order their runs started, and the sessions of one run by the gateway's node id. For each session it MUST carry the route run it belonged to, the gateway's node id, the session's error if it had one, whether the scoring keeps or discards it, and its test messages in the order sent: for each, the time it was sent, the node ids of the three mixnodes on its path in path order, and whether it came back. The test messages MUST be produced from the stored batch by the step that feeds the scoring, and the mark by the rule that discards a suspected session, under the current configuration. A discarded session's test messages are served like any other's. A session stored with an error has none.
 
 The whole epoch SHALL be returned in one response. An epoch with no stored session, one whose sessions have been evicted included, returns an empty list.
 
@@ -390,7 +390,7 @@ An epoch's test messages and each node's one-hop runs, which the results surface
 
 #### Scenario: An epoch's sessions are exported
 - **WHEN** a consumer requests the route sessions of an epoch in which two runs of two sessions each were stored
-- **THEN** the response carries four sessions in the order they started, each with its test messages in the order sent
+- **THEN** the response carries four sessions in the order their runs started, each run's two by gateway node id, each with its test messages in the order sent
 
 #### Scenario: A discarded session is exported with its mark
 - **WHEN** one session of the requested epoch is discarded by the discard rule

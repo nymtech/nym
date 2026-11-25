@@ -122,9 +122,9 @@ These rules add to the specification, which has no acks. They sit outside the sc
 
 ### 9. Records travel and are stored as one packed batch per session
 
-A batch is a 16-byte header (gateway node id, mixnet epoch, session start in milliseconds) and then 34 bytes per packet, to the end of the batch: the time it was sent in milliseconds, the node ids of the packet's three mixnodes, those of the ack's three, and one byte each for "payload back" and "ack back". Every field is a fixed-width big-endian integer. The encoding is written by hand in the records crate, the header and the record each encoding and decoding themselves.
+A batch is an 8-byte header (gateway node id, mixnet epoch) and then 34 bytes per packet, to the end of the batch: the time it was sent in milliseconds, the node ids of the packet's three mixnodes, those of the ack's three, and one byte each for "payload back" and "ack back". Every field is a fixed-width big-endian integer. The encoding is written by hand in the records crate, the header and the record each encoding and decoding themselves.
 
-The agent submits a run once, with every session's batch or error. The orchestrator checks the run, reads the header, and stores the batch as received in `route_session`, with the gateway, epoch, start and record count beside it. It never expands a batch into a row per packet. A run is about 150 KB; a day is about 43 MB.
+The agent submits a run once, with every session's batch or error. The orchestrator checks the run, reads the header, and stores the batch as received in `route_session`, with the gateway, epoch and record count beside it. It never expands a batch into a row per packet. A run is about 150 KB; a day is about 43 MB.
 
 The cost is that SQL cannot answer "which packets failed through this node" without decoding. The format carries no version, because the agents and the orchestrator are deployed together; a later change to it deletes the stored sessions in its migration. A submission with an unreadable batch, a gateway the run was not given, or a run that is not in flight is rejected whole.
 
@@ -234,7 +234,7 @@ Two consequences. The gateway filter requires gateway liveness only until gatewa
 
 ### 21. An epoch's route sessions can be exported as test messages
 
-The scoring strategy is expected to be replaced once research has experimented on real data (Decision 10), and its input is an epoch's test messages plus each node's one-hop scores. The one-hop runs are already served per node. So the results API gains one route, `GET /v1/results/route-sessions/epoch/{mixnet_epoch}`, behind the token the rest of that surface uses: the sessions that ran in that epoch, each with its run, gateway, start time, error, whether the scoring keeps it, and its test messages decoded.
+The scoring strategy is expected to be replaced once research has experimented on real data (Decision 10), and its input is an epoch's test messages plus each node's one-hop scores. The one-hop runs are already served per node. So the results API gains one route, `GET /v1/results/route-sessions/epoch/{mixnet_epoch}`, behind the token the rest of that surface uses: the sessions that ran in that epoch, in the order their runs started, each with its run, gateway, error, whether the scoring keeps it, and its test messages decoded.
 
 Nothing new is stored. The test messages come from the stored batch through the same step the materialisation uses, and the kept-or-discarded mark from the same rule, both when the request is made. A margin changed since the epoch was scored would therefore show in the marks; the batches are what was measured either way.
 

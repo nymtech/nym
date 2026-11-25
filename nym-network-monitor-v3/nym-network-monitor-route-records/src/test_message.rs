@@ -186,7 +186,6 @@ mod tests {
             header: BatchHeader {
                 gateway_node_id: 100,
                 mixnet_epoch: 1,
-                session_start_ms: SENT_AT_MS,
             },
             records: vec![Record {
                 sent_at_ms: SENT_AT_MS,

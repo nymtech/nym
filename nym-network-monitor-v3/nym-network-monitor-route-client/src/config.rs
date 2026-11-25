@@ -4,6 +4,7 @@
 use anyhow::Context;
 use nym_client_core::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use nym_client_core_config_types::{Acknowledgements, CoverTraffic, Topology, Traffic};
+use nym_sphinx::params::PacketSize;
 use nym_topology::{NymRouteProvider, TopologyProvider};
 use rand::RngExt;
 use std::sync::Arc;
@@ -107,6 +108,20 @@ pub struct RouteTrafficConfig {
 
     /// Average delay of a SURB-ack at each hop.
     pub average_ack_delay: Duration,
+}
+
+impl RouteTrafficConfig {
+    /// Average delay between packets of the main and cover streams sent as one Poisson stream.
+    pub fn combined_average_delay(&self) -> Duration {
+        let main_rate = 1.0 / self.message_sending_average_delay.as_secs_f64();
+        let cover_rate = 1.0 / self.loop_cover_traffic_average_delay.as_secs_f64();
+        Duration::from_secs_f64(1.0 / (main_rate + cover_rate))
+    }
+
+    /// The client's default packet size, which is not a knob.
+    pub fn packet_size(&self) -> PacketSize {
+        Traffic::default().primary_packet_size
+    }
 }
 
 impl Default for RouteTrafficConfig {

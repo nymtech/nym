@@ -52,23 +52,18 @@ pub struct BatchHeader {
 
     /// Mixnet epoch of the active set the session used.
     pub mixnet_epoch: u32,
-
-    /// Unix time in milliseconds at which the session started.
-    pub session_start_ms: u64,
 }
 
 impl BatchHeader {
     fn encode_into(&self, bytes: &mut Vec<u8>) {
         bytes.extend_from_slice(&self.gateway_node_id.to_be_bytes());
         bytes.extend_from_slice(&self.mixnet_epoch.to_be_bytes());
-        bytes.extend_from_slice(&self.session_start_ms.to_be_bytes());
     }
 
     fn decode(bytes: &mut &[u8]) -> anyhow::Result<BatchHeader> {
         Ok(BatchHeader {
             gateway_node_id: NodeId::from_be_bytes(take(bytes)?),
             mixnet_epoch: u32::from_be_bytes(take(bytes)?),
-            session_start_ms: u64::from_be_bytes(take(bytes)?),
         })
     }
 }
@@ -152,7 +147,7 @@ mod tests {
     }
 
     fn test_batch() -> Batch {
-        let start = 1_764_000_000_000;
+        let start: u64 = 1_764_000_000_000;
         let record = |offset_ms, payload_back, ack_back| Record {
             sent_at_ms: start + offset_ms,
             packet_route: [11, 100_021, 3_000_031],
@@ -164,7 +159,6 @@ mod tests {
             header: BatchHeader {
                 gateway_node_id: 70_000,
                 mixnet_epoch: 31_337,
-                session_start_ms: start,
             },
             records: vec![
                 record(0, true, true),

@@ -8531,10 +8531,13 @@ dependencies = [
  "nym-gateway-client",
  "nym-http-api-client",
  "nym-network-monitor-route-records",
+ "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
  "nym-topology",
  "rand 0.10.2",
+ "time",
+ "tokio",
  "url",
 ]
 

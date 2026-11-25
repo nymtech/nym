@@ -91,7 +91,7 @@ The strings have no `sslmode` or `sslrootcert`. The server certificate is signed
 |---|---|---|
 | `RETRIEVAL_STORE_WRITE_URL` | The writer string | GitHub Actions secret in `nymtech/nym` and in `nymtech/nym-vpn-client` |
 | `RETRIEVAL_STORE_READ_URL` | The reader string | Vercel environment variable of the docs project, for Production and Preview |
-| `RETRIEVAL_STORE_CA_CERT` | The CA certificate as PEM text, the same value as `PG_CA_CERT` in step 2 | GitHub Actions repository variable (not a secret: a CA certificate is public) in `nymtech/nym` and in `nymtech/nym-vpn-client`, and a Vercel environment variable of the docs project beside `RETRIEVAL_STORE_READ_URL` |
+| `RETRIEVAL_STORE_CA_CERT` | The CA certificate as PEM text, the same value as `PG_CA_CERT` in step 2 | GitHub Actions secret in `nymtech/nym` and in `nymtech/nym-vpn-client`, like `PG_CA_CERT`, and a Vercel environment variable of the docs project beside `RETRIEVAL_STORE_READ_URL` |
 | `RETRIEVAL_STORE_ENABLED` | `1` | GitHub Actions repository variable (not a secret) in `nymtech/nym` and in `nymtech/nym-vpn-client`. The `cd-retrieval-store` workflow of each repository writes the store only while it is `1`; set it to `0` to stop writes without deleting the secret |
 | `VOYAGE_API_KEY` | The Voyage API key | GitHub Actions secret in `nymtech/nym-vpn-client`. `nymtech/nym` has it already, for its docs builds |
 

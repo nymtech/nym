@@ -99,5 +99,5 @@ jobs:
         run: node lib/retrieval/write-store.mts
         env:
           RETRIEVAL_STORE_WRITE_URL: ${{ secrets.RETRIEVAL_STORE_WRITE_URL }}
-          RETRIEVAL_STORE_CA_CERT: ${{ vars.RETRIEVAL_STORE_CA_CERT }}
+          RETRIEVAL_STORE_CA_CERT: ${{ secrets.RETRIEVAL_STORE_CA_CERT }}
           ALLOW_SHRINK: ${{ inputs.allow_shrink && '1' || '' }}

@@ -27,9 +27,8 @@ jobs:
   write:
     # Only develop writes, because Vercel builds the production docs from develop:
     # a run from another branch would put unmerged content in the public index.
-    # The repository variable turns writes on once the store exists
-    # (documentation/MCP-STORE-SETUP.md). A job-level `if` can read variables,
-    # not secrets.
+    # The repository variable turns writes on. A job-level `if` can read
+    # variables, not secrets.
     if: github.ref == 'refs/heads/develop' && vars.RETRIEVAL_STORE_ENABLED == '1'
     runs-on: arc-linux-latest
     # A hang anywhere (a generator, the store) frees the concurrency slot after this.

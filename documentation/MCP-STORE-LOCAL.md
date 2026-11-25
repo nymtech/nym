@@ -72,10 +72,11 @@ Expected result: one line for each shard, for example `nym/docs (voyage-3-large)
 ## 5. Run the site on the store
 
 ```sh
+pnpm run build:data
 MCP_RETRIEVAL_SOURCE=store npx next dev -p 3999
 ```
 
-The route reads `RETRIEVAL_STORE_READ_URL` from the environment of step 4, and embeds queries with `VOYAGE_API_KEY`. In a second terminal, from `documentation`, check it:
+`build:data` writes the threat-model records and the snippet link map that pages render from. `pnpm dev` runs it in `predev`, and `npx next dev` does not. The route reads `RETRIEVAL_STORE_READ_URL` from the environment of step 4, and embeds queries with `VOYAGE_API_KEY`. In a second terminal, from `documentation`, check it:
 
 ```sh
 bash scripts/check-mcp-server.sh http://localhost:3999

@@ -120,7 +120,7 @@ The build writes three surfaces for agents: a Markdown copy of each page (add `.
 
 The MCP server has nine tools: `search_docs` and `get_section` over the docs index, `search_code` over the code index, five live network tools (`network_summary`, `list_gateways`, `get_gateway`, `circulating_supply`, `chain_status`), and `validate_sdk_config`. The server returns sections, and the calling agent writes the answer. So the server needs no LLM key. It needs `VOYAGE_API_KEY`, and a search call costs one Voyage embedding.
 
-The index is two static JSON files that the build writes and that the `/api/mcp` function loads at cold start. A search is a cosine scan in memory. The server applies no similarity floor. A measurement showed why: "What is the capital of France?" scored 0.523, higher than a correct on-topic question at 0.504, so no threshold separates on-topic from off-topic questions.
+The index is in a Postgres store: producer CI writes it, and the `/api/mcp` route searches it with a cosine scan in SQL ([`MCP-STORE.md`](MCP-STORE.md)). The server applies no similarity floor. A measurement showed why: "What is the capital of France?" scored 0.523, higher than a correct on-topic question at 0.504, so no threshold separates on-topic from off-topic questions.
 
 Two tests check the server:
 

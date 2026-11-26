@@ -1,4 +1,4 @@
-use crate::node_scraper::models::BridgeInformation;
+use crate::node_scraper::models::{BridgeInformation, BridgeScrape};
 use crate::{
     db::{
         DbPool,
@@ -9,11 +9,12 @@ use crate::{
 };
 use ammonia::Builder;
 use anyhow::{Result, anyhow};
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 use std::time::Duration;
 use time::UtcDateTime;
-use tracing::{error, trace};
+use tracing::{error, trace, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeDescriptionResponse {
@@ -182,7 +183,7 @@ pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperReco
     let mut stats = None;
     let mut error = None;
     let mut tried_url_list = Vec::new();
-    let mut bridges = None;
+    let mut bridges = BridgeScrape::Unchecked;
 
     for url in urls {
         let url_to_try = format!("{}{}", url.trim_end_matches('/'), PACKET_STATS_URL);
@@ -198,37 +199,24 @@ pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperReco
             Err(e) => error = Some(anyhow!("{:?} ({})", tried_url_list, e)),
         }
 
-        // this url worked, so scrape some other endpoints
+        // Same contact URL that answered /stats: ask for published bridges
+        // (entry/exit only — mixnodes never store `gateways.bridges`).
         if stats.is_some() {
-            let url_bridges = format!("{}{}", url.trim_end_matches('/'), BRIDGES_URL);
-            if let Ok(response) = client
-                .get(&url_bridges)
-                .send()
-                .await
-                .and_then(|res| res.error_for_status())
-            {
-                let json = response.json().await?;
-                bridges = serde_json::from_value::<BridgeInformation>(json)
-                    .inspect_err(|err| {
-                        error!("Failed to deserialize bridge information: {err}");
-                    })
-                    .ok();
-                trace!(
-                    "got bridge info from node id {}: {bridges:?}",
-                    node.node_kind.node_id()
-                );
+            if matches!(node.node_kind, ScrapeNodeKind::EntryExitNymNode { .. }) {
+                bridges = scrape_bridges(
+                    &client,
+                    url.trim_end_matches('/'),
+                    *node.node_kind.node_id(),
+                )
+                .await;
             }
-        }
-
-        // if we have valid stats, we can stop trying other URLs
-        if stats.is_some() {
             break;
         }
     }
 
     let stats = stats.ok_or_else(|| {
         let err_msg = error.map_or_else(|| "Unknown error".to_string(), |e| e.to_string());
-        anyhow::anyhow!("Failed to fetch description from any URL: {}", err_msg)
+        anyhow::anyhow!("Failed to fetch packet stats from any URL: {}", err_msg)
     })?;
 
     let timestamp_utc = now_utc();
@@ -242,6 +230,44 @@ pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperReco
     };
 
     Ok(result)
+}
+
+/// Fetch client-params from the same base URL that already answered `/stats`.
+///
+/// - 200 + parse → `Found` (overwrite stored bridges)
+/// - 404 → `NotPublished` (clear stored bridges). Covers both “operator stopped
+///   publishing” and “route never mounted” (no `bridge_client_params` config).
+/// - anything else → `Unchecked` (leave stored bridges alone)
+async fn scrape_bridges(client: &reqwest::Client, base: &str, node_id: i64) -> BridgeScrape {
+    let url = format!("{base}{BRIDGES_URL}");
+    let response = match client.get(&url).send().await {
+        Ok(response) => response,
+        Err(err) => {
+            warn!("bridge client-params unreachable for node {node_id} at {url}: {err}");
+            return BridgeScrape::Unchecked;
+        }
+    };
+
+    let status = response.status();
+    if status == StatusCode::NOT_FOUND {
+        trace!("node {node_id} does not publish bridges at {url}");
+        return BridgeScrape::NotPublished;
+    }
+    if !status.is_success() {
+        warn!("bridge client-params for node {node_id} at {url}: HTTP {status}");
+        return BridgeScrape::Unchecked;
+    }
+
+    match response.json::<BridgeInformation>().await {
+        Ok(info) => {
+            trace!("got bridge info from node id {node_id}: {info:?}");
+            BridgeScrape::Found(info)
+        }
+        Err(err) => {
+            error!("Failed to deserialize bridge information for node {node_id}: {err}");
+            BridgeScrape::Unchecked
+        }
+    }
 }
 
 pub async fn update_daily_stats_uncommitted(
@@ -290,7 +316,36 @@ pub async fn update_daily_stats_uncommitted(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::Router;
+    use axum::http::StatusCode as AxumStatus;
+    use axum::response::{IntoResponse, Response};
+    use axum::routing::get;
     use serde_json::json;
+    use std::net::SocketAddr;
+    use std::sync::Arc;
+    use tokio::net::TcpListener;
+
+    const VALID_CLIENT_PARAMS: &str = r#"{"version":"0","transports":[{"transport_type":"quic_plain","args":{"addresses":["1.2.3.4:4443"],"host":"example.com","id_pubkey":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}],"transports_v2":[]}"#;
+
+    async fn serve_bridges(
+        on_request: Arc<dyn Fn() -> Response + Send + Sync>,
+    ) -> (reqwest::Client, String) {
+        let app = Router::new().route(
+            BRIDGES_URL,
+            get(move || {
+                let on_request = Arc::clone(&on_request);
+                async move { on_request() }
+            }),
+        );
+        let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+            .await
+            .expect("bind test listener");
+        let addr = listener.local_addr().expect("local addr");
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.expect("serve test app");
+        });
+        (reqwest::Client::new(), format!("http://{addr}"))
+    }
 
     #[test]
     fn test_get_packet_value() {
@@ -298,6 +353,74 @@ mod tests {
         assert_eq!(get_packet_value(&json, "packets"), Some(100));
         assert_eq!(get_packet_value(&json, "dropped"), Some(50));
         assert_eq!(get_packet_value(&json, "non_existent"), None);
+    }
+
+    #[tokio::test]
+    async fn scrape_bridges_404_is_not_published() {
+        let (client, base) =
+            serve_bridges(Arc::new(|| AxumStatus::NOT_FOUND.into_response())).await;
+        assert!(matches!(
+            scrape_bridges(&client, &base, 1).await,
+            BridgeScrape::NotPublished
+        ));
+    }
+
+    #[tokio::test]
+    async fn scrape_bridges_valid_body_is_found() {
+        let (client, base) = serve_bridges(Arc::new(|| VALID_CLIENT_PARAMS.into_response())).await;
+        match scrape_bridges(&client, &base, 1).await {
+            BridgeScrape::Found(info) => assert_eq!(info.version, "0"),
+            other => panic!("expected Found, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn scrape_bridges_empty_transports_is_still_found() {
+        // 200 with a valid empty descriptor overwrites storage (unlike 404 clear).
+        // Callers that treat `bridges: Some` as “try bridges” should be aware.
+        let body = r#"{"version":"0","transports":[],"transports_v2":[]}"#;
+        let (client, base) = serve_bridges(Arc::new(|| body.into_response())).await;
+        match scrape_bridges(&client, &base, 1).await {
+            BridgeScrape::Found(info) => {
+                assert!(info.transports.is_empty());
+                assert!(info.transports_v2.is_empty());
+            }
+            other => panic!("expected Found, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn scrape_bridges_garbage_body_is_unchecked() {
+        let (client, base) = serve_bridges(Arc::new(|| "not-json".into_response())).await;
+        assert!(matches!(
+            scrape_bridges(&client, &base, 1).await,
+            BridgeScrape::Unchecked
+        ));
+    }
+
+    #[tokio::test]
+    async fn scrape_bridges_5xx_is_unchecked() {
+        let (client, base) = serve_bridges(Arc::new(|| {
+            AxumStatus::INTERNAL_SERVER_ERROR.into_response()
+        }))
+        .await;
+        assert!(matches!(
+            scrape_bridges(&client, &base, 1).await,
+            BridgeScrape::Unchecked
+        ));
+    }
+
+    #[tokio::test]
+    async fn scrape_bridges_unreachable_is_unchecked() {
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_millis(200))
+            .build()
+            .unwrap();
+        // Nothing listening — connect failure must not clear stored bridges.
+        assert!(matches!(
+            scrape_bridges(&client, "http://127.0.0.1:1", 1).await,
+            BridgeScrape::Unchecked
+        ));
     }
 
     #[test]

@@ -332,7 +332,7 @@ pub(crate) const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
 
 // `utoipa` goes crazy if you use module-qualified prefix as field type so we
 //  have to import it
-use crate::node_scraper::models::BridgeInformation;
+use crate::node_scraper::models::BridgeScrape;
 use gateway::GatewaySummary;
 use mixnode::MixnodeSummary;
 use nym_api_requests::models::described::type_translation::{
@@ -672,7 +672,7 @@ pub struct InsertNodeScraperRecords {
     pub timestamp_utc: UtcDateTime,
     pub unix_timestamp: i64,
     pub stats: NodeStats,
-    pub bridges: Option<BridgeInformation>,
+    pub bridges: BridgeScrape,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

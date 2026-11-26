@@ -62,7 +62,7 @@ strum_macros = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "time", "tls-rustls", "postgres"] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["formatting"] }
-tokio = { workspace = true, features = ["rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net"] }
 tokio-util = { workspace = true }
 tokio-stream = { workspace = true }
 tracing = { workspace = true }

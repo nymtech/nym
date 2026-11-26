@@ -254,7 +254,7 @@ The scraper MUST NOT wait for its spawned tasks: a cycle is considered finished 
 
 ### Requirement: The packet-stats scraper SHALL fetch per-node counters and commit deltas in one transaction
 
-The packet-stats scraper MUST run every hour over the same node set, with at most `packet_stats_max_concurrent_tasks` (default 10) concurrent tasks, and MUST wait for all tasks before storing. Per node it MUST try each candidate contact URL with `/stats`, accepting either the legacy mixnode counter names (`packets_*_since_startup`) or the nym-node names (`received_since_startup`, `sent_since_startup`, `dropped_since_startup`), and MUST tolerate counters reported as floats by truncating them. When a URL yields stats it MUST additionally fetch `/api/v1/bridges/client-params` from that same URL and keep the parsed bridge information when it deserializes.
+The packet-stats scraper MUST run every hour over the same node set, with at most `packet_stats_max_concurrent_tasks` (default 10) concurrent tasks, and MUST wait for all tasks before storing. Per node it MUST try each candidate contact URL with `/stats`, accepting either the legacy mixnode counter names (`packets_*_since_startup`) or the nym-node names (`received_since_startup`, `sent_since_startup`, `dropped_since_startup`), and MUST tolerate counters reported as floats by truncating them. When a URL yields stats it MUST additionally fetch `/api/v1/bridges/client-params` from that same URL. The bridges write MUST be tri-state for entry/exit gateways: a successful parse MUST overwrite `gateways.bridges`; an HTTP 404 MUST set `gateways.bridges` to `NULL` (the node stopped publishing); timeouts, other non-success statuses and deserialize failures MUST leave the stored value unchanged. When the monitor marks a gateway `bonded = false`, it MUST also clear that row's `bridges` so departed nodes stop advertising stale client-params.
 
 Counters MUST be taken at face value: they are self-reported by the node over its own HTTP API, and beyond the restart-detection rule there is no plausibility check, rate ceiling or outlier rejection, so a node reporting inflated counters propagates directly into `/v2/mixnodes/stats` totals. A response body that is not JSON MUST abort that node's scrape entirely rather than falling through to the remaining candidate URLs, so a node answering a non-JSON error page on its first candidate URL contributes no stats that cycle. All collected records MUST be written in a single transaction: per record, bridge information onto the gateway row (entry/exit nodes only), then the raw counter row, then the daily delta. Any per-record failure MUST abort the whole batch, so one node missing from `nym_nodes` (whose stake lookup is a `fetch_one`) loses the entire cycle's stats.
 
@@ -272,6 +272,21 @@ Counters MUST be taken at face value: they are self-reported by the node over it
 - **GIVEN** one collected record whose node row no longer exists in `nym_nodes`
 - **WHEN** the batch is stored
 - **THEN** the transaction aborts and no node's stats are committed for that cycle
+
+#### Scenario: Stopped publishing clears stored bridges
+- **GIVEN** a bonded entry gateway whose `bridges` column holds previously scraped client-params
+- **WHEN** the packet-stats scrape gets `/stats` successfully and `/api/v1/bridges/client-params` returns 404
+- **THEN** that gateway's `bridges` is set to `NULL` and subsequent `/v2/gateways` and dVPN directory responses omit bridges for it
+
+#### Scenario: Transient bridge fetch leaves stored bridges alone
+- **GIVEN** a bonded entry gateway with stored bridges
+- **WHEN** `/stats` succeeds but client-params times out or returns 5xx
+- **THEN** the stored `bridges` value is unchanged
+
+#### Scenario: Unbonded gateway drops bridges
+- **GIVEN** a gateway that had stored bridges and is no longer in the bonded set
+- **WHEN** the monitor refreshes bonded gateways
+- **THEN** that row has `bonded = false` and `bridges = NULL`
 
 ### Requirement: Candidate contact URLs SHALL be derived from declared IPs, with a custom bond port overriding all fallbacks
 

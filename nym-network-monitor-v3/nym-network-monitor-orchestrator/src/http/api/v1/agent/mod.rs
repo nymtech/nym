@@ -221,7 +221,7 @@ async fn request_testrun(
         );
     }
 
-    Ok(Json(TestRunAssignmentResponse { assignment }))
+    todo!("hand out a due route run, else the one-hop assignment")
 }
 
 fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {

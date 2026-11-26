@@ -116,7 +116,36 @@ pub enum TestKind {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunAssignmentResponse {
-    pub assignment: Option<TestRunAssignment>,
+    pub assignment: Option<WorkAssignment>,
+}
+
+/// Work handed to an agent: one-hop test runs of one kind, or a five-hop route run.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkAssignment {
+    OneHop(OneHopAssignment),
+    FiveHop(FiveHopAssignment),
+}
+
+/// A route run: one five-hop liveness session through each of its gateways.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiveHopAssignment {
+    pub id: i64,
+
+    pub gateways: Vec<FiveHopGateway>,
+}
+
+/// A gateway a route run's session goes through; the session finds the rest in the topology.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiveHopGateway {
+    pub node_id: u32,
+
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub identity_key: ed25519::PublicKey,
 }
 
 /// Work handed to an agent, one variant per [`TestKind`].
@@ -136,20 +165,20 @@ pub struct TestRunAssignmentResponse {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TestRunAssignment {
+pub enum OneHopAssignment {
     MixnodeStress(Box<MixnetProbeTarget>),
     MixnodeLiveness(Vec<MixnetProbeTarget>),
     GatewayLiveness(Vec<GatewayProbeTarget>),
 }
 
-impl TestRunAssignment {
+impl OneHopAssignment {
     /// What this assignment measures. Determines the profile the agent applies, and the kind
     /// recorded against the resulting run.
     pub fn kind(&self) -> TestKind {
         match self {
-            TestRunAssignment::MixnodeLiveness(_) => TestKind::MixnodeLiveness,
-            TestRunAssignment::GatewayLiveness(_) => TestKind::GatewayLiveness,
-            TestRunAssignment::MixnodeStress(_) => TestKind::MixnodeStress,
+            OneHopAssignment::MixnodeLiveness(_) => TestKind::MixnodeLiveness,
+            OneHopAssignment::GatewayLiveness(_) => TestKind::GatewayLiveness,
+            OneHopAssignment::MixnodeStress(_) => TestKind::MixnodeStress,
         }
     }
 }
@@ -722,14 +751,14 @@ mod tests {
     #[test]
     fn a_stress_assignment_round_trips_as_a_single_target() {
         let json =
-            serde_json::to_string(&TestRunAssignment::MixnodeStress(Box::new(mixnet_target())))
+            serde_json::to_string(&OneHopAssignment::MixnodeStress(Box::new(mixnet_target())))
                 .unwrap();
         assert!(json.contains(r#"{"mixnode_stress":{"#), "{json}");
 
-        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        let parsed: OneHopAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::MixnodeStress);
 
-        let TestRunAssignment::MixnodeStress(target) = parsed else {
+        let OneHopAssignment::MixnodeStress(target) = parsed else {
             panic!("round-tripped into the wrong variant: {json}");
         };
         assert_eq!(target.node_id, 42);
@@ -743,13 +772,13 @@ mod tests {
     #[test]
     fn a_liveness_assignment_round_trips_as_a_wave() {
         let wave = vec![mixnet_target(), mixnet_target()];
-        let json = serde_json::to_string(&TestRunAssignment::MixnodeLiveness(wave)).unwrap();
+        let json = serde_json::to_string(&OneHopAssignment::MixnodeLiveness(wave)).unwrap();
         assert!(json.contains(r#"{"mixnode_liveness":[{"#), "{json}");
 
-        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        let parsed: OneHopAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::MixnodeLiveness);
 
-        let TestRunAssignment::MixnodeLiveness(wave) = parsed else {
+        let OneHopAssignment::MixnodeLiveness(wave) = parsed else {
             panic!("round-tripped into the wrong variant: {json}");
         };
         assert_eq!(wave.len(), 2);
@@ -761,13 +790,13 @@ mod tests {
             mixnet: mixnet_target(),
             clients_ws_port: 9000,
         }];
-        let json = serde_json::to_string(&TestRunAssignment::GatewayLiveness(wave)).unwrap();
+        let json = serde_json::to_string(&OneHopAssignment::GatewayLiveness(wave)).unwrap();
         assert!(json.contains(r#"{"gateway_liveness":[{"#), "{json}");
 
-        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        let parsed: OneHopAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::GatewayLiveness);
 
-        let TestRunAssignment::GatewayLiveness(wave) = parsed else {
+        let OneHopAssignment::GatewayLiveness(wave) = parsed else {
             panic!("round-tripped into the wrong variant: {json}");
         };
         assert_eq!(wave[0].clients_ws_port, 9000);
@@ -783,10 +812,10 @@ mod tests {
         let target_json = serde_json::to_string(&mixnet_target()).unwrap();
 
         let stress =
-            serde_json::to_string(&TestRunAssignment::MixnodeStress(Box::new(mixnet_target())))
+            serde_json::to_string(&OneHopAssignment::MixnodeStress(Box::new(mixnet_target())))
                 .unwrap();
         let liveness =
-            serde_json::to_string(&TestRunAssignment::MixnodeLiveness(vec![mixnet_target()]))
+            serde_json::to_string(&OneHopAssignment::MixnodeLiveness(vec![mixnet_target()]))
                 .unwrap();
 
         assert!(stress.contains(&target_json), "{stress}");

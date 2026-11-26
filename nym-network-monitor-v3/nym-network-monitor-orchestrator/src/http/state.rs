@@ -13,8 +13,8 @@ use crate::storage::models::{
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentMixAddresses, NodeEpochAggregates, NymNodeData, NymNodeWithTestRuns, PagedResult,
-    Pagination, TestRunAssignment, TestRunData, TestRunInProgressData, TestRunResult,
+    AgentMixAddresses, NodeEpochAggregates, NymNodeData, NymNodeWithTestRuns, OneHopAssignment,
+    PagedResult, Pagination, TestRunData, TestRunInProgressData, TestRunResult,
 };
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
@@ -333,7 +333,7 @@ impl TestrunManager {
     async fn assign_next_testrun(
         &self,
         storage: &NetworkMonitorStorage,
-    ) -> Result<Option<TestRunAssignment>, ApiError> {
+    ) -> Result<Option<OneHopAssignment>, ApiError> {
         let mut due = Vec::with_capacity(self.schedules.len());
         for schedule in &self.schedules {
             match storage.peek_kind_head(schedule).await {
@@ -363,7 +363,7 @@ impl TestrunManager {
         &self,
         storage: &NetworkMonitorStorage,
         schedule: &KindSchedule,
-    ) -> Result<Option<TestRunAssignment>, ApiError> {
+    ) -> Result<Option<OneHopAssignment>, ApiError> {
         let targets = match storage.assign_next_testruns(schedule).await {
             Ok(targets) => targets,
             Err(err) => {
@@ -391,24 +391,24 @@ impl TestrunManager {
         &self,
         kind: TestKind,
         targets: &[AssignedTestrun],
-    ) -> Result<Option<TestRunAssignment>, ApiError> {
+    ) -> Result<Option<OneHopAssignment>, ApiError> {
         if targets.is_empty() {
             return Ok(None);
         }
 
         let assignment = match kind {
             // the stress schedule always asks for a wave of one
-            TestKind::MixnodeStress => TestRunAssignment::MixnodeStress(Box::new(
+            TestKind::MixnodeStress => OneHopAssignment::MixnodeStress(Box::new(
                 targets[0].mixnet_probe_target().map_err(malformed_target)?,
             )),
-            TestKind::MixnodeLiveness => TestRunAssignment::MixnodeLiveness(
+            TestKind::MixnodeLiveness => OneHopAssignment::MixnodeLiveness(
                 targets
                     .iter()
                     .map(AssignedTestrun::mixnet_probe_target)
                     .collect::<anyhow::Result<_>>()
                     .map_err(malformed_target)?,
             ),
-            TestKind::GatewayLiveness => TestRunAssignment::GatewayLiveness(
+            TestKind::GatewayLiveness => OneHopAssignment::GatewayLiveness(
                 targets
                     .iter()
                     .map(AssignedTestrun::gateway_probe_target)
@@ -492,7 +492,7 @@ impl AppState {
 
     /// Hands the requesting agent one assignment of whichever enabled kind is most overdue. `None`
     /// when nothing is due.
-    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
+    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<OneHopAssignment>, ApiError> {
         self.testrun_manager
             .assign_next_testrun(&self.storage)
             .await
@@ -1274,7 +1274,7 @@ mod assignment_tests {
     async fn next(
         manager: &TestrunManager,
         storage: &NetworkMonitorStorage,
-    ) -> Option<TestRunAssignment> {
+    ) -> Option<OneHopAssignment> {
         manager.assign_next_testrun(storage).await.unwrap()
     }
 
@@ -1324,7 +1324,7 @@ mod assignment_tests {
         tested(&storage, TestKind::MixnodeLiveness, 2, minutes(1)).await;
 
         let assignment = next(&manager, &storage).await.unwrap();
-        let TestRunAssignment::MixnodeLiveness(wave) = assignment else {
+        let OneHopAssignment::MixnodeLiveness(wave) = assignment else {
             panic!("the less overdue kind was served: {assignment:?}");
         };
         assert_eq!(wave.len(), 1);
@@ -1344,7 +1344,7 @@ mod assignment_tests {
         tested(&storage, TestKind::MixnodeStress, 1, minutes(10)).await;
 
         let assignment = next(&manager, &storage).await.unwrap();
-        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+        let OneHopAssignment::GatewayLiveness(wave) = assignment else {
             panic!("an overdue head was served before a never-tested one: {assignment:?}");
         };
         assert_eq!(wave[0].mixnet.node_id, 2);
@@ -1360,7 +1360,7 @@ mod assignment_tests {
         let storage = storage_with(&[mixnode(1), gateway(2)]).await;
 
         let assignment = next(&manager, &storage).await.unwrap();
-        assert!(matches!(assignment, TestRunAssignment::MixnodeStress(_)));
+        assert!(matches!(assignment, OneHopAssignment::MixnodeStress(_)));
 
         // the gateway, which only gateway liveness could test, is left alone
         assert!(next(&manager, &storage).await.is_none());
@@ -1374,7 +1374,7 @@ mod assignment_tests {
 
         let assignment = next(&manager(), &storage).await.unwrap();
 
-        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+        let OneHopAssignment::GatewayLiveness(wave) = assignment else {
             panic!("a gateway-only population produced {assignment:?}");
         };
         assert_eq!(wave.len(), 1);
@@ -1392,7 +1392,7 @@ mod assignment_tests {
 
         let assignment = next(&narrow_waves(), &storage).await.unwrap();
 
-        let TestRunAssignment::MixnodeLiveness(wave) = assignment else {
+        let OneHopAssignment::MixnodeLiveness(wave) = assignment else {
             panic!("a mixnode-only population produced {assignment:?}");
         };
         assert_eq!(wave.len(), 3);
@@ -1405,7 +1405,7 @@ mod assignment_tests {
 
         let assignment = next(&narrow_waves(), &storage).await.unwrap();
 
-        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+        let OneHopAssignment::GatewayLiveness(wave) = assignment else {
             panic!("a gateway-only population produced {assignment:?}");
         };
         assert_eq!(wave.len(), 1);
@@ -1418,7 +1418,7 @@ mod assignment_tests {
         let manager = manager();
         let storage = storage_with(&[mixnode(1)]).await;
         let assignment = next(&manager, &storage).await.unwrap();
-        assert!(matches!(assignment, TestRunAssignment::MixnodeLiveness(_)));
+        assert!(matches!(assignment, OneHopAssignment::MixnodeLiveness(_)));
 
         let address: SocketAddr = "1.2.3.4:1789".parse().unwrap();
         let result = |kind| TestRunResult {

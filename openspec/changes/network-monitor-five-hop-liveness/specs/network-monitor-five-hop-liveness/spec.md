@@ -282,7 +282,7 @@ The first strategy is the fail-sequence rule of the performance monitor specific
 
 ### Requirement: Five-hop liveness is materialised as an epoch begins, from the sessions of the epoch that just ended
 
-As an epoch begins, in the pass that materialises its aggregates, the orchestrator SHALL compute the five-hop liveness filed under that epoch from the stored sessions whose batch names the epoch that just ended, and from no others. It MUST first discard the sessions whose gateway is suspected, then unpack the rest into test messages and order them by the time they were sent (the test messages of one record keeping their order, and equal times ordered by gateway node id). It MUST give the strategy, as each mixnode's most recent one-hop score, the score of that mixnode's most recent mixnode liveness run, and none for a mixnode that has no such run. It MUST store, for every mixnode on any test message, its score with its positive and negative samples.
+As an epoch begins, in the pass that materialises its aggregates, the orchestrator SHALL compute the five-hop liveness filed under that epoch from the stored sessions whose batch names the epoch that just ended, and from no others. It MUST first discard the sessions whose gateway is suspected, then unpack the rest into test messages and order them by the time they were sent (the test messages of one record keeping their order, and equal times ordered by gateway node id). It MUST give the strategy, as each mixnode's most recent one-hop score, the score of that mixnode's most recent mixnode liveness run, and none for a mixnode that has no such run. It MUST store, for every mixnode on any test message that has a sample, its score with its positive and negative samples. A mixnode the strategy gave no sample has no score, and nothing is stored for it.
 
 Each epoch is scored on its own: whatever a strategy keeps between test messages, such as a fail sequence, starts afresh. Within an epoch the test messages of all its runs form one list, and nothing is reset between runs: a fail sequence a mixnode ended one run with is the one it starts the epoch's next run with. The stored values MUST be written once and never recomputed, and a batch that arrives after its epoch's values were stored is not counted. An epoch being backfilled is computed the same way, from whichever of the preceding epoch's sessions are still stored. A mixnode named by a batch that has no bond in the registry is skipped.
 
@@ -384,7 +384,7 @@ The orchestrator's aggregates API SHALL carry, for a node and an epoch, a five-h
 
 ### Requirement: An epoch's route sessions can be exported as test messages
 
-The orchestrator SHALL serve the route sessions that name a given mixnet epoch at `GET /v1/results/route-sessions/epoch/{mixnet_epoch}`, on its results surface and behind the `metrics_and_results_token`. The epoch is the one the sessions ran in, which is the epoch before the one their five-hop liveness is filed under.
+The orchestrator SHALL serve the route sessions of a given mixnet epoch at `GET /v1/results/route-sessions/epoch/{mixnet_epoch}`, on its results surface and behind the `metrics_and_results_token`. The epoch is the one the sessions ran in, which is the epoch before the one their five-hop liveness is filed under. A session is of the epoch its batch names. A session stored with an error has no batch and names no epoch, so it is served with the other sessions of its run: the response carries every session of each run that has a session naming the epoch, and a run whose sessions all failed is in no epoch's response.
 
 The response SHALL list the sessions in the order their runs started, and the sessions of one run by the gateway's node id. For each session it MUST carry the route run it belonged to, the gateway's node id, the session's error if it had one, whether the scoring keeps or discards it, and its test messages in the order sent: for each, the time it was sent, the node ids of the three mixnodes on its path in path order, and whether it came back. The test messages MUST be produced from the stored batch by the step that feeds the scoring, and the mark by the rule that discards a suspected session, under the current configuration. A discarded session's test messages are served like any other's. A session stored with an error has none.
 
@@ -401,7 +401,7 @@ An epoch's test messages and each node's one-hop runs, which the results surface
 - **THEN** it is served with its test messages and marked as discarded, and the others are marked as kept
 
 #### Scenario: A failed session has no test messages
-- **WHEN** a session of the requested epoch was stored with an error and no batch
+- **WHEN** a session of a run of the requested epoch was stored with an error and no batch
 - **THEN** it is served with its error and no test messages
 
 #### Scenario: The export is what was scored

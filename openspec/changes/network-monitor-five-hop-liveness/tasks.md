@@ -22,7 +22,7 @@
 
 ## 4. Wire types
 
-- [ ] 4.1 In the orchestrator requests crate, let the work response carry a test assignment, a route run or nothing: the route run with its id and, per gateway, node id and identity key
+- [x] 4.1 In the orchestrator requests crate, let the work response carry a test assignment, a route run or nothing: the route run with its id and, per gateway, node id and identity key
 - [ ] 4.2 The route run submission (run id and, per gateway, a batch or an error), its route `/v1/agent/submit-route-run-result` and its client call
 - [ ] 4.3 The five-hop liveness entry (score, positive samples, negative samples) on `NodeEpochAggregates`
 - [ ] 4.4 Update the crate's doc comments that say work is always of a kind

@@ -23,10 +23,10 @@
 ## 4. Wire types
 
 - [x] 4.1 In the orchestrator requests crate, let the work response carry a test assignment, a route run or nothing: the route run with its id and, per gateway, node id and identity key
-- [ ] 4.2 The route run submission (run id and, per gateway, a batch or an error), its route `/v1/agent/submit-route-run-result` and its client call
-- [ ] 4.3 The five-hop liveness entry (score, positive samples, negative samples) on `NodeEpochAggregates`
-- [ ] 4.4 Update the crate's doc comments that say work is always of a kind
-- [ ] 4.5 The read type of an exported route session (its run, the gateway's node id, its error, whether it is discarded, and its test messages: time sent, three node ids, whether it came back) and the results route `/route-sessions/epoch/{mixnet_epoch}`
+- [x] 4.2 One submit route for every kind of work: rename `/v1/agent/request-testrun` to `/v1/agent/request-work-assignment` and `/v1/agent/submit-testrun-result` to `/v1/agent/submit-work-result`, whose body is a one-hop target's result or a route run's submission (run id and, per gateway, a batch or an error); the request and submission types and the client calls follow
+- [x] 4.3 The five-hop liveness entry (score, positive samples, negative samples) on `NodeEpochAggregates`, and its liveness entry renamed `one_hop_liveness`
+- [x] 4.4 Update the crate's doc comments that say work is always of a kind
+- [x] 4.5 The read type of an exported route session (its run, the gateway's node id, its error, whether it is discarded, and its test messages: time sent, three node ids, whether it came back) and the results route `/route-sessions/epoch/{mixnet_epoch}`
 
 ## 5. Orchestrator storage and node registry
 

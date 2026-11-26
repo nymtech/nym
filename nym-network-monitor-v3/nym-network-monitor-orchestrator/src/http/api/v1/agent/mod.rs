@@ -12,8 +12,8 @@ use axum::routing::post;
 use axum::{Json, Router};
 use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, AgentAnnounceResponse, TestRunAssignmentRequest,
-    TestRunAssignmentResponse, TestRunResultSubmissionRequest, TestRunSubmissionResponse,
+    AgentAnnounceRequest, AgentAnnounceResponse, OneHopMixnetResult, WorkAssignmentRequest,
+    WorkAssignmentResponse, WorkResultSubmissionRequest, WorkResultSubmissionResponse,
 };
 use nym_network_monitor_orchestrator_requests::routes;
 use nym_validator_client::nyxd::Coin;
@@ -158,16 +158,16 @@ async fn announce_agent(
 }
 
 #[utoipa::path(
-    operation_id = "v1_agent_request_testrun",
+    operation_id = "v1_agent_request_work_assignment",
     tag = "Network Monitor Agent",
     post,
-    request_body = TestRunAssignmentRequest,
-    path = "/request-testrun",
+    request_body = WorkAssignmentRequest,
+    path = "/request-work-assignment",
     context_path = "/v1/agent",
     security(("agents_token" = [])),
     responses(
         (status = 200, content(
-            (TestRunAssignmentResponse = "application/json"),
+            (WorkAssignmentResponse = "application/json"),
         )),
         (status = 400, description = "agent not found in cache, or agent has not yet been announced to the contract"),
         (status = 500, description = "failed to read from storage, or a stored field could not be decoded"),
@@ -180,11 +180,11 @@ async fn announce_agent(
         agent_pod = %addr
     )
 )]
-async fn request_testrun(
+async fn request_work_assignment(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,
-    Json(body): Json<TestRunAssignmentRequest>,
-) -> Result<Json<TestRunAssignmentResponse>, ApiError> {
+    Json(body): Json<WorkAssignmentRequest>,
+) -> Result<Json<WorkAssignmentResponse>, ApiError> {
     let pod_ip = addr.ip();
     info!("received testrun request from pod at {pod_ip}");
     PROMETHEUS_METRICS.inc(PrometheusMetric::AgentTestrunRequests);
@@ -224,7 +224,7 @@ async fn request_testrun(
     todo!("hand out a due route run, else the one-hop assignment")
 }
 
-fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {
+fn emit_testrun_result_metrics(result: &OneHopMixnetResult) {
     PROMETHEUS_METRICS.inc(PrometheusMetric::TestRunResultSubmissions);
 
     // run-level: one observation per submitted run, against the kind the measurements were taken
@@ -273,16 +273,16 @@ fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {
 }
 
 #[utoipa::path(
-    operation_id = "v1_agent_submit_testrun_result",
+    operation_id = "v1_agent_submit_work_result",
     tag = "Network Monitor Agent",
     post,
-    request_body = TestRunResultSubmissionRequest,
-    path = "/submit-testrun-result",
+    request_body = WorkResultSubmissionRequest,
+    path = "/submit-work-result",
     context_path = "/v1/agent",
     security(("agents_token" = [])),
     responses(
         (status = 200, content(
-            (TestRunSubmissionResponse = "application/json"),
+            (WorkResultSubmissionResponse = "application/json"),
         )),
         (status = 500, description = "failed to persist the test run result to storage"),
     )
@@ -294,35 +294,43 @@ fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {
         agent_pod = %addr
     )
 )]
-async fn submit_testrun_result(
+async fn submit_work_result(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,
-    Json(body): Json<TestRunResultSubmissionRequest>,
-) -> Result<Json<TestRunSubmissionResponse>, ApiError> {
+    Json(body): Json<WorkResultSubmissionRequest>,
+) -> Result<Json<WorkResultSubmissionResponse>, ApiError> {
     let pod_ip = addr.ip();
 
-    emit_testrun_result_metrics(&body);
+    match body {
+        WorkResultSubmissionRequest::OneHopMixnet(result) => {
+            emit_testrun_result_metrics(&result);
 
-    info!(
-        "received testrun result for node {} at {} from pod at {pod_ip}",
-        body.node_id, body.tested_address
-    );
+            info!(
+                "received testrun result for node {} at {} from pod at {pod_ip}",
+                result.node_id, result.tested_address
+            );
 
-    state
-        .submit_testrun_result(body.result, body.node_id, body.tested_address)
-        .await?;
+            state
+                .submit_testrun_result(result.result, result.node_id, result.tested_address)
+                .await?;
+        }
+        WorkResultSubmissionRequest::FiveHopMixnet(_) => todo!("store a route run's sessions"),
+    }
 
-    Ok(Json(TestRunSubmissionResponse {}))
+    Ok(Json(WorkResultSubmissionResponse {}))
 }
 
 /// Builds the agent sub-router with all agent endpoints behind bearer-token auth.
 pub(super) fn routes(auth_layer: AuthLayer) -> Router<AppState> {
     Router::new()
         .route(routes::v1::agent::ANNOUNCE, post(announce_agent))
-        .route(routes::v1::agent::REQUEST_TESTRUN, post(request_testrun))
         .route(
-            routes::v1::agent::SUBMIT_TESTRUN_RESULT,
-            post(submit_testrun_result),
+            routes::v1::agent::REQUEST_WORK_ASSIGNMENT,
+            post(request_work_assignment),
+        )
+        .route(
+            routes::v1::agent::SUBMIT_WORK_RESULT,
+            post(submit_work_result),
         )
         .route_layer(auth_layer)
 }

@@ -8508,6 +8508,7 @@ dependencies = [
  "humantime-serde",
  "nym-crypto",
  "nym-http-api-client",
+ "nym-serde-helpers",
  "nym-test-utils",
  "serde",
  "serde_json",

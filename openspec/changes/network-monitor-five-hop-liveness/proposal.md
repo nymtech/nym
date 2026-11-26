@@ -27,8 +27,9 @@ The network monitor tests every node on its own: an agent sends packets through 
 
 ### Modified Capabilities
 
-- `nym-network-monitor`: a due route run is handed out before the choice of a kind; the agent's single assignment may be a route run; the node refresher records whether a gateway enforces zk-nyms; the stored state gains that column and the route run and route session tables; a liveness run posted to nym-api carries the node's five-hop liveness; the agent surface gains the route run submission and the results surface a seventh read.
+- `nym-network-monitor`: a due route run is handed out before the choice of a kind; the agent's single assignment may be a route run; the node refresher records whether a gateway enforces zk-nyms; the stored state gains that column and the route run and route session tables; a liveness run posted to nym-api carries the node's five-hop liveness; the agent's routes become `request-work-assignment` and `submit-work-result`, one submit route that also takes a route run's sessions, and the results surface gains a seventh read.
 - `network-monitor-contract-submission`: a node's submitted liveness is multiplied by its five-hop liveness.
+- `network-monitor-epoch-performance`: the aggregates API's liveness entry is named one-hop liveness, as it is not scaled by five-hop liveness.
 
 ## Impact
 

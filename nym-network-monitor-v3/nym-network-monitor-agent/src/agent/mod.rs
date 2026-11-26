@@ -11,8 +11,8 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::{
     AgentAnnounceRequest, AgentMixAddresses, GatewayProbeTarget, MixnetProbeTarget,
-    OneHopAssignment, TestKind, TestRunAssignmentRequest, TestRunResultSubmissionRequest,
-    WorkAssignment,
+    OneHopMixnetAssignment, OneHopMixnetResult, TestKind, WorkAssignment, WorkAssignmentRequest,
+    WorkResultSubmissionRequest,
 };
 use nym_noise::LATEST_NOISE_VERSION;
 use nym_sphinx_types::DestinationAddressBytes;
@@ -184,11 +184,13 @@ impl NetworkMonitorAgent {
         };
 
         self.orchestrator_client
-            .submit_test_run_result(&TestRunResultSubmissionRequest {
-                node_id,
-                tested_address,
-                result: result.into(),
-            })
+            .submit_work_result(&WorkResultSubmissionRequest::OneHopMixnet(
+                OneHopMixnetResult {
+                    node_id,
+                    tested_address,
+                    result: result.into(),
+                },
+            ))
             .await
             .context("failed to submit test run result")?;
         Ok(())
@@ -197,7 +199,7 @@ impl NetworkMonitorAgent {
     /// Requests a work assignment from the orchestrator and, if one is available,
     /// performs appropriate test against the assigned node and submits the results.
     pub(crate) async fn perform_work_assignment(&self) -> anyhow::Result<()> {
-        let request = TestRunAssignmentRequest {
+        let request = WorkAssignmentRequest {
             mix_addresses: self.mix_addresses(),
             x25519_noise_key: *self.noise_key.public_key(),
         };
@@ -220,18 +222,18 @@ impl NetworkMonitorAgent {
         // the results being collected and submitted here: a wave's targets have to release their
         // in-flight locks independently of one another
         match work_assignment {
-            WorkAssignment::OneHop(OneHopAssignment::MixnodeStress(target)) => {
+            WorkAssignment::OneHopMixnet(OneHopMixnetAssignment::MixnodeStress(target)) => {
                 self.run_mixnet_wave(TestKind::MixnodeStress, vec![*target])
                     .await
             }
-            WorkAssignment::OneHop(OneHopAssignment::MixnodeLiveness(targets)) => {
+            WorkAssignment::OneHopMixnet(OneHopMixnetAssignment::MixnodeLiveness(targets)) => {
                 self.run_mixnet_wave(TestKind::MixnodeLiveness, targets)
                     .await
             }
-            WorkAssignment::OneHop(OneHopAssignment::GatewayLiveness(targets)) => {
+            WorkAssignment::OneHopMixnet(OneHopMixnetAssignment::GatewayLiveness(targets)) => {
                 self.run_gateway_liveness_wave(targets).await
             }
-            WorkAssignment::FiveHop(_) => todo!("dispatch a route run"),
+            WorkAssignment::FiveHopMixnet(_) => todo!("dispatch a route run"),
         }
     }
 }

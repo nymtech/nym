@@ -163,6 +163,14 @@ impl MixnetStream {
         self.streams.last_activity(&self.id).await
     }
 
+    /// Skip a missing message once later ones have waited `timeout` behind
+    /// it, reporting the loss through `recv()`. For message streams that
+    /// tolerate loss; by default delivery stays strictly in order.
+    #[cfg(feature = "ipr")]
+    pub(crate) async fn set_gap_timeout(&self, timeout: Option<std::time::Duration>) {
+        self.streams.set_gap_timeout(&self.id, timeout).await
+    }
+
     /// Receive a single message payload directly from the stream channel.
     ///
     /// Returns `None` on EOF (channel closed). Returns `Some(Err(_))`

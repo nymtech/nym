@@ -14,7 +14,7 @@
 //! The task owns its tick rather than extending the eviction sweep, whose cadence is derived from a
 //! lease measured in minutes and cannot resolve one measured in seconds.
 
-use crate::http::state::KnownAgents;
+use crate::http::state::agents::KnownAgents;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{KindSchedule, TestKind};

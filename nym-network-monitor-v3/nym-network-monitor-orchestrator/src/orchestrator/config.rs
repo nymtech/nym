@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::http::state::FiveHopMixnetRunConfig;
+use crate::http::state::work::FiveHopMixnetRunConfig;
 use crate::orchestrator::chain_capability_refresher::ChainCapabilityConfig;
 use crate::orchestrator::scheduling_telemetry::TelemetryConfig;
 use crate::orchestrator::stale_results_eviction::EvictionConfig;

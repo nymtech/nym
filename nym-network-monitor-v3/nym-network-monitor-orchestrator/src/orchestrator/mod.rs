@@ -3,7 +3,8 @@
 
 use crate::aggregation::materialiser::{Materialiser, MaterialiserConfig};
 use crate::http::api::{build_router, run_http_server};
-use crate::http::state::{AppState, KnownAgents};
+use crate::http::state::AppState;
+use crate::http::state::agents::KnownAgents;
 use crate::orchestrator::chain_capability_refresher::ChainCapabilityRefresher;
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;

@@ -133,6 +133,9 @@ pub struct Debug {
 
     /// The minimum duration since the last explicit check for the upgrade mode to allow creation of new requests.
     pub upgrade_mode_min_staleness_recheck: Duration,
+
+    /// How many threads each hosted service provider's LP inbound pipeline peels on.
+    pub sp_inbound_workers: usize,
 }
 
 #[derive(Debug, Clone)]

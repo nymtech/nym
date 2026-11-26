@@ -22,7 +22,6 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR, NymConfigTemplate,
     must_get_home, parse_urls, read_config_from_toml_file, save_formatted_config_to_file,
 };
-use nym_gateway::nym_authenticator;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fmt::{Display, Formatter};
@@ -1161,19 +1160,6 @@ impl From<Wireguard> for nym_wireguard_types::Config {
             private_ipv6: value.private_ipv6,
             announced_tunnel_port: value.announced_tunnel_port,
             announced_metadata_port: value.announced_metadata_port,
-            private_network_prefix_v4: value.private_network_prefix_v4,
-            private_network_prefix_v6: value.private_network_prefix_v6,
-        }
-    }
-}
-
-impl From<Wireguard> for nym_authenticator::config::Authenticator {
-    fn from(value: Wireguard) -> Self {
-        nym_authenticator::config::Authenticator {
-            bind_address: value.bind_address,
-            private_ipv4: value.private_ipv4,
-            private_ipv6: value.private_ipv6,
-            tunnel_announced_port: value.announced_tunnel_port,
             private_network_prefix_v4: value.private_network_prefix_v4,
             private_network_prefix_v6: value.private_network_prefix_v6,
         }

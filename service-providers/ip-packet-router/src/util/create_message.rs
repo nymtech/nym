@@ -1,20 +1,11 @@
-use nym_sdk::mixnet::InputMessage;
+use nym_sdk::mixnet::{AnonymousSenderTag, InputMessage};
 use nym_task::connections::TransmissionLane;
 
-use crate::clients::ConnectedClientId;
-
 pub(crate) fn create_input_message(
-    recipient: &ConnectedClientId,
+    recipient: &AnonymousSenderTag,
     response_packet: Vec<u8>,
 ) -> InputMessage {
     let lane = TransmissionLane::General;
     let packet_type = None;
-    match recipient {
-        ConnectedClientId::NymAddress(recipient) => {
-            InputMessage::new_regular(**recipient, response_packet, lane, packet_type)
-        }
-        ConnectedClientId::AnonymousSenderTag(tag) => {
-            InputMessage::new_reply(*tag, response_packet, lane, packet_type)
-        }
-    }
+    InputMessage::new_reply(*recipient, response_packet, lane, packet_type)
 }

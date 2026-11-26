@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::{
-    clients::{ConnectedClientHandler, ConnectedClients},
+    clients::{ConnectedClientHandler, ConnectedClients, ReplySender},
     config::Config,
     constants::DISCONNECT_TIMER_INTERVAL,
     error::{IpPacketRouterError, Result},
@@ -25,7 +25,8 @@ use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_ip_packet_requests::{MAX_NON_STREAM_VERSION, SPHINX_STREAM_VERSION_THRESHOLD};
 use nym_lp_data::packet::frame::{LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes};
-use nym_sdk::mixnet::MixnetMessageSender;
+use nym_service_providers_common::RequestPath;
+use nym_service_providers_common::lp::handler::ProviderLink;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
 use std::{net::SocketAddr, time::Duration};
@@ -58,6 +59,11 @@ pub(crate) struct MixnetListener {
     // The map of connected clients that the mixnet listener keeps track of. It monitors
     // activity and disconnects clients that have been inactive for too long.
     pub(crate) connected_clients: ConnectedClients,
+
+    /// The other way in: requests that came over LP rather than through the mixnet client.
+    ///
+    /// `None` when standalone - there is no nym-node on the far end of an LP data plane's channels.
+    pub(crate) lp_channels: Option<ProviderLink>,
 }
 
 // #[cfg(target_os = "linux")]
@@ -102,7 +108,7 @@ impl MixnetListener {
                 log::debug!("Denied filter check: {dst}");
                 Ok(Some(VersionedResponse {
                     version,
-                    reply_to: connected_client.client_id.clone(),
+                    reply_to: connected_client.client_id,
                     response: Response::Info {
                         request_id: 0,
                         reply: InfoResponse {
@@ -153,6 +159,7 @@ impl MixnetListener {
         &mut self,
         connect_request: DynamicConnectRequest,
         stream_id: Option<u64>,
+        path: RequestPath,
     ) -> PacketHandleResult {
         log::info!(
             "Received v{} dynamic connect request from {}",
@@ -199,23 +206,18 @@ impl MixnetListener {
             }));
         };
 
-        // Spawn the ConnectedClientHandler for the new client
+        // Spawn the ConnectedClientHandler for the new client, sending back the way it connected
         let (forward_from_tun_tx, close_tx, handle) = ConnectedClientHandler::start(
-            reply_to.clone(),
+            reply_to,
             buffer_timeout,
             version,
-            self.mixnet_client.split_sender(),
+            self.reply_sender(path)?,
             stream_id,
         );
 
         // Register the new client in the set of connected clients
-        self.connected_clients.connect(
-            new_ips,
-            reply_to.clone(),
-            forward_from_tun_tx,
-            close_tx,
-            handle,
-        );
+        self.connected_clients
+            .connect(new_ips, reply_to, forward_from_tun_tx, close_tx, handle);
 
         Ok(Some(VersionedResponse {
             version,
@@ -295,9 +297,12 @@ impl MixnetListener {
         &mut self,
         control_request: ControlRequest,
         stream_id: Option<u64>,
+        path: RequestPath,
     ) -> PacketHandleResult {
         match control_request {
-            ControlRequest::DynamicConnect(r) => self.on_dynamic_connect_request(r, stream_id),
+            ControlRequest::DynamicConnect(r) => {
+                self.on_dynamic_connect_request(r, stream_id, path)
+            }
             ControlRequest::Disconnect(r) => self.on_disconnect_request(r),
             ControlRequest::Ping(r) => self.on_ping_request(r),
             ControlRequest::Health(r) => self.on_health_request(r),
@@ -318,6 +323,7 @@ impl MixnetListener {
     async fn on_reconstructed_message(
         &mut self,
         reconstructed: ReconstructedMessage,
+        path: RequestPath,
     ) -> Result<Vec<PacketHandleResult>> {
         log::debug!(
             "Received message with sender_tag: {}",
@@ -332,11 +338,11 @@ impl MixnetListener {
             && let Ok(header) = LpFrameHeader::parse(&reconstructed.message)
             && header.kind == LpFrameKind::SphinxStream
         {
-            return self.on_stream_frame(reconstructed, header).await;
+            return self.on_stream_frame(reconstructed, header, path).await;
         }
 
         // Regular IPR protocol message (websocket clients)
-        self.on_ipr_message(reconstructed, None).await
+        self.on_ipr_message(reconstructed, None, path).await
     }
 
     /// Handle LP Stream-framed messages.
@@ -347,6 +353,7 @@ impl MixnetListener {
         &mut self,
         reconstructed: ReconstructedMessage,
         header: LpFrameHeader,
+        path: RequestPath,
     ) -> Result<Vec<PacketHandleResult>> {
         log::debug!(
             "Received LP Stream frame ({} bytes)",
@@ -378,13 +385,13 @@ impl MixnetListener {
         };
 
         match self
-            .on_ipr_message(inner_reconstructed, Some(stream_id))
+            .on_ipr_message(inner_reconstructed, Some(stream_id), path)
             .await
         {
             Ok(results) => {
                 for result in results {
                     let Ok(Some(response)) = result else { continue };
-                    if let Err(e) = self.handle_stream_response(stream_id, response).await {
+                    if let Err(e) = self.handle_stream_response(stream_id, response, path).await {
                         log::warn!(
                             "Error sending LP Stream response for stream_id={stream_id:#018x}: {e}"
                         );
@@ -399,7 +406,7 @@ impl MixnetListener {
         Ok(vec![])
     }
 
-    /// Wrap a response in an LP Stream frame and send it via the mixnet.
+    /// Wrap a response in an LP Stream frame and send it back the way its request came.
     ///
     /// Used for inline control responses (connect handshake, pong, health)
     /// that are sent directly from the message handler — outside the
@@ -420,19 +427,16 @@ impl MixnetListener {
         &mut self,
         stream_id: u64,
         response: VersionedResponse,
+        path: RequestPath,
     ) -> Result<()> {
-        let reply_to = response.reply_to.clone();
+        let reply_to = response.reply_to;
         let response_bytes = response.try_into_bytes()?;
 
         let wrapped = crate::clients::encode_stream_frame(stream_id, 0, response_bytes);
 
-        let input_message = crate::util::create_message::create_input_message(&reply_to, wrapped);
-
-        self.mixnet_client.send(input_message).await.map_err(|err| {
-            IpPacketRouterError::FailedToSendPacketToMixnet {
-                source: Box::new(err),
-            }
-        })
+        self.reply_sender(path)?
+            .send(&reply_to, wrapped, None)
+            .await
     }
 
     /// Handle regular IPR protocol messages (from websocket clients).
@@ -452,6 +456,7 @@ impl MixnetListener {
         &mut self,
         reconstructed: ReconstructedMessage,
         stream_id: Option<u64>,
+        path: RequestPath,
     ) -> Result<Vec<PacketHandleResult>> {
         // First deserialize the request
         let request = match IpPacketRequest::try_from(&reconstructed) {
@@ -486,9 +491,9 @@ impl MixnetListener {
 
         match request {
             IpPacketRequest::Data(request) => self.on_data_request(request).await,
-            IpPacketRequest::Control(request) => {
-                Ok(vec![self.on_control_request(request, stream_id).await])
-            }
+            IpPacketRequest::Control(request) => Ok(vec![
+                self.on_control_request(request, stream_id, path).await,
+            ]),
         }
     }
 
@@ -510,28 +515,37 @@ impl MixnetListener {
             .disconnect_inactive_clients(inactive_clients);
     }
 
-    // When an incoming mixnet message triggers a response that we send back, such as during
-    // connect handshake.
-    async fn handle_response(&self, response: VersionedResponse) -> Result<()> {
-        let send_to = response.reply_to.clone();
-        let response_bytes = response.try_into_bytes()?;
-        let input_message =
-            crate::util::create_message::create_input_message(&send_to, response_bytes);
+    /// Where replies to a request that came in over `path` go.
+    fn reply_sender(&self, path: RequestPath) -> Result<ReplySender> {
+        match path {
+            RequestPath::Legacy => Ok(ReplySender::Mixnet(self.mixnet_client.split_sender())),
+            // only the LP arm in `run` produces these, and it never fires without an LP path
+            RequestPath::Lp => self
+                .lp_channels
+                .as_ref()
+                .map(|lp| ReplySender::Lp(lp.outbound.clone()))
+                .ok_or(IpPacketRouterError::LpDataPlaneClosed),
+        }
+    }
 
-        self.mixnet_client.send(input_message).await.map_err(|err| {
-            IpPacketRouterError::FailedToSendPacketToMixnet {
-                source: Box::new(err),
-            }
-        })
+    // When an incoming message triggers a response that we send back, such as during connect
+    // handshake. It goes back the way the request came.
+    async fn handle_response(&self, response: VersionedResponse, path: RequestPath) -> Result<()> {
+        let send_to = response.reply_to;
+        let response_bytes = response.try_into_bytes()?;
+
+        self.reply_sender(path)?
+            .send(&send_to, response_bytes, None)
+            .await
     }
 
     // A single incoming request can trigger multiple responses, such as when data requests contain
     // multiple IP packets.
-    async fn handle_responses(&self, responses: Vec<PacketHandleResult>) {
+    async fn handle_responses(&self, responses: Vec<PacketHandleResult>, path: RequestPath) {
         for response in responses {
             match response {
                 Ok(Some(response)) => {
-                    if let Err(err) = self.handle_response(response).await {
+                    if let Err(err) = self.handle_response(response, path).await {
                         log::error!("Mixnet listener failed to handle response: {err}");
                     }
                 }
@@ -542,6 +556,13 @@ impl MixnetListener {
                     log::error!("Error handling mixnet message: {err}");
                 }
             }
+        }
+    }
+
+    async fn on_message(&mut self, message: ReconstructedMessage, path: RequestPath) {
+        match self.on_reconstructed_message(message, path).await {
+            Ok(responses) => self.handle_responses(responses, path).await,
+            Err(err) => log::error!("Error handling a reconstructed message: {err}"),
         }
     }
 
@@ -560,15 +581,23 @@ impl MixnetListener {
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
-                        match self.on_reconstructed_message(msg).await {
-                            Ok(responses) => self.handle_responses(responses).await,
-                            Err(err) => {
-                                log::error!("Error handling reconstructed mixnet message: {err}");
-                            }
-
-                        };
+                        self.on_message(msg, RequestPath::Legacy).await;
                     } else {
                         log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
+                        break;
+                    };
+                },
+                // standalone has no data plane, and this arm never fires for it
+                msg = async {
+                    match self.lp_channels.as_mut() {
+                        Some(lp) => lp.inbound.recv().await,
+                        None => std::future::pending().await,
+                    }
+                } => {
+                    if let Some(msg) = msg {
+                        self.on_message(msg, RequestPath::Lp).await;
+                    } else {
+                        log::trace!("IpPacketRouter [main loop]: stopping since the LP data plane closed");
                         break;
                     };
                 },

@@ -105,8 +105,10 @@ pub struct Controller {
     // to avoid memory issues
     recently_closed: HashSet<ConnectionId>,
 
-    // Broadcast closed connections
-    client_connection_tx: ConnectionCommandSender,
+    /// Where closed connections are announced, so the client sending for them can drop what it
+    /// still has queued on their lanes.
+    /// A temporary option, while the Lp path does not have lanes.
+    client_connection_tx: Option<ConnectionCommandSender>,
 
     // TODO: this can potentially be abused to ddos and kill provider. Not sure at this point
     // how to handle it more gracefully
@@ -120,7 +122,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn new(
-        client_connection_tx: ConnectionCommandSender,
+        client_connection_tx: Option<ConnectionCommandSender>,
         shutdown: ShutdownToken,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
@@ -165,10 +167,10 @@ impl Controller {
         self.recently_closed.insert(conn_id);
 
         // Announce closed connections, currently used by the `OutQueueControl`.
-        if let Err(err) = self
-            .client_connection_tx
-            .unbounded_send(ConnectionCommand::Close(conn_id))
-        {
+        let Some(client_connection_tx) = &self.client_connection_tx else {
+            return;
+        };
+        if let Err(err) = client_connection_tx.unbounded_send(ConnectionCommand::Close(conn_id)) {
             if self.shutdown.is_cancelled() {
                 log::debug!("Failed to send: {err}");
             } else {

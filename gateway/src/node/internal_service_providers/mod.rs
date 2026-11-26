@@ -5,10 +5,11 @@ use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, 
 use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
-use crate::node::internal_service_providers::authenticator::Authenticator;
+
 use crate::GatewayError;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
+use nym_client_core::client::topology_control::LpTopologyAccessor;
 use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_ip_packet_router::IpPacketRouter;
@@ -17,12 +18,13 @@ use nym_network_requester::error::NetworkRequesterError;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::{GatewayTransceiver, LocalGateway, PacketRouter};
+use nym_service_providers_common::embedded::{
+    provider_input_channel, EmbeddedLp, EmbeddedSetup, ProviderInputSender, ProviderOutputSender,
+};
 use nym_task::ShutdownTracker;
 use std::fmt::Display;
 use std::marker::PhantomData;
 use tracing::error;
-
-pub mod authenticator;
 
 pub trait LocalRecipient {
     fn address(&self) -> Recipient;
@@ -40,19 +42,13 @@ impl LocalRecipient for nym_ip_packet_router::OnStartData {
     }
 }
 
-impl LocalRecipient for authenticator::OnStartData {
-    fn address(&self) -> Recipient {
-        self.address
-    }
-}
-
 #[async_trait]
 pub trait RunnableServiceProvider {
     const NAME: &'static str;
 
     type OnStartData: LocalRecipient;
     type Error;
-    async fn run_service_provider(self) -> Result<(), Self::Error>;
+    async fn run_embedded(self, setup: EmbeddedSetup) -> Result<(), Self::Error>;
 }
 
 #[async_trait]
@@ -61,8 +57,8 @@ impl RunnableServiceProvider for NRServiceProviderBuilder {
     type OnStartData = nym_network_requester::core::OnStartData;
     type Error = NetworkRequesterError;
 
-    async fn run_service_provider(self) -> Result<(), Self::Error> {
-        self.run_service_provider().await
+    async fn run_embedded(self, setup: EmbeddedSetup) -> Result<(), Self::Error> {
+        self.run_embedded(setup).await
     }
 }
 
@@ -72,49 +68,75 @@ impl RunnableServiceProvider for IpPacketRouter {
     type OnStartData = nym_ip_packet_router::OnStartData;
     type Error = IpPacketRouterError;
 
-    async fn run_service_provider(self) -> Result<(), Self::Error> {
-        self.run_service_provider().await
-    }
-}
-
-#[async_trait]
-impl RunnableServiceProvider for Authenticator {
-    const NAME: &'static str = "authenticator";
-    type OnStartData = authenticator::OnStartData;
-    type Error = authenticator::error::AuthenticatorError;
-
-    async fn run_service_provider(self) -> Result<(), Self::Error> {
-        self.run_service_provider().await
+    async fn run_embedded(self, setup: EmbeddedSetup) -> Result<(), Self::Error> {
+        self.run_embedded(setup).await
     }
 }
 
 pub struct ServiceProviderBeingBuilt<T: RunnableServiceProvider> {
     on_start_rx: oneshot::Receiver<T::OnStartData>,
     sp_builder: T,
+
+    /// The provider's ends of its paths into the node.
+    setup: EmbeddedSetup,
+
+    /// The node's end of the legacy path.
     sp_message_router_builder: SpMessageRouterBuilder<T>,
+
+    /// The node's end of the LP path: where it writes for the provider.
+    lp_to_provider: ProviderInputSender,
+
     shutdown_tracker: ShutdownTracker,
 }
 
 pub struct StartedServiceProvider<T: RunnableServiceProvider> {
     pub on_start_data: T::OnStartData,
+
+    /// For the legacy path: where the gateway delivers this provider's peeled plaintext.
     pub handle: LocalEmbeddedClientHandle,
+
+    /// For the LP path: sphinx packets to the provider. What it sends back arrives on the node's
+    /// shared provider output channel.
+    pub lp_to_provider: ProviderInputSender,
 }
 
 impl<T> ServiceProviderBeingBuilt<T>
 where
-    T: RunnableServiceProvider + Send + Sync + 'static,
+    T: RunnableServiceProvider + Send + 'static,
     T::Error: Display + Send + Sync + 'static,
 {
+    /// Open both paths between the node and the provider, so the two ends of each always match.
+    #[expect(clippy::too_many_arguments)]
     pub(crate) fn new(
         on_start_rx: oneshot::Receiver<T::OnStartData>,
         sp_builder: T,
-        sp_message_router_builder: SpMessageRouterBuilder<T>,
+        node_identity: ed25519::PublicKey,
+        forwarding_channel: MixForwardingSender,
+        lp_topology: LpTopologyAccessor,
+        lp_inbound_workers: usize,
+        to_node: ProviderOutputSender,
         shutdown_tracker: ShutdownTracker,
     ) -> Self {
+        let mut sp_message_router_builder =
+            SpMessageRouterBuilder::new(node_identity, forwarding_channel);
+        let (lp_to_provider, from_node) = provider_input_channel();
+
+        let setup = EmbeddedSetup {
+            legacy: sp_message_router_builder.gateway_transceiver(),
+            lp: EmbeddedLp {
+                from_node,
+                to_node,
+                topology: lp_topology,
+                inbound_workers: lp_inbound_workers,
+            },
+        };
+
         ServiceProviderBeingBuilt {
             on_start_rx,
             sp_builder,
+            setup,
             sp_message_router_builder,
+            lp_to_provider,
             shutdown_tracker,
         }
     }
@@ -122,9 +144,11 @@ where
     pub async fn start_service_provider(
         mut self,
     ) -> Result<StartedServiceProvider<T>, GatewayError> {
+        let sp_builder = self.sp_builder;
+        let setup = self.setup;
         self.shutdown_tracker.try_spawn_named(
             async move {
-                if let Err(err) = self.sp_builder.run_service_provider().await {
+                if let Err(err) = sp_builder.run_embedded(setup).await {
                     error!(
                         "the {} service provider encountered an error: {err}",
                         T::NAME
@@ -154,6 +178,7 @@ where
 
         Ok(StartedServiceProvider {
             handle: LocalEmbeddedClientHandle::new(on_start_data.address(), mix_sender),
+            lp_to_provider: self.lp_to_provider,
             on_start_data,
         })
     }
@@ -210,7 +235,7 @@ impl<T> SpMessageRouterBuilder<T> {
     }
 
     #[allow(clippy::expect_used)]
-    pub(crate) fn gateway_transceiver(&mut self) -> Box<dyn GatewayTransceiver + Send + Sync> {
+    fn gateway_transceiver(&mut self) -> Box<dyn GatewayTransceiver + Send + Sync> {
         Box::new(
             self.gateway_transceiver
                 .take()

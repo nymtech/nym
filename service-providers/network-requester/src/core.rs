@@ -3,7 +3,7 @@
 
 use crate::config::{BaseClientConfig, Config};
 use crate::error::NetworkRequesterError;
-use crate::reply::MixnetMessage;
+use crate::reply::{MixnetMessage, OutgoingMessage};
 use crate::request_filter::RequestFilter;
 use crate::{reply, socks5};
 use async_trait::async_trait;
@@ -16,11 +16,15 @@ use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_network_defaults::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetMessageSender, TopologyProvider};
-use nym_service_providers_common::ServiceProvider;
+use nym_service_providers_common::embedded::{EmbeddedLp, EmbeddedSetup};
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
+use nym_service_providers_common::lp::handler::ProviderLink;
+use nym_service_providers_common::lp::handler::outbound::ServiceProviderReply;
+use nym_service_providers_common::lp::start_lp_data_plane;
 use nym_service_providers_common::storage::EmbeddedProviderStorage;
+use nym_service_providers_common::{RequestPath, ServiceProvider};
 use nym_socks5_proxy_helpers::connection_controller::{
     Controller, ControllerCommand, ControllerSender,
 };
@@ -33,9 +37,8 @@ use nym_socks5_requests::{
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::{PacketSize, PacketType};
-use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownTracker;
-use nym_task::connections::LaneQueueLengths;
+use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -67,19 +70,37 @@ pub struct NRServiceProviderBuilder {
     wait_for_gateway: bool,
     wait_for_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-    custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+
     shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
+}
+
+/// Requests that come through the mixnet client, and the connections they open.
+struct LegacyPath {
+    client: nym_sdk::mixnet::MixnetClient,
+    controller: ControllerSender,
+}
+
+/// Requests that come over LP, and the connections they open.
+///
+/// A connection never changes path, so each path keeps its own controller: connection ids from
+/// different paths cannot collide, and each controller announces closes to its own transport.
+struct LpPath {
+    link: ProviderLink,
+    controller: ControllerSender,
 }
 
 pub struct NRServiceProvider {
     config: Config,
     request_filter: RequestFilter,
 
-    mixnet_client: nym_sdk::mixnet::MixnetClient,
-    controller_sender: ControllerSender,
+    legacy: LegacyPath,
+
+    // Not yet available on standalone SPs
+    lp: Option<LpPath>,
 
     mix_input_sender: MixProxySender<MixnetMessage>,
+
     shutdown: ShutdownTracker,
 }
 
@@ -91,12 +112,21 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         &mut self,
         sender: Option<AnonymousSenderTag>,
         request: Request<Socks5Request>,
+        path: RequestPath,
     ) -> Result<(), Self::ServiceProviderError> {
         // TODO: this should perhaps be parallelised
         log::debug!("on_request {:?}", request);
-        if let Some(response) = self.handle_request(sender, request).await? {
+        if let Some(response) = self.handle_request(sender, request, path).await? {
             // TODO: this (i.e. `reply::MixnetAddress`) should be incorporated into the actual interface
-            if let Some(return_address) = reply::MixnetAddress::new(None, sender) {
+            //
+            // a response that gets this far is answered by SURB, which LP has none of - so on that
+            // path there is nothing to answer with, and `new_lewes(None)` says so
+            let return_address = match path {
+                RequestPath::Legacy => reply::MixnetAddress::new(None, sender),
+                RequestPath::Lp => reply::MixnetAddress::new_lewes(None),
+            };
+
+            if let Some(return_address) = return_address {
                 let msg = MixnetMessage::new_provider_response(return_address, 0, response);
                 self.mix_input_sender
                     .send(msg)
@@ -125,7 +155,21 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         sender: Option<AnonymousSenderTag>,
         request: Socks5Request,
         interface_version: ProviderInterfaceVersion,
+        path: RequestPath,
     ) -> Result<Option<Socks5Response>, Self::ServiceProviderError> {
+        self.handle_socks5_request(sender, request, interface_version, path)
+            .await
+    }
+}
+
+impl NRServiceProvider {
+    async fn handle_socks5_request(
+        &mut self,
+        sender: Option<AnonymousSenderTag>,
+        request: Socks5Request,
+        interface_version: ProviderInterfaceVersion,
+        path: RequestPath,
+    ) -> Result<Option<Socks5Response>, NetworkRequesterError> {
         log::debug!("handle_provider_data_request {:?}", request);
 
         // TODO: streamline this a bit more
@@ -139,10 +183,10 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 
         match request.content {
             Socks5RequestContent::Connect(req) => {
-                self.handle_proxy_connect(request_version, sender, req)
+                self.handle_proxy_connect(request_version, sender, req, path)
                     .await
             }
-            Socks5RequestContent::Send(req) => self.handle_proxy_send(req),
+            Socks5RequestContent::Send(req) => self.handle_proxy_send(req, path),
             Socks5RequestContent::Query(query) => return self.handle_query(query),
         }
 
@@ -157,22 +201,9 @@ impl NRServiceProviderBuilder {
             wait_for_gateway: false,
             wait_for_topology: false,
             custom_topology_provider: None,
-            custom_gateway_transceiver: None,
             shutdown,
             on_start: None,
         }
-    }
-
-    #[must_use]
-    // this is a false positive, this method is actually called when used as a library
-    // but clippy complains about it when building the binary
-    #[allow(unused)]
-    pub fn with_custom_gateway_transceiver(
-        mut self,
-        gateway_transceiver: Box<dyn GatewayTransceiver + Send + Sync>,
-    ) -> Self {
-        self.custom_gateway_transceiver = Some(gateway_transceiver);
-        self
     }
 
     #[must_use]
@@ -235,36 +266,87 @@ impl NRServiceProviderBuilder {
         Ok(self)
     }
 
-    /// Start all subsystems
-    pub async fn run_service_provider(self) -> Result<(), NetworkRequesterError> {
-        // Connect to the mixnet
-        let mixnet_client = create_mixnet_client(
+    /// Run on its own, reaching a gateway elsewhere through its mixnet client.
+    pub async fn run_standalone(mut self) -> Result<(), NetworkRequesterError> {
+        let client = self.connect_mixnet_client(None).await?;
+
+        self.start(client, None).await
+    }
+
+    /// Run inside the nym-node that handed over `setup`.
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
+    pub async fn run_embedded(mut self, setup: EmbeddedSetup) -> Result<(), NetworkRequesterError> {
+        let lp = self.connect_lp(setup.lp)?;
+        let client = self.connect_mixnet_client(Some(setup.legacy)).await?;
+
+        self.start(client, Some(lp)).await
+    }
+
+    fn connect_lp(&self, lp: EmbeddedLp) -> Result<ProviderLink, NetworkRequesterError> {
+        Ok(start_lp_data_plane(
+            lp,
+            &self.config.storage_paths.common_paths,
+            self.config.base.debug,
+            &self.shutdown,
+            "network requester",
+        )?)
+    }
+
+    async fn connect_mixnet_client(
+        &mut self,
+        transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+    ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
+        create_mixnet_client(
             &self.config.base,
             self.shutdown.clone(),
-            self.custom_gateway_transceiver,
-            self.custom_topology_provider,
+            transceiver,
+            self.custom_topology_provider.take(),
             self.wait_for_gateway,
             self.wait_for_topology,
             &self.config.storage_paths.common_paths,
         )
-        .await?;
+        .await
+    }
+
+    /// A controller for the connections opened over one path, announcing closes to `close_hook`.
+    fn spawn_controller(&self, close_hook: Option<ConnectionCommandSender>) -> ControllerSender {
+        let (mut controller, controller_sender) =
+            Controller::new(close_hook, self.shutdown.clone_shutdown_token());
+
+        tokio::spawn(async move {
+            controller.run().await;
+        });
+
+        controller_sender
+    }
+
+    /// Everything after the paths are up, the same whichever of them there are.
+    async fn start(
+        self,
+        client: nym_sdk::mixnet::MixnetClient,
+        lp: Option<ProviderLink>,
+    ) -> Result<(), NetworkRequesterError> {
+        let self_address = *client.nym_address();
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) = tokio::sync::mpsc::channel::<MixnetMessage>(1);
 
-        // Controller for managing all active connections.
-        let (mut active_connections_controller, controller_sender) = Controller::new(
-            mixnet_client.connection_command_sender(),
-            self.shutdown.clone_shutdown_token(),
-        );
-
-        tokio::spawn(async move {
-            active_connections_controller.run().await;
+        // the legacy client drops what it still has queued for a closed connection
+        let legacy = LegacyPath {
+            controller: self.spawn_controller(Some(client.connection_command_sender())),
+            client,
+        };
+        // LP has no per-connection lanes yet, so nothing to tell it about closes
+        let lp = lp.map(|link| LpPath {
+            controller: self.spawn_controller(None),
+            link,
         });
 
-        let mixnet_client_sender = mixnet_client.split_sender();
-        let self_address = *mixnet_client.nym_address();
+        let mixnet_client_sender = legacy.client.split_sender();
+        let lp_sender = lp.as_ref().map(|path| path.link.outbound.clone());
         let packet_type = self.config.base.debug.traffic.packet_type;
 
         // start the listener for mix messages
@@ -272,6 +354,7 @@ impl NRServiceProviderBuilder {
             NRServiceProvider::mixnet_response_listener(
                 mixnet_client_sender,
                 mix_input_receiver,
+                lp_sender,
                 packet_type,
             )
             .await;
@@ -282,8 +365,8 @@ impl NRServiceProviderBuilder {
         let mut service_provider = NRServiceProvider {
             config: self.config,
             request_filter: request_filter.clone(),
-            mixnet_client,
-            controller_sender,
+            legacy,
+            lp,
             mix_input_sender,
             shutdown: self.shutdown,
         };
@@ -315,10 +398,23 @@ impl NRServiceProvider {
                     debug!("NRServiceProvider [main loop]: received shutdown");
                     break
                 },
-                msg = self.mixnet_client.next() => match msg {
-                    Some(msg) => self.on_message(msg).await,
+                msg = self.legacy.client.next() => match msg {
+                    Some(msg) => self.on_message(msg.message, msg.sender_tag, RequestPath::Legacy).await,
                     None => {
                         log::trace!("NRServiceProvider::run: Stopping since channel closed");
+                        break;
+                    }
+                },
+                // the same requests, arriving the other way
+                msg = async {
+                    match self.lp.as_mut() {
+                        Some(lp) => lp.link.inbound.recv().await,
+                        None => std::future::pending().await,
+                    }
+                } => match msg {
+                    Some(msg) => self.on_message(msg.message, msg.sender_tag, RequestPath::Lp).await,
+                    None => {
+                        log::trace!("NRServiceProvider::run: Stopping since the LP data plane closed");
                         break;
                     }
                 },
@@ -328,9 +424,16 @@ impl NRServiceProvider {
         Ok(())
     }
 
-    async fn on_message(&mut self, reconstructed: ReconstructedMessage) {
-        let sender = reconstructed.sender_tag;
-        let request = match Socks5ProviderRequest::try_from_bytes(&reconstructed.message) {
+    /// One request, from whichever transport carried it.
+    ///
+    /// `path` travels with it because the reply has to leave the way the request arrived.
+    async fn on_message(
+        &mut self,
+        message: Vec<u8>,
+        sender: Option<AnonymousSenderTag>,
+        path: RequestPath,
+    ) {
+        let request = match Socks5ProviderRequest::try_from_bytes(&message) {
             Ok(req) => req,
             Err(err) => {
                 // TODO: or should it even be further lowered to debug/trace?
@@ -339,7 +442,7 @@ impl NRServiceProvider {
             }
         };
 
-        if let Err(err) = self.on_request(sender, request).await {
+        if let Err(err) = self.on_request(sender, request, path).await {
             // TODO: again, should it be a warning?
             // we should also probably log some information regarding the origin of the request
             // so that it would be easier to debug it
@@ -352,14 +455,32 @@ impl NRServiceProvider {
     async fn mixnet_response_listener(
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         mut mix_input_reader: MixProxyReader<MixnetMessage>,
+        lp_sender: Option<tokio::sync::mpsc::Sender<ServiceProviderReply>>,
         packet_type: PacketType,
     ) {
         loop {
             tokio::select! {
                 socks5_msg = mix_input_reader.recv() => {
                     if let Some(msg) = socks5_msg {
-                        let response_message = msg.into_input_message(packet_type);
-                        mixnet_client_sender.send(response_message).await.unwrap();
+                        match msg.into_outgoing(packet_type) {
+                            OutgoingMessage::Mixnet(response_message) => {
+                                mixnet_client_sender.send(*response_message).await.unwrap();
+                            }
+                            // straight to the gateway hosting us; nothing about it touches the
+                            // mixnet client, which is why it never became an `InputMessage`
+                            OutgoingMessage::Lewes(reply) => {
+                                // only a request that arrived over LP is addressed this way, so
+                                // this is unreachable rather than merely unlikely
+                                let Some(lp_sender) = &lp_sender else {
+                                    log::error!("a reply was addressed over LP, but this provider has no LP data plane");
+                                    continue;
+                                };
+                                if lp_sender.send(reply).await.is_err() {
+                                    log::error!("Exiting: the LP data plane stopped listening!");
+                                    break;
+                                }
+                            }
+                        }
                     } else {
                         log::error!("Exiting: channel closed!");
                         break;
@@ -448,10 +569,18 @@ impl NRServiceProvider {
         remote_version: RequestVersion<Socks5Request>,
         sender_tag: Option<AnonymousSenderTag>,
         connect_req: Box<ConnectRequest>,
+        path: RequestPath,
     ) {
-        let Some(return_address) =
-            reply::MixnetAddress::new(connect_req.return_address, sender_tag)
-        else {
+        // decided once, here, and carried by every response on this connection: the way back is a
+        // property of how the connection opened, not of any one reply
+        let return_address = match path {
+            RequestPath::Legacy => {
+                reply::MixnetAddress::new(connect_req.return_address, sender_tag)
+            }
+            RequestPath::Lp => reply::MixnetAddress::new_lewes(connect_req.return_address),
+        };
+
+        let Some(return_address) = return_address else {
             log::warn!(
                 "attempted to start connection with no way of returning data back to the sender"
             );
@@ -465,9 +594,21 @@ impl NRServiceProvider {
             .secondary_packet_size
             .unwrap_or(traffic_config.primary_packet_size);
 
-        let controller_sender_clone = self.controller_sender.clone();
+        // the connection belongs to the path it opened on, and is throttled by that path's lanes
+        let (controller_sender_clone, lane_queue_lengths_clone) = match (path, &self.lp) {
+            (RequestPath::Legacy, _) => (
+                self.legacy.controller.clone(),
+                self.legacy.client.shared_lane_queue_lengths(),
+            ),
+            // LP has no lanes yet, so its proxies see empty queues and are never held back
+            (RequestPath::Lp, Some(lp)) => (lp.controller.clone(), LaneQueueLengths::new()),
+            // only the LP arm in `run` produces these, and it never fires without an LP path
+            (RequestPath::Lp, None) => {
+                log::error!("a connection was requested over LP, but this provider has no LP path");
+                return;
+            }
+        };
         let mix_input_sender_clone = self.mix_input_sender.clone();
-        let lane_queue_lengths_clone = self.mixnet_client.shared_lane_queue_lengths();
 
         // we're just cloning the underlying pointer, nothing expensive is happening here
         let request_filter = self.request_filter.clone();
@@ -511,9 +652,18 @@ impl NRServiceProvider {
         });
     }
 
-    fn handle_proxy_send(&mut self, req: SendRequest) {
-        self.controller_sender
-            .unbounded_send(ControllerCommand::new_send(req.data))
+    fn handle_proxy_send(&mut self, req: SendRequest, path: RequestPath) {
+        let controller = match (path, &self.lp) {
+            (RequestPath::Legacy, _) => &self.legacy.controller,
+            (RequestPath::Lp, Some(lp)) => &lp.controller,
+            // only the LP arm in `run` produces these, and it never fires without an LP path
+            (RequestPath::Lp, None) => {
+                log::error!("data arrived over LP, but this provider has no LP path");
+                return;
+            }
+        };
+
+        controller.unbounded_send(ControllerCommand::new_send(req.data))
     }
 
     fn handle_query(
@@ -583,6 +733,8 @@ async fn create_mixnet_client(
         client_builder = client_builder.enable_credentials_mode();
     }
     if let Some(gateway_transceiver) = custom_transceiver {
+        // embedded: this provider reaches its gateway in-process and carries LP over its own
+        // pipeline, so a data plane here would have nothing to talk to
         client_builder = client_builder.custom_gateway_transceiver(gateway_transceiver);
     }
     if let Some(topology_provider) = custom_topology_provider {

@@ -32,6 +32,7 @@ use nym_lp_data::nymnodes::traits::NymNodeProcessingPipeline;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp_data::{AddressedTimedData, TimedData};
 use nym_metrics::{inc, inc_by};
+use nym_service_providers_common::embedded::ProviderOutputReceiver;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
@@ -99,7 +100,6 @@ enum WorkerJob {
 
     /// Handed over by a service provider this node hosts. Never touched the wire, so there is
     /// nothing to decrypt and no fragments to put back together.
-    #[expect(dead_code)]
     Local {
         data: TimedData<LpFrame>,
         processing_time: Instant,
@@ -150,6 +150,9 @@ pub struct LpDataHandler {
     /// Reused for each batch taken off `worker_output_rx`, emptied as soon as it is handled.
     worker_output_buf: Vec<WorkerOutput>,
 
+    /// Frames from the service providers this node hosts, all on one shared channel.
+    from_providers: ProviderOutputReceiver,
+
     /// Frames awaiting their scheduled send time. See [`OutgoingFrames`].
     outgoing: OutgoingFrames,
 
@@ -165,12 +168,14 @@ pub struct LpDataHandler {
 }
 
 impl LpDataHandler {
+    #[expect(clippy::too_many_arguments)]
     pub(crate) fn new(
         shared_state: Arc<SharedLpDataState>,
         gateway_state: Option<Arc<SharedGatewayLpDataState>>,
         input_rx: mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
         output_tx: mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
         sessions_established_rx: mpsc::Receiver<LpPeer>,
+        from_providers: ProviderOutputReceiver,
         dialer: LpDialer,
         shutdown_tracker: &nym_task::ShutdownTracker,
     ) -> Result<Self, LpHandlerError> {
@@ -200,6 +205,7 @@ impl LpDataHandler {
             input_rx,
             output_tx,
             worker_input_tx,
+            from_providers,
             worker_output_rx,
             worker_output_buf: Vec::with_capacity(WORKER_OUTPUT_BATCH),
             outgoing: OutgoingFrames::default(),
@@ -416,7 +422,6 @@ impl LpDataHandler {
 
     /// Hand a frame from a provider in this process to the workers. Same pool as wire traffic, so
     /// it is subject to the same backpressure as everyone else's.
-    #[expect(dead_code)] // dead_code waiting on the SP routing
     fn handle_local_frame(&self, frame: LpFrame) {
         self.shared_state.internal_sp_submitted();
         let now = Instant::now();
@@ -463,8 +468,8 @@ impl LpDataHandler {
                 self.handle_worker_output()
             }
 
-            // Handle internal SP packets
-            // Some(frame) = self.provider_rx.recv() => self.handle_local_frame(frame),
+            // Handle frames from the service providers this node hosts
+            Some(frame) = self.from_providers.recv() => self.handle_local_frame(frame),
 
             // Handle wire packets
             Some((packet, src)) = self.input_rx.recv() => self.handle_wire_packet(packet, src),

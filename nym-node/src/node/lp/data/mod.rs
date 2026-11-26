@@ -10,6 +10,7 @@ use crate::node::lp::data::handler::LpDataHandler;
 use crate::node::lp::data::listener::LpDataListener;
 use crate::node::lp::data::shared::{SharedGatewayLpDataState, SharedLpDataState};
 
+use nym_service_providers_common::embedded::ProviderOutputReceiver;
 use nym_task::ShutdownTracker;
 use tokio::sync::mpsc;
 use tracing::error;
@@ -38,6 +39,7 @@ impl LpDataSetup {
         shared_state: SharedLpDataState,
         gateway_state: Option<SharedGatewayLpDataState>,
         sessions_established_rx: mpsc::Receiver<LpPeer>,
+        from_providers: ProviderOutputReceiver,
         dialer: LpDialer,
         shutdown: ShutdownTracker,
     ) -> Result<Self, NymNodeError> {
@@ -60,6 +62,7 @@ impl LpDataSetup {
             input_rx,
             output_tx,
             sessions_established_rx,
+            from_providers,
             dialer,
             &shutdown,
         )?;

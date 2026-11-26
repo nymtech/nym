@@ -7646,6 +7646,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-network-requester",
  "nym-node-metrics",
+ "nym-pemstore",
  "nym-registration-common",
  "nym-sdk",
  "nym-service-provider-requests-common",
@@ -8643,6 +8644,7 @@ dependencies = [
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-registration-common",
+ "nym-service-providers-common",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -9195,14 +9197,26 @@ name = "nym-service-providers-common"
 version = "3.0.1"
 dependencies = [
  "async-trait",
+ "crossbeam-channel",
  "log",
  "nym-bin-common",
  "nym-client-core",
  "nym-credential-storage",
+ "nym-crypto",
+ "nym-lp",
+ "nym-lp-data",
+ "nym-pemstore",
+ "nym-sphinx",
  "nym-sphinx-anonymous-replies",
+ "nym-task",
+ "nym-topology",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "time",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

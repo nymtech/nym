@@ -8,7 +8,6 @@ use axum::Router;
 use axum::response::Redirect;
 use axum::routing::get;
 use nym_http_api_common::middleware::logging;
-use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::{Bridges, Gateway};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
@@ -87,12 +86,6 @@ impl HttpServerConfig {
     #[must_use]
     pub fn with_ip_packet_router_details(mut self, ip_packet_router: IpPacketRouter) -> Self {
         self.api.v1_config.ip_packet_router.details = Some(ip_packet_router);
-        self
-    }
-
-    #[must_use]
-    pub fn with_authenticator_details(mut self, authenticator: Authenticator) -> Self {
-        self.api.v1_config.authenticator.details = Some(authenticator);
         self
     }
 

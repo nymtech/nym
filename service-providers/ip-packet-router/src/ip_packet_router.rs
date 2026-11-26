@@ -7,11 +7,12 @@
 use std::path::Path;
 
 use futures::channel::oneshot;
-use nym_client_core::{
-    HardcodedTopologyProvider, TopologyProvider,
-    client::mix_traffic::transceiver::GatewayTransceiver,
-};
+use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
+use nym_sdk::GatewayTransceiver;
 use nym_sdk::mixnet::Recipient;
+use nym_service_providers_common::embedded::{EmbeddedLp, EmbeddedSetup};
+use nym_service_providers_common::lp::handler::ProviderLink;
+use nym_service_providers_common::lp::start_lp_data_plane;
 use nym_task::ShutdownTracker;
 
 use crate::{config::Config, error::IpPacketRouterError, request_filter::RequestFilter};
@@ -39,7 +40,7 @@ pub struct IpPacketRouter {
     wait_for_gateway: bool,
     wait_for_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-    custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+
     shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
@@ -51,20 +52,9 @@ impl IpPacketRouter {
             wait_for_gateway: false,
             wait_for_topology: false,
             custom_topology_provider: None,
-            custom_gateway_transceiver: None,
             shutdown,
             on_start: None,
         }
-    }
-
-    #[must_use]
-    #[allow(unused)]
-    pub fn with_custom_gateway_transceiver(
-        mut self,
-        gateway_transceiver: Box<dyn GatewayTransceiver + Send + Sync>,
-    ) -> Self {
-        self.custom_gateway_transceiver = Some(gateway_transceiver);
-        self
     }
 
     #[must_use]
@@ -114,7 +104,17 @@ impl IpPacketRouter {
     }
 
     #[cfg(not(target_os = "linux"))]
-    pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
+    pub async fn run_standalone(self) -> Result<(), IpPacketRouterError> {
+        Self::unsupported()
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub async fn run_embedded(self, _setup: EmbeddedSetup) -> Result<(), IpPacketRouterError> {
+        Self::unsupported()
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn unsupported() -> Result<(), IpPacketRouterError> {
         // for debugging purposes, don't crash in debug builds on non-linux platforms
         if cfg!(debug_assertions) {
             log::error!("ip packet router service provider is not yet supported on this platform");
@@ -124,28 +124,64 @@ impl IpPacketRouter {
         }
     }
 
+    /// Run on its own, reaching a gateway elsewhere through its mixnet client.
     #[cfg(target_os = "linux")]
-    pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
-        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
+    pub async fn run_standalone(mut self) -> Result<(), IpPacketRouterError> {
+        let client = self.connect_mixnet_client(None).await?;
+
+        self.start(client, None).await
+    }
+
+    /// Run inside the nym-node that handed over `setup`.
+    #[cfg(target_os = "linux")]
+    pub async fn run_embedded(mut self, setup: EmbeddedSetup) -> Result<(), IpPacketRouterError> {
+        let lp = self.connect_lp(setup.lp)?;
+        let client = self.connect_mixnet_client(Some(setup.legacy)).await?;
+
+        self.start(client, Some(lp)).await
+    }
+
+    #[cfg(target_os = "linux")]
+    fn connect_lp(&self, lp: EmbeddedLp) -> Result<ProviderLink, IpPacketRouterError> {
+        Ok(start_lp_data_plane(
+            lp,
+            &self.config.storage_paths.common_paths,
+            self.config.base.debug,
+            &self.shutdown,
+            "ip packet router",
+        )?)
+    }
+
+    #[cfg(target_os = "linux")]
+    async fn connect_mixnet_client(
+        &mut self,
+        transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+    ) -> Result<nym_sdk::mixnet::MixnetClient, IpPacketRouterError> {
+        crate::mixnet_client::create_mixnet_client(
+            &self.config.base,
+            self.shutdown.clone(),
+            transceiver,
+            self.custom_topology_provider.take(),
+            self.wait_for_gateway,
+            self.wait_for_topology,
+            &self.config.storage_paths.common_paths,
+        )
+        .await
+    }
+
+    /// Everything after the paths are up, the same whichever of them there are.
+    #[cfg(target_os = "linux")]
+    async fn start(
+        self,
+        mixnet_client: nym_sdk::mixnet::MixnetClient,
+        lp: Option<ProviderLink>,
+    ) -> Result<(), IpPacketRouterError> {
+        let self_address = *mixnet_client.nym_address();
 
         use crate::{
             clients::ConnectedClients, mixnet_listener::MixnetListener,
             request_filter::RequestFilter, tun_listener::TunListener,
         };
-
-        // Connect to the mixnet
-        let mixnet_client = crate::mixnet_client::create_mixnet_client(
-            &self.config.base,
-            self.shutdown.clone(),
-            self.custom_gateway_transceiver,
-            self.custom_topology_provider,
-            self.wait_for_gateway,
-            self.wait_for_topology,
-            &self.config.storage_paths.common_paths,
-        )
-        .await?;
-
-        let self_address = *mixnet_client.nym_address();
 
         // Create the TUN device that we interact with the rest of the world with
         let config = nym_tun::tun_device::TunDeviceConfig {
@@ -180,6 +216,7 @@ impl IpPacketRouter {
             mixnet_client,
             shutdown_token: self.shutdown.clone_shutdown_token(),
             connected_clients,
+            lp_channels: lp,
         };
 
         log::info!("The address of this client is: {self_address}");

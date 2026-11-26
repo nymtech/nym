@@ -70,7 +70,7 @@ impl NymSocksServer {
 
         // controller for managing all active connections
         let (mut active_streams_controller, controller_sender) = Controller::new(
-            client_connection_tx,
+            Some(client_connection_tx),
             //BroadcastActiveConnections::Off,
             self.shutdown.clone_shutdown_token(),
         );

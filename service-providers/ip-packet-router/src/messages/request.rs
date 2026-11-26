@@ -6,11 +6,11 @@ mod v8;
 mod v9;
 
 use nym_ip_packet_requests::v8::request::IpPacketRequest as IpPacketRequestV8;
-use nym_sdk::mixnet::ReconstructedMessage;
+use nym_sdk::mixnet::{AnonymousSenderTag, ReconstructedMessage};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use std::fmt;
 
-use crate::{clients::ConnectedClientId, error::IpPacketRouterError};
+use crate::error::IpPacketRouterError;
 
 use super::ClientVersion;
 
@@ -39,7 +39,7 @@ pub(crate) enum ControlRequest {
 pub(crate) struct DynamicConnectRequest {
     pub(crate) version: ClientVersion,
     pub(crate) request_id: u64,
-    pub(crate) sent_by: ConnectedClientId,
+    pub(crate) sent_by: AnonymousSenderTag,
     pub(crate) buffer_timeout: Option<u64>,
 }
 
@@ -47,21 +47,21 @@ pub(crate) struct DynamicConnectRequest {
 pub(crate) struct DisconnectRequest {
     pub(crate) version: ClientVersion,
     pub(crate) request_id: u64,
-    pub(crate) sent_by: ConnectedClientId,
+    pub(crate) sent_by: AnonymousSenderTag,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct PingRequest {
     pub(crate) version: ClientVersion,
     pub(crate) request_id: u64,
-    pub(crate) sent_by: ConnectedClientId,
+    pub(crate) sent_by: AnonymousSenderTag,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct HealthRequest {
     pub(crate) version: ClientVersion,
     pub(crate) request_id: u64,
-    pub(crate) sent_by: ConnectedClientId,
+    pub(crate) sent_by: AnonymousSenderTag,
 }
 
 impl TryFrom<&ReconstructedMessage> for IpPacketRequest {

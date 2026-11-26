@@ -44,6 +44,11 @@ channel:
 Every writer only ever `try_`s: a full channel drops, as the socket does. Above the pipelines the
 channels are tokio, because the provider's loop is async.
 
+> **Here be dragons:** nothing on this path pushes back on the provider. One that bursts - a network
+> requester proxying a fast download - overruns the output channel, then the node's workers and its
+> egress, and what does not fit is dropped. Legacy is paced by lane queue lengths; LP is not, until
+> there are LP clients to tune against.
+
 ## Which end is where
 
 Names follow one vocabulary: the host is the **node**, directions are `to_` / `from_`.

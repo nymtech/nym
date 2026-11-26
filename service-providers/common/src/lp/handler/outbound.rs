@@ -196,6 +196,10 @@ where
         for frame in due {
             match self.to_node.try_send(frame.data.data) {
                 Ok(()) => {}
+                // TODO: no backpressure on this path. A provider that bursts (an NR proxy reading a
+                // fast socket) overruns this channel, then the node's workers and its egress, and
+                // everything past that is dropped. Legacy avoids this with lane queue lengths. Here
+                // be dragons until LP clients exist to tune against
                 Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
                     warn!("LP provider outbound: the node is not keeping up, dropping a frame")
                 }

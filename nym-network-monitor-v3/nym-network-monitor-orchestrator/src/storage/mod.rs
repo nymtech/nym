@@ -754,6 +754,33 @@ impl NetworkMonitorStorage {
 }
 
 #[cfg(test)]
+impl NetworkMonitorStorage {
+    /// Starts a route run through the gateways of `sessions`, which must be bonded, and stores them
+    /// as its submission. Returns the run's id.
+    pub(crate) async fn store_submitted_five_hop_mixnet_run(
+        &self,
+        sessions: &[NewFiveHopMixnetSession],
+    ) -> i64 {
+        let gateways: Vec<NodeId> = sessions
+            .iter()
+            .map(|session| session.gateway_node_id as NodeId)
+            .collect();
+        let run_id = self
+            .start_five_hop_mixnet_run(Duration::ZERO, Duration::from_secs(60), &gateways)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let submission = self
+            .submit_five_hop_mixnet_run(run_id, sessions)
+            .await
+            .unwrap();
+        assert_eq!(submission, FiveHopMixnetRunSubmission::Stored);
+        run_id
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::storage::models::{

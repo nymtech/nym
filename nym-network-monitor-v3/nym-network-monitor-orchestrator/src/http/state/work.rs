@@ -471,12 +471,14 @@ mod assignment_tests {
     use super::*;
     use crate::orchestrator::config::test_config;
     use crate::storage::models::{
-        FIXTURE_SEEN_AT, NymNode, gateway, gateway_liveness_measurements, minimal_measurements,
+        FIXTURE_EPOCH, FIXTURE_SEEN_AT, FiveHopMixnetSessionOutcome, NymNode, aggregate,
+        five_hop_mixnet_batch, gateway, gateway_liveness_measurements, minimal_measurements,
         minimal_test_run, mixnode,
     };
     use nym_network_monitor_orchestrator_requests::models::{
         RouteSessionOutcome, RouteSessionSubmission,
     };
+    use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
     use std::time::Duration;
     use strum::IntoEnumIterator;
     use time::OffsetDateTime;
@@ -581,6 +583,41 @@ mod assignment_tests {
                 })
                 .collect(),
         }
+    }
+
+    /// An entry for `gateway_node_id` whose batch names `mixnet_epoch` and loses `lost` of 100
+    /// records.
+    fn batch_entry(
+        gateway_node_id: u32,
+        mixnet_epoch: EpochId,
+        lost: usize,
+    ) -> RouteSessionSubmission {
+        let batch = five_hop_mixnet_batch(gateway_node_id, mixnet_epoch, 0..100, lost);
+        RouteSessionSubmission {
+            gateway_node_id,
+            outcome: RouteSessionOutcome::Batch(batch.encode()),
+        }
+    }
+
+    /// Each stored session of `mixnet_epoch`'s runs: its gateway, and whether the discard rule kept
+    /// it, `None` for a failed one.
+    async fn stored_verdicts(
+        storage: &NetworkMonitorStorage,
+        mixnet_epoch: EpochId,
+    ) -> Vec<(i64, Option<bool>)> {
+        storage
+            .get_five_hop_mixnet_sessions_of_epoch(mixnet_epoch)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|session| {
+                let kept = match session.outcome {
+                    FiveHopMixnetSessionOutcome::Batch { kept, .. } => Some(kept),
+                    FiveHopMixnetSessionOutcome::Error(_) => None,
+                };
+                (session.gateway_node_id, kept)
+            })
+            .collect()
     }
 
     // On a cold start every kind's next node reads as never tested, so the kinds tie, and ties go
@@ -858,6 +895,85 @@ mod assignment_tests {
             .submit_five_hop_mixnet_result(&storage, failed_sessions(run.id, &[1, 2]))
             .await;
         assert!(matches!(again, Err(ApiError::FiveHopMixnetRunNotInFlight)));
+    }
+
+    // The discard rule is applied as a run is submitted, each session judged against the others of
+    // its run: losses of 0.5% and 11% are further apart than the 5-point margin, so the worse is
+    // discarded, and a failed session carries no verdict.
+    #[tokio::test]
+    async fn the_sessions_of_a_run_are_judged_against_each_other_as_it_is_submitted() {
+        let mut config = test_config(true);
+        config.five_hop_liveness.gateways_per_run = 3;
+        let manager = WorkManager {
+            one_hop_mixnet_schedules: config.schedules(),
+            five_hop_mixnet: config.five_hop_mixnet_run_config(),
+        };
+        let storage = storage_with(&[gateway(1), gateway(2), gateway(3)]).await;
+        for node_id in 1..=3 {
+            gateway_liveness_scored(&storage, node_id, 100, Duration::ZERO).await;
+        }
+        let Some(WorkAssignment::FiveHopMixnet(run)) = work(&manager, &storage).await else {
+            panic!("no route run was handed out");
+        };
+
+        let submission = FiveHopMixnetResult {
+            run_id: run.id,
+            sessions: vec![
+                batch_entry(1, FIXTURE_EPOCH, 1),
+                batch_entry(2, FIXTURE_EPOCH, 20),
+                RouteSessionSubmission {
+                    gateway_node_id: 3,
+                    outcome: RouteSessionOutcome::Error("unreachable".to_string()),
+                },
+            ],
+        };
+        manager
+            .submit_five_hop_mixnet_result(&storage, submission)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            stored_verdicts(&storage, FIXTURE_EPOCH).await,
+            vec![(1, Some(true)), (2, Some(false)), (3, None)]
+        );
+    }
+
+    // An epoch's sessions are scored as the epoch after it is materialised, so once epoch 7 is, a
+    // run naming epoch 6 can no longer count and is refused, storing nothing. The refused run stays
+    // in flight, and its batches naming epoch 7, not yet scored, are accepted.
+    #[tokio::test]
+    async fn a_run_whose_epoch_was_scored_is_refused() {
+        let manager = manager_with_five_hop_mixnet_runs();
+        let storage = storage_with(&[gateway(1), gateway(2)]).await;
+        gateway_liveness_scored(&storage, 1, 100, Duration::ZERO).await;
+        gateway_liveness_scored(&storage, 2, 100, Duration::ZERO).await;
+        storage
+            .batch_insert_mixnet_epoch_aggregates(&[aggregate(1, TestKind::GatewayLiveness, 1.0)])
+            .await
+            .unwrap();
+        let Some(WorkAssignment::FiveHopMixnet(run)) = work(&manager, &storage).await else {
+            panic!("no route run was handed out");
+        };
+        let naming = |mixnet_epoch| FiveHopMixnetResult {
+            run_id: run.id,
+            sessions: vec![
+                batch_entry(1, mixnet_epoch, 0),
+                batch_entry(2, mixnet_epoch, 0),
+            ],
+        };
+
+        let scored_epoch = FIXTURE_EPOCH - 1;
+        let late = manager
+            .submit_five_hop_mixnet_result(&storage, naming(scored_epoch))
+            .await;
+        assert!(matches!(late, Err(ApiError::FiveHopMixnetRunNotInFlight)));
+        assert!(stored_verdicts(&storage, scored_epoch).await.is_empty());
+
+        manager
+            .submit_five_hop_mixnet_result(&storage, naming(FIXTURE_EPOCH))
+            .await
+            .unwrap();
+        assert_eq!(stored_verdicts(&storage, FIXTURE_EPOCH).await.len(), 2);
     }
 }
 

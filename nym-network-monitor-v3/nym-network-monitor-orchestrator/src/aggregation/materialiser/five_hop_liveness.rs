@@ -119,3 +119,216 @@ impl FiveHopLivenessMaterialiser {
             .collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::models::{
+        FIXTURE_EPOCH, FIXTURE_SEEN_AT, NewTestRun, failed_five_hop_mixnet_session,
+        five_hop_mixnet_batch, five_hop_mixnet_session, gateway, minimal_measurement,
+        minimal_test_run, mixnode,
+    };
+    use nym_network_monitor_orchestrator_requests::models::{
+        InterfaceMeasurement, RunMeasurements,
+    };
+    use nym_network_monitor_route_records::scoring::FailSequenceRule;
+    use nym_network_monitor_route_records::test_message::{SessionTestMessages, TestMessage};
+    use std::collections::BTreeMap;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    /// The epoch whose sessions are scored as [`FIXTURE_EPOCH`] begins.
+    const MEASURED_EPOCH: EpochId = FIXTURE_EPOCH - 1;
+
+    /// What a [`RecordingStrategy`] was given at one scoring.
+    struct Given {
+        test_messages: Vec<TestMessage>,
+        one_hop_scores: HashMap<NodeId, f64>,
+    }
+
+    /// Remembers what it is given and scores no node.
+    #[derive(Clone, Default)]
+    struct RecordingStrategy {
+        given: Arc<Mutex<Vec<Given>>>,
+    }
+
+    impl ScoringStrategy for RecordingStrategy {
+        fn score(
+            &self,
+            test_messages: &[TestMessage],
+            one_hop_scores: &HashMap<NodeId, f64>,
+        ) -> BTreeMap<NodeId, f64> {
+            self.given.lock().unwrap().push(Given {
+                test_messages: test_messages.to_vec(),
+                one_hop_scores: one_hop_scores.clone(),
+            });
+            BTreeMap::new()
+        }
+    }
+
+    impl RecordingStrategy {
+        /// What it was given at its only scoring.
+        fn only_given(&self) -> Given {
+            let mut given = self.given.lock().unwrap();
+            assert_eq!(given.len(), 1, "expected exactly one scoring");
+            given.remove(0)
+        }
+    }
+
+    /// Storage with gateways 100 and 101 bonded, to carry route runs.
+    async fn storage_with_gateways() -> NetworkMonitorStorage {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage
+            .store_refresh(&[gateway(100), gateway(101)], FIXTURE_SEEN_AT)
+            .await
+            .unwrap();
+        storage
+    }
+
+    /// Scores [`FIXTURE_EPOCH`] over `storage` with `strategy`.
+    async fn materialise(
+        storage: &NetworkMonitorStorage,
+        strategy: Box<dyn ScoringStrategy + Send + Sync>,
+    ) {
+        FiveHopLivenessMaterialiser::new(strategy, storage.clone())
+            .materialise(FIXTURE_EPOCH, FIXTURE_SEEN_AT)
+            .await
+            .unwrap();
+    }
+
+    /// Each node's value filed under [`FIXTURE_EPOCH`].
+    async fn stored_values(storage: &NetworkMonitorStorage) -> Vec<(i64, f64)> {
+        storage
+            .get_mixnet_epoch_five_hop_liveness(FIXTURE_EPOCH)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|value| (value.node_id, value.score))
+            .collect()
+    }
+
+    /// Stores a mixnode liveness run against `node_id` finished `ago` before now, scoring `received / 10`.
+    async fn mixnode_liveness_scored(
+        storage: &NetworkMonitorStorage,
+        node_id: i64,
+        received: usize,
+        ago: Duration,
+    ) {
+        let run = NewTestRun {
+            test_timestamp: OffsetDateTime::now_utc() - ago,
+            ..minimal_test_run(node_id)
+        };
+        let measurements = RunMeasurements::MixnodeLiveness {
+            mix_forwarding: InterfaceMeasurement {
+                packets_sent: 10,
+                packets_received: received,
+                ..minimal_measurement()
+            },
+        };
+        storage
+            .storage_manager
+            .insert_test_run(&run, &measurements)
+            .await
+            .unwrap();
+    }
+
+    // The value filed under an epoch is scored from the sessions of the epoch before and no others,
+    // and of those only the ones the discard rule kept: the strategy is given exactly the test
+    // messages of epoch 6's kept sessions, in send order. The verdicts are stored ones, so a
+    // lossless batch can be discarded here.
+    #[tokio::test]
+    async fn only_the_kept_sessions_of_the_epoch_before_are_scored() {
+        let storage = storage_with_gateways().await;
+        let first_kept = five_hop_mixnet_batch(100, MEASURED_EPOCH, 1000..1010, 0);
+        let second_kept = five_hop_mixnet_batch(100, MEASURED_EPOCH, 3000..3010, 0);
+        storage
+            .store_submitted_five_hop_mixnet_run(&[
+                five_hop_mixnet_session(&first_kept, true),
+                five_hop_mixnet_session(
+                    &five_hop_mixnet_batch(101, MEASURED_EPOCH, 2000..2010, 0),
+                    false,
+                ),
+            ])
+            .await;
+        storage
+            .store_submitted_five_hop_mixnet_run(&[
+                five_hop_mixnet_session(&second_kept, true),
+                failed_five_hop_mixnet_session(101),
+            ])
+            .await;
+        // kept sessions of the epochs on either side
+        for mixnet_epoch in [MEASURED_EPOCH - 1, FIXTURE_EPOCH] {
+            let batch = five_hop_mixnet_batch(100, mixnet_epoch, 4000..4010, 0);
+            storage
+                .store_submitted_five_hop_mixnet_run(&[five_hop_mixnet_session(&batch, true)])
+                .await;
+        }
+
+        let strategy = RecordingStrategy::default();
+        materialise(&storage, Box::new(strategy.clone())).await;
+
+        let expected: Vec<TestMessage> = [first_kept, second_kept]
+            .iter()
+            .flat_map(|batch| SessionTestMessages::from_batch(batch).test_messages)
+            .collect();
+        assert_eq!(strategy.only_given().test_messages, expected);
+    }
+
+    // A mixnode's most recent one-hop score is that of its latest mixnode liveness run, and a
+    // mixnode without one has none.
+    #[tokio::test]
+    async fn the_strategy_is_given_each_mixnodes_latest_one_hop_score() {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage
+            .store_refresh(&[mixnode(1), mixnode(2)], FIXTURE_SEEN_AT)
+            .await
+            .unwrap();
+        mixnode_liveness_scored(&storage, 1, 5, Duration::from_secs(30 * 60)).await;
+        mixnode_liveness_scored(&storage, 1, 10, Duration::from_secs(10 * 60)).await;
+
+        let strategy = RecordingStrategy::default();
+        materialise(&storage, Box::new(strategy.clone())).await;
+
+        assert_eq!(
+            strategy.only_given().one_hop_scores,
+            HashMap::from([(1, 1.0)])
+        );
+    }
+
+    // An epoch whose sessions were all discarded or failed has no five-hop liveness.
+    #[tokio::test]
+    async fn an_epoch_without_a_kept_session_stores_nothing() {
+        let storage = storage_with_gateways().await;
+        let batch = five_hop_mixnet_batch(100, MEASURED_EPOCH, 0..10, 0);
+        storage
+            .store_submitted_five_hop_mixnet_run(&[
+                five_hop_mixnet_session(&batch, false),
+                failed_five_hop_mixnet_session(101),
+            ])
+            .await;
+
+        materialise(&storage, Box::new(FailSequenceRule)).await;
+
+        assert!(stored_values(&storage).await.is_empty());
+    }
+
+    // A session that returned nothing, discarded at submission, does not spoil its epoch: the other
+    // session is scored, and the losses it would have charged to mixnodes 1, 2 and 3 are not.
+    #[tokio::test]
+    async fn a_discarded_session_among_several_leaves_the_rest_scored() {
+        let storage = storage_with_gateways().await;
+        let delivered = five_hop_mixnet_batch(100, MEASURED_EPOCH, 0..10, 0);
+        let returned_nothing = five_hop_mixnet_batch(101, MEASURED_EPOCH, 10..20, 10);
+        storage
+            .store_submitted_five_hop_mixnet_run(&[
+                five_hop_mixnet_session(&delivered, true),
+                five_hop_mixnet_session(&returned_nothing, false),
+            ])
+            .await;
+
+        materialise(&storage, Box::new(FailSequenceRule)).await;
+
+        let every_mixnode_at_one: Vec<(i64, f64)> = (1..=6).map(|node_id| (node_id, 1.0)).collect();
+        assert_eq!(stored_values(&storage).await, every_mixnode_at_one);
+    }
+}

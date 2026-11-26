@@ -1360,6 +1360,64 @@ pub(crate) fn aggregate(node_id: i64, test_kind: TestKind, score: f64) -> Mixnet
     }
 }
 
+/// A route session's batch through `gateway_node_id` naming `mixnet_epoch`, one record per send
+/// time through mixnodes 1, 2, 3 with its ack through 4, 5, 6: the first `lost` lost with their
+/// acks, the rest back with theirs.
+#[cfg(test)]
+pub(crate) fn five_hop_mixnet_batch(
+    gateway_node_id: u32,
+    mixnet_epoch: u32,
+    sent_at_ms: std::ops::Range<u64>,
+    lost: usize,
+) -> Batch {
+    use nym_network_monitor_route_records::batch::{BatchHeader, Record};
+
+    let records = sent_at_ms
+        .enumerate()
+        .map(|(position, sent_at_ms)| {
+            let back = position >= lost;
+            Record {
+                sent_at_ms,
+                packet_route: [1, 2, 3],
+                ack_route: [4, 5, 6],
+                payload_back: back,
+                ack_back: back,
+            }
+        })
+        .collect();
+
+    Batch {
+        header: BatchHeader {
+            gateway_node_id,
+            mixnet_epoch,
+        },
+        records,
+    }
+}
+
+/// A session holding `batch` as stored, with the discard rule's verdict `kept`.
+#[cfg(test)]
+pub(crate) fn five_hop_mixnet_session(batch: &Batch, kept: bool) -> NewFiveHopMixnetSession {
+    NewFiveHopMixnetSession {
+        gateway_node_id: i64::from(batch.header.gateway_node_id),
+        outcome: FiveHopMixnetSessionOutcome::Batch {
+            mixnet_epoch: i64::from(batch.header.mixnet_epoch),
+            record_count: batch.records.len() as i64,
+            batch: batch.encode(),
+            kept,
+        },
+    }
+}
+
+/// A session through `gateway_node_id` stored with an error.
+#[cfg(test)]
+pub(crate) fn failed_five_hop_mixnet_session(gateway_node_id: i64) -> NewFiveHopMixnetSession {
+    NewFiveHopMixnetSession {
+        gateway_node_id,
+        outcome: FiveHopMixnetSessionOutcome::Error("the gateway was unreachable".to_string()),
+    }
+}
+
 /// A row from the `node_test_state` table, less the node id its readers already filter on: what one
 /// kind has done against one node so far. Only tests read a whole row; production code writes its
 /// columns individually.

@@ -87,9 +87,10 @@ pub struct RouteSession {
 }
 
 impl RouteSession {
-    /// Opens a session through `gateway` as an ordinary client would; any failure is the session's error.
+    /// Opens a session through `gateway` over the run's `topology` as an ordinary client would; any failure is the session's error.
     pub async fn establish(
         config: RouteSessionConfig,
+        topology: NymRouteProvider,
         gateway: SessionGateway,
         bandwidth_controller: BandwidthControllerRequestSender,
         shutdown_token: ShutdownToken,
@@ -100,7 +101,6 @@ impl RouteSession {
             *keys.encryption_keypair().public_key(),
             gateway.identity_key,
         );
-        let topology = config.read_topology().await?;
         let layers = MixLayers::new(&topology, config.node_selection, gateway)?;
         let gateway_listeners = gateway.listeners(&topology)?;
 
@@ -281,18 +281,23 @@ pub struct SessionOutcome {
     pub batch: anyhow::Result<Batch>,
 }
 
-/// Runs one session through each gateway side by side, all of them ending by the same deadline.
+/// Runs one session through each gateway side by side over one reading of the network, all ending by the same deadline; an error means that reading failed.
 pub async fn run_sessions(
     config: &RouteSessionConfig,
     gateways: Vec<SessionGateway>,
     bandwidth_controller: &BandwidthControllerRequestSender,
     shutdown_token: &ShutdownToken,
     run_timeout: Duration,
-) -> Vec<SessionOutcome> {
+) -> anyhow::Result<Vec<SessionOutcome>> {
     let deadline = Instant::now() + run_timeout;
+
+    // read once for the whole run, so its sessions name one epoch and draw from the same layers
+    let topology = config.read_topology(deadline).await?;
+
     let sessions = gateways.into_iter().map(|gateway| {
         let session = RouteSession::establish(
             config.clone(),
+            topology.clone(),
             gateway,
             bandwidth_controller.clone(),
             shutdown_token.child_token(),
@@ -308,7 +313,7 @@ pub async fn run_sessions(
             SessionOutcome { gateway, batch }
         }
     });
-    join_all(sessions).await
+    Ok(join_all(sessions).await)
 }
 
 /// The mixnodes a session draws from, by layer, and the gateway every route ends at.

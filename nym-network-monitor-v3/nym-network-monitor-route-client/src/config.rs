@@ -9,12 +9,13 @@ use nym_topology::{NymRouteProvider, TopologyProvider};
 use rand::RngExt;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::time::{Instant, timeout_at};
 use url::Url;
 
 /// What every route session runs with.
 #[derive(Debug, Clone)]
 pub struct RouteSessionConfig {
-    /// The nym-api a session reads the active set from.
+    /// The nym-api a run reads the active set from.
     pub nym_api_url: Url,
 
     /// The configured sending time, around which each session draws its own.
@@ -36,12 +37,15 @@ impl RouteSessionConfig {
         rand::rng().random_range(self.sending_duration * 2 / 3..=self.sending_duration * 4 / 3)
     }
 
-    /// Reads the network once: the topology provider's default read for the active set, its extended read otherwise.
-    pub(crate) async fn read_topology(&self) -> anyhow::Result<NymRouteProvider> {
-        let topology = self
-            .topology_provider()?
-            .get_new_topology()
+    /// Reads the network once by `deadline`: the topology provider's default read for the active set, its extended read otherwise.
+    pub(crate) async fn read_topology(
+        &self,
+        deadline: Instant,
+    ) -> anyhow::Result<NymRouteProvider> {
+        let mut provider = self.topology_provider()?;
+        let topology = timeout_at(deadline, provider.get_new_topology())
             .await
+            .context("the network was not read before the run's deadline")?
             .context("could not read the network from nym-api")?;
 
         Ok(NymRouteProvider::new(

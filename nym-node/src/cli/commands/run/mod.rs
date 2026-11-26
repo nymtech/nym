@@ -47,6 +47,7 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     let bonding_info_path = args.bonding_information_output.clone();
     let init_only = args.init_only;
     let local = args.local;
+    let allow_nyx_watcher_startup_failure = args.allow_nyx_watcher_startup_failure;
     let accepted_operator_terms_and_conditions = args.accept_operator_terms_and_conditions;
 
     if !accepted_operator_terms_and_conditions {
@@ -106,7 +107,9 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         config.debug.testnet = true
     }
 
-    let nym_node = NymNode::new(config, accepted_operator_terms_and_conditions).await?;
+    let nym_node = NymNode::new(config, accepted_operator_terms_and_conditions)
+        .await?
+        .with_allowed_nyx_watcher_startup_failure(allow_nyx_watcher_startup_failure);
 
     // if requested, write bonding info
     if let Some(bonding_info_path) = bonding_info_path {

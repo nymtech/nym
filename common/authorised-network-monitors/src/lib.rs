@@ -4,8 +4,9 @@
 //! Structures derived from the set of network monitor agents authorised by the network-monitors
 //! contract, for the ones whose readers live outside the node that folds that set.
 //!
-//! A node loads the authorised set once at startup and keeps it current through nyxd websocket
-//! events, folding each entry into several structures keyed differently for their different gates.
+//! A node loads the whole authorised set from the contract at boot and again whenever its chain
+//! watcher has to be restarted, keeps it current in between through the watcher's contract events,
+//! and folds each entry into several structures keyed differently for their different gates.
 //! Those read only by the node itself live with their readers; the ones here are shared.
 //!
 //! # Announced client identities
@@ -31,8 +32,9 @@ use std::sync::Arc;
 /// Thread-safe, lock-free set of the ed25519 client identities announced by authorised network
 /// monitor agents.
 ///
-/// Reads are lock-free and happen once per client registration handshake; writes are rare (only on
-/// agent authorisation events) and copy the whole map, which is acceptable for a handful of entries.
+/// Reads are lock-free and happen once per client registration handshake; writes are rare (agent
+/// authorisation events and whole-set reloads) and copy the whole map, which is acceptable for a
+/// handful of entries.
 ///
 /// Cloning is cheap: it only clones the `Arc`, not the underlying data.
 #[derive(Clone, Debug, Default)]
@@ -57,12 +59,7 @@ impl AuthorisedMonitorIdentities {
     /// never leave the superseded identity exempt.
     pub fn set_announced(&self, address: SocketAddr, identity: Option<ed25519::PublicKey>) {
         let mut updated = self.inner.load().as_ref().clone();
-
-        updated.withdraw(address);
-        if let Some(identity) = identity {
-            updated.announce(address, identity);
-        }
-
+        updated.set_announced(address, identity);
         self.inner.store(Arc::new(updated))
     }
 
@@ -79,6 +76,16 @@ impl AuthorisedMonitorIdentities {
     pub fn reset(&self) {
         self.inner.store(Default::default())
     }
+
+    /// Replace everything with what the given agent entries announce, folded in order as
+    /// [`Self::set_announced`] folds them, in a single store.
+    pub fn replace_all(&self, announced: Vec<(SocketAddr, Option<ed25519::PublicKey>)>) {
+        let mut replaced = AuthorisedMonitorIdentitiesInner::default();
+        for (address, identity) in announced {
+            replaced.set_announced(address, identity);
+        }
+        self.inner.store(Arc::new(replaced))
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -90,6 +97,14 @@ struct AuthorisedMonitorIdentitiesInner {
 impl AuthorisedMonitorIdentitiesInner {
     fn is_announced(&self, identity: &ed25519::PublicKey) -> bool {
         self.announced.contains_key(identity)
+    }
+
+    /// Record what an agent entry announces, replacing whatever it announced before.
+    fn set_announced(&mut self, address: SocketAddr, identity: Option<ed25519::PublicKey>) {
+        self.withdraw(address);
+        if let Some(identity) = identity {
+            self.announce(address, identity);
+        }
     }
 
     fn announce(&mut self, address: SocketAddr, identity: ed25519::PublicKey) {
@@ -235,6 +250,28 @@ mod tests {
         identities.remove(plain);
 
         assert!(!identities.is_announced(&identity));
+    }
+
+    // The contract keys both address forms separately, so a reload can carry one host and port
+    // twice. Left with two identities on it, revoking either form would keep one of them exempt.
+    #[test]
+    fn a_reload_carrying_both_forms_of_an_address_leaves_one_identity_on_it() {
+        let identities = AuthorisedMonitorIdentities::default();
+
+        let plain = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 39322);
+        let mapped = SocketAddr::new(
+            IpAddr::V6(Ipv4Addr::new(1, 2, 3, 4).to_ipv6_mapped()),
+            39322,
+        );
+
+        identities.replace_all(vec![
+            (plain, Some(identity(1))),
+            (mapped, Some(identity(2))),
+        ]);
+        identities.remove(mapped);
+
+        assert!(!identities.is_announced(&identity(1)));
+        assert!(!identities.is_announced(&identity(2)));
     }
 
     // Agents sharing a host are disambiguated by port, so revoking one must not withdraw another's

@@ -21,6 +21,9 @@ pub enum ScraperError {
     #[error("block information for height {height} is not available on the provided rpc endpoint")]
     BlocksUnavailable { height: u32 },
 
+    #[error("the scraper stopped before its startup sync completed")]
+    StoppedBeforeStartupSync,
+
     #[error("failed to establish websocket connection to {url}: {source}")]
     WebSocketConnectionFailure {
         url: String,

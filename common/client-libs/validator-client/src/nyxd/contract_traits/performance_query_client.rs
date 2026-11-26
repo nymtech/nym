@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::{
-    collect_pages_at_height, AttestationPage, NymContractsProvider,
-};
+use crate::nyxd::contract_traits::{collect_pages_at_height, NymContractsProvider, PinnedPage};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
@@ -352,7 +350,7 @@ where
     }
 }
 
-impl AttestationPage for LatestPerformancePagedResponse {
+impl PinnedPage for LatestPerformancePagedResponse {
     type QueryMsg = PerformanceQueryMsg;
     type QueryArgs = ();
     type Record = LatestPerformance;
@@ -376,7 +374,7 @@ impl AttestationPage for LatestPerformancePagedResponse {
     }
 }
 
-impl AttestationPage for EpochPerformancePagedResponse {
+impl PinnedPage for EpochPerformancePagedResponse {
     type QueryMsg = PerformanceQueryMsg;
     type QueryArgs = EpochId;
     type Record = NodePerformance;

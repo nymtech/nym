@@ -570,7 +570,7 @@ impl Rewarder {
             if let Some(epoch_signing) = &self.epoch_signing {
                 let cancellation_token = epoch_signing.nyxd_scraper.cancel_token();
                 epoch_signing.nyxd_scraper.start().await?;
-                epoch_signing.nyxd_scraper.wait_for_startup_sync().await;
+                epoch_signing.nyxd_scraper.wait_for_startup_sync().await?;
                 Some(Box::pin(async move { cancellation_token.cancelled_owned().await }).fuse())
             } else {
                 None

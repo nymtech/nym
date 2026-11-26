@@ -77,7 +77,15 @@ impl BlockRequester {
                 }
                 maybe_request = self.requests.next() => {
                     match maybe_request {
-                        Some(request) => self.handle_blocks_request(request).await,
+                        Some(request) => {
+                            tokio::select! {
+                                _ = self.cancel.cancelled() => {
+                                    info!("received cancellation token while fetching blocks");
+                                    break
+                                }
+                                _ = self.handle_blocks_request(request) => {}
+                            }
+                        }
                         None => {
                             warn!("stopped receiving new requests");
                             self.cancel.cancel();

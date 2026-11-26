@@ -194,6 +194,16 @@ impl RoutableNetworkMonitors {
         self.swap(HashSet::new())
     }
 
+    /// Replace the whole set in a single swap.
+    pub(crate) fn replace_known(&self, addresses: impl IntoIterator<Item = IpAddr>) {
+        self.swap(
+            addresses
+                .into_iter()
+                .map(|address| address.to_canonical())
+                .collect(),
+        )
+    }
+
     pub(crate) fn is_known(&self, address: &IpAddr) -> bool {
         self.inner.known.load().contains(&address.to_canonical())
     }

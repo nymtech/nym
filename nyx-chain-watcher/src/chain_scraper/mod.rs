@@ -71,7 +71,7 @@ pub(crate) async fn run_chain_scraper(
     let instance = scraper.build_and_start().await?;
 
     info!("🚧 blocking until the chain has caught up...");
-    instance.wait_for_startup_sync().await;
+    instance.wait_for_startup_sync().await?;
 
     Ok(instance)
 }

@@ -47,6 +47,7 @@ async fn main() -> eyre::Result<()> {
     let cfg = WatcherConfig {
         websocket_url: "wss://rpc.nymtech.net/websocket".parse()?,
         rpc_urls: vec!["https://rpc.nymtech.net".parse()?],
+        start_after_height: None,
     };
 
     let watcher = NyxdWatcher::builder(cfg)

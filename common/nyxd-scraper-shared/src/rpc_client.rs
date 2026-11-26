@@ -81,7 +81,8 @@ struct RpcEndpoint {
 #[derive(Clone)]
 pub struct RpcClient {
     /// In order of preference: a query moves on to the next endpoint only once the previous one
-    /// has failed it. Never empty.
+    /// has failed it. The exception is the current block height, which every endpoint is asked
+    /// for. Never empty.
     endpoints: Vec<RpcEndpoint>,
 
     // kinda like very limited cosmos sdk codec
@@ -286,17 +287,34 @@ impl RpcClient {
         }
     }
 
+    /// The highest height any endpoint reports, so that one which has stopped advancing cannot
+    /// hide newer blocks.
     pub(crate) async fn current_block_height(&self) -> Result<u64, ScraperError> {
         debug!("getting current block height");
 
-        let info = self
-            .first_answer(|client| client.abci_info())
-            .await
-            .map_err(|source| ScraperError::RpcQueryFailure {
-                query: "current abci info".to_string(),
-                source: Box::new(source),
-            })?;
-        Ok(info.last_block_height.value())
+        let mut highest = None;
+        let mut failure = None;
+        for endpoint in &self.endpoints {
+            match endpoint.client.abci_info().await {
+                Ok(info) => highest = highest.max(Some(info.last_block_height.value())),
+                Err(err) => {
+                    debug!("{} failed the query: {err}", endpoint.url);
+                    failure = Some(err);
+                }
+            }
+        }
+
+        if let Some(height) = highest {
+            return Ok(height);
+        }
+
+        // SAFETY: the client is never built without an endpoint, so with no answer at least one
+        // query has failed
+        #[allow(clippy::unwrap_used)]
+        Err(ScraperError::RpcQueryFailure {
+            query: "current abci info".to_string(),
+            source: Box::new(failure.unwrap()),
+        })
     }
 
     pub(crate) async fn earliest_available_block_height(&self) -> Result<u64, ScraperError> {
@@ -353,10 +371,9 @@ impl RpcClient {
 
 #[cfg(test)]
 mod tests {
+    use super::test_helpers::client_without_a_node;
     use super::*;
-    use crate::block_processor::types::test_helpers::{
-        NEW_BLOCK_MESSAGE, TX_GAS_USED, TX_HASH, parse_new_block_message,
-    };
+    use crate::block_processor::types::test_helpers::{TX_GAS_USED, TX_HASH, recorded_block};
     use futures::FutureExt;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
@@ -367,12 +384,6 @@ mod tests {
         get_block_results: false,
     };
 
-    // nothing listens on this port, so a call that attempts any rpc query fails
-    fn client_without_a_node() -> RpcClient {
-        let url = "http://127.0.0.1:1".parse().expect("the url is valid");
-        RpcClient::new(&[url]).expect("building the client opens no connection")
-    }
-
     // With no endpoint there is nothing to query. That has to surface when the client is built,
     // not as a failure of the first block that needs fetching.
     #[test]
@@ -381,11 +392,6 @@ mod tests {
             RpcClient::new(&[]),
             Err(ScraperError::NoRpcEndpoints)
         ));
-    }
-
-    fn recorded_block() -> BlockToProcess {
-        BlockToProcess::try_from(parse_new_block_message(NEW_BLOCK_MESSAGE))
-            .expect("the recorded event must convert")
     }
 
     // A live block carries everything its transactions need. Looking any of it up again brings
@@ -465,5 +471,16 @@ mod tests {
         assert!(res.is_err());
         // the waits between three attempts: 300ms, then 600ms
         assert_eq!(Duration::from_millis(900), started.elapsed());
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_helpers {
+    use super::RpcClient;
+
+    // nothing listens on this port, so a call that attempts any rpc query fails
+    pub(crate) fn client_without_a_node() -> RpcClient {
+        let url = "http://127.0.0.1:1".parse().expect("the url is valid");
+        RpcClient::new(&[url]).expect("building the client opens no connection")
     }
 }

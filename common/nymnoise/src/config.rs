@@ -12,6 +12,7 @@ use std::{
 };
 use strum_macros::{EnumIter, FromRepr};
 use tokio::sync::{Mutex, MutexGuard};
+use tracing::{error, warn};
 
 pub use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
 
@@ -69,7 +70,7 @@ pub struct NoiseNetworkView {
 #[derive(Debug)]
 struct NoiseNetworkViewInner {
     update_lock: Mutex<()>,
-    nodes: ArcSwap<HashMap<IpAddr, NoiseNode>>,
+    nodes: ArcSwap<NoiseNodes>,
 }
 
 /// A node in the noise network map, keyed by IP address.
@@ -118,18 +119,117 @@ pub struct NetworkMonitorAgentNode {
     pub key: VersionedNoiseKeyV1,
 }
 
+/// The noise keys of the known nym-nodes and network monitor agents, keyed by canonical IP.
+///
+/// An IP holds either one nym-node or the agents on that host, told apart by port. A nym-node
+/// always wins its IP: replacing the nym-nodes overwrites any agent there, and an agent on a
+/// nym-node's host is ignored.
+#[derive(Debug, Clone, Default)]
+pub struct NoiseNodes {
+    by_ip: HashMap<IpAddr, NoiseNode>,
+}
+
+impl NoiseNodes {
+    pub fn get(&self, ip: IpAddr) -> Option<&NoiseNode> {
+        self.by_ip.get(&ip.to_canonical())
+    }
+
+    pub fn contains(&self, ip: IpAddr) -> bool {
+        self.by_ip.contains_key(&ip.to_canonical())
+    }
+
+    pub fn len(&self) -> usize {
+        self.by_ip.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.by_ip.is_empty()
+    }
+
+    /// Register an agent's key beside any other agents on its host, replacing the key it
+    /// announced before. An agent on a nym-node's host is ignored.
+    pub fn add_agent(&mut self, address: SocketAddr, key: VersionedNoiseKeyV1) {
+        let ip = address.ip().to_canonical();
+        let port = address.port();
+
+        match self.by_ip.get_mut(&ip) {
+            None => {
+                self.by_ip.insert(ip, NoiseNode::new_agent(address, key));
+            }
+            Some(NoiseNode::NymNode { .. }) => {
+                error!(
+                    "the authorised agent {address} runs on the same host as a known nym-node! ignoring"
+                );
+            }
+            Some(NoiseNode::NetworkMonitorAgent { nodes: host_agents }) => {
+                if let Some(existing) = host_agents.iter_mut().find(|agent| agent.port == port) {
+                    existing.key = key;
+                } else {
+                    host_agents.push(NetworkMonitorAgentNode { port, key });
+                }
+            }
+        }
+    }
+
+    /// Remove a revoked agent's key. Returns whether that was the last agent on its host, which
+    /// then leaves the map.
+    pub fn remove_agent(&mut self, address: SocketAddr) -> bool {
+        let ip = address.ip().to_canonical();
+
+        match self.by_ip.get_mut(&ip) {
+            None => {
+                warn!("attempted to revoke a non-existent agent at {address}");
+                false
+            }
+            Some(NoiseNode::NymNode { .. }) => {
+                error!(
+                    "the revoked agent {address} runs on the same host as a known nym-node! ignoring the revocation"
+                );
+                false
+            }
+            Some(NoiseNode::NetworkMonitorAgent { nodes: host_agents }) => {
+                host_agents.retain(|agent| agent.port != address.port());
+                if !host_agents.is_empty() {
+                    return false;
+                }
+                self.by_ip.remove(&ip);
+                true
+            }
+        }
+    }
+
+    pub fn remove_all_agents(&mut self) {
+        self.by_ip.retain(|_, node| node.is_nym_node());
+    }
+
+    /// Replace every nym-node with `fresh`, keeping the agents on every other host.
+    pub fn replace_nym_nodes(&mut self, fresh: HashMap<IpAddr, VersionedNoiseKeyV1>) {
+        self.by_ip.retain(|_, node| !node.is_nym_node());
+        for (ip, key) in fresh {
+            self.by_ip
+                .insert(ip.to_canonical(), NoiseNode::new_nym_node(key));
+        }
+    }
+}
+
+impl From<HashMap<IpAddr, NoiseNode>> for NoiseNodes {
+    fn from(nodes: HashMap<IpAddr, NoiseNode>) -> Self {
+        // canonicalised, so that lookups (which canonicalise) always match
+        NoiseNodes {
+            by_ip: nodes
+                .into_iter()
+                .map(|(ip, node)| (ip.to_canonical(), node))
+                .collect(),
+        }
+    }
+}
+
 impl NoiseNetworkView {
     pub fn new(nodes: HashMap<IpAddr, NoiseNode>) -> Self {
-        // ensure we're always storing canonical IPs
         NoiseNetworkView {
             inner: Arc::new(NoiseNetworkViewInner {
                 update_lock: Mutex::new(()),
-                nodes: ArcSwap::from_pointee(
-                    nodes
-                        .into_iter()
-                        .map(|(k, v)| (k.to_canonical(), v))
-                        .collect(),
-                ),
+                nodes: ArcSwap::from_pointee(NoiseNodes::from(nodes)),
             }),
         }
     }
@@ -150,18 +250,11 @@ impl NoiseNetworkView {
     /// Passing the `MutexGuard` by value enforces this at the type level — the guard is dropped
     /// (releasing the lock) only after the swap completes, preventing torn writes from concurrent
     /// update calls.
-    pub fn swap_view(&self, _permit: MutexGuard<'_, ()>, new: HashMap<IpAddr, NoiseNode>) {
-        // defensive: ensure stored keys are always canonical so lookups (which canonicalise)
-        // always match. callers should still canonicalise before assembling `new` to keep
-        // collision resolution deterministic.
-        let canonical = new
-            .into_iter()
-            .map(|(k, v)| (k.to_canonical(), v))
-            .collect();
-        self.inner.nodes.store(Arc::new(canonical));
+    pub fn swap_view(&self, _permit: MutexGuard<'_, ()>, new: NoiseNodes) {
+        self.inner.nodes.store(Arc::new(new));
     }
 
-    pub fn all_nodes(&self) -> HashMap<IpAddr, NoiseNode> {
+    pub fn all_nodes(&self) -> NoiseNodes {
         self.inner.nodes.load().as_ref().clone()
     }
 }
@@ -210,13 +303,12 @@ impl NoiseConfig {
     /// to start the handshake. For nym-nodes the port is ignored (one key per IP);
     /// for network monitor agents, the port disambiguates which agent's key to use.
     pub(crate) fn get_noise_key(&self, address: SocketAddr) -> Option<VersionedNoiseKeyV1> {
-        let ip_to_check = address.ip().to_canonical();
         let nodes = self.network.inner.nodes.load();
 
         // Resolve the noise key for `address` from a loaded snapshot of the node map.
         // For [`NoiseNode::NymNode`] entries the port is irrelevant — only the IP is matched.
         // For [`NoiseNode::NetworkMonitorAgent`] entries the port selects the specific agent.
-        match nodes.get(&ip_to_check)? {
+        match nodes.get(address.ip())? {
             NoiseNode::NymNode { key } => Some(*key),
             NoiseNode::NetworkMonitorAgent { nodes } => {
                 let port = address.port();
@@ -231,11 +323,7 @@ impl NoiseConfig {
     // note: in the case of network monitor agents, it must hold
     // that ALL agents on given host support it (or don't support it)
     pub(crate) fn supports_noise(&self, ip_addr: IpAddr) -> bool {
-        self.network
-            .inner
-            .nodes
-            .load()
-            .contains_key(&ip_addr.to_canonical())
+        self.network.inner.nodes.load().contains(ip_addr)
     }
 }
 
@@ -429,10 +517,11 @@ mod tests {
 
         // Regression: an agent registered via blockchain events flows through `swap_view` (called
         // from `AuthorisedAgentsView::add_agent` and from the periodic network refresher).
-        // If a non-canonical (IPv4-mapped IPv6) key reaches `swap_view`, lookups via
+        // If a non-canonical (IPv4-mapped IPv6) key reached the stored map, lookups via
         // `supports_noise` (which canonicalises) used to miss, producing the
         // "can't speak Noise yet, falling back to TCP" warning despite the agent being correctly
-        // authorised in the routing filter.
+        // authorised in the routing filter. A map only reaches `swap_view` as `NoiseNodes`, which
+        // canonicalises its keys.
         #[tokio::test]
         async fn swap_view_canonicalises_non_canonical_keys() {
             let view = NoiseNetworkView::new_empty();
@@ -452,7 +541,7 @@ mod tests {
             );
 
             let permit = view.get_update_permit().await;
-            view.swap_view(permit, nodes);
+            view.swap_view(permit, nodes.into());
 
             let config = NoiseConfig::new(
                 Arc::new(x25519::KeyPair::new(&mut deterministic_rng())),

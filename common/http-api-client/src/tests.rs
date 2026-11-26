@@ -461,13 +461,17 @@ async fn host_rotation_tempered_by_net_reconfigure() {
     assert_eq!(request_host(&client), "nym-api.test");
 
     // Simulate no recent network reconfiguration. Now the same network error should rotate to the
-    // next host and enable fronting for OnRetry.
+    // next host and enable fronting for OnRetry. The next host starts on its direct turn.
     *crate::SHARED_NETWORK_RECONFIGURATION.lock().unwrap() =
         Some(Instant::now() - Duration::from_secs(60));
     let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
     let _ = client.send(req).await;
 
     assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
+    assert_eq!(request_host(&client), "nym-api2.test");
+
+    // a further failure moves that host onto its front
+    client.update_host(None);
     assert_eq!(request_host(&client), "cdn2.test");
 
     // leave the shared marker as we found it for whichever test runs next

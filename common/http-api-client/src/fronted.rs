@@ -106,12 +106,13 @@ impl Front {
     }
 
     /// Whether domains without a front configured should still be considered when rotating
-    /// hosts while fronting is enabled. Only meaningful for [`FrontPolicy::ConfiguredRetry`] -
-    /// other policies keep the existing behavior of only rotating between fronted domains.
+    /// hosts while fronting is enabled. [`FrontPolicy::Always`] only rotates between fronted
+    /// domains.
     pub(crate) fn include_non_fronted_in_rotation(&self) -> bool {
         match &*self.policy.read().unwrap() {
+            FrontPolicy::OnRetry => true,
             FrontPolicy::ConfiguredRetry(cfg) => cfg.include_non_fronted_in_rotation,
-            FrontPolicy::Off | FrontPolicy::OnRetry | FrontPolicy::Always => false,
+            FrontPolicy::Off | FrontPolicy::Always => false,
         }
     }
 
@@ -120,12 +121,13 @@ impl Front {
     /// [`FrontingConfig::disable_fronting_on_non_fronting_success`].
     pub(crate) fn should_recover_on_non_fronted_success(&self) -> bool {
         match &*self.policy.read().unwrap() {
+            FrontPolicy::OnRetry => true,
             FrontPolicy::ConfiguredRetry(cfg) => {
                 // this recovery path only makes sense if non-fronted domains can actually be
                 // selected during rotation in the first place.
                 cfg.include_non_fronted_in_rotation && cfg.disable_fronting_on_non_fronting_success
             }
-            FrontPolicy::Off | FrontPolicy::OnRetry | FrontPolicy::Always => false,
+            FrontPolicy::Off | FrontPolicy::Always => false,
         }
     }
 
@@ -149,7 +151,8 @@ pub enum FrontPolicy {
     /// Always use domain fronting for all requests.
     Always,
 
-    /// Only use domain fronting when retrying failed requests.
+    /// Only use domain fronting when retrying failed requests. Once enabled, domains without a
+    /// front stay in the rotation, and a successful request to one turns fronting off again.
     OnRetry,
 
     /// Only enable domain fronting once enough distinct domains have each failed enough times,

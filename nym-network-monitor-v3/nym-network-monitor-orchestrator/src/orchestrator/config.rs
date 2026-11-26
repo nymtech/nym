@@ -51,6 +51,34 @@ pub(crate) struct LivenessConfig {
     pub(crate) gateway_wave_size: usize,
 }
 
+/// Five-hop liveness: the route runs' cadence, the gateway bar and the session discard margin.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct FiveHopLivenessConfig {
+    /// Whether route runs are handed out and five-hop liveness is materialised and applied.
+    pub(crate) enabled: bool,
+
+    /// Minimum time between the starts of two submitted route runs.
+    pub(crate) interval: Duration,
+
+    /// Maximum number of gateways a route run carries.
+    pub(crate) gateways_per_run: usize,
+
+    /// How long a route run stays in flight without a submission.
+    pub(crate) run_timeout: Duration,
+
+    /// Bar for a gateway's latest gateway liveness score while enough candidates reach it.
+    pub(crate) min_gateway_score: f64,
+
+    /// Share of candidate gateways, in `[0, 1]`, that must reach the minimum for it to be the bar.
+    pub(crate) min_gateway_share: f64,
+
+    /// Bar for a gateway's latest gateway liveness score when too few candidates reach the minimum.
+    pub(crate) fallback_min_gateway_score: f64,
+
+    /// Margin, in `[0, 1]`, by which a session's loss rate may exceed its run's other session's.
+    pub(crate) session_loss_margin: f64,
+}
+
 /// How far back each kind's aggregate reaches from the start of the epoch it is filed under.
 ///
 /// The two liveness kinds share one window, as they share the rest of their scheduling, which is also
@@ -102,6 +130,9 @@ pub(crate) struct Config {
 
     /// Scheduling knobs of the liveness kind, whose cadence and lease are its own.
     pub(crate) liveness: LivenessConfig,
+
+    /// Route runs and five-hop liveness.
+    pub(crate) five_hop_liveness: FiveHopLivenessConfig,
 
     /// How far back each kind's aggregate reaches.
     pub(crate) aggregation_windows: AggregationWindows,
@@ -330,7 +361,8 @@ impl Config {
     /// from part of the evidence. The excess of retention over the window is how far back a restart
     /// can still backfill epochs, and its sizing is left to the operator.
     ///
-    /// Also rejects a chain interactions penalty or a coverage threshold that is not a fraction.
+    /// Also rejects a chain interactions penalty, a coverage threshold or a five-hop liveness score,
+    /// share or margin that is not a fraction.
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let longest_window = self.aggregation_windows.longest();
         if self.testrun_eviction_age <= longest_window {
@@ -367,6 +399,35 @@ impl Config {
                 self.performance_submission_coverage_threshold
             );
         }
+
+        let five_hop = &self.five_hop_liveness;
+        if !(0.0..=1.0).contains(&five_hop.min_gateway_score) {
+            bail!(
+                "five-hop liveness minimum gateway score ({}) must be within [0, 1]",
+                five_hop.min_gateway_score
+            );
+        }
+
+        if !(0.0..=1.0).contains(&five_hop.min_gateway_share) {
+            bail!(
+                "five-hop liveness minimum gateway share ({}) must be within [0, 1]",
+                five_hop.min_gateway_share
+            );
+        }
+
+        if !(0.0..=1.0).contains(&five_hop.fallback_min_gateway_score) {
+            bail!(
+                "five-hop liveness fallback minimum gateway score ({}) must be within [0, 1]",
+                five_hop.fallback_min_gateway_score
+            );
+        }
+
+        if !(0.0..=1.0).contains(&five_hop.session_loss_margin) {
+            bail!(
+                "five-hop liveness session loss margin ({}) must be within [0, 1]",
+                five_hop.session_loss_margin
+            );
+        }
         Ok(())
     }
 }
@@ -387,6 +448,16 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
             test_timeout: Duration::from_secs(60),
             mixnode_wave_size: 100,
             gateway_wave_size: 50,
+        },
+        five_hop_liveness: FiveHopLivenessConfig {
+            enabled: true,
+            interval: Duration::from_secs(5 * 60),
+            gateways_per_run: 2,
+            run_timeout: Duration::from_secs(3 * 60),
+            min_gateway_score: 1.0,
+            min_gateway_share: 0.4,
+            fallback_min_gateway_score: 0.98,
+            session_loss_margin: 0.05,
         },
         aggregation_windows: AggregationWindows {
             stress: Duration::from_secs(24 * 60 * 60),

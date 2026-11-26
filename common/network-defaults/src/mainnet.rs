@@ -61,6 +61,10 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
         front_hosts: None,
     },
     ApiUrlConst {
+        url: "https://cdn1.media-platform.net/api/",
+        front_hosts: None,
+    },
+    ApiUrlConst {
         url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
         front_hosts: Some(&[
             "fastly-support.global.ssl.fastly.net",
@@ -69,8 +73,8 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
         ]),
     },
     ApiUrlConst {
-        url: "https://cdn1.media-platform.net/api/",
-        front_hosts: None,
+        url: "https://nym-frontdoor.vercel.app/api/",
+        front_hosts: Some(&["vercel.app", "vercel.com"]),
     },
 ];
 
@@ -110,16 +114,16 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
         front_hosts: None,
     },
     ApiUrlConst {
+        url: "https://edge1.streaming-gateway.com/api/",
+        front_hosts: None,
+    },
+    ApiUrlConst {
         url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
         front_hosts: Some(&[
             "fastly-support.global.ssl.fastly.net",
             "yelp.global.ssl.fastly.net",
             "pypi.global.ssl.fastly.net",
         ]),
-    },
-    ApiUrlConst {
-        url: "https://edge1.streaming-gateway.com/api/",
-        front_hosts: None,
     },
 ];
 

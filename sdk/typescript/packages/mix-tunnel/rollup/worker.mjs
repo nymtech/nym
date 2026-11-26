@@ -2,6 +2,7 @@ import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import { wasm } from '@rollup/plugin-wasm';
 import replace from '@rollup/plugin-replace';
+import { releaseInlineWasm } from './release-inline-payloads.mjs';
 
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
 
@@ -37,6 +38,7 @@ export const getConfig = () => ({
     // zero-config consumer deployment — no need to teach every downstream
     // bundler how to copy the .wasm next to the JS.
     wasm({ maxFileSize: 50_000_000, targetEnv: 'browser' }),
+    releaseInlineWasm(),
     typescript({
       compilerOptions: {
         declaration: false,

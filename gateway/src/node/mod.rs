@@ -99,7 +99,7 @@ pub async fn start_lp_topology(
         warn!("the hosted providers have no routable LP network to send through: {err}");
     }
 
-    shutdown_tracker.try_spawn_named(
+    shutdown_tracker.try_spawn_named_with_shutdown(
         async move { refresher.run().await },
         "LP::ServiceProviderTopologyRefresher",
     );

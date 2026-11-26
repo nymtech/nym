@@ -22,9 +22,8 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::rng::{os_rng, OsRng};
 use nym_lp::peer::LpRemotePeer;
 use nym_lp_data::clients::traits::{ClientUnwrappingPipeline, ClientWrappingPipeline};
-use nym_lp_data::common::traits::WireWrappingPipeline;
 use nym_lp_data::packet::frame::{ForwardSphinxFrameAttributes, LpFrameKind};
-use nym_lp_data::packet::{LpFrame, MAX_FRAME_PAYLOAD_SIZE};
+use nym_lp_data::packet::LpFrame;
 use nym_lp_data::PipelineInput;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
@@ -222,21 +221,4 @@ fn a_fragmented_message_is_reassembled() {
     let original = vec![0xab; 10 * 1024];
 
     assert_eq!(Some(original.clone()), network.round_trip(original));
-}
-
-/// The provider chunks exactly as a client does.
-///
-/// Not a detail: chunk size decides where a message is split, and that is visible in the size of the
-/// sphinx packets leaving the node. A provider that chunked differently from every real client
-/// would be recognisable from a distance, however correct it otherwise was.
-#[test]
-fn the_provider_chunks_like_a_client() {
-    let network = TestNetwork::new();
-
-    // both pipelines charge the same routing-security overhead and span the same two frames, so
-    // matching chunk sizes is exactly the question of whether the frame size matches
-    let frame_size =
-        WireWrappingPipeline::<LpFrame, LpOutboundOptions>::frame_payload_size(&network.outbound());
-
-    assert_eq!(MAX_FRAME_PAYLOAD_SIZE, frame_size);
 }

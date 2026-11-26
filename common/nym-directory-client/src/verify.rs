@@ -11,6 +11,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{
     DirectoryEntryRecord, KnownLabel, NodeEntry, node_signing_payload,
 };
+use nym_directory_types::{DecodeError, DirectoryEntryPayload};
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::Height;
@@ -67,6 +68,13 @@ impl DirectoryNode {
             unknown_labels: BTreeMap::new(),
             verified,
         }
+    }
+
+    /// The node's entry under `T`'s label, decoded; `None` when it publishes none.
+    pub fn payload<T: DirectoryEntryPayload>(&self) -> Option<Result<T, DecodeError>> {
+        self.known_labels
+            .get(&T::LABEL)
+            .map(|entry| T::from_canonical_bytes(&entry.data))
     }
 }
 

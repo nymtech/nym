@@ -14,21 +14,10 @@ use utoipa::IntoParams;
 
 pub(crate) mod network_monitor;
 pub(crate) mod unstable;
-pub(crate) mod without_monitor;
 
-pub(crate) fn status_routes(network_monitor: bool) -> Router<AppState> {
-    // in the minimal variant we would not have access to endpoints relying on existence
-    // of the network monitor and the associated storage
-    let without_network_monitor = without_monitor::mandatory_routes();
-
-    if network_monitor {
-        let with_network_monitor = network_monitor::network_monitor_routes();
-
-        with_network_monitor.merge(without_network_monitor)
-    } else {
-        without_network_monitor
-    }
-    .route("/config-score-details", get(config_score_details))
+pub(crate) fn status_routes() -> Router<AppState> {
+    network_monitor::network_monitor_routes()
+        .route("/config-score-details", get(config_score_details))
 }
 
 #[derive(Deserialize, IntoParams)]

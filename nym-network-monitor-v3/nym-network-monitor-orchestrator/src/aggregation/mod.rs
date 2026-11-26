@@ -29,8 +29,7 @@ impl WindowAggregate {
     /// The mean of `scores`, or `None` when there are none.
     ///
     /// Each run weighs the same however many packets it sent, rather than the packet counts beneath
-    /// the scores being pooled: that is how nym-api averages the same runs, which is what keeps the
-    /// two figures comparable.
+    /// the scores being pooled.
     fn mean(scores: &[f64]) -> Option<Self> {
         if scores.is_empty() {
             return None;
@@ -94,10 +93,9 @@ pub(crate) fn aggregate_runs(runs: Vec<CompletedTestRun>) -> BTreeMap<i64, Windo
 /// One node's aggregates for one epoch as they are reported: both liveness kinds combined into a
 /// single liveness figure, stress on its own.
 ///
-/// Combining by sample count gives the mean over both kinds' runs, which is what nym-api computes,
-/// both kinds' results landing in its one liveness series. Exact only while the two kinds share one
-/// aggregation window, which [`AggregationWindows`](crate::orchestrator::config::AggregationWindows)
-/// guarantees.
+/// Combining by sample count gives the mean over both kinds' runs, as if they were one liveness
+/// series. Exact only while the two kinds share one aggregation window, which
+/// [`AggregationWindows`](crate::orchestrator::config::AggregationWindows) guarantees.
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub(crate) struct ReportedAggregates {
     pub(crate) liveness: Option<WindowAggregate>,

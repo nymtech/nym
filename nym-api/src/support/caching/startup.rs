@@ -4,7 +4,7 @@
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_status_api::NodeStatusCache;
+use crate::support::attested_snapshots::state::ContractSnapshots;
 use crate::support::caching::cache::SharedCache;
 use nym_task::cancellation::tracker::Cancelled;
 use nym_task::ShutdownToken;
@@ -18,13 +18,14 @@ const POLL_INTERVAL: Duration = Duration::from_secs(1);
 /// How often the startup wait logs the caches it is still waiting for.
 const LOG_INTERVAL: Duration = Duration::from_secs(30);
 
-/// The caches nym-api builds before spawning its other tasks and serving HTTP: nothing correct
-/// can be served or rewarded without them.
+/// The caches nym-api builds before spawning its other tasks and serving HTTP, and the settled
+/// performance snapshot every node's published performance is read from: nothing correct can be
+/// served without them.
 pub(crate) struct StartupCaches {
     pub(crate) mixnet_contract: MixnetContractCache,
     pub(crate) described_nodes: SharedCache<DescribedNodes>,
     pub(crate) node_families: SharedCache<NodeFamiliesCacheData>,
-    pub(crate) node_annotations: NodeStatusCache,
+    pub(crate) contract_snapshots: ContractSnapshots,
 }
 
 impl StartupCaches {
@@ -65,8 +66,8 @@ impl StartupCaches {
         if self.node_families.get().await.is_err() {
             pending.push("node families");
         }
-        if self.node_annotations.cache().await.is_err() {
-            pending.push("node annotations");
+        if self.contract_snapshots.latest_entry().await.is_none() {
+            pending.push("settled performance snapshot");
         }
         pending
     }
@@ -77,16 +78,20 @@ mod tests {
     use super::*;
     use crate::mixnet_contract_cache::cache::data::test_helpers::populated_cache;
     use crate::mixnet_contract_cache::cache::data::MixnetContractCacheData;
-    use crate::node_status_api::cache::data::NodeStatusCacheData;
+    use crate::support::attested_snapshots::data::test_helpers::empty_retained_height;
+    use crate::support::attested_snapshots::data::AttestedSnapshotsCacheData;
     use std::collections::HashMap;
+    use tendermint::block::Height;
 
-    /// The four caches' shared handles, to fill them while the wait runs.
+    const SETTLE_LAG: usize = 10;
+
+    /// The startup inputs' shared handles, to fill them while the wait runs.
     #[derive(Default)]
     struct Handles {
         mixnet_contract: SharedCache<MixnetContractCacheData>,
         described_nodes: SharedCache<DescribedNodes>,
         node_families: SharedCache<NodeFamiliesCacheData>,
-        node_annotations: SharedCache<NodeStatusCacheData>,
+        snapshots: SharedCache<AttestedSnapshotsCacheData>,
     }
 
     impl Handles {
@@ -95,11 +100,11 @@ mod tests {
                 mixnet_contract: self.mixnet_contract.clone().into(),
                 described_nodes: self.described_nodes.clone(),
                 node_families: self.node_families.clone(),
-                node_annotations: self.node_annotations.clone().into(),
+                contract_snapshots: ContractSnapshots::new(self.snapshots.clone(), SETTLE_LAG),
             }
         }
 
-        async fn build_all_but_the_annotations(&self) {
+        async fn build_all_but_the_snapshot(&self) {
             let described_nodes = DescribedNodes {
                 nodes: HashMap::new(),
                 addresses_cache: HashMap::new(),
@@ -121,10 +126,14 @@ mod tests {
             assert_eq!(built, [true; 3]);
         }
 
-        async fn build_the_annotations(&self) {
+        /// A snapshot at 1000 with the tip past it by more than the settle lag.
+        async fn settle_a_snapshot(&self) {
+            let mut snapshots = AttestedSnapshotsCacheData::default();
+            snapshots.insert_entry(empty_retained_height(1000));
+            snapshots.set_last_polled_height(Height::from(1000 + SETTLE_LAG as u32));
             let built = self
-                .node_annotations
-                .try_overwrite_old_value(HashMap::new(), "test")
+                .snapshots
+                .try_overwrite_old_value(snapshots, "test")
                 .await;
             assert!(built.is_ok());
         }
@@ -137,11 +146,11 @@ mod tests {
         let wait =
             tokio::spawn(async move { caches.wait_until_built(&ShutdownToken::new()).await });
 
-        handles.build_all_but_the_annotations().await;
+        handles.build_all_but_the_snapshot().await;
         sleep(Duration::from_secs(60)).await;
         assert!(!wait.is_finished());
 
-        handles.build_the_annotations().await;
+        handles.settle_a_snapshot().await;
         sleep(2 * POLL_INTERVAL).await;
         assert!(wait.is_finished());
         assert!(wait.await.unwrap().is_ok());
@@ -151,8 +160,8 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn caches_already_holding_values_need_no_refresh() {
         let handles = Handles::default();
-        handles.build_all_but_the_annotations().await;
-        handles.build_the_annotations().await;
+        handles.build_all_but_the_snapshot().await;
+        handles.settle_a_snapshot().await;
 
         let start = tokio::time::Instant::now();
         let waited = handles

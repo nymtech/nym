@@ -119,6 +119,7 @@ exceptions = [
     # list
     #{ allow = ["Zlib"], crate = "adler32" },
     { allow = ["GPL-3.0"], crate = "nym-api" },
+    { allow = ["GPL-3.0"], crate = "nym-epoch-driver" },
     { allow = ["GPL-3.0"], crate = "nym-gateway" },
     { allow = ["GPL-3.0"], crate = "nym-network-requester" },
     { allow = ["GPL-3.0"], crate = "nym-node" },

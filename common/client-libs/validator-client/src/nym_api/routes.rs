@@ -51,14 +51,6 @@ pub mod nym_nodes {
     pub const NYM_NODES_REWARDED_SET: &str = "rewarded-set";
     pub const NYM_NODES_REFRESH_DESCRIBED: &str = "refresh-described";
     pub const BY_ADDRESSES: &str = "by-addresses";
-    pub const STRESS_TESTING: &str = "stress-testing";
-    pub const STRESS_TESTING_KNOWN_MONITORS: &str = "known-monitors";
-    pub const STRESS_TESTING_BATCH_SUBMIT: &str = "batch-submit";
-    // liveness results go to their own endpoint rather than sharing the stress one: nym-api keeps a
-    // per-endpoint replay high-water mark per signer, and two streams signed by the same
-    // orchestrator against one shared mark would reject each other indefinitely
-    pub const LIVENESS_TESTING: &str = "liveness-testing";
-    pub const LIVENESS_TESTING_BATCH_SUBMIT: &str = "batch-submit";
 }
 
 pub const STATUS_ROUTES: &str = "status";
@@ -81,8 +73,6 @@ pub const COMPUTE_REWARD_ESTIMATION: &str = "compute-reward-estimation";
 pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";
-pub const SUBMIT_GATEWAY: &str = "submit-gateway-monitoring-results";
-pub const SUBMIT_NODE: &str = "submit-node-monitoring-results";
 
 pub const SERVICE_PROVIDERS: &str = "services";
 

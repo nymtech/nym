@@ -72,10 +72,6 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_HTTP_SERVER_BIND_ADDRESS_ARG, default_value = "0.0.0.0:8080")]
     http_server_bind_address: SocketAddr,
 
-    /// HTTP endpoint of the nym-api to which test results are submitted.
-    #[clap(long, env = NYM_NETWORK_MONITOR_NYM_API_ENDPOINT_ARG)]
-    nym_api_endpoint: Url,
-
     /// Mnemonic of the account used to authorise network monitor agents in the
     /// network monitors contract.
     #[clap(long, env = NYM_NETWORK_MONITOR_MNEMONIC_ARG)]
@@ -90,7 +86,8 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_DATABASE_PATH_ARG)]
     database_path: PathBuf,
 
-    /// Base58-encoded Ed25519 private key used to authorise result submissions to the nym-api.
+    /// Base58-encoded Ed25519 private key whose public key the orchestrator announces in the
+    /// network monitors contract.
     #[clap(long, env = NYM_NETWORK_MONITOR_PRIVATE_KEY_ARG)]
     private_key: String,
 
@@ -115,8 +112,7 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_MIXNET_CONTRACT_ADDRESS_ARG)]
     mixnet_contract_address: Option<String>,
 
-    /// Maximum age of a completed test run row before it is evicted from the local database.
-    /// Rows older than this are assumed to have already been submitted to the nym-api
+    /// Maximum age of a completed test run row before it is evicted from the local database
     /// (e.g. `7d`, `24h`). Must exceed the longest aggregation window, since aggregates are
     /// computed from these rows.
     #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration, default_value = "7d",)]
@@ -137,15 +133,6 @@ pub(crate) struct Args {
     /// (yet) listed.
     #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_AUTH_CHECK_RETRY_DELAY_ARG, value_parser = humantime::parse_duration, default_value = "1m")]
     chain_authorisation_check_retry_delay: Duration,
-
-    /// How often the orchestrator flushes accumulated test results to the nym-api as a signed
-    /// batch submission (e.g. `15m`, `1h`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
-    result_submission_interval: Duration,
-
-    /// Maximum number of results to submit in a single POST request, applied per stream
-    #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_BATCH_SIZE_ARG, default_value = "50")]
-    result_submission_batch_size: NonZeroUsize,
 
     /// How often the scheduling-telemetry task recomputes the per-kind capacity picture
     /// (e.g. `15s`). Should sit at or below the Prometheus scrape interval: a tick faster than the
@@ -241,7 +228,6 @@ impl Args {
     pub(crate) fn build_orchestrator_config(&self) -> anyhow::Result<Config> {
         let config = Config {
             nyxd_rpc_endpoint: self.rpc_url.clone(),
-            nym_api_endpoint: self.nym_api_endpoint.clone(),
             http_server_bind_address: self.http_server_bind_address,
             test_interval: self.test_interval,
             test_timeout: self.test_timeout,
@@ -271,12 +257,10 @@ impl Args {
             number_of_concurrent_node_queries: self.number_of_concurrent_node_queries,
             chain_authorisation_check_max_attempts: self.chain_authorisation_check_max_attempts,
             chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
-            result_submission_interval: self.result_submission_interval,
             metrics_refresh_interval: self.metrics_refresh_interval,
             agent_liveness_window: self.agent_liveness_window,
             lease_release_interval: self.lease_release_interval,
             retention_sweep_interval: self.retention_sweep_interval,
-            result_submission_batch_size: self.result_submission_batch_size.get(),
             aggregation_windows: AggregationWindows {
                 stress: self.stress_aggregation_window,
                 liveness: self.liveness_aggregation_window,
@@ -384,8 +368,6 @@ mod tests {
         "agents-token",
         "--metrics-and-results-token",
         "metrics-token",
-        "--nym-api-endpoint",
-        "https://nym-api.example.com/api",
         "--mnemonic",
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
         "--database-path",

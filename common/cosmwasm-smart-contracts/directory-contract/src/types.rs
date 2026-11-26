@@ -496,6 +496,15 @@ pub struct SnapshotIntervalResponse {
     pub interval: u32,
 }
 
+impl SnapshotIntervalResponse {
+    /// The newest snapshot height at or below `height`: its greatest positive multiple of the
+    /// interval. `None` below the first one, or for an interval of zero, which describes no grid.
+    pub fn boundary_at_or_below(&self, height: u64) -> Option<u64> {
+        let boundary = height - height.checked_rem(u64::from(self.interval))?;
+        (boundary > 0).then_some(boundary)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -673,5 +682,23 @@ mod tests {
         bad.extend_from_slice(&0u64.to_le_bytes()); // sequence
         bad.extend_from_slice(&99u64.to_le_bytes()); // signature length (overruns)
         assert!(NodeEntry::try_from_bytes(&bad).is_err());
+    }
+
+    #[test]
+    fn the_boundary_is_the_newest_multiple_of_the_interval_at_or_below_the_height() {
+        let cadence = SnapshotIntervalResponse { interval: 100 };
+        assert_eq!(cadence.boundary_at_or_below(1_000), Some(1_000));
+        assert_eq!(cadence.boundary_at_or_below(1_099), Some(1_000));
+        assert_eq!(cadence.boundary_at_or_below(1_100), Some(1_100));
+    }
+
+    #[test]
+    fn there_is_no_boundary_before_the_first_one_or_for_a_zero_interval() {
+        let cadence = SnapshotIntervalResponse { interval: 100 };
+        assert_eq!(cadence.boundary_at_or_below(99), None);
+        assert_eq!(cadence.boundary_at_or_below(0), None);
+
+        let no_grid = SnapshotIntervalResponse { interval: 0 };
+        assert_eq!(no_grid.boundary_at_or_below(1_000), None);
     }
 }

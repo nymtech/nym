@@ -165,6 +165,7 @@ async fn _mixnode_test_results(
     })
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "UNSTABLE - DO **NOT** USE",
     get,
@@ -180,6 +181,7 @@ async fn _mixnode_test_results(
         ))
     ),
 )]
+#[deprecated]
 pub async fn mixnode_test_results(
     Path(mix_id): Path<NodeId>,
     Query(pagination): Query<PaginationRequest>,
@@ -269,6 +271,7 @@ async fn _gateway_test_results(
     })
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "UNSTABLE - DO **NOT** USE",
     get,
@@ -284,6 +287,7 @@ async fn _gateway_test_results(
         ))
     ),
 )]
+#[deprecated]
 pub async fn gateway_test_results(
     Path(gateway_identity): Path<String>,
     Query(pagination): Query<PaginationRequest>,
@@ -354,6 +358,7 @@ async fn _latest_monitor_run_report(
     _monitor_run_report(latest_id, storage).await
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "UNSTABLE - DO **NOT** USE",
     get,
@@ -367,6 +372,7 @@ async fn _latest_monitor_run_report(
     ),
     params(OutputParams)
 )]
+#[deprecated]
 pub async fn monitor_run_report(
     Path(monitor_run_id): Path<i64>,
     Query(output): Query<OutputParams>,
@@ -382,6 +388,7 @@ pub async fn monitor_run_report(
     }
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "UNSTABLE - DO **NOT** USE",
     get,
@@ -395,6 +402,7 @@ pub async fn monitor_run_report(
     ),
     params(OutputParams)
 )]
+#[deprecated]
 pub async fn latest_monitor_run_report(
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,

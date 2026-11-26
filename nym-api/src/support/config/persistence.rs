@@ -7,8 +7,6 @@ use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-pub const DEFAULT_NETWORK_MONITOR_CREDENTIALS_DATABASE_FILENAME: &str = "credentials_database.db";
-
 pub const DEFAULT_NODE_STATUS_API_DATABASE_FILENAME: &str = "db.sqlite";
 
 pub const DEFAULT_DKG_PERSISTENT_STATE_FILENAME: &str = "dkg_persistent_state.json";
@@ -21,24 +19,6 @@ pub const DEFAULT_ECASH_KEY_FILENAME: &str = "coconut.pem";
 pub const DEFAULT_CACHES_DIRECTORY: &str = ".cache";
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
 pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-pub struct NetworkMonitorPaths {
-    // TODO: this should contain the path to the database holding the results, but changing it would break backwards compatibility
-    /// Path to the database containing bandwidth credentials of this client.
-    pub credentials_database_path: PathBuf,
-}
-
-impl NetworkMonitorPaths {
-    pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
-        let data_dir = default_data_directory(id);
-
-        NetworkMonitorPaths {
-            credentials_database_path: data_dir
-                .join(DEFAULT_NETWORK_MONITOR_CREDENTIALS_DATABASE_FILENAME),
-        }
-    }
-}
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NodeStatusAPIPaths {

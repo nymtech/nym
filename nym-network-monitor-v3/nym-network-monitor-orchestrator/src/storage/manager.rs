@@ -344,78 +344,6 @@ async fn record_testrun(
 // One kind's single-statement reads and deletes. The free functions around this block take a
 // connection instead because they run inside a transaction their caller owns.
 impl StorageManager {
-    /// Every `mixnode_liveness` run with an id above `after_id`, oldest id first.
-    async fn get_mixnode_liveness_testruns_after(
-        &self,
-        after_id: i64,
-    ) -> anyhow::Result<Vec<CompletedTestRun>> {
-        let rows = sqlx::query_as!(
-            MixnodeTestRunRow,
-            r#"
-            SELECT *
-            FROM mixnode_liveness_testrun
-            WHERE id > ?
-            ORDER BY id ASC
-            "#,
-            after_id
-        )
-        .fetch_all(&self.connection_pool)
-        .await?;
-
-        Ok(rows
-            .into_iter()
-            .map(MixnodeTestRunRow::into_mixnode_liveness)
-            .collect())
-    }
-
-    /// Every `gateway_liveness` run with an id above `after_id`, oldest id first.
-    async fn get_gateway_liveness_testruns_after(
-        &self,
-        after_id: i64,
-    ) -> anyhow::Result<Vec<CompletedTestRun>> {
-        let rows = sqlx::query_as!(
-            GatewayLivenessTestRunRow,
-            r#"
-            SELECT *
-            FROM gateway_liveness_testrun
-            WHERE id > ?
-            ORDER BY id ASC
-            "#,
-            after_id
-        )
-        .fetch_all(&self.connection_pool)
-        .await?;
-
-        Ok(rows
-            .into_iter()
-            .map(GatewayLivenessTestRunRow::into_gateway_liveness)
-            .collect())
-    }
-
-    /// Every `mixnode_stress` run with an id above `after_id`, oldest id first.
-    async fn get_mixnode_stress_testruns_after(
-        &self,
-        after_id: i64,
-    ) -> anyhow::Result<Vec<CompletedTestRun>> {
-        let rows = sqlx::query_as!(
-            MixnodeTestRunRow,
-            r#"
-            SELECT *
-            FROM mixnode_stress_testrun
-            WHERE id > ?
-            ORDER BY id ASC
-            "#,
-            after_id
-        )
-        .fetch_all(&self.connection_pool)
-        .await?;
-
-        Ok(rows
-            .into_iter()
-            .map(MixnodeTestRunRow::into_mixnode_stress)
-            .collect())
-    }
-
     /// Every `mixnode_liveness` run stored within `window`.
     async fn get_mixnode_liveness_testruns_in_window(
         &self,
@@ -1750,8 +1678,7 @@ impl StorageManager {
     /// results table, returning how many went in total.
     ///
     /// Intended to be called periodically with `now - eviction_age` as the cutoff to keep
-    /// the local database from growing unboundedly. Rows that are evicted are assumed to
-    /// have already been submitted to the nym-api for persistent storage.
+    /// the local database from growing unboundedly.
     ///
     /// Driven off the kinds themselves, so a new kind cannot be added without its table being
     /// evicted. Each kind's `last_tested_at` is deliberately left alone, so an evicted result does
@@ -1770,62 +1697,6 @@ impl StorageManager {
             };
         }
         Ok(evicted)
-    }
-
-    /// Returns the id of the most recent run of `test_kind` that has been successfully submitted to
-    /// the nym-api, or `None` if that stream has never submitted a batch.
-    ///
-    /// The watermark is per kind because each kind's ids come from its own results table, so an id
-    /// means nothing outside its kind.
-    pub(crate) async fn get_last_submitted_testrun_id(
-        &self,
-        test_kind: TestKind,
-    ) -> anyhow::Result<Option<i64>> {
-        let id = sqlx::query_scalar!(
-            "SELECT last_submitted_testrun_id FROM submission_watermark WHERE test_kind = ?",
-            test_kind
-        )
-        .fetch_optional(&self.connection_pool)
-        .await?;
-        Ok(id)
-    }
-
-    /// Records that every run of `test_kind` with `id <= testrun_id` has been successfully
-    /// submitted to the nym-api, creating that stream's watermark row if this is its first batch.
-    pub(crate) async fn set_last_submitted_testrun_id(
-        &self,
-        test_kind: TestKind,
-        testrun_id: i64,
-    ) -> anyhow::Result<()> {
-        sqlx::query!(
-            r#"
-            INSERT INTO submission_watermark (test_kind, last_submitted_testrun_id) VALUES (?, ?)
-            ON CONFLICT (test_kind) DO UPDATE SET last_submitted_testrun_id = excluded.last_submitted_testrun_id
-            "#,
-            test_kind,
-            testrun_id,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    /// Fetches every run in `test_kind`'s results table with an id strictly greater than
-    /// `after_id`, ordered by id ascending so the caller can pick the highest-id submitted row
-    /// deterministically.
-    ///
-    /// `after_id = 0` (the default used before any batch has been submitted) returns every row of
-    /// that kind, since each table's `id` is `AUTOINCREMENT` and therefore always `>= 1`.
-    pub(crate) async fn get_testruns_after(
-        &self,
-        test_kind: TestKind,
-        after_id: i64,
-    ) -> anyhow::Result<Vec<CompletedTestRun>> {
-        match test_kind {
-            TestKind::MixnodeLiveness => self.get_mixnode_liveness_testruns_after(after_id).await,
-            TestKind::GatewayLiveness => self.get_gateway_liveness_testruns_after(after_id).await,
-            TestKind::MixnodeStress => self.get_mixnode_stress_testruns_after(after_id).await,
-        }
     }
 
     /// Every run of `test_kind` stored within `window`, across all nodes, in no particular order.
@@ -2659,11 +2530,11 @@ mod tests {
 
             assert_eq!(submission, TestRunSubmission::Stored);
             assert!(db.get_testrun_in_progress(1).await.unwrap().is_none());
-            let stored = db
-                .get_testruns_after(TestKind::MixnodeStress, 0)
+            let (_, stored) = db
+                .get_testruns_paginated(TestKind::MixnodeStress, 10, 0)
                 .await
                 .unwrap();
-            assert_eq!(stored.len(), 1);
+            assert_eq!(stored, 1);
         }
 
         // a node without an in-flight row was freed by the lease sweep, so the result can no
@@ -2682,11 +2553,11 @@ mod tests {
                 .unwrap();
 
             assert_eq!(submission, TestRunSubmission::LeaseExpired);
-            let stored = db
-                .get_testruns_after(TestKind::MixnodeStress, 0)
+            let (_, stored) = db
+                .get_testruns_paginated(TestKind::MixnodeStress, 10, 0)
                 .await
                 .unwrap();
-            assert!(stored.is_empty());
+            assert_eq!(stored, 0);
             assert!(work_state(&db, 1, TestKind::MixnodeStress).await.is_none());
         }
     }
@@ -3744,83 +3615,6 @@ mod tests {
         }
     }
 
-    mod submission_watermark {
-        use super::*;
-
-        #[tokio::test]
-        async fn absent_until_a_batch_is_submitted() {
-            let db = setup().await;
-            assert!(
-                db.get_last_submitted_testrun_id(TestKind::MixnodeStress)
-                    .await
-                    .unwrap()
-                    .is_none()
-            );
-        }
-
-        #[tokio::test]
-        async fn round_trips_and_overwrites() {
-            let db = setup().await;
-            db.set_last_submitted_testrun_id(TestKind::MixnodeStress, 7)
-                .await
-                .unwrap();
-            assert_eq!(
-                db.get_last_submitted_testrun_id(TestKind::MixnodeStress)
-                    .await
-                    .unwrap(),
-                Some(7)
-            );
-
-            db.set_last_submitted_testrun_id(TestKind::MixnodeStress, 9)
-                .await
-                .unwrap();
-            assert_eq!(
-                db.get_last_submitted_testrun_id(TestKind::MixnodeStress)
-                    .await
-                    .unwrap(),
-                Some(9)
-            );
-        }
-    }
-
-    mod get_testruns_after {
-        use super::*;
-
-        #[tokio::test]
-        async fn returns_everything_when_nothing_submitted() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-            insert_run(&db, &minimal_test_run(1)).await;
-            insert_run(&db, &minimal_test_run(1)).await;
-
-            let pending = db
-                .get_testruns_after(TestKind::MixnodeStress, 0)
-                .await
-                .unwrap();
-            assert_eq!(pending.len(), 2);
-            assert!(
-                pending.iter().all(|run| {
-                    matches!(run.measurements, RunMeasurements::MixnodeStress { .. })
-                })
-            );
-        }
-
-        #[tokio::test]
-        async fn skips_rows_at_or_below_the_watermark() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-            let first = insert_run(&db, &minimal_test_run(1)).await;
-            let second = insert_run(&db, &minimal_test_run(1)).await;
-
-            let pending = db
-                .get_testruns_after(TestKind::MixnodeStress, first)
-                .await
-                .unwrap();
-            let ids: Vec<i64> = pending.iter().map(|run| run.id).collect();
-            assert_eq!(ids, vec![second]);
-        }
-    }
-
     /// Every read of a kind's results is a hand-written query naming that kind's table, and the two
     /// mixnode tables have identical columns, so a query naming the wrong one of the pair would
     /// compile. Pin that each kind's readers see exactly that kind's runs.
@@ -3860,9 +3654,6 @@ mod tests {
                         (expected, expected as i64),
                         "{context}"
                     );
-
-                    let pending = db.get_testruns_after(reader, 0).await.unwrap();
-                    assert_eq!(pending.len(), expected, "{context}");
 
                     let window = TestRunWindow {
                         start: datetime!(2025-06-01 00:00:00 UTC),

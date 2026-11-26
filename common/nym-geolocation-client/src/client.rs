@@ -87,7 +87,7 @@ mod tests {
     use nym_validator_client::nyxd::error::NyxdError;
     use nym_validator_client::nyxd::nym_mixnet_contract_common::nym_node::NodeDetailsResponse;
     use nym_validator_client::nyxd::nym_mixnet_contract_common::{
-        Addr, Coin, NodeId, NymNode, NymNodeBond,
+        Addr, Coin, NodeId, NymNode, NymNodeBond, NymNodeDetails,
     };
     use std::collections::BTreeMap;
 
@@ -171,6 +171,14 @@ mod tests {
                     )
                 })
                 .collect())
+        }
+
+        async fn get_all_nymnodes_detailed_at_height(
+            &self,
+            _: Height,
+        ) -> Result<Vec<NymNodeDetails>, NyxdError> {
+            // the whole-set read takes the identities from the bonds
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
         }
     }
 

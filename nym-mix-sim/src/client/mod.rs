@@ -1,0 +1,296 @@
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use std::{fmt::Debug, net::SocketAddr, time::Instant};
+
+use nym_lp_data::AddressedTimedData;
+
+use crate::{
+    logging::SimLogging,
+    node::NodeId,
+    packet::{SimDisplay, WirePacketFormat},
+    sim::env::SimEnv,
+    topology::TopologyClient,
+    transport::SimEndpoint,
+};
+
+pub mod nymnode;
+pub mod simple;
+pub mod sphinx;
+
+/// Compact identifier for a simulated client.
+pub type ClientId = NodeId;
+
+/// Driver-facing interface for a simulated client.
+///
+/// Erases the packet and pipeline types so that [`MixSimDriver`] can hold every kind of client.
+/// Implemented by [`BaseClient`] for any compatible pipeline.
+///
+/// [`MixSimDriver`]: crate::driver::MixSimDriver
+pub trait MixSimClient: Send {
+    /// Take in what the application wants sent, and deliver whatever the mixnet returned.
+    fn tick_incoming(&mut self, timestamp: Instant);
+
+    /// Hand the prepared packets to the first hop.
+    fn tick_outgoing(&mut self, timestamp: Instant);
+
+    /// What this client is sending and has received, for whoever is drawing the network.
+    fn snapshot(&self) -> ClientSnapshot;
+}
+
+/// What a client has to show for itself.
+#[derive(Clone, Debug)]
+pub struct ClientSnapshot {
+    pub id: ClientId,
+
+    /// What those packets look like - already sealed, before they have gone anywhere.
+    pub outbox: Vec<String>,
+}
+
+/// Pipeline interface used by [`BaseClient`] to convert raw app payloads into
+/// wire packets and to unwrap received packets back into plaintext.
+///
+/// `SndPkt` is the outgoing packet type (e.g. [`SimplePacket`] or
+/// [`SimMixPacket`]).  `RcvPkt` defaults to `SndPkt` but can differ when the
+/// inbound and outbound wire formats diverge (e.g. the Sphinx client receives
+/// raw `Vec<u8>` final-hop payloads from nodes).
+///
+/// [`SimplePacket`]: crate::packet::simple::SimplePacket
+/// [`SimMixPacket`]: crate::packet::sphinx::SimMixPacket
+pub trait ProcessingClient<SndPkt, RcvPkt = SndPkt>: Send {
+    /// Wrap `input` into one or more outbound packets addressed toward `dst`.
+    fn process(
+        &mut self,
+        input: Vec<u8>,
+        dst: ClientId,
+        timestamp: Instant,
+    ) -> Vec<AddressedTimedData<SndPkt>>;
+
+    /// Unwrap an inbound packet received from the mix network.
+    ///
+    /// Returns `Ok(Some(plaintext))` for a real message, `Ok(None)` when the
+    /// packet is cover traffic or an incomplete fragment, and `Err` when
+    /// decryption or deserialisation fails.
+    fn unwrap(&mut self, input: RcvPkt, timestamp: Instant) -> anyhow::Result<Option<Vec<u8>>>;
+}
+
+/// Shared transport layer for simulated clients.
+///
+/// Encapsulates both endpoints, the routing directory, and the client id so that
+/// multiple concrete client types can reuse `send_to_node`, `recv_from_mix`,
+/// and `recv_from_app` without duplicating that logic.  Packet types are
+/// method-level generics so `BaseClient` itself has no type parameters.
+pub struct BaseClient<Pc, SndPkt, RcvPkt = SndPkt> {
+    /// Identifier of this client within the topology.
+    id: ClientId,
+    /// Endpoint on the mix-network address; sends to first-hop nodes and
+    /// receives final-hop packets.
+    mix_socket: Box<dyn SimEndpoint>,
+    /// Endpoint on the app address; receives application payloads from
+    /// external CLIs (e.g. `mix-client`).
+    app_socket: Box<dyn SimEndpoint>,
+
+    /// How to log a message once it arrives.
+    logging: Box<dyn SimLogging>,
+
+    /// Packets that have been processed and are waiting to be forwarded to their
+    /// first-hop node, in the order they were produced; each leaves once its timestamp is due.
+    outgoing_queue: Vec<AddressedTimedData<SndPkt>>,
+
+    /// Concrete client-processing implementation invoked from each tick phase.
+    processing_client: Pc,
+
+    /// Phantom data to carry the `RcvPkt` type parameter without storing a value.
+    _marker: std::marker::PhantomData<RcvPkt>,
+}
+
+impl<Pc, SndPkt, RcvPkt> BaseClient<Pc, SndPkt, RcvPkt> {
+    /// Put a client where the topology says, in the world `env` provides.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if either endpoint cannot be opened.
+    pub(crate) fn with_pipeline(
+        topology_client: &TopologyClient,
+        processing_client: Pc,
+        env: &dyn SimEnv,
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            id: topology_client.client_id,
+            mix_socket: env.endpoint(topology_client.mixnet_address)?,
+            app_socket: env.endpoint(topology_client.app_address)?,
+            logging: env.logging(),
+            outgoing_queue: Vec::new(),
+            processing_client,
+            _marker: std::marker::PhantomData,
+        })
+    }
+}
+
+impl<Pc, SndPkt, RcvPkt> BaseClient<Pc, SndPkt, RcvPkt>
+where
+    SndPkt: WirePacketFormat,
+    RcvPkt: WirePacketFormat,
+{
+    /// Send `packet` to the mix node at `node_address` via `mix_socket`.
+    ///
+    /// Serialises via [`WirePacketFormat::to_bytes`] and dispatches with a single `sendto`.
+    /// Errors are logged but not propagated.
+    pub fn send_to_node(&self, node_address: SocketAddr, packet: SndPkt) {
+        if let Err(e) = self.mix_socket.send_to(node_address, &packet.to_bytes()) {
+            tracing::error!(
+                "[Client {}] Failed to send to node @ {node_address}: {e}",
+                self.id
+            );
+        } else {
+            tracing::debug!("[Client {}] Sent packet to node @ {node_address}", self.id);
+        }
+    }
+
+    /// Attempt to receive one packet from the mix endpoint and deserialise it.
+    ///
+    /// Returns `None` when nothing is waiting.
+    pub fn recv_from_mix(&self) -> Option<anyhow::Result<RcvPkt>> {
+        let mut buf = [0u8; 1500];
+        let (nb, src) = match self.mix_socket.try_recv_from(&mut buf) {
+            Ok(r) => r?,
+            Err(e) => {
+                tracing::error!("[Client {}] mix_socket recv error: {e}", self.id);
+                return None;
+            }
+        };
+        tracing::debug!(
+            "[Client {}] Received {nb} byte(s) from mix node {src}",
+            self.id
+        );
+        Some(RcvPkt::try_from_bytes(&buf[..nb]))
+    }
+
+    /// Attempt to receive one raw datagram from the app endpoint.
+    ///
+    /// Returns `None` when nothing is waiting.
+    pub fn recv_from_app(&self) -> Option<anyhow::Result<Vec<u8>>> {
+        let mut buf = [0u8; 15000];
+        // the app is talking to us directly, so where it sent from is of no interest
+        let nb = match self.app_socket.try_recv_from(&mut buf) {
+            Ok(Some((n, _))) => n,
+            Ok(None) => return None,
+            Err(e) => {
+                tracing::error!("[Client {}] app_socket recv error: {e}", self.id);
+                return None;
+            }
+        };
+        Some(Ok(buf[..nb].to_vec()))
+    }
+}
+
+impl<Pc, SndPkt, RcvPkt> MixSimClient for BaseClient<Pc, SndPkt, RcvPkt>
+where
+    SndPkt: WirePacketFormat + SimDisplay + Debug + Send,
+    RcvPkt: WirePacketFormat + Debug + Send,
+    Pc: ProcessingClient<SndPkt, RcvPkt>,
+{
+    fn tick_incoming(&mut self, timestamp: Instant) {
+        self.tick_app_incoming(timestamp);
+        self.tick_mix_incoming(timestamp);
+    }
+
+    fn tick_outgoing(&mut self, timestamp: Instant) {
+        self.tick_outgoing(timestamp);
+    }
+
+    fn snapshot(&self) -> ClientSnapshot {
+        ClientSnapshot {
+            id: self.id,
+            outbox: self
+                .outgoing_queue
+                .iter()
+                .map(|packet| packet.data.data.describe())
+                .collect(),
+        }
+    }
+}
+
+impl<Pc, SndPkt, RcvPkt> BaseClient<Pc, SndPkt, RcvPkt>
+where
+    SndPkt: WirePacketFormat + Debug + Send,
+    RcvPkt: WirePacketFormat + Debug + Send,
+    Pc: ProcessingClient<SndPkt, RcvPkt>,
+{
+    /// **Phase 1 — app incoming**: drain the app socket, run each payload
+    /// through the processing pipeline, and enqueue the resulting packets.
+    fn tick_app_incoming(&mut self, timestamp: Instant) {
+        // Collect (dst, payload) pairs from the app socket.
+        let mut inputs = Vec::new();
+        while let Some(result) = self.recv_from_app() {
+            let bytes = match result {
+                Ok(b) => b,
+                Err(e) => {
+                    tracing::error!("[Client {}] app_socket recv error: {e}", self.id);
+                    continue;
+                }
+            };
+
+            // We assume format is [dst, payload]
+            if bytes.len() < 2 {
+                tracing::warn!(
+                    "[Client {}] app message too short ({} bytes), dropping",
+                    self.id,
+                    bytes.len()
+                );
+                continue;
+            }
+
+            let dst = bytes[0];
+            let payload = bytes[1..].to_vec();
+            tracing::debug!(
+                "[Client {}] App input: {} byte(s) → client {dst}",
+                self.id,
+                payload.len()
+            );
+            inputs.push((dst, payload));
+        }
+
+        // Always call process at least once; use an empty payload to self when idle.
+        // We need to tick cover traffic
+        if inputs.is_empty() {
+            inputs.push((self.id, vec![]));
+        }
+
+        for (dst, payload) in inputs {
+            let packets = self.processing_client.process(payload, dst, timestamp);
+            self.outgoing_queue.extend(packets);
+        }
+    }
+
+    /// **Phase 2 — outgoing**: send all queued packets whose scheduled
+    /// timestamp is ≤ `timestamp` to their first-hop node.
+    fn tick_outgoing(&mut self, timestamp: Instant) {
+        let to_send = self
+            .outgoing_queue
+            .extract_if(.., |pkt| pkt.data.timestamp <= timestamp)
+            .collect::<Vec<_>>();
+        for pkt in to_send {
+            self.send_to_node(pkt.dst, pkt.data.data);
+        }
+    }
+
+    /// **Phase 3 — mix incoming**: drain the mix socket and pass each packet
+    /// through the unwrapping pipeline.
+    fn tick_mix_incoming(&mut self, timestamp: Instant) {
+        while let Some(result) = self.recv_from_mix() {
+            match result {
+                Ok(pkt) => match self.processing_client.unwrap(pkt, timestamp) {
+                    Ok(Some(content)) => self.logging.log(self.id, &content),
+                    Err(e) => {
+                        tracing::error!("[Client {}] Error unwrapping packet : {e}", self.id);
+                    }
+                    Ok(None) => {}
+                },
+                Err(e) => {
+                    tracing::error!("[Client {}] Failed to deserialize mix packet: {e}", self.id);
+                }
+            }
+        }
+    }
+}

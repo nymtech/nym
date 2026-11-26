@@ -1,5 +1,5 @@
 // Writes the nym docs and code shards to the public retrieval store
-// (documentation/MCP-STORE.md).
+// (documentation/MCP-SERVER.md, "The nym write").
 //
 // It reads the index files that generate-index.mjs and generate-code-index.mjs
 // wrote in this run, and writes their vectors: it embeds nothing itself, so the

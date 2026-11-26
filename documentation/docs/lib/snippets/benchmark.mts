@@ -20,7 +20,7 @@
 // page routes that answer it), it reports the rank of the first hit on an
 // expected page in A and in B, then hit@1, hit@k, and MRR over the first
 // `depth` hits. A hit counts on any section of an expected page. The search is
-// the MCP server's: a plain cosine sort (lib/retrieval/retrieval.ts), top 6.
+// a plain cosine sort, as the store's SEARCH_SQL ranks docs chunks, top 6.
 
 import fs from 'node:fs';
 import path from 'node:path';

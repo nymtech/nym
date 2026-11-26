@@ -10,8 +10,8 @@ Other files have the details, and this file does not repeat them:
 |---|---|
 | [`README.md`](README.md) | The structure, the tools and the messages of the build |
 | [`docs/.nym-codex/README.md`](docs/.nym-codex/README.md) | The procedures and the snippet rules |
-| [`MCP-SERVER.md`](MCP-SERVER.md) | The index build, the embedding, the MCP tools and their checks |
-| [`MCP-STORE.md`](MCP-STORE.md) | The public retrieval store that the MCP route reads |
+| [`MCP-SERVER.md`](MCP-SERVER.md) | The MCP server: the index, the store, the route, the tools and their checks |
+| [`MCP-STORE-LOCAL.md`](MCP-STORE-LOCAL.md) | How to run a retrieval store on your machine |
 
 ## The problem
 
@@ -101,18 +101,19 @@ The placeholder table on `operators/variables.mdx` renders from `placeholders.js
 
 ### 5. Machine-readable surfaces and the MCP server
 
-The build writes three surfaces for agents: a Markdown copy of each page (add `.md` to the URL), `llms-full.txt`, and the search index. `public/llms.txt` is a hand-written list of pages.
+The build writes two surfaces for agents: a Markdown copy of each page (add `.md` to the URL) and `llms-full.txt`. `public/llms.txt` is a hand-written list of pages. The search index is not part of the build.
 
 The MCP server at `/docs/api/mcp` has nine tools: `search_docs` and `get_section` over the docs index, `search_code` over the code index, five live network tools (`network_summary`, `list_gateways`, `get_gateway`, `circulating_supply`, `chain_status`), and `validate_sdk_config`. The server returns sections, and the calling agent writes the answer. So the server needs no LLM key. It needs `VOYAGE_API_KEY`, and a search call costs one Voyage embedding.
 
-The index is in a Postgres store. Producer CI writes it, and the route searches it with a cosine scan in SQL. The chunking, the embedding and the store come from the shared package `@nymproject/retrieval-indexer`, so other Nym repositories index with the same code and write their own shards. [`MCP-STORE.md`](MCP-STORE.md) explains the store.
+The index is in a Postgres store. Producer CI writes it (nym from develop, nym-vpn-client at each release), and the route searches it with a cosine scan in SQL. The chunking, the embedding and the store come from the shared package `@nymproject/retrieval-indexer`, so other Nym repositories index with the same code and write their own shards. [`MCP-SERVER.md`](MCP-SERVER.md) explains the store and the route.
 
 The server applies no similarity floor, because no threshold separates on-topic from off-topic questions: an off-topic question can score higher than a correct on-topic one.
 
 | Test | What it checks |
 |---|---|
 | `scripts/check-mcp-server.sh <deployment>` | HTTP checks against a deployment: transport, retrieval, a `get_section` round trip, code search, index coverage, the live network tools, and error shapes |
-| `lib/retrieval/index-coverage.test.ts` | Each root in `ROOTS` has a coverage probe |
+| `lib/retrieval/index-coverage.test.ts` | Each root in `ROOTS` has a coverage probe in `mcp-probes/retrieval.json` |
+| `mcp-checks` in [`nymtech/retrieval-indexer`](https://github.com/nymtech/retrieval-indexer) | Every producer's probe files against nym.com each day, with a tracking issue and an alert. It blocks nothing |
 | [`agent-scenarios.md`](agent-scenarios.md) | A sandboxed agent with only the MCP server as a source answers set questions. A person reads the answer and the transcript. It tests retrieval and scope honesty, which a script cannot judge |
 
 ### 6. Requirements, the threat model, and the chain between them
@@ -136,7 +137,7 @@ Each OpenSpec requirement in `openspec/specs/` is a record (`lib/snippets/opensp
 | `ci-docs-linkcheck` | A push to the docs | A broken link to a local page or file (lychee, `scheme = ["file"]`). It does not check external links |
 | `ci-docs-typedoc-fresh` | A change to the TypeScript SDK sources | A committed TypeDoc reference that differs from a fresh build |
 | `ci-docs-autodoc` | By hand only (`workflow_dispatch`) | It does not check the docs. It writes the `--help` output of each binary and commits it |
-| `cd-retrieval-store` | A push to develop | An index build or a store write that fails. It writes the nym docs and code shards |
+| `cd-retrieval-store` | A push to develop | An index build or a store write that fails, or a retrieval probe that fails against production after the write. It writes the nym docs and code shards |
 
 Some facts have a generator, so they need no checker:
 - tsify generates the TypeScript types that cross the wasm boundary.

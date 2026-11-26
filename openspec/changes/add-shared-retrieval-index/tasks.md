@@ -40,15 +40,15 @@
 ## 5. Cutover (nym repo)
 
 - [ ] 5.0 Gate before 5.1: prove embedding parity with the live indexer. Re-embed the live corpus with the package (same models, voyage-3-large for docs and voyage-code-3 for code; confirm `embedText` is unchanged), then diff top-k against the current `/api/mcp` for the `check-mcp-server.sh` coverage probes. No probe's root may drop out of the top-k. Both sides index the same content commit, so a content change cannot show as a package difference.
-- [ ] 5.1 nym CI dual-writes: bundled files plus the public store
-- [ ] 5.2 `/api/mcp` reads the public store behind a flag; run `check-mcp-server.sh` against a preview
-- [ ] 5.3 Flip the flag; remove index generation from the build and the `outputFileTracingIncludes` entries; rewrite `MCP-SERVER.md` for the new architecture
+- [x] 5.1 nym CI dual-writes: bundled files plus the public store
+- [x] 5.2 `/api/mcp` reads the public store behind a flag; run `check-mcp-server.sh` against a preview
+- [x] 5.3 Flip the flag; remove index generation from the build and the `outputFileTracingIncludes` entries; rewrite `MCP-SERVER.md` for the new architecture
 - [ ] 5.4 Before 5.1, write the nym retrieval modules that stay as TypeScript (`.mts`, run by Node): `pages-source.mjs`, `projections.mjs`, `ts-data.mjs`, and the `generate-*.mjs` producer scripts, under `tsconfig.tools.json` (design decision 4; `add-codex-snippets` D19 and task 6.0)
 - [ ] 5.5 After 5.3: move the nym docs shard to snippet records (design decision 12). Before the move, decide the chunk id scheme: snippet ids have a `nym/` prefix and the docs ids today have none, and a part of a split oversized snippet needs a suffix. Also decide the gate metric: codex 6.3 names recall@6, and `benchmark.mts` measures hit@6. The move itself and its gate are `add-codex-snippets` tasks 6.1 and 6.3
 
 ## 6. New shards
 
-- [ ] 6.1 `nym-vpn-client` CI: indexer over crates and docs, public shard, covering Rust, TypeScript, Kotlin, and Swift (verify the Android and Apple apps produce chunks, not zero)
+- [x] 6.1 `nym-vpn-client` CI: indexer over crates and docs, public shard, covering Rust, TypeScript, Kotlin, and Swift (verify the Android and Apple apps produce chunks, not zero)
 - [x] 6.2 Out of scope: private content is in a separate store (design decision 8)
 - [x] 6.3 Out of scope: private content is in a separate store (design decision 8)
 

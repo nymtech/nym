@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE gateways\n            SET bridges = NULL\n            WHERE bonded = false\n              AND bridges IS NOT NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "cb77c41071d13801413a4fb41d0e2cdcff56c24af013d0cf5533e6097a6c3c17"
+}

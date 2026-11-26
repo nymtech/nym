@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                    UPDATE gateways SET bridges = $1 WHERE gateway_identity_key = $2 AND bonded = true;\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c9d7258f4759f1dd18af0e0a41fac4c05504ed9c29bf7197e681de61e533acbe"
+}

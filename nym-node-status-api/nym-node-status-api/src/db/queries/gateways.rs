@@ -71,6 +71,19 @@ impl Storage {
             .await?;
         }
 
+        // Departed gateways are never scraped again; drop stale published bridges
+        // so /v2 and the dVPN directory stop advertising them.
+        sqlx::query!(
+            r#"
+            UPDATE gateways
+            SET bridges = NULL
+            WHERE bonded = false
+              AND bridges IS NOT NULL
+            "#,
+        )
+        .execute(&mut *tx)
+        .await?;
+
         tx.commit().await?;
 
         Ok(())

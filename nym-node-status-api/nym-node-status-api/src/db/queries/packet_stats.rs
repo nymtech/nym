@@ -1,4 +1,4 @@
-use crate::node_scraper::models::BridgeInformation;
+use crate::node_scraper::models::BridgeScrape;
 use crate::{
     db::{
         DbPool,
@@ -31,14 +31,12 @@ pub(crate) async fn batch_store_node_scraper_results(
         .map_err(|err| anyhow::anyhow!("Failed to begin transaction: {err}"))?;
 
     for record in &(*results_iter) {
-        if record.bridges.is_some() {
-            if let ScrapeNodeKind::EntryExitNymNode {
-                node_id: _,
-                identity_key,
-            } = &record.node_kind
-            {
-                insert_node_bridges(&mut tx, identity_key, &record.bridges).await?;
-            }
+        if let ScrapeNodeKind::EntryExitNymNode {
+            node_id: _,
+            identity_key,
+        } = &record.node_kind
+        {
+            apply_bridge_scrape(&mut tx, identity_key, &record.bridges).await?;
         }
 
         insert_node_packet_stats_uncommitted(
@@ -179,23 +177,185 @@ pub(crate) async fn insert_daily_node_stats_uncommitted(
     Ok(())
 }
 
-async fn insert_node_bridges(
-    tx: &mut Transaction<'static, sqlx::Postgres>,
+async fn apply_bridge_scrape(
+    tx: &mut Transaction<'_, sqlx::Postgres>,
     gateway_identity_key: &str,
-    bridges: &Option<BridgeInformation>,
+    bridges: &BridgeScrape,
 ) -> Result<()> {
-    if let Some(bridges) = bridges {
-        let bridges = serde_json::to_value(bridges)?;
-        sqlx::query!(
-            r#"
-                    UPDATE gateways SET bridges = $1 WHERE gateway_identity_key = $2;
+    match bridges {
+        BridgeScrape::Found(info) => {
+            let bridges = serde_json::to_value(info)?;
+            // `bonded = true`: an in-flight scrape must not resurrect bridges on a
+            // row the monitor has already marked unbonded and cleared.
+            sqlx::query!(
+                r#"
+                    UPDATE gateways SET bridges = $1 WHERE gateway_identity_key = $2 AND bonded = true;
                     "#,
-            bridges,
-            gateway_identity_key
-        )
-        .execute(tx.as_mut())
-        .await?;
+                bridges,
+                gateway_identity_key
+            )
+            .execute(tx.as_mut())
+            .await?;
+        }
+        BridgeScrape::NotPublished => {
+            // Definitive absence (404 after successful /stats): drop stale details.
+            sqlx::query!(
+                r#"
+                    UPDATE gateways
+                    SET bridges = NULL
+                    WHERE gateway_identity_key = $1
+                      AND bonded = true
+                      AND bridges IS NOT NULL
+                    "#,
+                gateway_identity_key
+            )
+            .execute(tx.as_mut())
+            .await?;
+        }
+        BridgeScrape::Unchecked => {}
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod bridge_scrape_db_tests {
+    use super::*;
+    use crate::node_scraper::models::BridgeInformation;
+    use sqlx::PgPool;
+
+    async fn pool_or_skip() -> Option<PgPool> {
+        let url = std::env::var("DATABASE_URL").ok()?;
+        let pool = PgPool::connect(&url).await.ok()?;
+        // Fresh compose volumes have no schema; apply the same migrator as Storage::init.
+        sqlx::migrate!("./migrations_pg").run(&pool).await.ok()?;
+        Some(pool)
+    }
+
+    async fn insert_gateway(
+        pool: &PgPool,
+        identity: &str,
+        bonded: bool,
+        bridges: Option<serde_json::Value>,
+    ) {
+        sqlx::query(
+            r#"
+            INSERT INTO gateways (
+                gateway_identity_key, self_described, last_updated_utc, bonded, bridges
+            ) VALUES ($1, '{}', 0, $2, $3)
+            ON CONFLICT (gateway_identity_key) DO UPDATE SET
+                bonded = EXCLUDED.bonded,
+                bridges = EXCLUDED.bridges
+            "#,
+        )
+        .bind(identity)
+        .bind(bonded)
+        .bind(bridges)
+        .execute(pool)
+        .await
+        .expect("insert gateway");
+    }
+
+    async fn read_bridges(pool: &PgPool, identity: &str) -> Option<serde_json::Value> {
+        sqlx::query_scalar::<_, Option<serde_json::Value>>(
+            "SELECT bridges FROM gateways WHERE gateway_identity_key = $1",
+        )
+        .bind(identity)
+        .fetch_one(pool)
+        .await
+        .expect("read bridges")
+    }
+
+    fn sample_info() -> BridgeInformation {
+        BridgeInformation {
+            version: "0".into(),
+            transports: Vec::new(),
+            transports_v2: Vec::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn found_writes_bridges_on_bonded_gateway() {
+        let Some(pool) = pool_or_skip().await else {
+            eprintln!("skipping: DATABASE_URL not set / unreachable");
+            return;
+        };
+        let id = "test-bridge-found-bonded";
+        insert_gateway(&pool, id, true, None).await;
+
+        let mut tx = pool.begin().await.unwrap();
+        apply_bridge_scrape(&mut tx, id, &BridgeScrape::Found(sample_info()))
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+
+        let stored = read_bridges(&pool, id).await;
+        assert!(stored.is_some(), "Found must write bridges on bonded row");
+    }
+
+    #[tokio::test]
+    async fn found_does_not_resurrect_bridges_on_unbonded_gateway() {
+        let Some(pool) = pool_or_skip().await else {
+            eprintln!("skipping: DATABASE_URL not set / unreachable");
+            return;
+        };
+        let id = "test-bridge-found-unbonded";
+        insert_gateway(&pool, id, false, None).await;
+
+        let mut tx = pool.begin().await.unwrap();
+        apply_bridge_scrape(&mut tx, id, &BridgeScrape::Found(sample_info()))
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+
+        assert!(
+            read_bridges(&pool, id).await.is_none(),
+            "Found must not write bridges when bonded = false"
+        );
+    }
+
+    #[tokio::test]
+    async fn not_published_clears_bonded_bridges() {
+        let Some(pool) = pool_or_skip().await else {
+            eprintln!("skipping: DATABASE_URL not set / unreachable");
+            return;
+        };
+        let id = "test-bridge-not-published";
+        let prior = serde_json::json!({"version": "0", "transports": []});
+        insert_gateway(&pool, id, true, Some(prior)).await;
+
+        let mut tx = pool.begin().await.unwrap();
+        apply_bridge_scrape(&mut tx, id, &BridgeScrape::NotPublished)
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+
+        assert!(
+            read_bridges(&pool, id).await.is_none(),
+            "NotPublished must NULL bridges on bonded row"
+        );
+    }
+
+    #[tokio::test]
+    async fn unchecked_leaves_bridges_alone() {
+        let Some(pool) = pool_or_skip().await else {
+            eprintln!("skipping: DATABASE_URL not set / unreachable");
+            return;
+        };
+        let id = "test-bridge-unchecked";
+        let prior = serde_json::json!({"version": "0", "transports": [{"keep": true}]});
+        insert_gateway(&pool, id, true, Some(prior.clone())).await;
+
+        let mut tx = pool.begin().await.unwrap();
+        apply_bridge_scrape(&mut tx, id, &BridgeScrape::Unchecked)
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+
+        assert_eq!(
+            read_bridges(&pool, id).await,
+            Some(prior),
+            "Unchecked must leave stored bridges unchanged"
+        );
+    }
 }

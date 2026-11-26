@@ -478,6 +478,47 @@ async fn host_rotation_tempered_by_net_reconfigure() {
     *crate::SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = None;
 }
 
+/// Under `OnRetry`, fronting enabled by a failure turns off again once a host without fronts
+/// answers a request successfully.
+#[tokio::test]
+#[serial]
+#[cfg(feature = "tunneling")]
+async fn on_retry_fronting_turns_off_after_a_plain_host_succeeds() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    // the refused host is the IPv6 loopback, so there must be one
+    if std::net::TcpListener::bind("[::1]:0").is_err() {
+        return;
+    }
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let _ = socket.read(&mut [0u8; 1024]).await;
+        let _ = socket
+            .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+            .await;
+    });
+
+    // rotation swaps only the host, so the refused host shares the answering host's port
+    let refused = Url::new(format!("http://[::1]:{port}"), None).unwrap();
+    let plain = Url::new(format!("http://127.0.0.1:{port}"), None).unwrap();
+    let client = ClientBuilder::new_with_urls(vec![refused, plain])
+        .unwrap()
+        .with_fronting(Some(crate::fronted::FrontPolicy::OnRetry))
+        .with_retries(1)
+        .build()
+        .unwrap();
+    assert!(!client.front.is_enabled());
+
+    // the first attempt is refused (fronting turns on), the retry reaches the plain host
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+    assert!(client.send(req).await.unwrap().status().is_success());
+
+    assert_eq!(client.current_url().host_str(), Some("127.0.0.1"));
+    assert!(!client.front.is_enabled());
+}
+
 #[test]
 fn rate_limit_detection_on_plain_429() {
     // a bare 429 with no special headers should be treated as a rate limit response

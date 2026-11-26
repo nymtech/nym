@@ -112,9 +112,10 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
     let next_ticket = args
         .ticket_index
         .unwrap_or(next_ticketbook.ticketbook.spent_tickets());
+    let spend_time = OffsetDateTime::now_utc();
     let pay_info = next_ticketbook
         .ticketbook
-        .generate_pay_info(provider_arr, OffsetDateTime::now_utc());
+        .generate_pay_info(provider_arr, spend_time);
 
     println!("{}", "TICKETBOOK DATA:".bold());
     println!("{}", bs58::encode(&ticketbook_data.data).into_string());
@@ -129,6 +130,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
         let req = next_ticketbook.ticketbook.prepare_for_spending(
             &verification_key,
             pay_info.into(),
+            spend_time,
             &coin_indices_signatures,
             &expiration_signatures,
             1,
@@ -164,6 +166,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
         let req = next_ticketbook.ticketbook.prepare_for_spending(
             &verification_key,
             pay_info.into(),
+            spend_time,
             &coin_indices_signatures,
             &expiration_signatures,
             1,

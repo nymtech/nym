@@ -67,15 +67,66 @@ mod tests {
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::ed25519;
 
+    use nym_credentials::ecash::bandwidth::CredentialSpendingData;
+    use time::{Date, Duration, Month, OffsetDateTime, Time, UtcOffset};
+
+    // A fixed day keeps the fixture off the wall clock: the ticketbook is
+    // valid for the ticketbook validity period starting on it.
+    fn fixture_day() -> Date {
+        Date::from_calendar_date(2030, Month::January, 15).unwrap()
+    }
+
+    fn on_fixture_day(hour: u8) -> OffsetDateTime {
+        fixture_day()
+            .with_time(Time::from_hms(hour, 0, 0).unwrap())
+            .assume_utc()
+    }
+
     #[test]
     fn credential_roundtrip() {
-        // make valid request
+        let with_epoch = CredentialSpendingRequest {
+            data: spend_one_ticket(on_fixture_day(12)),
+        };
+
+        let bytes = with_epoch.to_bytes();
+        let recovered = CredentialSpendingRequest::try_from_bytes(&bytes).unwrap();
+
+        assert_eq!(with_epoch, recovered);
+    }
+
+    // The spend date must follow the (skew-corrected) spend time the caller
+    // passes, not the local clock: gateways compare it with their own date.
+    #[test]
+    fn spend_date_follows_spend_time() {
+        let next_day = on_fixture_day(12) + Duration::days(1);
+
+        assert_eq!(spend_one_ticket(next_day).spend_date, next_day.date());
+    }
+
+    // A spend time given with a local offset still yields its UTC date.
+    #[test]
+    fn spend_date_is_the_utc_date_of_spend_time() {
+        let utc = on_fixture_day(20);
+        let local = utc.to_offset(UtcOffset::from_hms(14, 0, 0).unwrap());
+        assert_ne!(local.date(), utc.date());
+
+        assert_eq!(spend_one_ticket(local).spend_date, utc.date());
+    }
+
+    fn spend_one_ticket(spend_time: OffsetDateTime) -> CredentialSpendingData {
         let keypair = ttp_keygen(1, 1).unwrap().remove(0);
 
         let mut rng = rand::rng();
         let signing_key = ed25519::PrivateKey::new(&mut rng);
 
-        let issuance = IssuanceTicketBook::new(42, [], signing_key, TicketType::V1MixnetEntry);
+        let validity = nym_compact_ecash::constants::CRED_VALIDITY_PERIOD_DAYS as i64;
+        let issuance = IssuanceTicketBook::new_with_expiration(
+            42,
+            [],
+            signing_key,
+            TicketType::V1MixnetEntry,
+            fixture_day() + Duration::days(validity - 1),
+        );
         let expiration_date = issuance.expiration_date();
         let sig_req = issuance.prepare_for_signing();
         let exp_date_sigs = generate_expiration_date_signatures(
@@ -124,17 +175,14 @@ mod tests {
             .prepare_for_spending(
                 &keypair.verification_key(),
                 pay_info,
+                spend_time,
                 &coin_indices_signatures,
                 &exp_date_sigs,
                 1,
             )
             .unwrap();
-
-        let with_epoch = CredentialSpendingRequest { data: spending };
-
-        let bytes = with_epoch.to_bytes();
-        let recovered = CredentialSpendingRequest::try_from_bytes(&bytes).unwrap();
-
-        assert_eq!(with_epoch, recovered);
+        // The proof must verify against the spend date the ticket carries.
+        spending.verify(&keypair.verification_key()).unwrap();
+        spending
     }
 }

@@ -88,7 +88,7 @@ impl StaleResultsEviction {
             .storage
             .evict_old_testruns(self.config.testrun_eviction_age)
             .await?;
-        let evicted_route_runs = self
+        let evicted_five_hop_mixnet_runs = self
             .storage
             .evict_old_five_hop_mixnet_runs(self.config.testrun_eviction_age)
             .await?;
@@ -106,7 +106,7 @@ impl StaleResultsEviction {
             .await?;
 
         if evicted_old > 0
-            || evicted_route_runs > 0
+            || evicted_five_hop_mixnet_runs > 0
             || evicted_aggregates > 0
             || evicted_config_scores > 0
             || evicted_five_hop_liveness > 0
@@ -115,7 +115,7 @@ impl StaleResultsEviction {
 
             info!(
                 evicted_old,
-                evicted_route_runs,
+                evicted_five_hop_mixnet_runs,
                 evicted_aggregates,
                 evicted_config_scores,
                 evicted_five_hop_liveness,

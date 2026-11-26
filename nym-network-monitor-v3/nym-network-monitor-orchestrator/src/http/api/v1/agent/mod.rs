@@ -285,7 +285,7 @@ fn emit_one_hop_mixnet_result_metrics(result: &OneHopMixnetResult) {
             (WorkResultSubmissionResponse = "application/json"),
         )),
         (status = 400, description = "a one-hop result shaped for another kind than dispatched, or a route run submission with an unexpected or repeated gateway or a batch that is unreadable or names another gateway"),
-        (status = 409, description = "the one-hop node's lease expired, or the route run is not in flight (unknown, already submitted or past its timeout)"),
+        (status = 409, description = "the one-hop node's lease expired, or the route run is not in flight (unknown, already submitted or past its timeout), its epoch has already been scored, or five-hop liveness is off"),
         (status = 500, description = "failed to persist the test run result to storage"),
     )
 )]

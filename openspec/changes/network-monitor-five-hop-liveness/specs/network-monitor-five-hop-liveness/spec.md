@@ -168,9 +168,9 @@ A returning payload and a returning ack MUST be matched to their record by an id
 
 A session's records SHALL be packed into one binary batch that states the gateway's node id and the mixnet epoch of the active set the session used, and then one fixed-width record per packet in the order sent. A record names its mixnodes by their node ids.
 
-The agent SHALL submit a run once, with one entry per gateway of the run: the session's batch, or its error. The orchestrator MUST accept a submission only for the run that is in flight, and MUST reject it, storing nothing, when the run is unknown, already submitted or past its timeout, when an entry names a gateway the run was not given, when two entries name the same gateway, when a batch cannot be read, or when a batch's header names another gateway than its entry. A rejected run stays in flight until its timeout passes. A submission without an entry for some of the run's gateways is stored as it is.
+The agent SHALL submit a run once, with one entry per gateway of the run: the session's batch, or its error. The orchestrator MUST accept a submission only for the run that is in flight, and MUST reject it, storing nothing, when five-hop liveness is switched off, when the run is unknown, already submitted or past its timeout, when the epoch its batches name has already been scored, when an entry names a gateway the run was not given, when two entries name the same gateway, when a batch cannot be read, or when a batch's header names another gateway than its entry. A rejected run stays in flight until its timeout passes. A submission without an entry for some of the run's gateways is stored as it is.
 
-The orchestrator MUST store each accepted batch exactly as it was received, beside the gateway, the epoch and the record count read from it, and MUST NOT expand it into one stored row per packet. Stored sessions are evicted at the age test runs are.
+The orchestrator MUST store each accepted batch exactly as it was received, beside the gateway, the epoch and the record count read from it and whether the discard rule keeps the session, judged against the other sessions of its run as the submission arrives, and MUST NOT expand it into one stored row per packet. Stored sessions are evicted at the age test runs are.
 
 #### Scenario: A run's sessions are stored
 - **WHEN** an agent submits a run in flight with two entries
@@ -178,6 +178,10 @@ The orchestrator MUST store each accepted batch exactly as it was received, besi
 
 #### Scenario: A late submission is rejected
 - **WHEN** a run is submitted after its timeout has passed
+- **THEN** the submission is rejected and nothing is stored
+
+#### Scenario: A run whose epoch was scored is rejected
+- **WHEN** a run in flight is submitted with batches naming epoch E-1 after the five-hop liveness filed under epoch E was materialised
 - **THEN** the submission is rejected and nothing is stored
 
 #### Scenario: An unreadable batch is rejected
@@ -223,12 +227,12 @@ Every test message of a record carries the record's send time. These rules belon
 
 ### Requirement: A session whose gateway is suspected is discarded before scoring
 
-A gateway is assumed reliable and is not a suspect in any loss. To keep a gateway's faults, or a fault on the measuring side, from being charged to mixnodes, the orchestrator SHALL discard a whole session, before scoring, when either of these holds. A session's loss rate is the share of its test messages that were lost.
+A gateway is assumed reliable and is not a suspect in any loss. To keep a gateway's faults, or a fault on the measuring side, from being charged to mixnodes, the orchestrator SHALL discard a whole session, before scoring, when either of these holds. The rule is applied when the run is submitted, since a run's sessions arrive together, and its verdict is stored with each session. A session's loss rate is the share of its test messages that were lost.
 
 - The session lost more than half of its test messages.
 - The session ran beside another session of the same route run, and its loss rate is higher than that session's by more than the configured margin, 5 percentage points by default. Only the worse of the two is discarded.
 
-A session with no other session of its run to be compared with is subject to the first test only. A discarded session contributes no test message to any epoch. Its batch MUST stay stored, and it is counted among the epoch's discarded sessions.
+A session with no other session of its run to be compared with is subject to the first test only. A discarded session contributes no test message to any epoch. Its batch MUST stay stored, and it is counted among the epoch's discarded sessions. A session stored with an error has no test messages, so it contributes none either, and it too is counted among the epoch's discarded sessions.
 
 The two sessions of a run draw their mixnodes from the same layers at the same moment, so the mixnodes cost both the same loss on average and a clear gap between them belongs to one gateway or to the path to it. Losing more than half would need about a fifth of all mixnodes to be dead, so that too is taken as the gateway's or the measuring side's doing.
 
@@ -282,9 +286,9 @@ The first strategy is the fail-sequence rule of the performance monitor specific
 
 ### Requirement: Five-hop liveness is materialised as an epoch begins, from the sessions of the epoch that just ended
 
-As an epoch begins, in the pass that materialises its aggregates, the orchestrator SHALL compute the five-hop liveness filed under that epoch from the stored sessions whose batch names the epoch that just ended, and from no others. It MUST first discard the sessions whose gateway is suspected, then unpack the rest into test messages and order them by the time they were sent (the test messages of one record keeping their order, and equal times ordered by gateway node id). It MUST give the strategy, as each mixnode's most recent one-hop score, the score of that mixnode's most recent mixnode liveness run, and none for a mixnode that has no such run. It MUST store, for every mixnode the strategy gave a five-hop liveness, that value. A mixnode the strategy could not score has none, and nothing is stored for it.
+As an epoch begins, in the pass that materialises its aggregates, the orchestrator SHALL compute the five-hop liveness filed under that epoch from the stored sessions whose batch names the epoch that just ended, and from no others. It MUST first leave out the sessions the discard rule did not keep, then unpack the rest into test messages and order them by the time they were sent (the test messages of one record keeping their order, and equal times ordered by gateway node id). It MUST give the strategy, as each mixnode's most recent one-hop score, the score of that mixnode's most recent mixnode liveness run, and none for a mixnode that has no such run. It MUST store, for every mixnode the strategy gave a five-hop liveness, that value. A mixnode the strategy could not score has none, and nothing is stored for it.
 
-Each epoch is scored on its own: whatever a strategy keeps between test messages, such as a fail sequence, starts afresh. Within an epoch the test messages of all its runs form one list, and nothing is reset between runs: a fail sequence a mixnode ended one run with is the one it starts the epoch's next run with. The stored values MUST be written once and never recomputed, and a batch that arrives after its epoch's values were stored is not counted. A stored value is deleted once its epoch began longer ago than the aggregate retention, in the sweep that evicts the aggregates. An epoch being backfilled is computed the same way, from whichever of the preceding epoch's sessions are still stored. A mixnode named by a batch whose bond the registry has not recorded yet is stored like any other, and its value applies once a refresh records the bond.
+Each epoch is scored on its own: whatever a strategy keeps between test messages, such as a fail sequence, starts afresh. Within an epoch the test messages of all its runs form one list, and nothing is reset between runs: a fail sequence a mixnode ended one run with is the one it starts the epoch's next run with. The stored values MUST be written once and never recomputed, and a run submitted after its epoch was scored is rejected, so it is never counted. A stored value is deleted once its epoch began longer ago than the aggregate retention, in the sweep that evicts the aggregates. An epoch being backfilled is computed the same way, from whichever of the preceding epoch's sessions are still stored. A mixnode named by a batch whose bond the registry has not recorded yet is stored like any other, and its value applies once a refresh records the bond.
 
 Taking the epoch from the batch rather than from the clock ties a session to the active set it actually used. The measured value, like every aggregate, describes the epoch before the one it is filed under.
 
@@ -293,8 +297,8 @@ Taking the epoch from the batch rather than from the clock ties a session to the
 - **THEN** it is computed from the sessions whose batch names epoch E-1
 
 #### Scenario: A late batch is not counted
-- **WHEN** a session naming epoch E-1 is submitted after the values filed under E were stored
-- **THEN** those values are unchanged, and the session contributes to no epoch
+- **WHEN** a session naming epoch E-1 is submitted after the five-hop liveness filed under E was materialised
+- **THEN** the submission is rejected, the values filed under E are unchanged, and the session contributes to no epoch
 
 #### Scenario: An epoch with no sessions has no five-hop liveness
 - **WHEN** no stored session names the epoch that just ended
@@ -386,7 +390,7 @@ The orchestrator's aggregates API SHALL carry, for a node and an epoch, a five-h
 
 The orchestrator SHALL serve the route sessions of a given mixnet epoch at `GET /v1/results/route-sessions/epoch/{mixnet_epoch}`, on its results surface and behind the `metrics_and_results_token`. The epoch is the one the sessions ran in, which is the epoch before the one their five-hop liveness is filed under. A session is of the epoch its batch names. A session stored with an error has no batch and names no epoch, so it is served with the other sessions of its run: the response carries every session of each run that has a session naming the epoch, and a run whose sessions all failed is in no epoch's response.
 
-The response SHALL list the sessions in the order their runs started, and the sessions of one run by the gateway's node id. For each session it MUST carry the route run it belonged to, the gateway's node id, the session's error if it had one, whether the scoring keeps or discards it, and its test messages in the order sent: for each, the time it was sent, the node ids of the three mixnodes on its path in path order, and whether it came back. The test messages MUST be produced from the stored batch by the step that feeds the scoring, and the mark by the rule that discards a suspected session, under the current configuration. A discarded session's test messages are served like any other's. A session stored with an error has none.
+The response SHALL list the sessions in the order their runs started, and the sessions of one run by the gateway's node id. For each session it MUST carry the route run it belonged to, the gateway's node id, the session's error if it had one, whether the scoring keeps or discards it, and its test messages in the order sent: for each, the time it was sent, the node ids of the three mixnodes on its path in path order, and whether it came back. The test messages MUST be produced from the stored batch by the step that feeds the scoring, and whether the session is kept MUST be the verdict stored when its run was submitted. A discarded session's test messages are served like any other's. A session stored with an error has none.
 
 The whole epoch SHALL be returned in one response. An epoch with no stored session, one whose sessions have been evicted included, returns an empty list.
 

@@ -9,6 +9,7 @@ use nym_network_monitor_orchestrator_requests::models::{
     TestRunInProgressData, TestRunResult,
 };
 use nym_network_monitor_route_records::batch::Batch;
+use nym_network_monitor_route_records::test_message::SessionTestMessages;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::net::{IpAddr, SocketAddr};
@@ -991,6 +992,9 @@ pub(crate) enum FiveHopMixnetSessionOutcome {
         mixnet_epoch: i64,
         record_count: i64,
         batch: Vec<u8>,
+
+        /// Whether the discard rule kept it for scoring, judged against its run when submitted.
+        kept: bool,
     },
     Error(String),
 }
@@ -1002,8 +1006,76 @@ pub(crate) struct NewFiveHopMixnetSession {
     pub(crate) outcome: FiveHopMixnetSessionOutcome,
 }
 
+/// A submitted session read whole, before the discard rule is applied against its run.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct SubmittedFiveHopMixnetSession {
+    pub(crate) gateway_node_id: i64,
+    pub(crate) outcome: SubmittedFiveHopMixnetSessionOutcome,
+}
+
+/// A submitted session's batch with what was read from it, or its error.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum SubmittedFiveHopMixnetSessionOutcome {
+    Batch {
+        mixnet_epoch: i64,
+        record_count: i64,
+        batch: Vec<u8>,
+        test_messages: SessionTestMessages,
+    },
+    Error(String),
+}
+
+impl SubmittedFiveHopMixnetSession {
+    /// The epoch its batch names; `None` for a failed session.
+    pub(crate) fn mixnet_epoch(&self) -> Option<i64> {
+        match &self.outcome {
+            SubmittedFiveHopMixnetSessionOutcome::Batch { mixnet_epoch, .. } => Some(*mixnet_epoch),
+            SubmittedFiveHopMixnetSessionOutcome::Error(_) => None,
+        }
+    }
+
+    /// Share of its test messages that were lost; `None` without any.
+    pub(crate) fn loss_rate(&self) -> Option<f64> {
+        match &self.outcome {
+            SubmittedFiveHopMixnetSessionOutcome::Batch { test_messages, .. } => {
+                test_messages.loss_rate()
+            }
+            SubmittedFiveHopMixnetSessionOutcome::Error(_) => None,
+        }
+    }
+
+    /// The session as stored, kept unless the discard rule, against its run's loss rates, discards it.
+    pub(crate) fn apply_discard_rule(
+        self,
+        run_loss_rates: &[f64],
+        session_loss_margin: f64,
+    ) -> NewFiveHopMixnetSession {
+        let outcome = match self.outcome {
+            SubmittedFiveHopMixnetSessionOutcome::Batch {
+                mixnet_epoch,
+                record_count,
+                batch,
+                test_messages,
+            } => FiveHopMixnetSessionOutcome::Batch {
+                mixnet_epoch,
+                record_count,
+                batch,
+                kept: !test_messages.is_suspected(run_loss_rates, session_loss_margin),
+            },
+            SubmittedFiveHopMixnetSessionOutcome::Error(error) => {
+                FiveHopMixnetSessionOutcome::Error(error)
+            }
+        };
+
+        NewFiveHopMixnetSession {
+            gateway_node_id: self.gateway_node_id,
+            outcome,
+        }
+    }
+}
+
 /// Reads a submitted session: its batch is decoded whole and must name the entry's gateway.
-impl TryFrom<api::RouteSessionSubmission> for NewFiveHopMixnetSession {
+impl TryFrom<api::RouteSessionSubmission> for SubmittedFiveHopMixnetSession {
     type Error = anyhow::Error;
 
     fn try_from(submission: api::RouteSessionSubmission) -> Result<Self, Self::Error> {
@@ -1020,16 +1092,19 @@ impl TryFrom<api::RouteSessionSubmission> for NewFiveHopMixnetSession {
                     );
                 }
 
-                FiveHopMixnetSessionOutcome::Batch {
+                SubmittedFiveHopMixnetSessionOutcome::Batch {
                     mixnet_epoch: decoded.header.mixnet_epoch as i64,
                     record_count: decoded.records.len() as i64,
+                    test_messages: SessionTestMessages::from_batch(&decoded),
                     batch,
                 }
             }
-            api::RouteSessionOutcome::Error(error) => FiveHopMixnetSessionOutcome::Error(error),
+            api::RouteSessionOutcome::Error(error) => {
+                SubmittedFiveHopMixnetSessionOutcome::Error(error)
+            }
         };
 
-        Ok(NewFiveHopMixnetSession {
+        Ok(SubmittedFiveHopMixnetSession {
             gateway_node_id: gateway_node_id as i64,
             outcome,
         })
@@ -1053,6 +1128,7 @@ pub(crate) struct FiveHopMixnetSessionRow {
     pub(crate) record_count: Option<i64>,
     pub(crate) error: Option<String>,
     pub(crate) batch: Option<Vec<u8>>,
+    pub(crate) kept: Option<bool>,
 }
 
 /// Lifts a stored row into its outcome. The table's checks allow only these two shapes, so any other means corruption.
@@ -1060,15 +1136,22 @@ impl TryFrom<FiveHopMixnetSessionRow> for FiveHopMixnetSession {
     type Error = anyhow::Error;
 
     fn try_from(row: FiveHopMixnetSessionRow) -> Result<Self, Self::Error> {
-        let outcome = match (row.error, row.mixnet_epoch, row.record_count, row.batch) {
-            (None, Some(mixnet_epoch), Some(record_count), Some(batch)) => {
+        let outcome = match (
+            row.error,
+            row.mixnet_epoch,
+            row.record_count,
+            row.batch,
+            row.kept,
+        ) {
+            (None, Some(mixnet_epoch), Some(record_count), Some(batch), Some(kept)) => {
                 FiveHopMixnetSessionOutcome::Batch {
                     mixnet_epoch,
                     record_count,
                     batch,
+                    kept,
                 }
             }
-            (Some(error), None, None, None) => FiveHopMixnetSessionOutcome::Error(error),
+            (Some(error), None, None, None, None) => FiveHopMixnetSessionOutcome::Error(error),
             _ => bail!(
                 "the session of run {} through gateway {} is neither a batch nor an error",
                 row.run_id,
@@ -1468,7 +1551,7 @@ mod tests {
         }
     }
 
-    mod route_session_submission {
+    mod five_hop_mixnet_session_submission {
         use super::*;
         use nym_network_monitor_route_records::batch::{BatchHeader, Record};
 
@@ -1494,14 +1577,15 @@ mod tests {
         fn read(
             gateway_node_id: u32,
             outcome: api::RouteSessionOutcome,
-        ) -> anyhow::Result<NewFiveHopMixnetSession> {
-            NewFiveHopMixnetSession::try_from(api::RouteSessionSubmission {
+        ) -> anyhow::Result<SubmittedFiveHopMixnetSession> {
+            SubmittedFiveHopMixnetSession::try_from(api::RouteSessionSubmission {
                 gateway_node_id,
                 outcome,
             })
         }
 
-        // a batch is kept exactly as it arrived, beside the epoch and record count read from it
+        // a batch is kept exactly as it arrived, beside the epoch, record count and test messages
+        // read from it
         #[test]
         fn a_batch_is_kept_as_sent_beside_what_was_read_from_it() {
             let bytes = encoded_batch(5, 42, 3);
@@ -1509,11 +1593,14 @@ mod tests {
             let session = read(5, api::RouteSessionOutcome::Batch(bytes.clone())).unwrap();
             assert_eq!(
                 session,
-                NewFiveHopMixnetSession {
+                SubmittedFiveHopMixnetSession {
                     gateway_node_id: 5,
-                    outcome: FiveHopMixnetSessionOutcome::Batch {
+                    outcome: SubmittedFiveHopMixnetSessionOutcome::Batch {
                         mixnet_epoch: 42,
                         record_count: 3,
+                        test_messages: SessionTestMessages::from_batch(
+                            &Batch::decode(&bytes).unwrap()
+                        ),
                         batch: bytes,
                     },
                 }
@@ -1522,7 +1609,7 @@ mod tests {
             let failed = read(5, api::RouteSessionOutcome::Error("unreachable".into())).unwrap();
             assert_eq!(
                 failed.outcome,
-                FiveHopMixnetSessionOutcome::Error("unreachable".into())
+                SubmittedFiveHopMixnetSessionOutcome::Error("unreachable".into())
             );
         }
 

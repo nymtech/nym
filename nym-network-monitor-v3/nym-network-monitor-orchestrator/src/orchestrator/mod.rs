@@ -302,10 +302,9 @@ impl NetworkMonitorOrchestrator {
             .collect::<Vec<_>>();
         let agents_state = KnownAgents::try_from(agents)?;
         let app_state = AppState::new(
+            &self.config,
             agents_state.clone(),
             self.storage.clone(),
-            self.config.schedules(),
-            self.config.five_hop_mixnet_run_config(),
             self.client.clone(),
         );
 
@@ -349,6 +348,7 @@ impl NetworkMonitorOrchestrator {
                 testrun_retention: self.config.testrun_eviction_age,
                 minimum_balance: self.config.minimum_on_chain_balance.clone(),
                 chain_interactions_penalty: self.config.chain_interactions_penalty,
+                five_hop_liveness_enabled: self.config.five_hop_liveness.enabled,
             },
             self.storage.clone(),
             materialiser_query_client.clone_query_client(),

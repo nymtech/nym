@@ -56,20 +56,18 @@ impl SessionTestMessages {
         }
     }
 
-    /// Whether the session is discarded before scoring, judged against the sessions of its run.
-    pub fn is_suspected(&self, run: &[SessionTestMessages], margin: f64) -> bool {
+    /// Whether the session is discarded before scoring, judged against the loss rates of its run's sessions.
+    pub fn is_suspected(&self, run_loss_rates: &[f64], margin: f64) -> bool {
         let Some(loss_rate) = self.loss_rate() else {
             return false;
         };
-        let best_loss_rate = run
-            .iter()
-            .filter_map(SessionTestMessages::loss_rate)
-            .fold(loss_rate, f64::min);
+        let best_loss_rate = run_loss_rates.iter().copied().fold(loss_rate, f64::min);
 
         loss_rate > MAX_LOSS_RATE || loss_rate > best_loss_rate + margin
     }
 
-    fn loss_rate(&self) -> Option<f64> {
+    /// Share of its test messages that were lost, or `None` when it has none.
+    pub fn loss_rate(&self) -> Option<f64> {
         if self.test_messages.is_empty() {
             return None;
         }
@@ -136,27 +134,27 @@ mod tests {
     fn a_session_that_lost_most_of_its_messages_is_discarded() {
         // the other session is within the margin, so only the first test can discard it
         let run = [session_losing(1, 60), session_losing(2, 58)];
-        assert!(run[0].is_suspected(&run, MARGIN));
+        assert!(run[0].is_suspected(&loss_rates(&run), MARGIN));
     }
 
     #[test]
     fn the_worse_of_two_unequal_sessions_is_discarded() {
         let run = [session_losing(1, 2), session_losing(2, 9)];
-        assert!(!run[0].is_suspected(&run, MARGIN));
-        assert!(run[1].is_suspected(&run, MARGIN));
+        assert!(!run[0].is_suspected(&loss_rates(&run), MARGIN));
+        assert!(run[1].is_suspected(&loss_rates(&run), MARGIN));
     }
 
     #[test]
     fn two_sessions_that_agree_are_both_kept() {
         let run = [session_losing(1, 8), session_losing(2, 10)];
-        assert!(!run[0].is_suspected(&run, MARGIN));
-        assert!(!run[1].is_suspected(&run, MARGIN));
+        assert!(!run[0].is_suspected(&loss_rates(&run), MARGIN));
+        assert!(!run[1].is_suspected(&loss_rates(&run), MARGIN));
     }
 
     #[test]
     fn a_lone_session_is_judged_on_its_own() {
         let run = [session_losing(1, 12)];
-        assert!(!run[0].is_suspected(&run, MARGIN));
+        assert!(!run[0].is_suspected(&loss_rates(&run), MARGIN));
     }
 
     #[test]
@@ -215,5 +213,12 @@ mod tests {
             gateway_node_id,
             test_messages,
         }
+    }
+
+    /// The loss rates of a run's sessions, as the discard rule compares them.
+    fn loss_rates(run: &[SessionTestMessages]) -> Vec<f64> {
+        run.iter()
+            .filter_map(SessionTestMessages::loss_rate)
+            .collect()
     }
 }

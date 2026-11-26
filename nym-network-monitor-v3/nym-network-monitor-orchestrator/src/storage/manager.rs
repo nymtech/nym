@@ -2336,17 +2336,19 @@ impl StorageManager {
                     mixnet_epoch,
                     record_count,
                     batch,
+                    kept,
                 } => {
                     sqlx::query!(
                         r#"
-                        INSERT INTO five_hop_mixnet_session (run_id, gateway_node_id, mixnet_epoch, record_count, batch)
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO five_hop_mixnet_session (run_id, gateway_node_id, mixnet_epoch, record_count, batch, kept)
+                        VALUES (?, ?, ?, ?, ?, ?)
                         "#,
                         run_id,
                         session.gateway_node_id,
                         mixnet_epoch,
                         record_count,
                         batch,
+                        kept,
                     )
                     .execute(&mut *tx)
                     .await?;
@@ -2389,7 +2391,7 @@ impl StorageManager {
         let rows = sqlx::query_as!(
             FiveHopMixnetSessionRow,
             r#"
-            SELECT s.run_id, s.gateway_node_id, s.mixnet_epoch, s.record_count, s.error, s.batch
+            SELECT s.run_id, s.gateway_node_id, s.mixnet_epoch, s.record_count, s.error, s.batch, s.kept
             FROM five_hop_mixnet_session s
             JOIN five_hop_mixnet_run r ON r.id = s.run_id
             WHERE s.run_id IN (SELECT run_id FROM five_hop_mixnet_session WHERE mixnet_epoch = ?)
@@ -4833,6 +4835,7 @@ mod tests {
                     mixnet_epoch,
                     record_count: 1,
                     batch: vec![1, 2, 3],
+                    kept: true,
                 },
             }
         }

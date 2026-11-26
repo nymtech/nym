@@ -83,6 +83,10 @@ CREATE TABLE five_hop_mixnet_session
     -- The session's records in the order sent, behind the header naming the gateway and the epoch.
     batch           BLOB,
 
+    -- Whether the discard rule kept the session for scoring, judged against its run when submitted.
+    -- NULL exactly when the session failed.
+    kept            BOOLEAN,
+
     PRIMARY KEY (run_id, gateway_node_id),
 
     -- a session exists only for a gateway its run was given
@@ -90,7 +94,8 @@ CREATE TABLE five_hop_mixnet_session
 
     CHECK ((error IS NULL) = (batch IS NOT NULL)),
     CHECK ((mixnet_epoch IS NULL) = (batch IS NULL)),
-    CHECK ((record_count IS NULL) = (batch IS NULL))
+    CHECK ((record_count IS NULL) = (batch IS NULL)),
+    CHECK ((kept IS NULL) = (batch IS NULL))
 );
 
 -- Supports reading the sessions that name an epoch.

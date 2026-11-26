@@ -13,6 +13,8 @@ use nym_network_monitor_orchestrator_requests::models::KindAggregate;
 use nym_validator_client::client::NodeId;
 use std::collections::BTreeMap;
 
+// \/ HERE BE DRAGONS
+pub(crate) mod five_hop_liveness;
 pub(crate) mod materialiser;
 
 /// What a set of runs amounts to: the mean of their scores and how many runs it was taken over.

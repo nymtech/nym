@@ -304,6 +304,16 @@ pub enum PrometheusMetric {
     ))]
     FiveHopLivenessFitGateways,
 
+    #[strum(props(
+        help = "The route sessions kept for scoring in the epoch whose five-hop liveness was materialised last"
+    ))]
+    FiveHopLivenessKeptSessions,
+
+    #[strum(props(
+        help = "The route sessions discarded in the epoch whose five-hop liveness was materialised last: a suspected gateway, a failed session, or a batch that no longer reads"
+    ))]
+    FiveHopLivenessDiscardedSessions,
+
     // Scheduling telemetry, refreshed from storage on the telemetry task's own tick. Together these
     // answer whether a kind has spare capacity and how much, in units that convert into a cadence.
     #[strum(props(
@@ -490,7 +500,9 @@ impl PrometheusMetric {
             | PrometheusMetric::TestablePopulation
             | PrometheusMetric::ExcludedNodes
             | PrometheusMetric::AgentsSeenRecently
-            | PrometheusMetric::FiveHopLivenessFitGateways => int_gauge(&name, help, labels),
+            | PrometheusMetric::FiveHopLivenessFitGateways
+            | PrometheusMetric::FiveHopLivenessKeptSessions
+            | PrometheusMetric::FiveHopLivenessDiscardedSessions => int_gauge(&name, help, labels),
             // a required rate is a small fraction of an assignment per second, so an integer gauge
             // would read zero for every realistic population
             PrometheusMetric::RequiredAssignmentRate => float_gauge(&name, help, labels),
@@ -715,7 +727,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(35, PrometheusMetric::COUNT)
+        assert_eq!(37, PrometheusMetric::COUNT)
     }
 
     #[test]

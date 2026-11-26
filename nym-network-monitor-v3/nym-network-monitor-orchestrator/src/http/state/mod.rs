@@ -3,15 +3,17 @@
 
 use crate::aggregation::{NodeEpochFigures, ReportedAggregates, epoch_figures};
 use crate::http::api::v1::error::ApiError;
+use crate::orchestrator::config::Config;
 use crate::signing_client::SigningClient;
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
-    CompletedTestRun, KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore, TestKind,
+    CompletedTestRun, MixnetEpochAggregate, MixnetEpochConfigScore, TestKind,
 };
 use axum::extract::FromRef;
 use nym_network_monitor_orchestrator_requests::models::{
     FiveHopMixnetResult, NodeEpochAggregates, NymNodeData, NymNodeWithTestRuns, PagedResult,
-    Pagination, TestRunData, TestRunInProgressData, TestRunResult, WorkAssignment,
+    Pagination, RouteSessionData, TestRunData, TestRunInProgressData, TestRunResult,
+    WorkAssignment,
 };
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
@@ -19,10 +21,11 @@ use std::net::SocketAddr;
 use tracing::error;
 
 pub(crate) mod agents;
+mod five_hop_mixnet_session_export;
 pub(crate) mod work;
 
 use agents::KnownAgents;
-use work::{FiveHopMixnetRunConfig, WorkManager};
+use work::WorkManager;
 
 /// Lifts a stored run into its public shape. A value that will not decode is corruption, for the
 /// same reason as [`work::malformed_target`].
@@ -47,18 +50,17 @@ pub(crate) struct AppState {
 
 impl AppState {
     pub(crate) fn new(
+        config: &Config,
         agents: KnownAgents,
         storage: NetworkMonitorStorage,
-        one_hop_mixnet_schedules: Vec<KindSchedule>,
-        five_hop_mixnet: Option<FiveHopMixnetRunConfig>,
         validator_client: SigningClient,
     ) -> Self {
         AppState {
             agents,
             storage,
             work_manager: WorkManager {
-                one_hop_mixnet_schedules,
-                five_hop_mixnet,
+                one_hop_mixnet_schedules: config.schedules(),
+                five_hop_mixnet: config.five_hop_mixnet_run_config(),
             },
             validator_client,
         }
@@ -287,6 +289,19 @@ impl AppState {
                 .map(testrun_data)
                 .collect::<Result<_, _>>()?,
         })
+    }
+
+    /// Backs `GET /v1/results/route-sessions/epoch/{mixnet_epoch}`: the epoch's route sessions as
+    /// test messages, each with the verdict stored when its run was submitted.
+    pub(crate) async fn get_route_sessions_of_epoch(
+        &self,
+        mixnet_epoch: EpochId,
+    ) -> Result<Vec<RouteSessionData>, ApiError> {
+        five_hop_mixnet_session_export::five_hop_mixnet_sessions_of_epoch(
+            &self.storage,
+            mixnet_epoch,
+        )
+        .await
     }
 
     /// Backs `GET /v1/aggregates/epoch/{mixnet_epoch}`. Every node's figures for that epoch, one

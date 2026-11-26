@@ -5,6 +5,7 @@ use crate::orchestrator::config::AggregationWindows;
 use crate::storage::NetworkMonitorStorage;
 use crate::submission::PerformanceSubmitter;
 use anyhow::Context;
+use nym_network_monitor_route_records::scoring::FailSequenceRule;
 use nym_task::ShutdownToken;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::contract_traits::{
@@ -18,9 +19,11 @@ use tracing::{error, info, warn};
 
 mod aggregate;
 mod config_score;
+mod five_hop_liveness;
 
 use aggregate::AggregateMaterialiser;
 use config_score::ConfigScoreMaterialiser;
+use five_hop_liveness::FiveHopLivenessMaterialiser;
 
 /// Shortest wait between two looks at the chain, and the wait before retrying a failed pass.
 ///
@@ -45,13 +48,18 @@ pub(crate) struct MaterialiserConfig {
 
     /// Config-score penalty applied to a node that cannot transact on chain.
     pub(crate) chain_interactions_penalty: f64,
+
+    /// Whether five-hop liveness is materialised.
+    pub(crate) five_hop_liveness_enabled: bool,
 }
 
 /// Produces every per-`(node, epoch)` figure the orchestrator serves, one epoch at a time as that
 /// epoch begins, and submits the epoch in progress's figures to the performance contract.
 ///
-/// Owns the single task and the client it reads the contract's interval with, and drives two
-/// members that each produce a different family of figures: [`AggregateMaterialiser`] for the windowed probe aggregates
+/// Owns the single task and the client it reads the contract's interval with, and drives three
+/// members that each produce a different family of figures: [`FiveHopLivenessMaterialiser`] for
+/// five-hop liveness (scored from the route sessions of the epoch before, backfilled like the
+/// aggregates, absent while five-hop liveness is off), [`AggregateMaterialiser`] for the windowed probe aggregates
 /// (backfilled across epochs missed while down) and [`ConfigScoreMaterialiser`] for the
 /// current-state config-score snapshot (filed only under the epoch in progress, never backfilled).
 /// When submission is on, a [`PerformanceSubmitter`] sends what both produced for the epoch in
@@ -64,6 +72,9 @@ pub(crate) struct MaterialiserConfig {
 /// once published.
 pub(crate) struct Materialiser<C, S> {
     client: C,
+
+    /// `None` while five-hop liveness is off.
+    five_hop_liveness: Option<FiveHopLivenessMaterialiser>,
 
     aggregates: AggregateMaterialiser,
 
@@ -80,7 +91,7 @@ where
     C: MixnetQueryClient + Sync,
     S: PerformanceQueryClient + PerformanceSigningClient + Sync,
 {
-    /// Builds the materialiser and its two members from one config bundle, handing each part of the
+    /// Builds the materialiser and its members from one config bundle, handing each part of the
     /// bundle to the member that needs it.
     ///
     /// `config_score_client` is a separate handle from `client`: the materialiser reads the interval
@@ -94,6 +105,10 @@ where
         submitter: Option<PerformanceSubmitter<S>>,
         shutdown_token: ShutdownToken,
     ) -> Self {
+        // the one place the scoring strategy is chosen
+        let five_hop_liveness = config
+            .five_hop_liveness_enabled
+            .then(|| FiveHopLivenessMaterialiser::new(Box::new(FailSequenceRule), storage.clone()));
         let aggregates =
             AggregateMaterialiser::new(config.windows, config.testrun_retention, storage.clone());
         let config_scores = ConfigScoreMaterialiser::new(
@@ -105,6 +120,7 @@ where
 
         Materialiser {
             client,
+            five_hop_liveness,
             aggregates,
             config_scores,
             submitter,
@@ -152,6 +168,14 @@ where
     /// The submission runs only while the epoch is in progress: an epoch in transition is skipped
     /// without failing, since the contract would reject it anyway.
     async fn materialise_and_submit(&self, interval: &Interval) -> anyhow::Result<()> {
+        // before the aggregates, whose insert marks an epoch materialised and so no longer pending
+        if let Some(five_hop_liveness) = &self.five_hop_liveness {
+            five_hop_liveness
+                .materialise_pending(interval)
+                .await
+                .context("failed to materialise pending five-hop liveness")?;
+        }
+
         self.aggregates
             .materialise_pending(interval)
             .await
@@ -262,6 +286,7 @@ mod tests {
                 testrun_retention: RETENTION,
                 minimum_balance: Coin::new(1_000_000u128, "unym"),
                 chain_interactions_penalty: 0.2,
+                five_hop_liveness_enabled: false,
             },
             storage,
             ConfigUnreadableMixnet,

@@ -45,14 +45,14 @@ pub(crate) enum ApiError {
     TestRunLeaseExpired,
 
     #[error(
-        "the route run is not in flight - it is unknown, already submitted or past its timeout"
+        "the route run is not in flight - it is unknown, already submitted or past its timeout, its epoch has already been scored, or five-hop liveness is off"
     )]
-    RouteRunNotInFlight,
+    FiveHopMixnetRunNotInFlight,
 
     #[error(
         "the route run submission is invalid - a gateway is unexpected or repeated, or a batch is unreadable or names another gateway"
     )]
-    InvalidRouteRunSubmission,
+    InvalidFiveHopMixnetRunSubmission,
 }
 
 impl ApiError {
@@ -64,10 +64,10 @@ impl ApiError {
             | AgentNotAnnounced
             | MalformedAgentAddresses
             | UnexpectedResultShape
-            | InvalidRouteRunSubmission => StatusCode::BAD_REQUEST,
+            | InvalidFiveHopMixnetRunSubmission => StatusCode::BAD_REQUEST,
             // the request was well-formed and would have been accepted earlier, so this is a
             // conflict with current state rather than a client error
-            TestRunLeaseExpired | RouteRunNotInFlight => StatusCode::CONFLICT,
+            TestRunLeaseExpired | FiveHopMixnetRunNotInFlight => StatusCode::CONFLICT,
             TestRunNotFound | NymNodeNotFound => StatusCode::NOT_FOUND,
             ContractFailure | StorageFailure | MalformedStoredData => {
                 StatusCode::INTERNAL_SERVER_ERROR

@@ -328,6 +328,7 @@ impl Config {
             min_gateway_score: five_hop.min_gateway_score,
             min_gateway_share: five_hop.min_gateway_share,
             fallback_min_gateway_score: five_hop.fallback_min_gateway_score,
+            session_loss_margin: five_hop.session_loss_margin,
         })
     }
 

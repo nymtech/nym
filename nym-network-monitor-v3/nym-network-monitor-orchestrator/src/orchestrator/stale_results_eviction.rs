@@ -11,10 +11,10 @@ use tracing::{debug, error, info};
 /// The value configuration the eviction task needs, grouped so construction takes one bundle
 /// rather than a long argument list.
 pub(crate) struct EvictionConfig {
-    /// Age past which a finalised test run is considered stale and removed.
+    /// Age past which a finalised test run, or a route run with its sessions, is considered stale and removed.
     pub(crate) testrun_eviction_age: Duration,
 
-    /// Age past which an epoch aggregate or config score is removed.
+    /// Age past which an epoch aggregate, config score or five-hop liveness value is removed.
     pub(crate) aggregate_retention: Duration,
 
     /// Cadence at which expired leases are released.
@@ -29,10 +29,10 @@ pub(crate) struct EvictionConfig {
 /// Three distinct kinds of staleness are handled:
 /// - in-progress test runs whose lease has expired (freed so they can be
 ///   reassigned),
-/// - finalised test runs older than `testrun_eviction_age` (dropped to keep
-///   the results table bounded),
-/// - epoch aggregates and config scores older than `aggregate_retention`
-///   (dropped to keep the per-epoch tables bounded).
+/// - finalised test runs, and route runs with their sessions, older than
+///   `testrun_eviction_age` (dropped to keep the results tables bounded),
+/// - epoch aggregates, config scores and five-hop liveness values older than
+///   `aggregate_retention` (dropped to keep the per-epoch tables bounded).
 ///
 /// The first of those is on its own timer, because the two duties want opposite cadences. A lease
 /// still held past its deadline excludes its node from every assignment, so releasing it wants to
@@ -80,13 +80,17 @@ impl StaleResultsEviction {
         Ok(released)
     }
 
-    /// Deletes finalised runs past `testrun_eviction_age`, and aggregates and config scores past
-    /// `aggregate_retention`. Logs how many rows were affected so ops can confirm the task is doing
-    /// real work (and spot unexpected spikes).
+    /// Deletes finalised runs and route runs past `testrun_eviction_age`, and aggregates, config
+    /// scores and five-hop liveness values past `aggregate_retention`. Logs how many rows were
+    /// affected so ops can confirm the task is doing real work (and spot unexpected spikes).
     async fn prune_past_retention(&self) -> anyhow::Result<()> {
         let evicted_old = self
             .storage
             .evict_old_testruns(self.config.testrun_eviction_age)
+            .await?;
+        let evicted_route_runs = self
+            .storage
+            .evict_old_five_hop_mixnet_runs(self.config.testrun_eviction_age)
             .await?;
         let evicted_aggregates = self
             .storage
@@ -96,13 +100,26 @@ impl StaleResultsEviction {
             .storage
             .evict_old_mixnet_epoch_config_scores(self.config.aggregate_retention)
             .await?;
+        let evicted_five_hop_liveness = self
+            .storage
+            .evict_old_mixnet_epoch_five_hop_liveness(self.config.aggregate_retention)
+            .await?;
 
-        if evicted_old > 0 || evicted_aggregates > 0 || evicted_config_scores > 0 {
+        if evicted_old > 0
+            || evicted_route_runs > 0
+            || evicted_aggregates > 0
+            || evicted_config_scores > 0
+            || evicted_five_hop_liveness > 0
+        {
             PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
 
             info!(
                 evicted_old,
-                evicted_aggregates, evicted_config_scores, "retention sweep completed"
+                evicted_route_runs,
+                evicted_aggregates,
+                evicted_config_scores,
+                evicted_five_hop_liveness,
+                "retention sweep completed"
             );
         } else {
             debug!("retention sweep completed: nothing to evict");

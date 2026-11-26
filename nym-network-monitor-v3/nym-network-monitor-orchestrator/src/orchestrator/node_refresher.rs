@@ -138,22 +138,25 @@ impl NodeRefresher {
             .mix_port
             .unwrap_or(DEFAULT_MIX_LISTENING_PORT);
 
-        // the gateway liveness probe opens a client session, which needs the port that interface
-        // listens on. asked for separately because it is not one of the announced ports, and only of
-        // gateway-capable nodes, since a pure mixnode serves no client websocket. a gateway that
-        // will not answer for it fails the whole describe rather than yielding a node described
-        // everywhere except here. its wss counterpart is deliberately not read: the probe targets
-        // `ws://<ip>` by construction and nothing else consumes it
-        let clients_ws_port = if roles.gateway_enabled {
-            Some(
-                api_client
-                    .get_mixnet_websockets()
-                    .await
-                    .context("failed to retrieve the client websocket interface")?
-                    .ws_port,
-            )
+        // asked of gateway-capable nodes only, their root details carry two things a pure mixnode
+        // does not have: the port of the plain client websocket, which the gateway liveness probe
+        // opens its session on and which is not one of the announced ports, and whether the gateway
+        // enforces zk-nyms, which keeps it out of route runs. a gateway that will not answer, or
+        // announces no client websocket, fails the whole describe rather than yielding a node
+        // described everywhere except here. the wss port is deliberately not read: the probe
+        // targets `ws://<ip>` by construction and nothing else consumes it
+        let (clients_ws_port, enforces_zk_nyms) = if roles.gateway_enabled {
+            let gateway = api_client
+                .get_gateway()
+                .await
+                .context("failed to retrieve the gateway details")?;
+            let websockets = gateway
+                .client_interfaces
+                .mixnet_websockets
+                .context("the gateway announces no client websocket interface")?;
+            (Some(websockets.ws_port), Some(gateway.enforces_zk_nyms))
         } else {
-            None
+            (None, None)
         };
 
         Ok(NodeDescription {
@@ -169,6 +172,7 @@ impl NodeRefresher {
             mixnode_enabled: roles.mixnode_enabled,
             gateway_enabled: roles.gateway_enabled,
             clients_ws_port: clients_ws_port.map(i64::from),
+            enforces_zk_nyms,
             reported_version: build_info.build_version,
             binary_name: build_info.binary_name,
             accepted_terms_and_conditions: aux.accepted_operator_terms_and_conditions,

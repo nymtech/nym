@@ -58,7 +58,7 @@ Alternative considered: the agent's existing exempt session. It needs no bandwid
 
 A test kind is one probe against one node: a target leased by node id, a result made of interface counters, a score per run, staleness per node, an aggregate that is the mean of run scores. A route run fits none of that. It targets no node, its result is a list of packets, it has no score per run, and what it scores is not what it connects to.
 
-So it gets its own small pieces: a `route_run` row for the cadence and the in-flight state, a `route_session` row per gateway with the batch, a table of five-hop liveness values beside the aggregates, as config score has, and its own entry in the work response. The existing kinds and everything keyed by kind are untouched, the per-kind result stream to nym-api included: it has nothing to post for a route run.
+So it gets its own small pieces: a `five_hop_mixnet_run` row for the cadence and the in-flight state, a `five_hop_mixnet_run_gateway` row per gateway it was given, a `five_hop_mixnet_session` row per gateway with the batch, a table of five-hop liveness values beside the aggregates, as config score has, and its own entry in the work response. The existing kinds and everything keyed by kind are untouched, the per-kind result stream to nym-api included: it has nothing to post for a route run.
 
 Alternative considered: `TestKind::RouteLiveness`. It would inherit the lease and submission paths for free, and then need an exception in every scheduling predicate, in the per-kind telemetry, in the results read types, in aggregation and in coverage.
 
@@ -124,7 +124,7 @@ These rules add to the specification, which has no acks. They sit outside the sc
 
 A batch is an 8-byte header (gateway node id, mixnet epoch) and then 34 bytes per packet, to the end of the batch: the time it was sent in milliseconds, the node ids of the packet's three mixnodes, those of the ack's three, and one byte each for "payload back" and "ack back". Every field is a fixed-width big-endian integer. The encoding is written by hand in the records crate, the header and the record each encoding and decoding themselves.
 
-The agent submits a run once, with every session's batch or error. The orchestrator checks the run, reads the header, and stores the batch as received in `route_session`, with the gateway, epoch and record count beside it. It never expands a batch into a row per packet. A run is about 150 KB; a day is about 43 MB.
+The agent submits a run once, with every session's batch or error. The orchestrator checks the run, reads the header, and stores the batch as received in `five_hop_mixnet_session`, with the gateway, epoch and record count beside it. It never expands a batch into a row per packet. A run is about 150 KB; a day is about 43 MB.
 
 The cost is that SQL cannot answer "which packets failed through this node" without decoding. The format carries no version, because the agents and the orchestrator are deployed together; a later change to it deletes the stored sessions in its migration. A submission with an unreadable batch, a gateway the run was not given, or a run that is not in flight is rejected whole.
 
@@ -132,7 +132,7 @@ Alternatives considered: JSON records (several times the size for no gain, and t
 
 ### 10. Scoring is a trait with two inputs, and the first strategy is the specification's rule
 
-Scoring is a trait with one method, in the records crate. It takes the test messages in the order they were sent, each with its send time, the nodes on its path in path order and whether it came back, and each node's most recent one-hop score where there is one. It returns each node's positive samples, negative samples and score. It knows nothing else, and the orchestrator calls it through the trait in one place, so replacing the strategy is replacing one implementation.
+Scoring is a trait with one method, in the records crate. It takes the test messages in the order they were sent, each with its send time, the nodes on its path in path order and whether it came back, and each node's most recent one-hop score where there is one. It returns each node's five-hop liveness, for the nodes it can score. Whatever a strategy counts on the way stays inside it: the first strategy's positive and negative samples are its own, since another strategy (the specification mentions judging a whole epoch's pattern of failures) may have nothing like them. It knows nothing else, and the orchestrator calls it through the trait in one place, so replacing the strategy is replacing one implementation.
 
 This is the interface the specification's author asked for. The postprocessing is expected to change once experiments on real data are done, and the trait is what lets a candidate be run beside the current strategy on the same test messages. The messages are ordered by sending time because not every one is received.
 
@@ -176,7 +176,7 @@ Nothing new is stored: the lookup reads `mixnet_epoch_five_hop_liveness`, which 
 
 `--five-hop-liveness-enabled`, an explicit value defaulting to on, governs everything: off, no run is handed out, nothing is materialised, and five-hop liveness is 1 for every node at once, which is the rollback.
 
-The product is applied in the submission plan, to the liveness as the plan already computes it (both liveness kinds the coverage guard kept, combined), before the conversion to a percent. A node with no one-hop liveness to submit gets none from its five-hop liveness. On the aggregates API the liveness entry is unchanged and a five-hop liveness entry appears beside it, with the measured value and its positive and negative samples, so the two can be read apart.
+The product is applied in the submission plan, to the liveness as the plan already computes it (both liveness kinds the coverage guard kept, combined), before the conversion to a percent. A node with no one-hop liveness to submit gets none from its five-hop liveness. On the aggregates API the liveness entry is unchanged and a five-hop liveness entry appears beside it, with the measured value, so the two can be read apart.
 
 There is no second switch to compute without counting. Liveness has no weight on mainnet until it is given one, and it is not to be given one before this is in.
 
@@ -270,7 +270,7 @@ Alternatives considered: no HTTP surface, copying the SQLite file and decoding t
 
 ## Migration Plan
 
-1. Deploy the orchestrator and the agents together, the agents with a nym-api url. The migration is additive: one nullable column on `nym_node_description` and three tables.
+1. Deploy the orchestrator and the agents together, the agents with a nym-api url. The migration is additive: one nullable column on `nym_node_description` and four tables.
 2. Route runs start once gateways are fit, which needs a refresh that read their enforcement flag (within 2 hours) and a gateway liveness run each. The first values are filed in the epoch after the first runs.
 3. Liveness stays without weight on mainnet until the decision to give it one is taken. Until then five-hop liveness is visible on the aggregates API and in the submitted liveness without affecting rewards.
 

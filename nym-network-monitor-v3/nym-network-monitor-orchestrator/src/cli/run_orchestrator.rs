@@ -115,8 +115,9 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_MIXNET_CONTRACT_ADDRESS_ARG)]
     mixnet_contract_address: Option<String>,
 
-    /// Maximum age of a completed test run row before it is evicted from the local database.
-    /// Rows older than this are assumed to have already been submitted to the nym-api
+    /// Maximum age of a completed test run row, or of a route run with its sessions, before it is
+    /// evicted from the local database. Rows older than this are assumed to have already been
+    /// submitted to the nym-api
     /// (e.g. `7d`, `24h`). Must exceed the longest aggregation window, since aggregates are
     /// computed from these rows.
     #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration, default_value = "7d",)]
@@ -183,8 +184,8 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_AGGREGATION_WINDOW_ARG, value_parser = humantime::parse_duration, default_value = "6h")]
     liveness_aggregation_window: Duration,
 
-    /// Maximum age of a materialised epoch aggregate or config score before it is evicted from the
-    /// local database (e.g. `30d`).
+    /// Maximum age of a materialised epoch aggregate, config score or five-hop liveness value before
+    /// it is evicted from the local database (e.g. `30d`).
     #[clap(long, env = NYM_NETWORK_MONITOR_AGGREGATE_RETENTION_ARG, value_parser = humantime::parse_duration, default_value = "30d")]
     aggregate_retention: Duration,
 

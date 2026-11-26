@@ -256,7 +256,7 @@ Two things this does not catch are accepted: two gateways of one run that are ba
 
 ### Requirement: Five-hop liveness is computed by a replaceable scoring strategy, initially the fail-sequence rule
 
-Scoring SHALL sit behind one interface with two inputs and one output. The inputs are the test messages, ordered by the time they were sent, each with its send time, the nodes on its path in path order and whether it came back; and, for each node, the score of its most recent one-hop test, when it has one. The output is, for each node on any test message, its positive samples, its negative samples and its score.
+Scoring SHALL sit behind one interface with two inputs and one output. The inputs are the test messages, ordered by the time they were sent, each with its send time, the nodes on its path in path order and whether it came back; and, for each node, the score of its most recent one-hop test, when it has one. The output is each node's five-hop liveness, for the nodes on the test messages that the strategy can score. Anything a strategy counts on the way, such as the first strategy's samples, stays inside it.
 
 A strategy MUST NOT know about batches, sessions, epochs or storage, and the orchestrator MUST depend on the interface and not on a particular strategy, so that once another strategy has been worked out it replaces the first without touching anything else. Test messages are ordered by sending time because not every one is received.
 
@@ -282,9 +282,9 @@ The first strategy is the fail-sequence rule of the performance monitor specific
 
 ### Requirement: Five-hop liveness is materialised as an epoch begins, from the sessions of the epoch that just ended
 
-As an epoch begins, in the pass that materialises its aggregates, the orchestrator SHALL compute the five-hop liveness filed under that epoch from the stored sessions whose batch names the epoch that just ended, and from no others. It MUST first discard the sessions whose gateway is suspected, then unpack the rest into test messages and order them by the time they were sent (the test messages of one record keeping their order, and equal times ordered by gateway node id). It MUST give the strategy, as each mixnode's most recent one-hop score, the score of that mixnode's most recent mixnode liveness run, and none for a mixnode that has no such run. It MUST store, for every mixnode on any test message that has a sample, its score with its positive and negative samples. A mixnode the strategy gave no sample has no score, and nothing is stored for it.
+As an epoch begins, in the pass that materialises its aggregates, the orchestrator SHALL compute the five-hop liveness filed under that epoch from the stored sessions whose batch names the epoch that just ended, and from no others. It MUST first discard the sessions whose gateway is suspected, then unpack the rest into test messages and order them by the time they were sent (the test messages of one record keeping their order, and equal times ordered by gateway node id). It MUST give the strategy, as each mixnode's most recent one-hop score, the score of that mixnode's most recent mixnode liveness run, and none for a mixnode that has no such run. It MUST store, for every mixnode the strategy gave a five-hop liveness, that value. A mixnode the strategy could not score has none, and nothing is stored for it.
 
-Each epoch is scored on its own: whatever a strategy keeps between test messages, such as a fail sequence, starts afresh. Within an epoch the test messages of all its runs form one list, and nothing is reset between runs: a fail sequence a mixnode ended one run with is the one it starts the epoch's next run with. The stored values MUST be written once and never recomputed, and a batch that arrives after its epoch's values were stored is not counted. An epoch being backfilled is computed the same way, from whichever of the preceding epoch's sessions are still stored. A mixnode named by a batch that has no bond in the registry is skipped.
+Each epoch is scored on its own: whatever a strategy keeps between test messages, such as a fail sequence, starts afresh. Within an epoch the test messages of all its runs form one list, and nothing is reset between runs: a fail sequence a mixnode ended one run with is the one it starts the epoch's next run with. The stored values MUST be written once and never recomputed, and a batch that arrives after its epoch's values were stored is not counted. A stored value is deleted once its epoch began longer ago than the aggregate retention, in the sweep that evicts the aggregates. An epoch being backfilled is computed the same way, from whichever of the preceding epoch's sessions are still stored. A mixnode named by a batch whose bond the registry has not recorded yet is stored like any other, and its value applies once a refresh records the bond.
 
 Taking the epoch from the batch rather than from the clock ties a session to the active set it actually used. The measured value, like every aggregate, describes the epoch before the one it is filed under.
 
@@ -372,11 +372,11 @@ When five-hop liveness is disabled it MUST be 1 for every node, whatever values 
 
 ### Requirement: The measured five-hop liveness is served beside the other aggregates
 
-The orchestrator's aggregates API SHALL carry, for a node and an epoch, a five-hop liveness entry of its own with the stored score and its positive and negative samples. The entry MUST be the value measured and filed under that epoch, not a value carried forward, and MUST be absent when none is filed under it.
+The orchestrator's aggregates API SHALL carry, for a node and an epoch, a five-hop liveness entry of its own holding the stored value. The entry MUST be the value measured and filed under that epoch, not a value carried forward, and MUST be absent when none is filed under it.
 
 #### Scenario: A measured mixnode's value is served
 - **WHEN** a consumer requests the aggregates of a mixnode for an epoch that has a five-hop liveness filed under it
-- **THEN** the response carries a five-hop liveness entry with the score and the positive and negative samples
+- **THEN** the response carries a five-hop liveness entry with the measured value
 
 #### Scenario: An unmeasured node has no entry
 - **WHEN** a consumer requests the aggregates of a node with no five-hop liveness filed under that epoch
@@ -436,4 +436,4 @@ For experiments, the command SHALL also take which mixnodes to route through: th
 
 #### Scenario: A manual run prints scores
 - **WHEN** `test-five-hop-liveness` is run with a nym-api url and two gateways
-- **THEN** it runs a session through each and prints, per node, the positive and negative samples and the score
+- **THEN** it runs a session through each and prints each node's five-hop liveness

@@ -5,7 +5,7 @@ use super::v1::gateway::models::Wireguard;
 use super::v1::metrics::models::SessionStats;
 use crate::api::SignedLewesProtocol;
 use crate::api::v1::authenticator::models::Authenticator;
-use crate::api::v1::gateway::models::WebSockets;
+use crate::api::v1::gateway::models::{Gateway, WebSockets};
 use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
@@ -63,6 +63,11 @@ pub trait NymNodeApiClientExt: ApiClient {
 
     async fn get_auxiliary_details_v2(&self) -> Result<AuxiliaryDetailsV2, NymNodeApiClientError> {
         self.get_json_from(routes::api::v2::auxiliary_absolute())
+            .await
+    }
+
+    async fn get_gateway(&self) -> Result<Gateway, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::gateway_absolute())
             .await
     }
 

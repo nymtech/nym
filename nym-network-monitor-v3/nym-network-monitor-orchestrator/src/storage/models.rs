@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::Context;
+use anyhow::{Context, bail};
 use nym_api_requests::models::v3 as nym_api_requests;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
@@ -498,6 +498,9 @@ pub(crate) struct NodeDescription {
     /// session on. Present exactly when `gateway_enabled` is set.
     pub(crate) clients_ws_port: Option<i64>,
 
+    /// Whether the gateway enforces zk-nyms; `None` for a non-gateway or a description predating it.
+    pub(crate) enforces_zk_nyms: Option<bool>,
+
     /// Self-reported binary version, as a raw semver string parsed at score time.
     pub(crate) reported_version: String,
 
@@ -912,6 +915,150 @@ impl From<MixnetEpochConfigScore> for api::ConfigScore {
     }
 }
 
+/// A route run hand-out, every duration resolved against one `now`.
+#[derive(Debug, Clone)]
+pub(crate) struct FiveHopMixnetRunRequest {
+    /// Stamped as the run's `started_at`.
+    pub(crate) now: OffsetDateTime,
+
+    /// Due only if no submitted run started after this.
+    pub(crate) last_started_by: OffsetDateTime,
+
+    /// Stamped as the run's `expires_at`.
+    pub(crate) expires_at: OffsetDateTime,
+
+    /// The gateways drawn for the run.
+    pub(crate) gateway_node_ids: Vec<i64>,
+}
+
+/// A gateway a route run may be drawn from: it reports the role, does not enforce zk-nyms and has a gateway liveness run.
+#[derive(Debug, Clone)]
+pub(crate) struct FiveHopMixnetGatewayCandidate {
+    pub(crate) node_id: i64,
+    pub(crate) identity_key: String,
+
+    /// Whether a test of any kind is in flight against the gateway.
+    pub(crate) in_flight: bool,
+
+    pub(crate) latest_gateway_liveness: CompletedTestRun,
+}
+
+/// A candidate's own columns, before its latest gateway liveness run is paired with it.
+#[derive(Debug, Clone)]
+pub(crate) struct FiveHopMixnetGatewayCandidateRow {
+    pub(crate) node_id: i64,
+    pub(crate) identity_key: String,
+    pub(crate) in_flight: bool,
+}
+
+impl FiveHopMixnetGatewayCandidateRow {
+    pub(crate) fn with_latest_run(
+        self,
+        latest_gateway_liveness: CompletedTestRun,
+    ) -> FiveHopMixnetGatewayCandidate {
+        FiveHopMixnetGatewayCandidate {
+            node_id: self.node_id,
+            identity_key: self.identity_key,
+            in_flight: self.in_flight,
+            latest_gateway_liveness,
+        }
+    }
+}
+
+/// A session's batch with what was read from it when stored, or its error.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum FiveHopMixnetSessionOutcome {
+    Batch {
+        mixnet_epoch: i64,
+        record_count: i64,
+        batch: Vec<u8>,
+    },
+    Error(String),
+}
+
+/// One gateway's session of a submitted run, as stored.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct NewFiveHopMixnetSession {
+    pub(crate) gateway_node_id: i64,
+    pub(crate) outcome: FiveHopMixnetSessionOutcome,
+}
+
+/// A stored session of a submitted run.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct FiveHopMixnetSession {
+    pub(crate) run_id: i64,
+    pub(crate) gateway_node_id: i64,
+    pub(crate) outcome: FiveHopMixnetSessionOutcome,
+}
+
+/// A row of `five_hop_mixnet_session`. Flat because `query_as!` cannot build an enum.
+#[derive(Debug, Clone)]
+pub(crate) struct FiveHopMixnetSessionRow {
+    pub(crate) run_id: i64,
+    pub(crate) gateway_node_id: i64,
+    pub(crate) mixnet_epoch: Option<i64>,
+    pub(crate) record_count: Option<i64>,
+    pub(crate) error: Option<String>,
+    pub(crate) batch: Option<Vec<u8>>,
+}
+
+/// Lifts a stored row into its outcome. The table's checks allow only these two shapes, so any other means corruption.
+impl TryFrom<FiveHopMixnetSessionRow> for FiveHopMixnetSession {
+    type Error = anyhow::Error;
+
+    fn try_from(row: FiveHopMixnetSessionRow) -> Result<Self, Self::Error> {
+        let outcome = match (row.error, row.mixnet_epoch, row.record_count, row.batch) {
+            (None, Some(mixnet_epoch), Some(record_count), Some(batch)) => {
+                FiveHopMixnetSessionOutcome::Batch {
+                    mixnet_epoch,
+                    record_count,
+                    batch,
+                }
+            }
+            (Some(error), None, None, None) => FiveHopMixnetSessionOutcome::Error(error),
+            _ => bail!(
+                "the session of run {} through gateway {} is neither a batch nor an error",
+                row.run_id,
+                row.gateway_node_id
+            ),
+        };
+
+        Ok(FiveHopMixnetSession {
+            run_id: row.run_id,
+            gateway_node_id: row.gateway_node_id,
+            outcome,
+        })
+    }
+}
+
+/// What became of a route run's submission, judged against the run in flight.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FiveHopMixnetRunSubmission {
+    /// Every session stored, and the run marked submitted.
+    Stored,
+
+    /// The run is unknown, already submitted or past its expiry. Nothing is stored.
+    NotInFlight,
+
+    /// An entry names a gateway the run was not given. Nothing is stored.
+    UnexpectedGateway { gateway_node_id: i64 },
+}
+
+/// A row of `mixnet_epoch_five_hop_liveness`: what the route test measured of one mixnode, filed under one epoch.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct MixnetEpochFiveHopLiveness {
+    /// Absolute id of the epoch the value is filed under, the one after the epoch measured.
+    pub(crate) mixnet_epoch: i64,
+
+    /// When that epoch began.
+    pub(crate) epoch_start: OffsetDateTime,
+
+    pub(crate) node_id: i64,
+
+    /// The node's five-hop liveness, as the scoring strategy gave it.
+    pub(crate) score: f64,
+}
+
 /// The refresh time every fixture node's bond carries, so seeding fixtures through
 /// `store_refresh` at this time never strips another fixture's description.
 #[cfg(test)]
@@ -963,6 +1110,7 @@ pub(crate) fn described_node(
             mixnode_enabled,
             gateway_enabled,
             clients_ws_port: gateway_enabled.then_some(9000),
+            enforces_zk_nyms: gateway_enabled.then_some(false),
             reported_version: "1.1.0".to_string(),
             binary_name: "nym-node".to_string(),
             accepted_terms_and_conditions: true,

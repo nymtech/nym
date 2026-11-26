@@ -126,13 +126,13 @@ pub(crate) struct Config {
     /// If not provided, the default value from the environment will be retrieved (if available).
     pub(crate) network_monitors_contract_address: Option<AccountId>,
 
-    /// Maximum age of a completed test run row before it is evicted from the local database.
-    /// Rows older than this are assumed to have already been submitted to the nym-api
-    /// (e.g. `7d`, `24h`).
+    /// Maximum age of a completed test run row, or of a route run with its sessions, before it is
+    /// evicted from the local database. Rows older than this are assumed to have already been
+    /// submitted to the nym-api (e.g. `7d`, `24h`).
     pub(crate) testrun_eviction_age: Duration,
 
-    /// Maximum age of a materialised epoch aggregate or config score before it is evicted
-    /// (e.g. `30d`).
+    /// Maximum age of a materialised epoch aggregate, config score or five-hop liveness value before
+    /// it is evicted (e.g. `30d`).
     pub(crate) aggregate_retention: Duration,
 
     /// Maximum number of nodes queried concurrently during a node refresh cycle.

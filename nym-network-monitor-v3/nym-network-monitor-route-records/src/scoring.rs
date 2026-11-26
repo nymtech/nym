@@ -5,24 +5,14 @@ use crate::NodeId;
 use crate::test_message::TestMessage;
 use std::collections::{BTreeMap, HashMap};
 
-/// A node's five-hop liveness samples, and the score they give.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct NodeScore {
-    pub positive_samples: f64,
-    pub negative_samples: f64,
-
-    /// The node's five-hop liveness, or none when it has no sample.
-    pub score: Option<f64>,
-}
-
 /// Turns test messages into each node's five-hop liveness.
 pub trait ScoringStrategy {
-    /// Scores test messages given in send order, with each node's most recent one-hop score where it has one.
+    /// Scores test messages given in send order, with each node's most recent one-hop score where it has one; a node it cannot score is absent.
     fn score(
         &self,
         test_messages: &[TestMessage],
         one_hop_scores: &HashMap<NodeId, f64>,
-    ) -> BTreeMap<NodeId, NodeScore>;
+    ) -> BTreeMap<NodeId, f64>;
 }
 
 /// The performance monitor specification's rule: a lost message's blame goes to the nodes on it with the longest fail sequence.
@@ -35,16 +25,8 @@ impl ScoringStrategy for FailSequenceRule {
         &self,
         test_messages: &[TestMessage],
         _one_hop_scores: &HashMap<NodeId, f64>,
-    ) -> BTreeMap<NodeId, NodeScore> {
-        let mut counts = FailSequenceCounts::default();
-        for message in test_messages {
-            if message.came_back {
-                counts.count_came_back(message.path);
-            } else {
-                counts.count_lost(message.path);
-            }
-        }
-        counts.into_scores()
+    ) -> BTreeMap<NodeId, f64> {
+        FailSequenceCounts::over(test_messages).into_scores()
     }
 }
 
@@ -55,6 +37,19 @@ struct FailSequenceCounts {
 }
 
 impl FailSequenceCounts {
+    /// The counts after every test message, taken in send order.
+    fn over(test_messages: &[TestMessage]) -> Self {
+        let mut counts = FailSequenceCounts::default();
+        for message in test_messages {
+            if message.came_back {
+                counts.count_came_back(message.path);
+            } else {
+                counts.count_lost(message.path);
+            }
+        }
+        counts
+    }
+
     /// Every node on the path gains a positive sample and its fail sequence ends.
     fn count_came_back(&mut self, path: [NodeId; 3]) {
         for node_id in path {
@@ -89,10 +84,11 @@ impl FailSequenceCounts {
         self.nodes.entry(node_id).or_default()
     }
 
-    fn into_scores(self) -> BTreeMap<NodeId, NodeScore> {
+    /// Each node's score; a node with no sample has none and is left out.
+    fn into_scores(self) -> BTreeMap<NodeId, f64> {
         self.nodes
             .into_iter()
-            .map(|(node_id, node)| (node_id, node.into_node_score()))
+            .filter_map(|(node_id, node)| Some((node_id, node.score()?)))
             .collect()
     }
 }
@@ -106,13 +102,10 @@ struct NodeCounts {
 }
 
 impl NodeCounts {
-    fn into_node_score(self) -> NodeScore {
+    /// Positive samples over all samples, or `None` without a sample.
+    fn score(&self) -> Option<f64> {
         let samples = self.positive_samples + self.negative_samples;
-        NodeScore {
-            positive_samples: self.positive_samples,
-            negative_samples: self.negative_samples,
-            score: (samples > 0.0).then(|| self.positive_samples / samples),
-        }
+        (samples > 0.0).then(|| self.positive_samples / samples)
     }
 }
 
@@ -123,6 +116,7 @@ mod tests {
     #[test]
     fn the_specifications_worked_example() {
         let scores = FailSequenceRule.score(&worked_example(), &HashMap::new());
+        let counts = FailSequenceCounts::over(&worked_example());
 
         assert_score(&scores, 1, 6.0 / 7.0);
         assert_score(&scores, 2, 1.0);
@@ -130,29 +124,33 @@ mod tests {
         assert_score(&scores, 4, 1.0);
         assert_score(&scores, 5, 0.3);
         assert_score(&scores, 6, 6.0 / 7.0);
-        assert_close(scores[&5].positive_samples, 1.0);
-        assert_close(scores[&5].negative_samples, 7.0 / 3.0);
+        assert_close(counts.nodes[&5].positive_samples, 1.0);
+        assert_close(counts.nodes[&5].negative_samples, 7.0 / 3.0);
     }
 
     #[test]
     fn a_first_failure_is_shared_by_everyone_on_the_path() {
         let messages = [message([1, 2, 3], true), message([1, 2, 3], false)];
-        let scores = FailSequenceRule.score(&messages, &HashMap::new());
+        let counts = FailSequenceCounts::over(&messages);
 
         for node_id in [1, 2, 3] {
-            assert_close(scores[&node_id].negative_samples, 1.0 / 3.0);
+            assert_close(counts.nodes[&node_id].negative_samples, 1.0 / 3.0);
         }
     }
 
     #[test]
     fn a_repeat_offender_takes_the_whole_sample() {
         let messages = [message([1, 2, 3], false), message([1, 4, 5], false)];
+        let counts = FailSequenceCounts::over(&messages);
         let scores = FailSequenceRule.score(&messages, &HashMap::new());
 
-        assert_close(scores[&1].negative_samples, 1.0 / 3.0 + 1.0);
+        assert_close(counts.nodes[&1].negative_samples, 1.0 / 3.0 + 1.0);
         for node_id in [4, 5] {
-            assert_close(scores[&node_id].negative_samples, 0.0);
-            assert_eq!(scores[&node_id].score, None);
+            assert_close(counts.nodes[&node_id].negative_samples, 0.0);
+            assert!(
+                !scores.contains_key(&node_id),
+                "node {node_id} has no sample"
+            );
         }
     }
 
@@ -185,8 +183,8 @@ mod tests {
         }
     }
 
-    fn assert_score(scores: &BTreeMap<NodeId, NodeScore>, node_id: NodeId, expected: f64) {
-        assert_close(scores[&node_id].score.unwrap(), expected);
+    fn assert_score(scores: &BTreeMap<NodeId, f64>, node_id: NodeId, expected: f64) {
+        assert_close(scores[&node_id], expected);
     }
 
     fn assert_close(actual: f64, expected: f64) {

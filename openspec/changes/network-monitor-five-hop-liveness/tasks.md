@@ -2,7 +2,7 @@
 
 - [x] 1.1 Create `nym-network-monitor-v3/nym-network-monitor-route-records`, set up like the orchestrator requests crate (a workspace member, not a default member, `publish = false`, depended on by relative path), with no I/O dependencies: the record, the session batch with its header, and their hand-written encoding and decoding (design Decision 9)
 - [x] 1.2 The test message (the time it was sent, the three mixnodes on its path in path order, whether it came back; no gateway); the step that turns a session's records into test messages under the two ack rules; a session's loss rate and the rule that discards a suspected session (more than half lost, or worse than the other session of its run by more than the margin; design Decision 20); and the merge of the kept sessions' test messages into send order (equal times by gateway node id)
-- [x] 1.3 The scoring trait (test messages in send order and each node's most recent one-hop score in; per-node positive samples, negative samples and score out) and its first strategy, the fail-sequence rule, which receives the one-hop scores and does not use them (design Decision 10)
+- [x] 1.3 The scoring trait (test messages in send order and each node's most recent one-hop score in; each node's five-hop liveness out) and its first strategy, the fail-sequence rule, which receives the one-hop scores and does not use them (design Decision 10)
 - [x] 1.4 Tests: the specification's worked example; a first failure shared three ways; a repeat offender taking the whole sample; the same result with and without one-hop scores; the four record outcomes; the discard rule (most messages lost, the worse of two unequal sessions, two sessions that agree, a lone session); the merge's order (send time, then gateway node id, each session's own order kept); a batch read back as written; a batch ending partway through a record, and one with a flag byte other than 0 or 1, refused
 
 ## 2. Sphinx builders
@@ -24,25 +24,25 @@
 
 - [x] 4.1 In the orchestrator requests crate, let the work response carry a test assignment, a route run or nothing: the route run with its id and, per gateway, node id and identity key
 - [x] 4.2 One submit route for every kind of work: rename `/v1/agent/request-testrun` to `/v1/agent/request-work-assignment` and `/v1/agent/submit-testrun-result` to `/v1/agent/submit-work-result`, whose body is a one-hop target's result or a route run's submission (run id and, per gateway, a batch or an error); the request and submission types and the client calls follow
-- [x] 4.3 The five-hop liveness entry (score, positive samples, negative samples) on `NodeEpochAggregates`, and its liveness entry renamed `one_hop_liveness`
+- [x] 4.3 The five-hop liveness entry (the measured value) on `NodeEpochAggregates`, and its liveness entry renamed `one_hop_liveness`
 - [x] 4.4 Update the crate's doc comments that say work is always of a kind
 - [x] 4.5 The read type of an exported route session (its run, the gateway's node id, its error, whether it is discarded, and its test messages: time sent, three node ids, whether it came back) and the results route `/route-sessions/epoch/{mixnet_epoch}`
 
 ## 5. Orchestrator storage and node registry
 
-- [ ] 5.1 Migration `06_five_hop_liveness.sql`: a nullable `enforces_zk_nyms` on `nym_node_description`, and the `route_run`, `route_session` and `mixnet_epoch_five_hop_liveness` tables
-- [ ] 5.2 A `nym-node-requests` client call for a gateway's root details; the node refresher reads the client websocket port and the enforcement flag from it and stores the flag with the description
-- [ ] 5.3 Storage for runs and sessions: start a run, the run in flight, mark it submitted, the start of the last submitted run, each gateway's latest gateway liveness run with its description (the candidates, the bar, the fit filter and the random draw are then made in code), store sessions as received, the sessions naming an epoch
-- [ ] 5.4 Storage for five-hop liveness: insert an epoch's values, read them by epoch and by node and epoch, the newest measured value at or before an epoch within the 48-epoch limit, and each mixnode's most recent mixnode liveness run
-- [ ] 5.5 Eviction: runs and sessions go with test runs, five-hop liveness values with aggregates
-- [ ] 5.6 Tests: each condition of a candidate and of the fit filter; one run in flight; an abandoned run is due again; sessions read back as stored; the newest-value lookup at, inside and beyond the limit; eviction; the refresher storing the flag, and a description without one
+- [x] 5.1 Migration `06_five_hop_liveness.sql`: a nullable `enforces_zk_nyms` on `nym_node_description`, and the `five_hop_mixnet_run`, `five_hop_mixnet_run_gateway`, `five_hop_mixnet_session` and `mixnet_epoch_five_hop_liveness` tables
+- [x] 5.2 A `nym-node-requests` client call for a gateway's root details; the node refresher reads the client websocket port and the enforcement flag from it and stores the flag with the description
+- [x] 5.3 Storage for runs and sessions: whether a run is due (none in flight, the start of the last submitted run), start a run with its gateways if it is still due, store a run's sessions as received and mark it submitted, the candidate gateways (the gateway role, not enforcing zk-nyms, a gateway liveness run) with their latest gateway liveness run and whether a test is in flight against them (the bar, the fit filter and the random draw are then made in code), the sessions naming an epoch
+- [x] 5.4 Storage for five-hop liveness: insert an epoch's values, read them by epoch and by node and epoch, the newest measured value at or before an epoch within the 48-epoch limit, and each mixnode's most recent mixnode liveness run
+- [x] 5.5 Eviction: runs and sessions go with test runs, five-hop liveness values with aggregates
+- [x] 5.6 Tests: each condition of a candidate (the role and the enforcement flag, an unread flag, a gateway liveness run, the newest run returned, a gateway under test marked as such); one run in flight, and an abandoned run due again; not due within the interval after a submitted run, due at it; a late, an unknown, an already submitted and a foreign-gateway submission each refused with nothing stored; sessions read back as stored, a failed one included; the newest-value lookup at, inside and beyond the limit, a later value ignored; eviction of runs with their gateways and sessions, and of values; the enforcement flag stored and replaced by a refresh
 
 ## 6. Orchestrator scheduling, ingestion and config
 
 - [ ] 6.1 Config and CLI: `--five-hop-liveness-enabled` (explicit value, default true), `--five-hop-liveness-interval` (5m), `--five-hop-liveness-gateways-per-run` (2), `--five-hop-liveness-run-timeout` (3m), `--five-hop-liveness-min-gateway-score` (1.0), `--five-hop-liveness-min-gateway-share` (0.4), `--five-hop-liveness-fallback-min-gateway-score` (0.98) and `--five-hop-liveness-session-loss-margin` (0.05), each with its environment variable, carried into a five-hop liveness config of its own
 - [ ] 6.2 Assignment: before choosing a kind, hand out a route run when one is due and at least one gateway is fit, and build its payload. The bar is chosen at each draw by the share of candidates that reach the minimum (design Decision 5), with a gauge for the number of fit gateways and a log line when the fallback is used
 - [ ] 6.3 The submission handler: accept only the run in flight and the gateways it was given, read each batch's header, store the sessions and mark the run submitted; reject anything else whole
-- [ ] 6.4 Tests: a due run goes before an overdue kind; a run not due leaves the request to the kinds; a second request during a run is given a kind; no fit gateway leaves the run due; the bar with the share of candidates at the minimum above, at and below the configured share; a gateway below the fallback never drawn; disabled five-hop liveness hands nothing out; a late, an unknown and a mismatched submission each store nothing
+- [ ] 6.4 Tests: a due run goes before an overdue kind; a run not due leaves the request to the kinds; a second request during a run is given a kind; no fit gateway leaves the run due; the bar with the share of candidates at the minimum above, at and below the configured share; a gateway below the fallback never drawn; a gateway under test not drawn; disabled five-hop liveness hands nothing out; a refused submission is answered as an error (the cases themselves are tested in storage, 5.6)
 
 ## 7. Materialisation, submission and the read API
 

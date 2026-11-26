@@ -701,28 +701,14 @@ pub struct ConfigScore {
     pub is_feegrant_grantee: bool,
 }
 
-/// One node's five-hop liveness for an epoch, scored from the route sessions of the epoch before.
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct FiveHopLiveness {
-    /// The five-hop liveness in `[0.0, 1.0]`.
-    pub score: f64,
-
-    /// Test messages through the node that came back.
-    pub positive_samples: f64,
-
-    /// The node's share of the lost test messages, fractional as a loss's blame can be shared.
-    pub negative_samples: f64,
-}
-
 /// One node's materialised figures for one mixnet epoch: its config score and separate one-hop
 /// liveness, stress and five-hop liveness entries.
 ///
 /// An entry with no value is `None` rather than a zero, so an unmeasured node stays
 /// distinguishable from one measured at zero. Entries are named fields rather than a map because
-/// they do not share one value type: config score carries its own decomposition rather than the
-/// score-and-count pair the probe kinds use. A new sibling is a new optional field, which is
-/// additive.
+/// they do not share one value type: config score carries its own decomposition and five-hop
+/// liveness is a bare value, rather than the score-and-count pair the probe kinds use. A new
+/// sibling is a new optional field, which is additive.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NodeEpochAggregates {
@@ -742,9 +728,9 @@ pub struct NodeEpochAggregates {
     /// The stress aggregate, or `None` if no stress run exists for this node in the window.
     pub stress: Option<KindAggregate>,
 
-    /// The five-hop liveness measured and filed under this epoch, never a carried-forward value, or
-    /// `None` if none was.
-    pub five_hop_liveness: Option<FiveHopLiveness>,
+    /// The five-hop liveness in `[0.0, 1.0]` measured and filed under this epoch, scored from the
+    /// route sessions of the epoch before, never a carried-forward value, or `None` if none was.
+    pub five_hop_liveness: Option<f64>,
 }
 
 impl NodeEpochAggregates {
@@ -756,7 +742,7 @@ impl NodeEpochAggregates {
         config_score: Option<ConfigScore>,
         one_hop_liveness: Option<KindAggregate>,
         stress: Option<KindAggregate>,
-        five_hop_liveness: Option<FiveHopLiveness>,
+        five_hop_liveness: Option<f64>,
     ) -> Self {
         NodeEpochAggregates {
             node_id,

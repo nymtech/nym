@@ -168,7 +168,7 @@ A returning payload and a returning ack MUST be matched to their record by an id
 
 A session's records SHALL be packed into one binary batch that states the gateway's node id and the mixnet epoch of the active set the session used, and then one fixed-width record per packet in the order sent. A record names its mixnodes by their node ids.
 
-The agent SHALL submit a run once, with one entry per gateway of the run: the session's batch, or its error. The orchestrator MUST accept a submission only for the run that is in flight, and MUST reject it, storing nothing, when the run is unknown, already submitted or past its timeout, when an entry names a gateway the run was not given, or when a batch cannot be read. A rejected run stays in flight until its timeout passes.
+The agent SHALL submit a run once, with one entry per gateway of the run: the session's batch, or its error. The orchestrator MUST accept a submission only for the run that is in flight, and MUST reject it, storing nothing, when the run is unknown, already submitted or past its timeout, when an entry names a gateway the run was not given, when two entries name the same gateway, when a batch cannot be read, or when a batch's header names another gateway than its entry. A rejected run stays in flight until its timeout passes. A submission without an entry for some of the run's gateways is stored as it is.
 
 The orchestrator MUST store each accepted batch exactly as it was received, beside the gateway, the epoch and the record count read from it, and MUST NOT expand it into one stored row per packet. Stored sessions are evicted at the age test runs are.
 

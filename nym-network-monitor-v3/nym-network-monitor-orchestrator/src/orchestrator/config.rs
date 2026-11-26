@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::http::state::FiveHopMixnetRunConfig;
 use crate::orchestrator::chain_capability_refresher::ChainCapabilityConfig;
 use crate::orchestrator::scheduling_telemetry::TelemetryConfig;
 use crate::orchestrator::stale_results_eviction::EvictionConfig;
@@ -315,6 +316,19 @@ impl Config {
 
         info!("using the following config: {client_config:#?}");
         Ok(client_config)
+    }
+
+    /// How route runs are handed out, or `None` while five-hop liveness is switched off.
+    pub(crate) fn five_hop_mixnet_run_config(&self) -> Option<FiveHopMixnetRunConfig> {
+        let five_hop = &self.five_hop_liveness;
+        five_hop.enabled.then_some(FiveHopMixnetRunConfig {
+            interval: five_hop.interval,
+            run_timeout: five_hop.run_timeout,
+            gateways_per_run: five_hop.gateways_per_run,
+            min_gateway_score: five_hop.min_gateway_score,
+            min_gateway_share: five_hop.min_gateway_share,
+            fallback_min_gateway_score: five_hop.fallback_min_gateway_score,
+        })
     }
 
     pub(crate) fn telemetry_config(&self) -> TelemetryConfig {

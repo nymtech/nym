@@ -8,6 +8,7 @@ use nym_network_monitor_orchestrator_requests::models::{
     self as api, InterfaceMeasurement, LatencyDistribution, RunMeasurements, TestRunData,
     TestRunInProgressData, TestRunResult,
 };
+use nym_network_monitor_route_records::batch::Batch;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::net::{IpAddr, SocketAddr};
@@ -941,6 +942,23 @@ pub(crate) struct FiveHopMixnetGatewayCandidate {
     pub(crate) in_flight: bool,
 
     pub(crate) latest_gateway_liveness: CompletedTestRun,
+
+    /// The gateway's latest gateway stress run; `None` while gateway stress is not read.
+    // unread until gateway stress lands: storage has no gateway stress run to fill it with
+    #[allow(dead_code)]
+    pub(crate) latest_gateway_stress: Option<CompletedTestRun>,
+}
+
+impl FiveHopMixnetGatewayCandidate {
+    /// The gateway as a route run carries it. The orchestrator stored the key itself, so a failure
+    /// means corruption.
+    pub(crate) fn five_hop_mixnet_gateway(&self) -> anyhow::Result<api::FiveHopMixnetGateway> {
+        Ok(api::FiveHopMixnetGateway {
+            node_id: self.node_id as u32,
+            identity_key: ed25519::PublicKey::from_base58_string(&self.identity_key)
+                .context("invalid identity_key")?,
+        })
+    }
 }
 
 /// A candidate's own columns, before its latest gateway liveness run is paired with it.
@@ -961,6 +979,7 @@ impl FiveHopMixnetGatewayCandidateRow {
             identity_key: self.identity_key,
             in_flight: self.in_flight,
             latest_gateway_liveness,
+            latest_gateway_stress: None,
         }
     }
 }
@@ -981,6 +1000,40 @@ pub(crate) enum FiveHopMixnetSessionOutcome {
 pub(crate) struct NewFiveHopMixnetSession {
     pub(crate) gateway_node_id: i64,
     pub(crate) outcome: FiveHopMixnetSessionOutcome,
+}
+
+/// Reads a submitted session: its batch is decoded whole and must name the entry's gateway.
+impl TryFrom<api::RouteSessionSubmission> for NewFiveHopMixnetSession {
+    type Error = anyhow::Error;
+
+    fn try_from(submission: api::RouteSessionSubmission) -> Result<Self, Self::Error> {
+        let gateway_node_id = submission.gateway_node_id;
+        let outcome = match submission.outcome {
+            api::RouteSessionOutcome::Batch(batch) => {
+                let decoded = Batch::decode(&batch).with_context(|| {
+                    format!("the batch of gateway {gateway_node_id} is unreadable")
+                })?;
+                if decoded.header.gateway_node_id != gateway_node_id {
+                    bail!(
+                        "the batch of gateway {gateway_node_id} names gateway {} in its header",
+                        decoded.header.gateway_node_id
+                    );
+                }
+
+                FiveHopMixnetSessionOutcome::Batch {
+                    mixnet_epoch: decoded.header.mixnet_epoch as i64,
+                    record_count: decoded.records.len() as i64,
+                    batch,
+                }
+            }
+            api::RouteSessionOutcome::Error(error) => FiveHopMixnetSessionOutcome::Error(error),
+        };
+
+        Ok(NewFiveHopMixnetSession {
+            gateway_node_id: gateway_node_id as i64,
+            outcome,
+        })
+    }
 }
 
 /// A stored session of a submitted run.
@@ -1170,6 +1223,21 @@ pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
         TestKind::MixnodeStress => RunMeasurements::MixnodeStress {
             mix_forwarding: minimal_measurement(),
         },
+    }
+}
+
+/// A gateway liveness run's measurements, each interface delivering `delivered` of 100 packets, so
+/// the run scores `delivered / 100`.
+#[cfg(test)]
+pub(crate) fn gateway_liveness_measurements(delivered: usize) -> RunMeasurements {
+    let measurement = InterfaceMeasurement {
+        packets_sent: 100,
+        packets_received: delivered,
+        ..minimal_measurement()
+    };
+    RunMeasurements::GatewayLiveness {
+        client_ingest: measurement.clone(),
+        client_delivery: measurement,
     }
 }
 
@@ -1397,6 +1465,77 @@ mod tests {
             // zeroing is scoped to the interface that replayed, not to the whole run: the healthy
             // delivery phase still contributes its 1.0
             assert_eq!(result.test_performance, 0.5);
+        }
+    }
+
+    mod route_session_submission {
+        use super::*;
+        use nym_network_monitor_route_records::batch::{BatchHeader, Record};
+
+        /// A batch through `gateway_node_id` in `mixnet_epoch`, holding `records` identical records.
+        fn encoded_batch(gateway_node_id: u32, mixnet_epoch: u32, records: usize) -> Vec<u8> {
+            let record = Record {
+                sent_at_ms: 1,
+                packet_route: [1, 2, 3],
+                ack_route: [4, 5, 6],
+                payload_back: true,
+                ack_back: false,
+            };
+            Batch {
+                header: BatchHeader {
+                    gateway_node_id,
+                    mixnet_epoch,
+                },
+                records: vec![record; records],
+            }
+            .encode()
+        }
+
+        fn read(
+            gateway_node_id: u32,
+            outcome: api::RouteSessionOutcome,
+        ) -> anyhow::Result<NewFiveHopMixnetSession> {
+            NewFiveHopMixnetSession::try_from(api::RouteSessionSubmission {
+                gateway_node_id,
+                outcome,
+            })
+        }
+
+        // a batch is kept exactly as it arrived, beside the epoch and record count read from it
+        #[test]
+        fn a_batch_is_kept_as_sent_beside_what_was_read_from_it() {
+            let bytes = encoded_batch(5, 42, 3);
+
+            let session = read(5, api::RouteSessionOutcome::Batch(bytes.clone())).unwrap();
+            assert_eq!(
+                session,
+                NewFiveHopMixnetSession {
+                    gateway_node_id: 5,
+                    outcome: FiveHopMixnetSessionOutcome::Batch {
+                        mixnet_epoch: 42,
+                        record_count: 3,
+                        batch: bytes,
+                    },
+                }
+            );
+
+            let failed = read(5, api::RouteSessionOutcome::Error("unreachable".into())).unwrap();
+            assert_eq!(
+                failed.outcome,
+                FiveHopMixnetSessionOutcome::Error("unreachable".into())
+            );
+        }
+
+        // the whole batch is read, so a record cut short is caught and not only a bad header; and a
+        // batch whose header contradicts its entry is not stored under either gateway
+        #[test]
+        fn an_unreadable_batch_or_one_naming_another_gateway_is_refused() {
+            let mut cut_short = encoded_batch(5, 42, 2);
+            cut_short.pop();
+            assert!(read(5, api::RouteSessionOutcome::Batch(cut_short)).is_err());
+
+            let another_gateway = encoded_batch(6, 42, 2);
+            assert!(read(5, api::RouteSessionOutcome::Batch(another_gateway)).is_err());
         }
     }
 }

@@ -48,6 +48,7 @@ nym-http-api-common = { workspace = true, features = ["utoipa", "middleware"] }
 nym-api-requests = { workspace = true }
 
 nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["openapi"] }
+nym-network-monitor-route-records = { path = "../nym-network-monitor-route-records" }
 
 [dev-dependencies]
 cosmwasm-std = { workspace = true }

@@ -304,6 +304,7 @@ impl NetworkMonitorOrchestrator {
             agents_state.clone(),
             self.storage.clone(),
             self.config.schedules(),
+            self.config.five_hop_mixnet_run_config(),
             self.client.clone(),
         );
 

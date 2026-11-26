@@ -8480,6 +8480,7 @@ dependencies = [
  "nym-metrics",
  "nym-network-defaults",
  "nym-network-monitor-orchestrator-requests",
+ "nym-network-monitor-route-records",
  "nym-node-requests",
  "nym-task",
  "nym-test-utils",

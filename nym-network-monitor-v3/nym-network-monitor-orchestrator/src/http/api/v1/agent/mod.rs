@@ -211,9 +211,9 @@ async fn request_work_assignment(
         return Err(ApiError::AgentNotAnnounced);
     }
 
-    // 2. attempt to assign a testrun to the agent
-    let assignment = state.assign_next_testrun().await?;
-    // a non-empty assignment is counted per kind where it is built
+    // 2. hand out a due route run, else the most overdue one-hop kind
+    let assignment = state.assign_work().await?;
+    // a one-hop assignment is counted per kind where it is built, and a route run is not counted
     if assignment.is_none() {
         PROMETHEUS_METRICS.inc_for_request_outcome(
             PrometheusMetric::AgentTestrunRequestOutcomeTotal,
@@ -221,10 +221,10 @@ async fn request_work_assignment(
         );
     }
 
-    todo!("hand out a due route run, else the one-hop assignment")
+    Ok(Json(WorkAssignmentResponse { assignment }))
 }
 
-fn emit_testrun_result_metrics(result: &OneHopMixnetResult) {
+fn emit_one_hop_mixnet_result_metrics(result: &OneHopMixnetResult) {
     PROMETHEUS_METRICS.inc(PrometheusMetric::TestRunResultSubmissions);
 
     // run-level: one observation per submitted run, against the kind the measurements were taken
@@ -284,6 +284,8 @@ fn emit_testrun_result_metrics(result: &OneHopMixnetResult) {
         (status = 200, content(
             (WorkResultSubmissionResponse = "application/json"),
         )),
+        (status = 400, description = "a one-hop result shaped for another kind than dispatched, or a route run submission with an unexpected or repeated gateway or a batch that is unreadable or names another gateway"),
+        (status = 409, description = "the one-hop node's lease expired, or the route run is not in flight (unknown, already submitted or past its timeout)"),
         (status = 500, description = "failed to persist the test run result to storage"),
     )
 )]
@@ -303,7 +305,7 @@ async fn submit_work_result(
 
     match body {
         WorkResultSubmissionRequest::OneHopMixnet(result) => {
-            emit_testrun_result_metrics(&result);
+            emit_one_hop_mixnet_result_metrics(&result);
 
             info!(
                 "received testrun result for node {} at {} from pod at {pod_ip}",
@@ -311,10 +313,18 @@ async fn submit_work_result(
             );
 
             state
-                .submit_testrun_result(result.result, result.node_id, result.tested_address)
+                .submit_one_hop_mixnet_result(result.result, result.node_id, result.tested_address)
                 .await?;
         }
-        WorkResultSubmissionRequest::FiveHopMixnet(_) => todo!("store a route run's sessions"),
+        WorkResultSubmissionRequest::FiveHopMixnet(result) => {
+            info!(
+                "received route run {} result with {} sessions from pod at {pod_ip}",
+                result.run_id,
+                result.sessions.len()
+            );
+
+            state.submit_five_hop_mixnet_result(result).await?;
+        }
     }
 
     Ok(Json(WorkResultSubmissionResponse {}))

@@ -43,6 +43,16 @@ pub(crate) enum ApiError {
         "no test run is in progress for this node - its lease expired and the node was freed for reassignment before the result arrived"
     )]
     TestRunLeaseExpired,
+
+    #[error(
+        "the route run is not in flight - it is unknown, already submitted or past its timeout"
+    )]
+    RouteRunNotInFlight,
+
+    #[error(
+        "the route run submission is invalid - a gateway is unexpected or repeated, or a batch is unreadable or names another gateway"
+    )]
+    InvalidRouteRunSubmission,
 }
 
 impl ApiError {
@@ -50,12 +60,14 @@ impl ApiError {
         use ApiError::*;
 
         match self {
-            AgentNotFound | AgentNotAnnounced | MalformedAgentAddresses | UnexpectedResultShape => {
-                StatusCode::BAD_REQUEST
-            }
+            AgentNotFound
+            | AgentNotAnnounced
+            | MalformedAgentAddresses
+            | UnexpectedResultShape
+            | InvalidRouteRunSubmission => StatusCode::BAD_REQUEST,
             // the request was well-formed and would have been accepted earlier, so this is a
             // conflict with current state rather than a client error
-            TestRunLeaseExpired => StatusCode::CONFLICT,
+            TestRunLeaseExpired | RouteRunNotInFlight => StatusCode::CONFLICT,
             TestRunNotFound | NymNodeNotFound => StatusCode::NOT_FOUND,
             ContractFailure | StorageFailure | MalformedStoredData => {
                 StatusCode::INTERNAL_SERVER_ERROR

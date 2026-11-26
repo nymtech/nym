@@ -9,8 +9,8 @@ use tokio::task::{JoinHandle, JoinSet};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
-mod args;
-mod config;
+pub(crate) mod args;
+pub(crate) mod config;
 
 use crate::chain_scraper::run_chain_scraper;
 use crate::db::DbPool;
@@ -40,7 +40,7 @@ async fn try_insert_startup_information(
     .inspect_err(|err| error!("failed to insert run information: {err}"));
 }
 
-async fn wait_for_shutdown(
+pub(crate) async fn wait_for_shutdown(
     db_pool: DbPool,
     start: OffsetDateTime,
     main_cancellation_token: CancellationToken,

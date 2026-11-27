@@ -1333,7 +1333,14 @@ impl ApiClientCore for Client {
                         self.shift(&target, true);
                     }
 
-                    if attempts < self.retry_limit {
+                    // a connection that never got established cannot have reached the server, any
+                    // other failure may have, so only requests safe to send twice are resent
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let resend_is_safe = idempotent || err.is_connect();
+                    #[cfg(target_arch = "wasm32")]
+                    let resend_is_safe = idempotent;
+
+                    if resend_is_safe && attempts < self.retry_limit {
                         attempts += 1;
                         warn!(
                             "Retrying request due to http error on attempt ({attempts}/{}): {err}",

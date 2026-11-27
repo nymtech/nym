@@ -931,3 +931,62 @@ fn server_error_shifts_within_the_pool_without_switching_to_the_fronted_pool() {
     client.shift(&client.target(), true);
     assert_eq!(client.current_url_str(), "https://f1.test/");
 }
+
+// A POST is resent when its connection never got established, but not when the server may have
+// received it.
+#[tokio::test]
+#[serial]
+async fn post_is_resent_only_when_the_connection_failed() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    for server_received_it in [false, true] {
+        let first = tokio::net::TcpListener::bind("[::1]:0").await.unwrap();
+        let port = first.local_addr().unwrap().port();
+        let second = tokio::net::TcpListener::bind(("127.0.0.1", port))
+            .await
+            .unwrap();
+        let received = Arc::new(AtomicUsize::new(0));
+        if server_received_it {
+            // reads each request, then closes the connection without answering
+            let received = received.clone();
+            tokio::spawn(async move {
+                loop {
+                    let (mut socket, _) = first.accept().await.unwrap();
+                    received.fetch_add(1, Ordering::SeqCst);
+                    let _ = socket.read(&mut [0u8; 1024]).await;
+                }
+            });
+        } else {
+            drop(first);
+        }
+        tokio::spawn(async move {
+            let (mut socket, _) = second.accept().await.unwrap();
+            let _ = socket.read(&mut [0u8; 1024]).await;
+            let _ = socket
+                .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+                .await;
+        });
+        let client = ClientBuilder::new_with_urls(vec![
+            Url::new(format!("http://[::1]:{port}"), None).unwrap(),
+            Url::new(format!("http://127.0.0.1:{port}"), None).unwrap(),
+        ])
+        .unwrap()
+        .with_retries(1)
+        .build()
+        .unwrap();
+
+        let req = client
+            .create_request(reqwest::Method::POST, &["x"], NO_PARAMS, None::<&()>)
+            .unwrap();
+        let result = client.send(req).await;
+
+        assert_eq!(result.is_ok(), !server_received_it);
+        if server_received_it {
+            assert_eq!(received.load(Ordering::SeqCst), 1, "the POST was resent");
+        }
+    }
+}

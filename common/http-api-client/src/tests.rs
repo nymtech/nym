@@ -318,44 +318,103 @@ fn fronted_host_updating() {
     assert_eq!(client.current_front_host(), Some("cdn1.test"));
 }
 
-// Reproduces the exact url-list shape used for the nymvpn-api config:
-//   [{ "url": "https://nymvpn.com/api/" },
-//    { "url": "https://nymvpn-frontdoor.global.ssl.fastly.net/api",
-//      "fronts": ["yelp.global.ssl.fastly.net"] }]
-//
-// When fronting is enabled and the CURRENT url is the one with no `fronts`
-// configured, `matches_current_host` must consider the fact that the domain
-// doesn't have fronts and compare properly. This test ensures the correct
-// behavior, rotating to the next (fronted) entry in the list.
+// A plain address and a fronted address take turns: a failure moves the pool that was used to its
+// next address and hands the next request to the other pool.
 #[test]
 #[cfg(feature = "tunneling")]
-fn fronting_enabled_stuck_on_unfronted_first_url() {
+fn on_retry_alternates_between_the_plain_and_the_fronted_pool() {
+    let plain_url = Url::new("https://a.test/api/", None).unwrap();
+    let fronted_url = Url::new(
+        "https://b.test/api/",
+        Some(vec!["https://f1.test", "https://f2.test"]),
+    )
+    .unwrap();
+    let client = ClientBuilder::new_with_urls(vec![plain_url, fronted_url])
+        .unwrap()
+        .with_fronting(Some(crate::fronted::FrontPolicy::OnRetry))
+        .build()
+        .unwrap();
+    let fail = |address: &str| client.maybe_rotate_hosts(Some(Url::parse(address).unwrap()));
+
+    assert_eq!(client.current_url_str(), "https://a.test/api/");
+
+    fail("https://a.test/api/");
+    assert_eq!(client.current_url_str(), "https://f1.test/");
+    assert_eq!(client.current_url().as_str(), "https://b.test/api/");
+
+    fail("https://f1.test/");
+    assert_eq!(client.current_url_str(), "https://b.test/api/");
+
+    fail("https://b.test/api/");
+    assert_eq!(client.current_url_str(), "https://f2.test/");
+
+    fail("https://f2.test/");
+    assert_eq!(client.current_url_str(), "https://a.test/api/");
+}
+
+// Always uses the fronted pool only, so hosts without a front are not part of it.
+#[test]
+#[cfg(feature = "tunneling")]
+fn always_uses_only_the_fronted_pool() {
     let plain_url = Url::new("https://nymvpn.com/api/", None).unwrap();
     let fronted_url = Url::new(
         "https://nymvpn-frontdoor.global.ssl.fastly.net/api",
         Some(vec!["https://yelp.global.ssl.fastly.net"]),
     )
     .unwrap();
-
     let client = ClientBuilder::new_with_urls(vec![plain_url, fronted_url])
         .unwrap()
         .with_fronting(Some(crate::fronted::FrontPolicy::Always))
         .build()
         .unwrap();
 
-    // client starts on the first, unfronted url.
-    assert_eq!(client.current_url().as_str(), "https://nymvpn.com/api/");
-
-    // offending url matches the plain url
-    let offending = Url::parse("https://nymvpn.com/api/").unwrap();
-    client.maybe_rotate_hosts(Some(offending));
-
-    // should rotate urls.
+    assert_eq!(
+        client.current_front_host(),
+        Some("yelp.global.ssl.fastly.net")
+    );
     assert_eq!(
         client.current_url().as_str(),
-        "https://nymvpn-frontdoor.global.ssl.fastly.net/api",
-        "client failed to rotate away from the unfronted url after an error"
+        "https://nymvpn-frontdoor.global.ssl.fastly.net/api"
     );
+}
+
+// With one host and one front, the retry after a failed plain request goes through the front.
+#[tokio::test]
+#[serial]
+#[cfg(feature = "tunneling")]
+async fn on_retry_reaches_the_front_on_the_first_retry_with_one_host() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    // the plain address is dead, the front answers
+    let dead = tokio::net::TcpListener::bind("[::1]:0").await.unwrap();
+    let port = dead.local_addr().unwrap().port();
+    drop(dead);
+    let front = tokio::net::TcpListener::bind(("127.0.0.1", port))
+        .await
+        .unwrap();
+    tokio::spawn(async move {
+        let (mut socket, _) = front.accept().await.unwrap();
+        let _ = socket.read(&mut [0u8; 1024]).await;
+        let _ = socket
+            .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+            .await;
+    });
+    let client = ClientBuilder::new(
+        Url::new(
+            format!("http://[::1]:{port}"),
+            Some(vec![format!("http://127.0.0.1:{port}")]),
+        )
+        .unwrap(),
+    )
+    .unwrap()
+    .with_fronting(Some(crate::fronted::FrontPolicy::OnRetry))
+    .with_retries(1)
+    .build()
+    .unwrap();
+
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+
+    assert!(client.send(req).await.unwrap().status().is_success());
 }
 
 #[test]
@@ -460,15 +519,15 @@ async fn host_rotation_tempered_by_net_reconfigure() {
     assert_eq!(client.current_url().as_str(), "http://nym-api.test/");
     assert_eq!(request_host(&client), "nym-api.test");
 
-    // Simulate no recent network reconfiguration. Now the same network error should rotate to the
-    // next host and enable fronting for OnRetry.
+    // Simulate no recent network reconfiguration. Now the same network error should move the
+    // plain pool to the next host and send the next request through the fronted pool.
     *crate::SHARED_NETWORK_RECONFIGURATION.lock().unwrap() =
         Some(Instant::now() - Duration::from_secs(60));
     let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
     let _ = client.send(req).await;
 
-    assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
-    assert_eq!(request_host(&client), "cdn2.test");
+    assert_eq!(client.current_url().as_str(), "http://nym-api.test/");
+    assert_eq!(request_host(&client), "cdn1.test");
 
     // leave the shared marker as we found it for whichever test runs next
     *crate::SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = None;
@@ -540,64 +599,10 @@ fn rate_limit_detection_ignores_unrelated_responses() {
     assert!(!is_rate_limit_response(StatusCode::OK, &HeaderMap::new()));
 }
 
-/// `current_url_str()`/`current_front_host()` must not report a stale front once fronting has
-/// been turned off. The rotation slot is only reset within `update_host` while
-/// `self.front.is_enabled()`, so a naive reader of that slot alone would keep reporting whatever
-/// front was last selected even after fronting is disabled - both methods must consult
-/// `self.front.is_enabled()` themselves rather than trusting the slot state.
+/// `current_url_str()` must agree with `current_front_host()` about which front is active.
 #[test]
 #[cfg(feature = "tunneling")]
-fn as_str_does_not_report_front_after_fronting_disabled() {
-    use crate::fronted::{FrontPolicy, FrontingConfig};
-
-    let url = Url::new("https://a.test", Some(vec!["https://f0.test"])).unwrap();
-    let mut client = ClientBuilder::new(url)
-        .unwrap()
-        .with_fronting(Some(FrontPolicy::ConfiguredRetry(
-            FrontingConfig::new(1, 1).with_include_non_fronted_in_rotation(true),
-        )))
-        .build()
-        .unwrap();
-
-    client.front.retry_enable(Some("a.test"));
-    assert!(client.front.is_enabled());
-
-    // rotate until the host advances off its direct turn and onto a front (slot != 0)
-    client.update_host(None);
-    assert_eq!(client.current_url_str(), "https://f0.test/");
-    assert_eq!(client.current_front_host(), Some("f0.test"));
-
-    // now turn fronting off - a plain public API call, no race required
-    client.set_front_policy(FrontPolicy::Off);
-    assert!(!client.front.is_enabled());
-
-    // the request correctly goes out direct, unfronted...
-    let mut req = reqwest::Request::new(reqwest::Method::GET, client.current_url().clone().into());
-    let (domain, front_used) = client.apply_hosts_to_req(&mut req);
-    assert_eq!(req.url().host_str(), Some("a.test"));
-    assert_eq!(domain, Some("a.test"));
-    assert_eq!(front_used, None);
-
-    // ...and current_url_str()/current_front_host() agree, despite the untouched slot.
-    assert_eq!(
-        client.current_url_str(),
-        "https://a.test/",
-        "current_url_str() must report the direct host once fronting is disabled"
-    );
-    assert_eq!(
-        client.current_front_host(),
-        None,
-        "current_front_host() must report no active front once fronting is disabled"
-    );
-}
-
-/// `current_url_str()` must agree with `current_front_host()` about which front is active under
-/// the plain rotation policy (`include_non_fronted_in_rotation == false`, e.g.
-/// `FrontPolicy::Always`) - not just under the lap policy, which
-/// `as_str_does_not_report_front_after_fronting_disabled` above already covers.
-#[test]
-#[cfg(feature = "tunneling")]
-fn current_url_str_tracks_the_active_front_under_the_plain_rotation_policy() {
+fn current_url_str_tracks_the_active_front() {
     let url = Url::new(
         "https://a.test",
         Some(vec!["https://f0.test", "https://f1.test"]),
@@ -617,108 +622,6 @@ fn current_url_str_tracks_the_active_front_under_the_plain_rotation_policy() {
         client.current_url_str(),
         "https://f1.test/",
         "current_url_str() disagrees with current_front_host() about the active front"
-    );
-}
-
-#[cfg(feature = "tunneling")]
-fn rotating_client(fronts: Vec<&str>) -> Client {
-    use crate::fronted::{FrontPolicy, FrontingConfig};
-    let url = Url::new("https://a.test", Some(fronts)).unwrap();
-    let client = ClientBuilder::new(url)
-        .unwrap()
-        .with_fronting(Some(FrontPolicy::ConfiguredRetry(
-            FrontingConfig::new(1, 1).with_include_non_fronted_in_rotation(true),
-        )))
-        .build()
-        .unwrap();
-    client.front.retry_enable(Some("a.test"));
-    assert!(client.front.is_enabled());
-    client
-}
-
-/// Relating to `include_non_fronted_in_rotation`: `RotationManager::front_str` is normally
-/// driven by the plain `current_front` cursor (only advanced by `update()`), which is never
-/// touched by this policy - it advances `rotation_slot` via `take_rotation_turn()` instead. This
-/// checks `front_str()` still agrees with the front actually on the wire by falling back to
-/// `rotation_slot` whenever `take_rotation_turn()` has it actively engaged.
-#[test]
-#[cfg(feature = "tunneling")]
-fn front_str_tracks_the_front_actually_used() {
-    let client = rotating_client(vec!["https://f0.test", "https://f1.test"]);
-
-    // advance onto the SECOND front
-    for _ in 0..2 {
-        client.update_host(None);
-    }
-
-    let mut req = reqwest::Request::new(reqwest::Method::GET, client.current_url().clone().into());
-    let (_domain, front_used) = client.apply_hosts_to_req(&mut req);
-
-    assert_eq!(front_used, Some("f1.test"), "sanity: request goes via f1");
-    // reaches into the private `rotation` field directly, rather than
-    // `Client::current_front_host()`, since that goes through `active_rotation_front_str()`
-    // instead and so wouldn't exercise `front_str()`'s own fallback at all.
-    assert_eq!(
-        client.rotation.front_str(0, client.current_url()),
-        front_used,
-        "front_str() disagrees with the front on the wire"
-    );
-}
-
-/// Each lap through a host's rotation should visit the direct (unfronted) turn exactly once,
-/// then each configured front exactly once, before repeating - never lingering on the direct
-/// turn for two consecutive turns.
-#[test]
-#[cfg(feature = "tunneling")]
-fn rotation_visits_each_slot_once_per_lap() {
-    let client = rotating_client(vec!["https://f0.test", "https://f1.test"]);
-
-    let mut seq = Vec::new();
-    for _ in 0..6 {
-        seq.push(client.current_url_str().to_string());
-        client.update_host(None);
-    }
-
-    assert_eq!(
-        seq,
-        vec![
-            "https://a.test/",
-            "https://f0.test/",
-            "https://f1.test/",
-            "https://a.test/",
-            "https://f0.test/",
-            "https://f1.test/",
-        ],
-    );
-}
-
-/// If `num_domains_failed` exceeds the number of distinct base urls, the threshold is
-/// unreachable and fronting can never engage no matter how many failures are recorded.
-/// `with_fronting` now warns about this misconfiguration (mirroring the existing warning for
-/// urls with no fronts configured), but the threshold itself is intentionally left unclamped -
-/// so this documents that fronting stays off rather than silently misbehaving.
-#[test]
-#[cfg(feature = "tunneling")]
-fn unsatisfiable_num_domains_failed_never_enables_fronting() {
-    use crate::fronted::{FrontPolicy, FrontingConfig};
-
-    // one base url, but the policy demands two distinct domains fail
-    let url = Url::new("https://a.test", Some(vec!["https://f0.test"])).unwrap();
-    let client = ClientBuilder::new(url)
-        .unwrap()
-        .with_fronting(Some(FrontPolicy::ConfiguredRetry(FrontingConfig::new(
-            1, 2,
-        ))))
-        .build()
-        .unwrap();
-
-    for _ in 0..100 {
-        client.front.retry_enable(Some("a.test"));
-    }
-
-    assert!(
-        !client.front.is_enabled(),
-        "fronting should never engage: only 1 base url but num_domains_failed = 2"
     );
 }
 
@@ -821,4 +724,269 @@ fn host_rotation_is_still_applied_across_repeated_calls_without_override() {
             .map(|v| v.to_str().unwrap()),
         Some("nym-api.test")
     );
+}
+
+// A host that answers 429, 502, 503 or 504 is skipped for the next one; a 404 is returned.
+#[tokio::test]
+#[serial]
+async fn unavailable_host_is_skipped_but_other_errors_are_returned() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let cases = [
+        ("429 Too Many Requests", true),
+        ("502 Bad Gateway", true),
+        ("503 Service Unavailable", true),
+        ("504 Gateway Timeout", true),
+        ("404 Not Found", false),
+    ];
+    for (first_answer, skipped) in cases {
+        // rotation swaps only the host, so both hosts share one port
+        let first = tokio::net::TcpListener::bind("[::1]:0").await.unwrap();
+        let port = first.local_addr().unwrap().port();
+        let second = tokio::net::TcpListener::bind(("127.0.0.1", port))
+            .await
+            .unwrap();
+        for (listener, answer) in [(first, first_answer), (second, "200 OK")] {
+            tokio::spawn(async move {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let _ = socket.read(&mut [0u8; 1024]).await;
+                let reply =
+                    format!("HTTP/1.1 {answer}\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+                let _ = socket.write_all(reply.as_bytes()).await;
+            });
+        }
+        let client = ClientBuilder::new_with_urls(vec![
+            Url::new(format!("http://[::1]:{port}"), None).unwrap(),
+            Url::new(format!("http://127.0.0.1:{port}"), None).unwrap(),
+        ])
+        .unwrap()
+        .with_retries(1)
+        .build()
+        .unwrap();
+
+        let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+        let status = client.send(req).await.unwrap().status();
+
+        assert_eq!(status.is_success(), skipped, "{first_answer}");
+    }
+}
+
+// With one host there is nowhere to rotate to, so an unavailable answer is returned as is.
+#[tokio::test]
+#[serial]
+async fn single_unavailable_host_is_not_retried() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let _ = socket.read(&mut [0u8; 1024]).await;
+        let _ = socket
+            .write_all(
+                b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+            )
+            .await;
+    });
+    let client = ClientBuilder::new_with_urls(vec![
+        Url::new(format!("http://127.0.0.1:{port}"), None).unwrap(),
+    ])
+    .unwrap()
+    .with_retries(1)
+    .build()
+    .unwrap();
+
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+
+    assert_eq!(
+        client.send(req).await.unwrap().status(),
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+}
+
+// A plain 500 is retried on the same host, then the next call goes to the next host.
+#[tokio::test]
+#[serial]
+async fn failing_host_gets_the_retries_then_the_next_call_rotates() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let first = tokio::net::TcpListener::bind("[::1]:0").await.unwrap();
+    let port = first.local_addr().unwrap().port();
+    let second = tokio::net::TcpListener::bind(("127.0.0.1", port))
+        .await
+        .unwrap();
+    let hits = Arc::new(AtomicUsize::new(0));
+    for (listener, answer) in [(first, "500 Internal Server Error"), (second, "200 OK")] {
+        let hits = hits.clone();
+        tokio::spawn(async move {
+            loop {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                if answer.starts_with("500") {
+                    hits.fetch_add(1, Ordering::SeqCst);
+                }
+                let _ = socket.read(&mut [0u8; 1024]).await;
+                let reply =
+                    format!("HTTP/1.1 {answer}\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+                let _ = socket.write_all(reply.as_bytes()).await;
+            }
+        });
+    }
+    let client = ClientBuilder::new_with_urls(vec![
+        Url::new(format!("http://[::1]:{port}"), None).unwrap(),
+        Url::new(format!("http://127.0.0.1:{port}"), None).unwrap(),
+    ])
+    .unwrap()
+    .with_retries(2)
+    .build()
+    .unwrap();
+
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+    let first_call = client.send(req).await.unwrap().status();
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+    let second_call = client.send(req).await.unwrap().status();
+
+    assert_eq!(first_call, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(hits.load(Ordering::SeqCst), 3);
+    assert!(second_call.is_success());
+}
+
+// A request that is not safe to send twice is not resent after a gateway error.
+#[tokio::test]
+#[serial]
+async fn post_answered_with_a_gateway_error_is_not_resent() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let first = tokio::net::TcpListener::bind("[::1]:0").await.unwrap();
+    let port = first.local_addr().unwrap().port();
+    let second = tokio::net::TcpListener::bind(("127.0.0.1", port))
+        .await
+        .unwrap();
+    for (listener, answer) in [(first, "502 Bad Gateway"), (second, "200 OK")] {
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let _ = socket.read(&mut [0u8; 1024]).await;
+            let reply =
+                format!("HTTP/1.1 {answer}\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+            let _ = socket.write_all(reply.as_bytes()).await;
+        });
+    }
+    let client = ClientBuilder::new_with_urls(vec![
+        Url::new(format!("http://[::1]:{port}"), None).unwrap(),
+        Url::new(format!("http://127.0.0.1:{port}"), None).unwrap(),
+    ])
+    .unwrap()
+    .with_retries(1)
+    .build()
+    .unwrap();
+
+    let req = client
+        .create_request(reqwest::Method::POST, &["x"], NO_PARAMS, None::<&()>)
+        .unwrap();
+
+    assert_eq!(
+        client.send(req).await.unwrap().status(),
+        StatusCode::BAD_GATEWAY
+    );
+}
+
+// A request sent before the pool made a full lap must not move the pool when it fails later.
+#[test]
+fn failure_of_a_request_sent_before_a_full_lap_is_ignored() {
+    let client = ClientBuilder::new_with_urls(vec![
+        Url::new("http://nym-api1.test", None).unwrap(),
+        Url::new("http://nym-api2.test", None).unwrap(),
+    ])
+    .unwrap()
+    .build()
+    .unwrap();
+    let stale = client.target();
+
+    client.update_host(None);
+    client.update_host(None);
+    client.shift(&stale, true);
+
+    assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
+}
+
+// A server error moves the pool on, but only interference-like failures hand over to the other pool.
+#[test]
+#[cfg(feature = "tunneling")]
+fn server_error_shifts_within_the_pool_without_switching_to_the_fronted_pool() {
+    let client = ClientBuilder::new_with_urls(vec![
+        Url::new("https://a.test/api/", Some(vec!["https://f1.test"])).unwrap(),
+        Url::new("https://b.test/api/", Some(vec!["https://f2.test"])).unwrap(),
+    ])
+    .unwrap()
+    .with_fronting(Some(crate::fronted::FrontPolicy::OnRetry))
+    .build()
+    .unwrap();
+
+    client.shift(&client.target(), false);
+    assert_eq!(client.current_url_str(), "https://b.test/api/");
+
+    client.shift(&client.target(), true);
+    assert_eq!(client.current_url_str(), "https://f1.test/");
+}
+
+// A POST is resent when its connection never got established, but not when the server may have
+// received it.
+#[tokio::test]
+#[serial]
+async fn post_is_resent_only_when_the_connection_failed() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    for server_received_it in [false, true] {
+        let first = tokio::net::TcpListener::bind("[::1]:0").await.unwrap();
+        let port = first.local_addr().unwrap().port();
+        let second = tokio::net::TcpListener::bind(("127.0.0.1", port))
+            .await
+            .unwrap();
+        let received = Arc::new(AtomicUsize::new(0));
+        if server_received_it {
+            // reads each request, then closes the connection without answering
+            let received = received.clone();
+            tokio::spawn(async move {
+                loop {
+                    let (mut socket, _) = first.accept().await.unwrap();
+                    received.fetch_add(1, Ordering::SeqCst);
+                    let _ = socket.read(&mut [0u8; 1024]).await;
+                }
+            });
+        } else {
+            drop(first);
+        }
+        tokio::spawn(async move {
+            let (mut socket, _) = second.accept().await.unwrap();
+            let _ = socket.read(&mut [0u8; 1024]).await;
+            let _ = socket
+                .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+                .await;
+        });
+        let client = ClientBuilder::new_with_urls(vec![
+            Url::new(format!("http://[::1]:{port}"), None).unwrap(),
+            Url::new(format!("http://127.0.0.1:{port}"), None).unwrap(),
+        ])
+        .unwrap()
+        .with_retries(1)
+        .build()
+        .unwrap();
+
+        let req = client
+            .create_request(reqwest::Method::POST, &["x"], NO_PARAMS, None::<&()>)
+            .unwrap();
+        let result = client.send(req).await;
+
+        assert_eq!(result.is_ok(), !server_received_it);
+        if server_received_it {
+            assert_eq!(received.load(Ordering::SeqCst), 1, "the POST was resent");
+        }
+    }
 }

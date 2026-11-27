@@ -121,8 +121,6 @@ impl ApiClientCore for MockNymApiClient {
     }
 
     fn maybe_rotate_hosts(&self, _offending_url: Option<CoreUrl>) {}
-
-    fn maybe_enable_fronting(&self, _domain: Option<&str>, _context: impl std::fmt::Debug) {}
 }
 
 #[async_trait]

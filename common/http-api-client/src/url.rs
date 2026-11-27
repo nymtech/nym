@@ -54,8 +54,7 @@ impl IntoUrl for reqwest::Url {
 /// to be used for the request to be properly reverse proxied.
 ///
 /// This type only describes a host and its configured front domains - it carries no rotation
-/// state. A [`crate::Client`] tracks, per configured host, which front (if any) is currently in
-/// use; see `crate::rotation::RotationManager`.
+/// state. A [`crate::Client`] tracks which address of its plain and fronted pools is current.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Url {
     url: url::Url,

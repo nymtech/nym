@@ -1371,6 +1371,27 @@ pub(crate) fn aggregate(node_id: i64, test_kind: TestKind, score: f64) -> Mixnet
     }
 }
 
+/// `node_id`'s five-hop liveness measured for [`FIXTURE_EPOCH`].
+#[cfg(test)]
+pub(crate) fn measured_five_hop_liveness(node_id: i64, score: f64) -> MixnetEpochFiveHopLiveness {
+    MixnetEpochFiveHopLiveness {
+        mixnet_epoch: i64::from(FIXTURE_EPOCH),
+        epoch_start: FIXTURE_EPOCH_START,
+        node_id,
+        score,
+        measured: true,
+    }
+}
+
+/// `node_id`'s five-hop liveness carried forward into [`FIXTURE_EPOCH`].
+#[cfg(test)]
+pub(crate) fn carried_five_hop_liveness(node_id: i64, score: f64) -> MixnetEpochFiveHopLiveness {
+    MixnetEpochFiveHopLiveness {
+        measured: false,
+        ..measured_five_hop_liveness(node_id, score)
+    }
+}
+
 /// A route session's batch through `gateway_node_id` naming `mixnet_epoch`, one record per send
 /// time through mixnodes 1, 2, 3 with its ack through 4, 5, 6: the first `lost` lost with their
 /// acks, the rest back with theirs.

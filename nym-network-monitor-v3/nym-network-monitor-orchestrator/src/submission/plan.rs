@@ -213,7 +213,10 @@ pub(crate) fn unsent(
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
-    use crate::storage::models::{FIXTURE_EPOCH, aggregate, config_score};
+    use crate::storage::models::{
+        FIXTURE_EPOCH, aggregate, carried_five_hop_liveness, config_score,
+        measured_five_hop_liveness,
+    };
     use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
 
     pub(crate) const THRESHOLD: f64 = 0.5;
@@ -478,6 +481,48 @@ pub(super) mod tests {
             &[config_score(1, above_one)],
             vec![aggregate(1, TestKind::MixnodeStress, above_one)],
             &[mixnode(1)],
+        );
+
+        assert_eq!(
+            measurements(&plan, 1),
+            Measurements::default()
+                .with_config(pct(1.0))
+                .with_stress(pct(1.0))
+        );
+    }
+
+    // the five-hop liveness stored for the epoch multiplies the liveness, measured or carried forward,
+    // whatever role the node now holds: node 2 was measured as a mixnode and now serves as a gateway
+    #[test]
+    fn a_nodes_liveness_carries_its_five_hop_liveness() {
+        let plan = EpochPlan::build(
+            &[config_score(1, 1.0), config_score(2, 1.0)],
+            vec![
+                aggregate(1, TestKind::MixnodeLiveness, 1.0),
+                aggregate(2, TestKind::GatewayLiveness, 1.0),
+            ],
+            &[
+                measured_five_hop_liveness(1, 0.9),
+                carried_five_hop_liveness(2, 0.7),
+            ],
+            &[mixnode(1), gateway(2)],
+            THRESHOLD,
+        );
+
+        assert_eq!(measurements(&plan, 1).liveness, Some(pct(0.9)));
+        assert_eq!(measurements(&plan, 2).liveness, Some(pct(0.7)));
+    }
+
+    // it only scales a liveness the node already has, so a node without one is submitted exactly as
+    // it would be without the route test
+    #[test]
+    fn five_hop_liveness_is_not_submitted_on_its_own() {
+        let plan = EpochPlan::build(
+            &[config_score(1, 1.0)],
+            vec![aggregate(1, TestKind::MixnodeStress, 1.0)],
+            &[measured_five_hop_liveness(1, 0.9)],
+            &[mixnode(1)],
+            THRESHOLD,
         );
 
         assert_eq!(

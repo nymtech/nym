@@ -457,6 +457,7 @@ fn epoch_records(
 #[cfg(test)]
 mod aggregate_shaping {
     use super::*;
+    use crate::storage::models::{carried_five_hop_liveness, measured_five_hop_liveness};
     use nym_network_monitor_orchestrator_requests::models::{ConfigScore, KindAggregate};
     use time::OffsetDateTime;
     use time::macros::datetime;
@@ -563,5 +564,27 @@ mod aggregate_shaping {
                 ),
             ]
         );
+    }
+
+    // the five-hop liveness entry is the value measured for the epoch: a value carried forward into
+    // it is not served, and a node without one has no entry rather than a zero
+    #[test]
+    fn the_five_hop_liveness_entry_is_the_measured_value_only() {
+        let rows = vec![
+            row(1, TestKind::MixnodeLiveness, 1.0, 1),
+            row(2, TestKind::MixnodeLiveness, 1.0, 1),
+            row(3, TestKind::MixnodeLiveness, 1.0, 1),
+        ];
+        let five_hop_liveness = vec![
+            measured_five_hop_liveness(1, 0.9),
+            carried_five_hop_liveness(2, 0.8),
+        ];
+
+        let served: Vec<Option<f64>> = epoch_records(&[], &rows, &five_hop_liveness, 7)
+            .into_iter()
+            .map(|record| record.five_hop_liveness)
+            .collect();
+
+        assert_eq!(served, vec![Some(0.9), None, None]);
     }
 }

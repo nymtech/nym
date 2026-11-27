@@ -232,6 +232,15 @@ mod tests {
         }
     }
 
+    /// Gives the same scores whatever it is given.
+    struct FixedStrategy(BTreeMap<NodeId, f64>);
+
+    impl ScoringStrategy for FixedStrategy {
+        fn score(&self, _: &[TestMessage], _: &HashMap<NodeId, f64>) -> BTreeMap<NodeId, f64> {
+            self.0.clone()
+        }
+    }
+
     /// Storage with gateways 100 and 101 bonded, to carry route runs.
     async fn storage_with_gateways() -> NetworkMonitorStorage {
         let storage = NetworkMonitorStorage::in_memory().await;
@@ -393,5 +402,52 @@ mod tests {
 
         let every_mixnode_at_one: Vec<(i64, f64)> = (1..=6).map(|node_id| (node_id, 1.0)).collect();
         assert_eq!(stored_values(&storage).await, every_mixnode_at_one);
+    }
+
+    // A mixnode the epoch's scoring left out keeps its newest measured value, fading with the epochs
+    // since: 0.6 measured 7 epochs before is about 0.80, while one measured 49 epochs before is past
+    // the limit. A mixnode the scoring gave a value has that value alone, not one carried forward.
+    #[tokio::test]
+    async fn an_unscored_mixnode_carries_its_newest_measured_value_within_the_limit() {
+        const EPOCH: EpochId = 100;
+        let measured_before =
+            |epochs: EpochId, node_id: i64, score: f64| MixnetEpochFiveHopLiveness {
+                mixnet_epoch: i64::from(EPOCH - epochs),
+                epoch_start: FIXTURE_SEEN_AT,
+                node_id,
+                score,
+                measured: true,
+            };
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage
+            .batch_insert_mixnet_epoch_five_hop_liveness(&[
+                measured_before(7, 1, 0.6),
+                measured_before(49, 2, 0.6),
+                measured_before(3, 3, 0.5),
+            ])
+            .await
+            .unwrap();
+
+        let strategy = FixedStrategy(BTreeMap::from([(3, 0.9)]));
+        FiveHopLivenessMaterialiser::new(CONFIG, Box::new(strategy), storage.clone())
+            .materialise(EPOCH, FIXTURE_SEEN_AT)
+            .await
+            .unwrap();
+
+        let stored: Vec<(i64, f64, bool)> = storage
+            .get_mixnet_epoch_five_hop_liveness(EPOCH)
+            .await
+            .unwrap()
+            .into_iter()
+            // to the two decimals the specification gives
+            .map(|value| {
+                (
+                    value.node_id,
+                    (value.score * 100.0).round() / 100.0,
+                    value.measured,
+                )
+            })
+            .collect();
+        assert_eq!(stored, vec![(1, 0.80, false), (3, 0.9, true)]);
     }
 }

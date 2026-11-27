@@ -1010,27 +1010,31 @@ mod tests {
 
     // The window the carried-forward value is read from: a value filed 48 epochs back still counts,
     // one filed 49 back does not, and one filed in the epoch itself or after it is not seen from it.
+    // Only measured values are read: a carried one newer than the measured one is passed over, and
+    // a node with carried values alone has none, so the limit counts from the last measurement.
     #[tokio::test]
     async fn the_newest_five_hop_liveness_is_read_within_the_limit() {
-        fn value(mixnet_epoch: i64, node_id: i64) -> MixnetEpochFiveHopLiveness {
+        fn value(mixnet_epoch: i64, node_id: i64, measured: bool) -> MixnetEpochFiveHopLiveness {
             MixnetEpochFiveHopLiveness {
                 mixnet_epoch,
                 epoch_start: FIXTURE_SEEN_AT,
                 node_id,
                 score: 0.5,
-                measured: true,
+                measured,
             }
         }
 
         let storage = NetworkMonitorStorage::in_memory().await;
         storage
             .batch_insert_mixnet_epoch_five_hop_liveness(&[
-                value(52, 1),
-                value(51, 2),
-                value(100, 3),
-                value(101, 3),
-                value(60, 4),
-                value(90, 4),
+                value(52, 1, true),
+                value(51, 2, true),
+                value(100, 3, true),
+                value(101, 3, true),
+                value(60, 4, true),
+                value(90, 4, true),
+                value(95, 4, false),
+                value(80, 5, false),
             ])
             .await
             .unwrap();

@@ -855,8 +855,8 @@ impl ClientBuilder {
 
         let client = Client {
             base_urls: self.urls,
-            current_idx: Arc::new(AtomicUsize::new(0)),
-            fronted_idx: Arc::new(AtomicUsize::new(0)),
+            plain_generation: Arc::new(AtomicUsize::new(0)),
+            fronted_generation: Arc::new(AtomicUsize::new(0)),
             reqwest_client,
             custom_user_agent: self.custom_user_agent,
 
@@ -877,11 +877,12 @@ impl ClientBuilder {
 #[derive(Debug, Clone)]
 pub struct Client {
     base_urls: Vec<Url>,
-    /// Position in the pool of plain addresses (`base_urls`), shared across clones.
-    current_idx: Arc<AtomicUsize>,
-    /// Position in the pool of fronted addresses (every front of every base url), shared across
-    /// clones.
-    fronted_idx: Arc<AtomicUsize>,
+    /// Counts the shifts of the pool of plain addresses (`base_urls`), shared across clones. The
+    /// position in the pool is the count modulo the length of the pool.
+    plain_generation: Arc<AtomicUsize>,
+    /// Counts the shifts of the pool of fronted addresses (every front of every base url), shared
+    /// across clones.
+    fronted_generation: Arc<AtomicUsize>,
     reqwest_client: Option<reqwest::Client>,
     custom_user_agent: Option<HeaderValue>,
 
@@ -931,8 +932,8 @@ impl Client {
 
     /// Update the set of hosts that this client uses when sending API requests.
     pub fn change_base_urls(&mut self, new_urls: Vec<Url>) {
-        self.current_idx.store(0, Ordering::Relaxed);
-        self.fronted_idx.store(0, Ordering::Relaxed);
+        self.plain_generation.store(0, Ordering::Relaxed);
+        self.fronted_generation.store(0, Ordering::Relaxed);
         self.base_urls = new_urls
     }
 
@@ -940,8 +941,8 @@ impl Client {
     pub fn clone_with_new_url(&self, new_url: Url) -> Self {
         Client {
             base_urls: vec![new_url],
-            current_idx: Arc::new(Default::default()),
-            fronted_idx: Arc::new(Default::default()),
+            plain_generation: Arc::new(Default::default()),
+            fronted_generation: Arc::new(Default::default()),
             reqwest_client: None,
             custom_user_agent: None,
 
@@ -967,7 +968,7 @@ impl Client {
     pub fn current_url_str(&self) -> &str {
         let target = self.target();
         match target.front {
-            Some((_, front)) => front.as_str(),
+            Some(front) => front.as_str(),
             None => self.base_urls[target.host].inner_url().as_str(),
         }
     }
@@ -975,7 +976,7 @@ impl Client {
     /// The front host (domain or IP) the next request goes through, if it is fronted.
     #[cfg(feature = "tunneling")]
     pub fn current_front_host(&self) -> Option<&str> {
-        self.target().front.and_then(|(_, front)| front.host_str())
+        self.target().front.and_then(|front| front.host_str())
     }
 
     /// Get the currently configured host that this client uses when sending API requests.
@@ -1015,22 +1016,52 @@ impl Client {
     /// address, otherwise the plain pool.
     fn target(&self) -> Target<'_> {
         #[cfg(feature = "tunneling")]
-        if self.front.is_enabled()
-            && let Some(pos) = self
-                .fronted_idx
-                .load(Ordering::Relaxed)
-                .checked_rem(self.fronted_len())
-            && let Some((host, front)) = self.fronted_pool().nth(pos)
-        {
-            return Target {
-                host,
-                front: Some((pos, front)),
-            };
+        if self.front.is_enabled() {
+            let generation = self.fronted_generation.load(Ordering::Relaxed);
+            if let Some(pos) = generation.checked_rem(self.fronted_len())
+                && let Some((host, front)) = self.fronted_pool().nth(pos)
+            {
+                return Target {
+                    host,
+                    front: Some(front),
+                    generation,
+                };
+            }
         }
+        let generation = self.plain_generation.load(Ordering::Relaxed);
         Target {
-            host: self.current_idx.load(Ordering::Relaxed),
+            host: generation % self.base_urls.len(),
             front: None,
+            generation,
         }
+    }
+
+    /// Moves the pool the request was sent through to its next address, unless an earlier failed
+    /// request already did. The generation the request was sent with tells them apart, even if the
+    /// pool has since made a full lap.
+    fn shift(&self, target: &Target<'_>) {
+        let pool = match target.front {
+            Some(_) => &self.fronted_generation,
+            None => &self.plain_generation,
+        };
+        if pool
+            .compare_exchange(
+                target.generation,
+                target.generation + 1,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            )
+            .is_err()
+        {
+            return;
+        }
+        #[cfg(feature = "tunneling")]
+        if target.front.is_some() {
+            self.front.retry_disable();
+        } else {
+            self.front.retry_enable();
+        }
+        debug!("http client shifting to the next address after a failure");
     }
 
     /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
@@ -1042,7 +1073,7 @@ impl Client {
     fn update_host(&self, maybe_url: Option<Url>) {
         let target = self.target();
         let current_host = match target.front {
-            Some((_, front)) => front.host_str(),
+            Some(front) => front.host_str(),
             None => self.base_urls[target.host].host_str(),
         };
         // a failure of an address that is no longer the current one was already handled
@@ -1051,36 +1082,7 @@ impl Client {
         {
             return;
         }
-
-        match target.front {
-            Some((pos, _)) => {
-                let next = (pos + 1) % self.fronted_len();
-                let _ = self.fronted_idx.compare_exchange(
-                    pos,
-                    next,
-                    Ordering::Relaxed,
-                    Ordering::Relaxed,
-                );
-                #[cfg(feature = "tunneling")]
-                self.front.retry_disable();
-                debug!("http client rotating front {pos} -> {next}");
-            }
-            None => {
-                let next = (target.host + 1) % self.base_urls.len();
-                let _ = self.current_idx.compare_exchange(
-                    target.host,
-                    next,
-                    Ordering::Relaxed,
-                    Ordering::Relaxed,
-                );
-                #[cfg(feature = "tunneling")]
-                self.front.retry_enable();
-                debug!(
-                    "http client rotating host {} -> {}",
-                    self.base_urls[target.host], self.base_urls[next]
-                );
-            }
-        }
+        self.shift(&target);
     }
 
     /// Make modifications to the request to apply the current state of this client i.e. the
@@ -1099,9 +1101,16 @@ impl Client {
         &self,
         r: &mut reqwest::Request,
     ) -> (Option<&str>, Option<&str>) {
-        // Read the target exactly once and derive everything below from this snapshot. Reading it
-        // again later could observe a different address if a rotation is interleaved in between.
-        let target = self.target();
+        self.apply_target_to_req(&self.target(), r)
+    }
+
+    /// [`Self::apply_hosts_to_req`] for a target that was read once by the caller, so that a
+    /// failure of the request can be attributed to the same address.
+    pub(crate) fn apply_target_to_req<'a>(
+        &'a self,
+        target: &Target<'a>,
+        r: &mut reqwest::Request,
+    ) -> (Option<&'a str>, Option<&'a str>) {
         let url = &self.base_urls[target.host];
         let domain = url.host_str();
         r.url_mut().set_host(domain).unwrap();
@@ -1112,7 +1121,7 @@ impl Client {
         let caller_overrode_host = host_header::overridden_by_caller(r);
 
         #[cfg(feature = "tunneling")]
-        if let Some(front_host) = target.front.and_then(|(_, front)| front.host_str()) {
+        if let Some(front_host) = target.front.and_then(|front| front.host_str()) {
             if let Some(actual_host) = url.host_str() {
                 tracing::debug!(
                     "Domain fronting enabled: routing via CDN {} to actual host {}",
@@ -1242,7 +1251,8 @@ impl ApiClientCore for Client {
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             let idempotent = req.method().is_idempotent();
-            self.apply_hosts_to_req(&mut req);
+            let target = self.target();
+            self.apply_target_to_req(&target, &mut req);
             let url: Url = req.url().clone().into();
             // internal bookkeeping only -- never sent on the wire.
             req.headers_mut().remove(host_header::MANAGED_MARKER_HEADER);
@@ -1277,7 +1287,7 @@ impl ApiClientCore for Client {
                     // Rate limits and gateway errors mean this address cannot serve us right now
                     if is_http_rate_limit_err(&resp) || is_gateway_error(status) {
                         warn!("host unavailable ({status}) for {}", url.as_str());
-                        self.maybe_rotate_hosts(Some(url.clone()));
+                        self.shift(&target);
                         // only requests that are safe to send twice are resent
                         if idempotent && self.base_urls.len() > 1 && attempts < self.retry_limit {
                             attempts += 1;
@@ -1292,7 +1302,7 @@ impl ApiClientCore for Client {
                             attempts += 1;
                             continue;
                         }
-                        self.maybe_rotate_hosts(Some(url.clone()));
+                        self.shift(&target);
                     }
 
                     return Ok(resp);
@@ -1310,7 +1320,7 @@ impl ApiClientCore for Client {
 
                     if is_network_err & !network_reconfigured {
                         // if we have multiple urls, update to the next
-                        self.maybe_rotate_hosts(Some(url.clone()));
+                        self.shift(&target);
                     }
 
                     if attempts < self.retry_limit {
@@ -1347,11 +1357,12 @@ fn is_gateway_error(status: StatusCode) -> bool {
     )
 }
 
-/// The address the next request goes to: a base url and, when it is fronted, the position of
-/// the front in the pool of fronted addresses together with the front itself.
-struct Target<'a> {
+/// The address a request is sent to: a base url and, when it is fronted, the front.
+pub(crate) struct Target<'a> {
     host: usize,
-    front: Option<(usize, &'a ::url::Url)>,
+    front: Option<&'a ::url::Url>,
+    /// The generation of the pool the address was taken from.
+    generation: usize,
 }
 
 /// Check for a rate limit response: a plain HTTP 429, a 503 with a `Retry-After` header, or a

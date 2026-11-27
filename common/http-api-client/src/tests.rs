@@ -892,3 +892,22 @@ async fn post_answered_with_a_gateway_error_is_not_resent() {
         StatusCode::BAD_GATEWAY
     );
 }
+
+// A request sent before the pool made a full lap must not move the pool when it fails later.
+#[test]
+fn failure_of_a_request_sent_before_a_full_lap_is_ignored() {
+    let client = ClientBuilder::new_with_urls(vec![
+        Url::new("http://nym-api1.test", None).unwrap(),
+        Url::new("http://nym-api2.test", None).unwrap(),
+    ])
+    .unwrap()
+    .build()
+    .unwrap();
+    let stale = client.target();
+
+    client.update_host(None);
+    client.update_host(None);
+    client.shift(&stale);
+
+    assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
+}

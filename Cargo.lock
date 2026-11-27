@@ -8433,6 +8433,7 @@ dependencies = [
  "futures",
  "hkdf 0.12.4",
  "humantime",
+ "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-crypto",
  "nym-gateway-requests",

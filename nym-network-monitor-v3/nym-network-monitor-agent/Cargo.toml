@@ -40,6 +40,7 @@ hkdf = { workspace = true }
 x25519-dalek = { workspace = true }
 
 
+nym-bandwidth-controller = { workspace = true }
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",

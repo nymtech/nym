@@ -56,7 +56,7 @@
 
 ## 8. Agent
 
-- [ ] 8.1 Config and CLI: a required `--nym-api-url`, `--five-hop-liveness-sending-duration` (40s), `--five-hop-liveness-waiting-duration` (10s), `--five-hop-liveness-run-timeout` (2m), and the four traffic knobs (`--five-hop-liveness-message-sending-average-delay`, `--five-hop-liveness-loop-cover-traffic-average-delay`, `--five-hop-liveness-average-packet-delay`, `--five-hop-liveness-average-ack-delay`), which fall back to the route client's defaults when unset, each with its environment variable
+- [x] 8.1 Config and CLI: a required `--nym-api-url`, `--five-hop-liveness-sending-duration` (40s), `--five-hop-liveness-waiting-duration` (10s), `--five-hop-liveness-run-timeout` (2m), and the four traffic knobs, hidden from `--help` (`--five-hop-liveness-message-sending-average-delay`, `--five-hop-liveness-loop-cover-traffic-average-delay`, `--five-hop-liveness-average-packet-delay`, `--five-hop-liveness-average-ack-delay`), which fall back to the route client's defaults when unset, each with its environment variable
 - [ ] 8.2 Dispatch a route run: its sessions through the route client under the run's deadline, always over the active set, with a bandwidth controller request sender that has no controller behind it while tickets are off, submitted once
 - [ ] 8.3 The manual `test-five-hop-liveness` command: a nym-api url, gateways, the route session settings of 8.1 and, for experiments, which mixnodes to route through (active set by default, rewarded set, all mixnodes), sessions through the route client, scores printed through the records crate
 - [ ] 8.4 Unit test, as the gateway kinds have one: a route run whose sessions cannot be established is submitted with an error for each gateway

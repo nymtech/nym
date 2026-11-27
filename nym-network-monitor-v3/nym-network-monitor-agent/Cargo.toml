@@ -53,6 +53,7 @@ nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
 
 nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["client"] }
+nym-network-monitor-route-client = { path = "../nym-network-monitor-route-client" }
 
 [dev-dependencies]
 nym-test-utils = { workspace = true }

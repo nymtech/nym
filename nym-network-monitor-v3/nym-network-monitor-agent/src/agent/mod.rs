@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::config::NodeTesterConfig;
+use crate::agent::config::{FiveHopMixnetRunConfig, NodeTesterConfig};
 use crate::agent::gateway::wave::GatewayLivenessWave;
 use crate::agent::helpers::derive_client_identity;
 use crate::agent::tested_node::{TestedGatewayDetails, TestedNodeDetails};
@@ -34,6 +34,9 @@ pub(crate) struct NetworkMonitorAgent {
     /// Tester configuration controlling rates, timeouts, and addressing.
     tester_config: NodeTesterConfig,
 
+    /// What a five-hop mixnet run runs with.
+    five_hop_mixnet_run_config: FiveHopMixnetRunConfig,
+
     /// Client used to communicate with the orchestrator API (port requests, announcements,
     /// work assignments, result submissions).
     orchestrator_client: OrchestratorClient,
@@ -62,6 +65,7 @@ impl NetworkMonitorAgent {
     /// and orchestrator client.
     pub(crate) fn new(
         tester_config: NodeTesterConfig,
+        five_hop_mixnet_run_config: FiveHopMixnetRunConfig,
         noise_key: Arc<x25519::KeyPair>,
         orchestrator_client: OrchestratorClient,
         shutdown: ShutdownToken,
@@ -70,6 +74,7 @@ impl NetworkMonitorAgent {
 
         Ok(NetworkMonitorAgent {
             tester_config,
+            five_hop_mixnet_run_config,
             orchestrator_client,
             noise_key,
             client_identity,

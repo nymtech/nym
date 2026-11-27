@@ -8438,6 +8438,7 @@ dependencies = [
  "nym-gateway-requests",
  "nym-network-defaults",
  "nym-network-monitor-orchestrator-requests",
+ "nym-network-monitor-route-client",
  "nym-node-requests",
  "nym-noise",
  "nym-pemstore",

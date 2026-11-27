@@ -5,6 +5,7 @@ use super::env::vars::*;
 use crate::agent::NetworkMonitorAgent;
 use crate::agent::helpers::load_noise_key;
 use crate::cli::common::CommonArgs;
+use crate::cli::five_hop_mixnet::FiveHopMixnetArgs;
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_task::{ShutdownManager, ShutdownToken};
 use std::net::{IpAddr, SocketAddr};
@@ -15,6 +16,9 @@ use url::Url;
 pub(crate) struct Args {
     #[clap(flatten)]
     common_args: CommonArgs,
+
+    #[clap(flatten)]
+    five_hop_mixnet_args: FiveHopMixnetArgs,
 
     /// Address of the orchestrator for requesting work assignments
     #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_ORCHESTRATOR_ADDRESS_ARG)]
@@ -70,6 +74,7 @@ async fn build_and_run_agent(args: Args, shutdown: ShutdownToken) -> anyhow::Res
     let agent = NetworkMonitorAgent::new(
         args.common_args
             .build_config(external_address_v4, external_address_v6)?,
+        args.five_hop_mixnet_args.build_config()?,
         noise_key,
         orchestrator_client,
         shutdown,

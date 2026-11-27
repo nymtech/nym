@@ -10,6 +10,7 @@ mod build_info;
 mod common;
 mod discover;
 mod env;
+mod five_hop_mixnet;
 mod keygen;
 mod manual;
 mod run_agent;

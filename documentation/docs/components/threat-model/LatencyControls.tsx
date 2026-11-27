@@ -60,7 +60,7 @@ export function LatencyControls({
             type="range"
             min={0}
             max={250}
-            step={10}
+            step={5}
             value={params.mixDelayMs}
             onChange={(e) =>
               onChange({ ...params, mixDelayMs: Number(e.target.value) })

@@ -1090,9 +1090,32 @@ pub(crate) struct MixnetEpochFiveHopLiveness {
 }
 
 impl MixnetEpochFiveHopLiveness {
+    /// From here a five-hop liveness times a liveness of 1.0 rounds to 100% in the contract, so a
+    /// carried value that reaches it is no longer filed.
+    const ROUNDS_TO_FULL_LIVENESS: f64 = 0.995;
+
     /// The score if it was measured in this epoch, `None` if it was carried forward.
     pub(crate) fn measured_score(&self) -> Option<f64> {
         self.measured.then_some(self.score)
+    }
+
+    /// The value carried forward into the next epoch, which starts at `epoch_start`; none once it
+    /// rounds to full liveness.
+    pub(crate) fn carried_forward(
+        &self,
+        epoch_start: OffsetDateTime,
+        decay_per_epoch: f64,
+    ) -> Option<Self> {
+        // 1 - e^(-rate) (1 - score): one epoch's fade towards 1
+        let score = 1.0 - (-decay_per_epoch).exp() * (1.0 - self.score);
+
+        (score < Self::ROUNDS_TO_FULL_LIVENESS).then_some(MixnetEpochFiveHopLiveness {
+            mixnet_epoch: self.mixnet_epoch + 1,
+            epoch_start,
+            node_id: self.node_id,
+            score,
+            measured: false,
+        })
     }
 }
 

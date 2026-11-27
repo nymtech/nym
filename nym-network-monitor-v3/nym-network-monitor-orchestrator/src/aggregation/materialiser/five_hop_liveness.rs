@@ -12,10 +12,6 @@ use std::collections::{BTreeMap, HashMap};
 use time::OffsetDateTime;
 use tracing::info;
 
-/// From here a five-hop liveness times a liveness of 1.0 rounds to 100% in the contract, so a
-/// carried value that reaches it is no longer filed.
-const ROUNDS_TO_FULL_LIVENESS: f64 = 0.995;
-
 /// How five-hop liveness is carried forward into the epochs that follow.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct FiveHopLivenessMaterialiserConfig {
@@ -60,7 +56,9 @@ impl FiveHopLivenessMaterialiser {
         };
 
         let measured = self.measured_scores(measured_epoch).await?;
-        let carried = self.carried_scores(measured_epoch, &measured).await?;
+        let carried = self
+            .carried_values(measured_epoch, epoch_start, &measured)
+            .await?;
         info!(
             mixnet_epoch,
             measured_epoch,
@@ -69,22 +67,17 @@ impl FiveHopLivenessMaterialiser {
             "materialised five-hop liveness"
         );
 
-        let row = |node_id: NodeId, score: f64, measured: bool| MixnetEpochFiveHopLiveness {
-            mixnet_epoch: mixnet_epoch as i64,
-            epoch_start,
-            node_id: i64::from(node_id),
-            score,
-            measured,
-        };
-        let values: Vec<MixnetEpochFiveHopLiveness> = measured
+        let mut values: Vec<MixnetEpochFiveHopLiveness> = measured
             .into_iter()
-            .map(|(node_id, score)| row(node_id, score, true))
-            .chain(
-                carried
-                    .into_iter()
-                    .map(|(node_id, score)| row(node_id, score, false)),
-            )
+            .map(|(node_id, score)| MixnetEpochFiveHopLiveness {
+                mixnet_epoch: mixnet_epoch as i64,
+                epoch_start,
+                node_id: i64::from(node_id),
+                score,
+                measured: true,
+            })
             .collect();
+        values.extend(carried);
         self.storage
             .batch_insert_mixnet_epoch_five_hop_liveness(&values)
             .await?;
@@ -129,26 +122,24 @@ impl FiveHopLivenessMaterialiser {
             .score(&merge_in_send_order(kept), &one_hop_scores))
     }
 
-    /// Each mixnode not in `measured` with a value filed under `previous_epoch`, measured or carried,
-    /// faded by one epoch; none once it rounds to full liveness.
-    async fn carried_scores(
+    /// The values filed under `previous_epoch`, measured or carried, carried forward into the epoch
+    /// starting at `epoch_start`, but for the mixnodes in `measured`.
+    async fn carried_values(
         &self,
         previous_epoch: EpochId,
+        epoch_start: OffsetDateTime,
         measured: &BTreeMap<NodeId, f64>,
-    ) -> anyhow::Result<BTreeMap<NodeId, f64>> {
+    ) -> anyhow::Result<Vec<MixnetEpochFiveHopLiveness>> {
         let previous = self
             .storage
             .get_mixnet_epoch_five_hop_liveness(previous_epoch)
             .await?;
 
-        // 1 - e^(-rate) (1 - value): one epoch's fade from the value towards 1
-        let decay = (-self.config.decay_per_epoch).exp();
         Ok(previous
-            .into_iter()
+            .iter()
             // stored from a `NodeId`, so it fits
-            .map(|value| (value.node_id as NodeId, 1.0 - decay * (1.0 - value.score)))
-            .filter(|(node_id, _)| !measured.contains_key(node_id))
-            .filter(|(_, score)| *score < ROUNDS_TO_FULL_LIVENESS)
+            .filter(|value| !measured.contains_key(&(value.node_id as NodeId)))
+            .filter_map(|value| value.carried_forward(epoch_start, self.config.decay_per_epoch))
             .collect())
     }
 

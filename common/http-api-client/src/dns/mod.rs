@@ -111,18 +111,14 @@ impl ClientBuilder {
 // but tools like valgrind might report "memory leaks" as it isn't obvious this is intentional.
 static SHARED_RESOLVER: LazyLock<HickoryDnsResolver> = LazyLock::new(|| {
     tracing::debug!("Initializing shared DNS resolver");
-    HickoryDnsResolver {
-        use_shared: false, // prevent infinite recursion
-        ..Default::default()
-    }
+    HickoryDnsResolver::thread_resolver()
 });
 
 /// Associates a [`ConnectionProvider`] with the process-wide shared resolver instance backing
 /// [`HickoryDnsResolver::shared`], if one exists for that provider.
 ///
 /// [`TokioRuntimeProvider`] is the only connection provider with shared state; every other
-/// connection provider always builds an independent resolver, so `use_shared`-style sharing has
-/// no effect for them.
+/// connection provider always builds an independent resolver.
 pub trait SharedResolverState: ConnectionProvider + Default {
     /// The process-wide shared resolver instance for this connection provider, if one exists.
     fn shared_resolver() -> Option<&'static HickoryDnsResolver<Self>> {
@@ -169,39 +165,47 @@ impl ResolveError {
 /// Typical use involves instantiating using the `Default` implementation and then resolving using
 /// methods or trait implementations.
 ///
-/// The default initialization uses a shared underlying resolver. If a thread local resolver is
-/// required use `thread_resolver()` to build a resolver with an independently instantiated
-/// internal resolver.
+/// The default initialization is a handle to the process-wide resolver state, so a change made
+/// through one handle is seen by all of them. If independent state is required use
+/// `thread_resolver()`.
 #[derive(Debug, Clone)]
 pub struct HickoryDnsResolver<C: ConnectionProvider = TokioRuntimeProvider> {
-    // Since we might not have been called in the context of a
-    // Tokio Runtime during initialization, we must delay the actual
-    // construction of the resolver. This is swappable (rather than a plain `OnceCell`) so that
-    // [`Self::set_name_servers`] can invalidate it and force a rebuild against the new
-    // nameserver group on the next lookup.
-    state: Arc<ArcSwap<OnceCell<Resolver<C>>>>,
-    use_system: Arc<AtomicBool>,
-    system_resolver: Arc<OnceCell<Resolver<C>>>,
-    static_base: Arc<OnceCell<StaticResolver>>,
-    /// Nameserver group used to build `state` when it needs (re)constructing.
-    name_servers: Arc<ArcSwap<Vec<NameServerConfig>>>,
-    use_shared: bool,
+    inner: Arc<Inner<C>>,
     /// Overall timeout for dns lookup associated with any individual host resolution. For example,
     /// use of retries, server_ordering_strategy, etc. ends absolutely if this timeout is reached.
     overall_dns_timeout: Duration,
 }
 
-impl<C: ConnectionProvider> Default for HickoryDnsResolver<C> {
+#[derive(Debug)]
+struct Inner<C: ConnectionProvider> {
+    // Since we might not have been called in the context of a
+    // Tokio Runtime during initialization, we must delay the actual
+    // construction of the resolver. This is swappable (rather than a plain `OnceCell`) so that
+    // [`HickoryDnsResolver::set_name_servers`] can invalidate it and force a rebuild against the
+    // new nameserver group on the next lookup.
+    state: ArcSwap<OnceCell<Resolver<C>>>,
+    use_system: AtomicBool,
+    system_resolver: OnceCell<Resolver<C>>,
+    static_base: OnceCell<StaticResolver>,
+    /// Nameserver group used to build `state` when it needs (re)constructing.
+    name_servers: ArcSwap<Vec<NameServerConfig>>,
+}
+
+impl<C: ConnectionProvider> Default for Inner<C> {
     fn default() -> Self {
         Self {
             state: Default::default(),
-            use_system: Arc::new(AtomicBool::new(false)),
+            use_system: AtomicBool::new(false),
             system_resolver: Default::default(),
             static_base: Default::default(),
-            name_servers: Arc::new(ArcSwap::from_pointee(default_nameserver_group_ipv4_only())),
-            use_shared: true,
-            overall_dns_timeout: DEFAULT_OVERALL_LOOKUP_TIMEOUT,
+            name_servers: ArcSwap::from_pointee(default_nameserver_group_ipv4_only()),
         }
+    }
+}
+
+impl<C: SharedResolverState> Default for HickoryDnsResolver<C> {
+    fn default() -> Self {
+        Self::shared()
     }
 }
 
@@ -221,33 +225,17 @@ impl HickoryDnsResolver<TokioRuntimeProvider> {
 
 impl<C: SharedResolverState> Resolve for HickoryDnsResolver<C> {
     fn resolve(&self, name: Name) -> Resolving {
-        let use_system = self.use_system.load(std::sync::atomic::Ordering::Relaxed);
-        let use_shared = self.use_shared;
-        let result: Result<Resolver<C>, ResolveError> = if use_system {
-            self.system_resolver
-                .get_or_try_init(|| Self::new_resolver_system(use_shared))
-                .cloned()
-        } else {
-            self.build_configured_resolver()
-        };
-
-        let resolver = match result {
+        let resolver = match self.resolver() {
             Ok(r) => r,
             Err(err) => return Box::pin(return_err(err)),
         };
 
-        let maybe_static = self.static_base.clone();
+        let static_resolver = self.static_resolver().clone();
         let overall_dns_timeout = self.overall_dns_timeout;
         Box::pin(async move {
-            resolve(
-                name,
-                resolver,
-                maybe_static,
-                use_shared,
-                overall_dns_timeout,
-            )
-            .await
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+            resolve(name, resolver, static_resolver, overall_dns_timeout)
+                .await
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
         })
     }
 }
@@ -256,19 +244,15 @@ async fn return_err(e: ResolveError) -> Result<Addrs, Box<dyn std::error::Error 
     Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
 }
 
-async fn resolve<C: SharedResolverState>(
+async fn resolve<C: ConnectionProvider>(
     name: Name,
     resolver: Resolver<C>,
-    static_base: Arc<OnceCell<StaticResolver>>,
-    independent: bool,
+    static_resolver: StaticResolver,
     overall_dns_timeout: Duration,
 ) -> Result<Addrs, ResolveError> {
     // try checking the static table to see if any of the addresses in the table have been
     // looked up previously within the timeout to where we are not yet ready to try the
     // default resolver yet again.
-    let static_resolver =
-        static_base.get_or_init(|| HickoryDnsResolver::<C>::new_static_fallback(independent));
-
     if let Some(addrs) = static_resolver.pre_resolve(name.as_str()) {
         let addrs: Addrs = Box::new(addrs.into_iter().map(|ip_addr| SocketAddr::new(ip_addr, 0)));
         return Ok(addrs);
@@ -305,11 +289,13 @@ async fn resolve<C: SharedResolverState>(
 }
 
 impl<C: SharedResolverState> HickoryDnsResolver<C> {
-    /// Returns an instance of the process-wide shared resolver for this connection provider, if
-    /// one exists (see [`SharedResolverState`]). Falls back to an independent instance (as if
-    /// built via [`Self::default`]) for connection providers without shared state.
+    /// Returns a handle to the process-wide shared resolver state for this connection provider, if
+    /// one exists (see [`SharedResolverState`]). Falls back to independent state (as if built via
+    /// [`Self::thread_resolver`]) for connection providers without shared state.
     pub fn shared() -> Self {
-        C::shared_resolver().cloned().unwrap_or_default()
+        C::shared_resolver()
+            .cloned()
+            .unwrap_or_else(Self::thread_resolver)
     }
 
     /// Attempt to resolve a domain name to a set of [`IpAddr`]s
@@ -319,107 +305,62 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
     ) -> Result<impl Iterator<Item = IpAddr> + use<C>, ResolveError> {
         let n =
             Name::from_str(name).map_err(|_| ResolveError::InvalidNameError(name.to_string()))?;
-        let use_system = self.use_system.load(std::sync::atomic::Ordering::Relaxed);
-        let resolver = if use_system {
-            self.system_resolver
-                .get_or_try_init(|| Self::new_resolver_system(self.use_shared))?
-                .clone()
-        } else {
-            self.build_configured_resolver()?
-        };
 
         resolve(
             n,
-            resolver,
-            self.static_base.clone(),
-            self.use_shared,
+            self.resolver()?,
+            self.static_resolver().clone(),
             self.overall_dns_timeout,
         )
         .await
         .map(|addrs| addrs.map(|socket_addr| socket_addr.ip()))
     }
 
-    /// Create a (lazy-initialized) resolver that is not shared across threads.
+    /// Create a (lazy-initialized) resolver with its own state, independent of the shared one.
     pub fn thread_resolver() -> Self {
         Self {
-            use_shared: false,
-            ..Default::default()
+            inner: Default::default(),
+            overall_dns_timeout: DEFAULT_OVERALL_LOOKUP_TIMEOUT,
         }
     }
 
-    /// Build (or fetch the already-built) configured resolver using the currently configured
-    /// nameserver group.
-    ///
-    /// When `use_shared` is set and shared state is available for `C` (see
-    /// [`SharedResolverState`]), every call consults the shared resolver's own cache directly
-    /// (`shared.state`) rather than copying the result into this instance's local cache: this
-    /// ensures a [`Self::set_name_servers`] reset made through any instance is visible on this
-    /// instance's very next lookup, instead of this instance being stuck with whatever it cached
-    /// the first time it resolved anything. Otherwise this instance's own local cache
-    /// (`self.state`) is used and (re)built independently.
-    fn build_configured_resolver(&self) -> Result<Resolver<C>, ResolveError> {
-        match self.use_shared.then(C::shared_resolver).flatten() {
-            Some(shared) => shared
-                .state
-                .load()
-                .get_or_try_init(|| {
-                    configure_and_build_resolver::<C>(
-                        shared.name_servers.load_full().as_ref().clone(),
-                    )
-                })
-                .cloned(),
-            None => self
-                .state
-                .load()
-                .get_or_try_init(|| {
-                    configure_and_build_resolver::<C>(
-                        self.name_servers.load_full().as_ref().clone(),
-                    )
-                })
-                .cloned(),
-        }
-    }
-
-    fn new_resolver_system(use_shared: bool) -> Result<Resolver<C>, ResolveError> {
-        // using a closure here is slightly gross, but this makes sure that if the
-        // lazy-init returns an error it can be handled by the client
-        match use_shared.then(C::shared_resolver).flatten() {
-            Some(shared) => Ok(shared
+    /// The system resolver when it is selected, otherwise the (built or already cached) resolver
+    /// for the currently configured nameserver group.
+    fn resolver(&self) -> Result<Resolver<C>, ResolveError> {
+        if self.inner.use_system.load(Relaxed) {
+            self.inner
                 .system_resolver
-                .get_or_try_init(new_resolver_system::<C>)?
-                .clone()),
-            None => new_resolver_system::<C>(),
+                .get_or_try_init(new_resolver_system::<C>)
+                .cloned()
+        } else {
+            self.inner
+                .state
+                .load()
+                .get_or_try_init(|| {
+                    configure_and_build_resolver::<C>(
+                        self.inner.name_servers.load_full().as_ref().clone(),
+                    )
+                })
+                .cloned()
         }
     }
 
-    fn new_static_fallback(use_shared: bool) -> StaticResolver {
-        match use_shared.then(C::shared_resolver).flatten() {
-            Some(shared) => shared
-                .static_base
-                .get_or_init(new_default_static_fallback)
-                .clone(),
-            _ => new_default_static_fallback(),
-        }
+    fn static_resolver(&self) -> &StaticResolver {
+        self.inner
+            .static_base
+            .get_or_init(new_default_static_fallback)
     }
 
     /// Swap the primary internal resolver to the system resolver rather than the
     /// configured custom resolver.
     pub fn use_system_resolver(&self) {
-        self.use_system.store(true, Relaxed);
-
-        if let Some(shared) = self.use_shared.then(C::shared_resolver).flatten() {
-            shared.use_system_resolver();
-        }
+        self.inner.use_system.store(true, Relaxed);
     }
 
     /// Swap the primary internal resolver to the configured custom resolver rather than the
     /// system resolver.
     pub fn use_configured_resolver(&self) {
-        self.use_system.store(false, Relaxed);
-
-        if let Some(shared) = self.use_shared.then(C::shared_resolver).flatten() {
-            shared.use_configured_resolver();
-        }
+        self.inner.use_system.store(false, Relaxed);
     }
 
     /// Clear entries from the static table that would return entries during the pre-resolve stage.
@@ -431,7 +372,7 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
     /// to pre-resolve (using [`Self::set_static_preresolve`]) will be removed.
     pub fn clear_preresolve(&self) {
         debug!("clearing pre-resolve table");
-        if let Some(static_base) = self.static_base.get() {
+        if let Some(static_base) = self.inner.static_base.get() {
             static_base.clear_preresolve()
         }
     }
@@ -439,29 +380,25 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
     /// Get the current map of hostnames to addresses used in the fallback static lookup stage if one
     /// exists.
     pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
-        Some(self.static_base.get()?.get_fallback_addrs())
+        Some(self.inner.static_base.get()?.get_fallback_addrs())
     }
 
     /// Set (or overwrite) the map of addresses used in the fallback static hostname lookup.
     pub fn set_fallback_addrs(&self, addrs: HashMap<String, Vec<IpAddr>>) {
         debug!("setting fallback entries for {:?}", addrs.keys());
-        self.static_base
-            .get_or_init(|| Self::new_static_fallback(self.use_shared))
-            .set_fallback(addrs);
+        self.static_resolver().set_fallback(addrs);
     }
 
     /// Get the current map of hostnames to addresses used in the preresolve static lookup stage
     /// if one exists.
     pub fn get_static_preresolve(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
-        Some(self.static_base.get()?.get_preresolve_addrs())
+        Some(self.inner.static_base.get()?.get_preresolve_addrs())
     }
 
     /// Set (or overwrite) the map of addresses used in the preresolve static hostname lookup.
     pub fn set_static_preresolve(&self, addrs: HashMap<String, Vec<IpAddr>>) {
         debug!("setting pre-resolve entries for {:?}", addrs.keys());
-        self.static_base
-            .get_or_init(|| Self::new_static_fallback(self.use_shared))
-            .set_preresolve(addrs);
+        self.static_resolver().set_preresolve(addrs);
     }
 
     /// Get the full default set of known nameserver configs (Cloudflare and Quad9, DoT and DoH,
@@ -474,25 +411,18 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
     /// Get the nameserver group currently configured for this resolver, reflecting any change
     /// made via [`Self::set_name_servers`].
     pub fn get_name_servers(&self) -> Vec<NameServerConfig> {
-        self.name_servers.load_full().as_ref().clone()
+        self.inner.name_servers.load_full().as_ref().clone()
     }
 
     /// Set (or overwrite) the nameserver group used by this resolver. Since the underlying
     /// resolver is immutable once built, this invalidates the internal (cached, lazily-built)
     /// resolver: the next lookup made with this resolver rebuilds it using the new nameservers.
     ///
-    /// If this resolver uses the shared underlying resolver, the shared nameserver group and
-    /// cached resolver are reset as well, so that other instances backed by the shared resolver
-    /// pick up the change the next time they need to (re)build it.
+    /// Every handle to the same state, e.g. all shared ones, sees the change.
     pub fn set_name_servers(&self, name_servers: Vec<NameServerConfig>) {
         debug!("setting nameserver group to {name_servers:?}");
-        self.name_servers.store(Arc::new(name_servers));
-        self.state.store(Arc::new(OnceCell::new()));
-
-        if let Some(shared) = self.use_shared.then(C::shared_resolver).flatten() {
-            shared.name_servers.store(self.name_servers.load_full());
-            shared.state.store(Arc::new(OnceCell::new()));
-        }
+        self.inner.name_servers.store(Arc::new(name_servers));
+        self.inner.state.store(Arc::new(OnceCell::new()));
     }
 }
 

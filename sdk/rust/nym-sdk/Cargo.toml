@@ -144,7 +144,7 @@ nym-sphinx = { workspace = true }
 nym-statistics-common = { workspace = true }
 nym-task = { workspace = true }
 nym-topology = { workspace = true }
-nym-validator-client = { workspace = true, features = ["http-client"] }
+nym-validator-client = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
@@ -234,6 +234,7 @@ nym-ip-packet-requests = { workspace = true, default-features = true, features =
 
 [features]
 default = [
+    "tls-ring",
     "fs-storage",
     "socks5",
     "ipr",
@@ -243,6 +244,14 @@ default = [
     "client-pool",
     "cli",
 ]
+
+# rustls crypto provider for every TLS connection the SDK makes (nym-api and other HTTP APIs,
+# DoT/DoH lookups, gateway websockets). ring wins when both are enabled. With
+# `default-features = false` and neither enabled, aws-lc-rs is used: reqwest compiles it in
+# either way. Only `tls-aws-lc-rs` without `tls-ring` (and without `credentials`) builds
+# without ring.
+tls-ring = ["nym-http-api-client/tls-ring"]
+tls-aws-lc-rs = ["nym-http-api-client/tls-aws-lc-rs"]
 
 # On-disk persistent storage for keys, credentials, reply SURBs, and gateways.
 # Forwards to nym-client-core's fs-* features, which pull in the sqlx stack.
@@ -282,9 +291,12 @@ ipr = [
     "dep:bincode",
 ]
 
-# Paid ecash bandwidth credentials (acquire and import). Pulls the sqlite-backed
-# credential fetcher (and sqlx) via nym-bandwidth-fetcher/credentials.
+# Paid ecash bandwidth credentials (acquire and import), and the DKG query client that
+# `enable_credentials_mode` needs. Pulls the sqlite-backed credential fetcher (and sqlx) via
+# nym-bandwidth-fetcher/credentials, and the tendermint-rpc HTTP client (reqwest 0.11 and
+# rustls 0.21 with ring, whichever TLS feature is enabled).
 credentials = [
+    "nym-validator-client/http-client",
     "dep:nym-bandwidth-controller",
     "dep:nym-bandwidth-fetcher",
     "nym-bandwidth-fetcher/credentials",

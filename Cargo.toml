@@ -500,7 +500,9 @@ nym-gateway-requests = { version = "3.0.1", path = "common/gateway-requests" }
 nym-gateway-storage = { version = "3.0.1", path = "common/gateway-storage" }
 nym-gateway-stats-storage = { version = "3.0.1", path = "common/gateway-stats-storage" }
 nym-group-contract-common = { version = "3.0.1", path = "common/cosmwasm-smart-contracts/group-contract" }
-nym-http-api-client = { version = "3.0.1", path = "common/http-api-client" }
+# aws-lc-rs is the base provider (reqwest compiles it anyway); members that want ring add `tls-ring`.
+# Never add `tls-ring` here: nym-sdk's `tls-aws-lc-rs` builds must stay free of ring.
+nym-http-api-client = { version = "3.0.1", path = "common/http-api-client", default-features = false, features = ["tunneling", "tls-aws-lc-rs"] }
 nym-http-api-client-macro = { version = "3.0.1", path = "common/http-api-client-macro" }
 nym-http-api-common = { version = "3.0.1", path = "common/http-api-common", default-features = false }
 nym-id = { version = "3.0.1", path = "common/nym-id" }

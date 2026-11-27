@@ -36,10 +36,6 @@ nym-ecash-time = { workspace = true }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
 
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
-workspace = true
-features = ["http-client"]
-
 # credential fetching (background tasks + restock timer) is native-only
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 workspace = true

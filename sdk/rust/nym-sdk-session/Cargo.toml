@@ -16,7 +16,7 @@ publish = true
 
 [dependencies]
 nym-validator-client = { workspace = true }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-bandwidth-controller = { workspace = true }
 nym-bandwidth-fetcher = { workspace = true, features = ["credentials"] }
 nym-credential-storage = { workspace = true, features = ["persistent-storage"] }

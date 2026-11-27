@@ -26,7 +26,7 @@ url = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-api-requests = { workspace = true }
 
 [lints]

@@ -24,6 +24,8 @@ nym-bin-common = { workspace = true, features = ["output_format"] }
 nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
+# not used directly: selects ring as the rustls provider for nym-validator-client's HTTP clients
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nyxd-scraper-sqlite = { path = "../common/nyxd-scraper-sqlite" }
 reqwest = { workspace = true, features = ["rustls"] }
 schemars = { workspace = true }

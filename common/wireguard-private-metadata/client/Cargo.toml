@@ -14,7 +14,7 @@ publish = true
 [dependencies]
 async-trait = { workspace = true }
 tracing = { workspace = true }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-wireguard-private-metadata-shared = { workspace = true }
 
 [lints]

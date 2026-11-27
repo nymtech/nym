@@ -2,25 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
+#[cfg(feature = "dkg-http-client")]
 use crate::error::Socks5ClientCoreError;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::NymSocksServer,
 };
 use futures::channel::mpsc;
+#[cfg(feature = "dkg-http-client")]
 use futures::StreamExt;
 use log::*;
+#[cfg(feature = "dkg-http-client")]
 use nym_client_core::client::base_client::non_wasm_helpers::default_query_dkg_client_from_config;
 use nym_client_core::client::base_client::storage::MixnetClientStorage;
-use nym_client_core::client::base_client::{
-    BaseClientBuilder, ClientInput, ClientOutput, ClientState,
-};
+#[cfg(feature = "dkg-http-client")]
+use nym_client_core::client::base_client::BaseClientBuilder;
+use nym_client_core::client::base_client::{ClientInput, ClientOutput, ClientState};
 use nym_client_core::config::DebugConfig;
 use nym_client_core::init::types::GatewaySetup;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_task::{ShutdownManager, ShutdownTracker};
 use nym_validator_client::UserAgent;
+#[cfg(feature = "dkg-http-client")]
 use std::error::Error;
 use std::path::PathBuf;
 
@@ -46,6 +50,8 @@ pub struct StartedSocks5Client {
     pub address: Recipient,
 }
 
+// Without `dkg-http-client` only `start_socks5_listener` is available, which reads no fields.
+#[cfg_attr(not(feature = "dkg-http-client"), allow(dead_code))]
 pub struct NymClient<S> {
     /// Client configuration options, including, among other things, packet sending rates,
     /// key filepaths, etc.
@@ -156,6 +162,7 @@ where
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
+    #[cfg(feature = "dkg-http-client")]
     pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut started = self.start().await?;
 
@@ -165,6 +172,7 @@ where
     }
 
     // Variant of `run_forever` that listens for remote control messages
+    #[cfg(feature = "dkg-http-client")]
     pub async fn run_and_listen(
         self,
         mut receiver: Socks5ControlMessageReceiver,
@@ -207,6 +215,7 @@ where
         res
     }
 
+    #[cfg(feature = "dkg-http-client")]
     pub async fn start(self) -> Result<StartedSocks5Client, Socks5ClientCoreError> {
         // don't create dkg client for the bandwidth controller if credentials are disabled
         let dkg_query_client = if self.config.base.client.disabled_credentials_mode {

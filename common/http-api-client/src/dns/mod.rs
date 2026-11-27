@@ -45,7 +45,8 @@
 //!
 //! ---
 //!
-//! Requires the `https-ring`, `tls-ring`, `webpki-roots` features for the `hickory-resolver` crate
+//! Requires the `webpki-roots` feature for the `hickory-resolver` crate, plus `tls-*` and
+//! `https-*` for the crypto provider that this crate's `tls-ring` or `tls-aws-lc-rs` feature selects
 #![deny(missing_docs)]
 
 use crate::ClientBuilder;

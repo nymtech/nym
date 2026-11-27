@@ -44,5 +44,9 @@ nym-validator-client = { workspace = true }
 
 [features]
 default = []
+# `NymClient::start`, `run_forever` and `run_and_listen`, which build the credentials DKG client
+# on the tendermint-rpc HTTP client (reqwest 0.11 and rustls 0.21 with ring). nym-sdk uses only
+# `start_socks5_listener` and does not enable this.
+dkg-http-client = ["nym-client-core/dkg-http-client"]
 
 [lints]

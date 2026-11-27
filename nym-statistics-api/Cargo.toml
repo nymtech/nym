@@ -47,7 +47,7 @@ nym-statistics-common = { workspace = true, features = [
 ] }
 nym-task = { workspace = true }
 
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-validator-client = { workspace = true }
 
 [lints]

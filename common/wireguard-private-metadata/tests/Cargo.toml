@@ -18,7 +18,7 @@ futures = { workspace = true }
 nym-credential-verification = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-http-api-common = { workspace = true, features = [
     "middleware",
     "utoipa",

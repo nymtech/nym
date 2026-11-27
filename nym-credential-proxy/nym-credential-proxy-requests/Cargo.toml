@@ -31,7 +31,7 @@ utoipa = { workspace = true, optional = true, features = ["uuid"] }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-http-api-common = { workspace = true, optional = true }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-serde-helpers = { workspace = true, features = ["bs58", "date"] }
 nym-upgrade-mode-check = { workspace = true }
 

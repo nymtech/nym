@@ -14,8 +14,12 @@ publish = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default=["tunneling"]
-tunneling=[]
+default = ["tunneling", "tls-ring"]
+tunneling = []
+# rustls crypto provider for reqwest, the gateway websockets and the DoT/DoH resolver.
+# ring wins when both are enabled.
+tls-ring = ["rustls/ring", "hickory-resolver/tls-ring", "hickory-resolver/https-ring"]
+tls-aws-lc-rs = ["rustls/aws-lc-rs", "hickory-resolver/tls-aws-lc-rs", "hickory-resolver/https-aws-lc-rs"]
 network-defaults = ["nym-network-defaults/network"]
 debug-inventory = ["nym-http-api-client-macro/debug-inventory"]
 
@@ -37,7 +41,6 @@ itertools = { workspace = true }
 inventory = { workspace = true }
 fastrand = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "time"] }
-rustls = { workspace = true }
 # used for decoding text responses (they were already implicitly included)
 bytes = { workspace = true }
 encoding_rs = { workspace = true }
@@ -51,8 +54,8 @@ nym-http-api-client-macro = { workspace = true }
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 arc-swap = { workspace = true }
 h2 = { workspace = true }
-hickory-resolver = { workspace = true, features = ["https-ring", "tls-ring", "webpki-roots"] }
-rustls = { workspace = true, features = ["ring", "std", "tls12"] }
+hickory-resolver = { workspace = true, features = ["webpki-roots"] }
+rustls = { workspace = true, features = ["std", "tls12"] }
 webpki-roots = { workspace = true }
 
 # for request timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed

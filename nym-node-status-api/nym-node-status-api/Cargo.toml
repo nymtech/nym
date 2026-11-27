@@ -38,7 +38,7 @@ nym-bin-common = { workspace = true, features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
 nym-gateway-probe = { workspace = true, features = ["utoipa"] }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-http-api-common = { workspace = true, features = ["middleware"] }
 nym-network-defaults = { workspace = true }
 nym-serde-helpers = { workspace = true }

@@ -36,6 +36,8 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 utoipauto = { workspace = true }
 
 nym-validator-client = { workspace = true, features = ["http-client"] }
+# not used directly: selects ring as the rustls provider for nym-validator-client's HTTP clients
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-bin-common = { workspace = true, features = ["basic_tracing", "output_format"] }
 nym-config-score = { workspace = true }
 nym-contracts-common = { workspace = true, features = ["naive_float"] }

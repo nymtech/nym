@@ -41,7 +41,7 @@ pin-project = { workspace = true }
 # Bandwidth top-up (task 4.9): the gateway `metadata` endpoint client. The
 # BandwidthCredential is supplied by the caller, keeping the datapath decoupled
 # from the provisioning facade.
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-credentials-interface = { workspace = true }
 nym-wireguard-private-metadata-client = { workspace = true }
 nym-wireguard-private-metadata-shared = { workspace = true }

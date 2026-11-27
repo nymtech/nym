@@ -29,7 +29,7 @@ use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::RoutingNode;
-use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
+use nym_validator_client::UserAgent;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
@@ -40,6 +40,8 @@ use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 #[cfg(feature = "credentials")]
 use nym_credentials_interface::TicketType;
+#[cfg(feature = "credentials")]
+use nym_validator_client::nyxd;
 
 #[cfg(feature = "fs-storage")]
 use super::StoragePaths;
@@ -500,7 +502,7 @@ where
 
     /// In the case of enabled credentials, a client instance responsible for querying the state of the
     /// dkg and coconut contracts
-    dkg_query_client: Option<QueryHttpRpcNyxdClient>,
+    dkg_query_client: Option<DkgQueryClient>,
 
     /// Alternative provider of network topology used for constructing sphinx packets.
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -569,13 +571,7 @@ where
     ) -> Result<DisconnectedMixnetClient<S>> {
         // don't create dkg client for the bandwidth controller if credentials are disabled
         let dkg_query_client = if config.enabled_credentials_mode {
-            let client_config =
-                nyxd::Config::try_from_nym_network_details(&config.network_details)?;
-            let client = QueryHttpRpcNyxdClient::connect(
-                client_config,
-                config.network_details.endpoints[0].nyxd_url.as_str(),
-            )?;
-            Some(client)
+            Some(connect_dkg_query_client(&config)?)
         } else {
             None
         };
@@ -1154,6 +1150,31 @@ impl IncludedSurbs {
     pub fn expose_self_address() -> Self {
         Self::ExposeSelfAddress
     }
+}
+
+/// Queries the DKG and ecash contracts for the bandwidth controller in credentials mode.
+#[cfg(feature = "credentials")]
+type DkgQueryClient = nym_validator_client::QueryHttpRpcNyxdClient;
+
+// Never constructed: without `credentials` the client is always `None`, so any type that
+// implements the client-core trait without the tendermint-rpc HTTP client will do.
+#[cfg(not(feature = "credentials"))]
+type DkgQueryClient = nym_validator_client::QueryReqwestRpcNyxdClient;
+
+#[cfg(feature = "credentials")]
+fn connect_dkg_query_client(config: &Config) -> Result<DkgQueryClient> {
+    let client_config = nyxd::Config::try_from_nym_network_details(&config.network_details)?;
+    Ok(DkgQueryClient::connect(
+        client_config,
+        config.network_details.endpoints[0].nyxd_url.as_str(),
+    )?)
+}
+
+#[cfg(not(feature = "credentials"))]
+fn connect_dkg_query_client(_config: &Config) -> Result<DkgQueryClient> {
+    Err(Error::Unsupported {
+        details: "credentials mode needs the nym-sdk `credentials` feature".to_string(),
+    })
 }
 
 #[cfg(test)]

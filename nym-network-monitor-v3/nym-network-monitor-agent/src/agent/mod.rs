@@ -222,13 +222,13 @@ impl NetworkMonitorAgent {
         };
 
         self.orchestrator_client
-            .submit_work_result(&WorkResultSubmissionRequest::OneHopMixnet(
+            .submit_work_result(&WorkResultSubmissionRequest::OneHopMixnet(Box::new(
                 OneHopMixnetResult {
                     node_id,
                     tested_address,
                     result: result.into(),
                 },
-            ))
+            )))
             .await
             .context("failed to submit test run result")?;
         Ok(())

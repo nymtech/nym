@@ -271,7 +271,7 @@ pub struct LatencyDistribution {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkResultSubmissionRequest {
-    OneHopMixnet(OneHopMixnetResult),
+    OneHopMixnet(Box<OneHopMixnetResult>),
     FiveHopMixnet(FiveHopMixnetResult),
 }
 

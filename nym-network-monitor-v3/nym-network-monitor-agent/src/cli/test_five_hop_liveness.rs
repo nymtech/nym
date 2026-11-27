@@ -9,6 +9,7 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_network_monitor_route_client::config::RouteNodeSelection;
 use nym_network_monitor_route_client::session::{SessionGateway, SessionOutcome, run_sessions};
 use nym_network_monitor_route_records::NodeId;
+use nym_network_monitor_route_records::batch::Batch;
 use nym_network_monitor_route_records::scoring::{FailSequenceRule, ScoringStrategy};
 use nym_network_monitor_route_records::test_message::{SessionTestMessages, merge_in_send_order};
 use nym_task::ShutdownToken;
@@ -200,20 +201,13 @@ impl FiveHopMixnetRunReport {
             let session_outcome = match outcome.batch {
                 Ok(batch) => {
                     mixnet_epoch = Some(batch.header.mixnet_epoch);
-                    let record_count = batch.records.len();
                     let test_messages = SessionTestMessages::from_batch(&batch);
-                    let loss_rate = test_messages.loss_rate();
+                    let summary = FiveHopMixnetSessionSummary::new(&batch, &test_messages);
                     if test_messages.is_suspected(&run_loss_rates, session_loss_margin) {
-                        FiveHopMixnetSessionOutcome::Discarded {
-                            record_count,
-                            loss_rate,
-                        }
+                        FiveHopMixnetSessionOutcome::Discarded(summary)
                     } else {
                         kept.push(test_messages);
-                        FiveHopMixnetSessionOutcome::Kept {
-                            record_count,
-                            loss_rate,
-                        }
+                        FiveHopMixnetSessionOutcome::Kept(summary)
                     }
                 }
                 Err(err) => FiveHopMixnetSessionOutcome::Error(format!("{err:#}")),
@@ -267,46 +261,88 @@ struct FiveHopMixnetSessionReport {
 impl Display for FiveHopMixnetSessionReport {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let gateway_node_id = self.gateway_node_id;
-        let (verdict, record_count, loss_rate) = match &self.outcome {
-            FiveHopMixnetSessionOutcome::Kept {
-                record_count,
-                loss_rate,
-            } => ("kept", record_count, loss_rate),
-            FiveHopMixnetSessionOutcome::Discarded {
-                record_count,
-                loss_rate,
-            } => ("discarded", record_count, loss_rate),
+        match &self.outcome {
+            FiveHopMixnetSessionOutcome::Kept(summary) => {
+                write!(
+                    f,
+                    "session through gateway {gateway_node_id}: kept, {summary}"
+                )
+            }
+            FiveHopMixnetSessionOutcome::Discarded(summary) => {
+                write!(
+                    f,
+                    "session through gateway {gateway_node_id}: discarded, {summary}"
+                )
+            }
             FiveHopMixnetSessionOutcome::Error(error) => {
-                return write!(
+                write!(
                     f,
                     "session through gateway {gateway_node_id}: failed: {error}"
-                );
+                )
             }
-        };
-        write!(
-            f,
-            "session through gateway {gateway_node_id}: {verdict}, {record_count} records"
-        )?;
-        match loss_rate {
-            Some(loss_rate) => write!(f, ", {:.2}% lost", loss_rate * 100.0),
-            None => write!(f, ", no test messages"),
         }
     }
 }
 
-/// A session's verdict with its record count and loss rate, or its error.
+/// A session's verdict with what its records hold, or its error.
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
 enum FiveHopMixnetSessionOutcome {
-    Kept {
-        record_count: usize,
-        loss_rate: Option<f64>,
-    },
+    Kept(FiveHopMixnetSessionSummary),
 
-    Discarded {
-        record_count: usize,
-        loss_rate: Option<f64>,
-    },
+    Discarded(FiveHopMixnetSessionSummary),
 
     Error(String),
+}
+
+/// A finished session's records: how many, how many payloads and acks came back, and the share of test messages lost.
+#[derive(Serialize)]
+struct FiveHopMixnetSessionSummary {
+    record_count: usize,
+
+    payloads_back: usize,
+
+    acks_back: usize,
+
+    loss_rate: Option<f64>,
+}
+
+impl FiveHopMixnetSessionSummary {
+    fn new(batch: &Batch, test_messages: &SessionTestMessages) -> Self {
+        FiveHopMixnetSessionSummary {
+            record_count: batch.records.len(),
+            payloads_back: batch
+                .records
+                .iter()
+                .filter(|record| record.payload_back)
+                .count(),
+            acks_back: batch
+                .records
+                .iter()
+                .filter(|record| record.ack_back)
+                .count(),
+            loss_rate: test_messages.loss_rate(),
+        }
+    }
+
+    /// Percentage of the session's records not among the `back` that came back; only called with records.
+    fn percent_not_back(&self, back: usize) -> f64 {
+        100.0 * (self.record_count - back) as f64 / self.record_count as f64
+    }
+}
+
+impl Display for FiveHopMixnetSessionSummary {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} records", self.record_count)?;
+        let Some(loss_rate) = self.loss_rate else {
+            return Ok(());
+        };
+        write!(
+            f,
+            ", {:.2}% of payloads and {:.2}% of acks not back, {:.2}% of test messages lost",
+            self.percent_not_back(self.payloads_back),
+            self.percent_not_back(self.acks_back),
+            loss_rate * 100.0
+        )
+    }
 }

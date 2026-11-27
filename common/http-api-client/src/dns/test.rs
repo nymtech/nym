@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::*;
-use hickory_resolver::TokioResolver;
 use itertools::Itertools;
 use serial_test::serial;
 use std::{
@@ -79,10 +78,7 @@ async fn static_resolver_as_fallback() -> Result<(), ResolveError> {
 /// fails once the group is swapped for one that is guaranteed to be unreachable.
 #[tokio::test]
 async fn set_name_servers_rebuilds_independent_resolver() -> Result<(), ResolveError> {
-    let resolver: HickoryDnsResolver = HickoryDnsResolver {
-        overall_dns_timeout: Duration::from_secs(5),
-        ..HickoryDnsResolver::thread_resolver()
-    };
+    let resolver: HickoryDnsResolver = HickoryDnsResolver::thread_resolver();
 
     // sanity: the default nameservers can resolve a real domain, and get_name_servers()
     // reflects the default group before any override.
@@ -136,10 +132,7 @@ async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
 
     let default_ns = default_nameserver_group_ipv4_only();
 
-    let warm_sibling: HickoryDnsResolver = HickoryDnsResolver {
-        overall_dns_timeout: Duration::from_secs(5),
-        ..HickoryDnsResolver::shared()
-    };
+    let warm_sibling: HickoryDnsResolver = HickoryDnsResolver::new();
     // warm this sibling's view of the shared resolver *before* the reset below. It never calls
     // `set_name_servers` itself, so the only way it can observe the later reset is by consulting
     // the shared resolver's cache on every lookup instead of caching a local copy after this call.
@@ -151,10 +144,7 @@ async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
             .is_some()
     );
 
-    let resolver1: HickoryDnsResolver = HickoryDnsResolver {
-        overall_dns_timeout: Duration::from_secs(5),
-        ..HickoryDnsResolver::shared()
-    };
+    let resolver1: HickoryDnsResolver = HickoryDnsResolver::new();
     let broken_domain = Arc::<str>::from("cloudflare-dns.com");
     let broken_ns = GUARANTEED_BROKEN_IPS_1
         .iter()
@@ -164,10 +154,7 @@ async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
 
     // a different, freshly created instance backed by the shared resolver must also observe
     // the change, since it lazily builds off of the shared (now-broken) nameserver group.
-    let resolver2: HickoryDnsResolver = HickoryDnsResolver {
-        overall_dns_timeout: Duration::from_secs(5),
-        ..HickoryDnsResolver::shared()
-    };
+    let resolver2: HickoryDnsResolver = HickoryDnsResolver::new();
     let result2 = resolver2.resolve_str("non-existent.nymtech.net").await;
 
     // the already-warmed sibling must observe the change too, rather than continuing to use
@@ -226,69 +213,47 @@ async fn trial_nameservers() {
 mod failure_test {
     use super::*;
 
-    // Create a resolver that behaves the same as the custom configured router, except for the fact
-    // that it is guaranteed to fail.
-    fn build_broken_resolver() -> Result<TokioResolver, ResolveError> {
-        info!("building new faulty resolver");
-
+    // A nameserver group that behaves like the configured one, except that it is guaranteed to
+    // fail.
+    fn broken_name_servers() -> Vec<NameServerConfig> {
         let domain = Arc::<str>::from("cloudflare-dns.com");
         let path = Arc::<str>::from("/dns-query");
-        let broken_ns_group = GUARANTEED_BROKEN_IPS_1
+        GUARANTEED_BROKEN_IPS_1
             .iter()
             .map(|ip| NameServerConfig::tls(*ip, domain.clone()))
             .chain(
                 GUARANTEED_BROKEN_IPS_1
                     .iter()
-                    .map(|ip| NameServerConfig::https(*ip, domain.clone(), Some(path.clone())))
-                    .collect::<Vec<_>>(),
+                    .map(|ip| NameServerConfig::https(*ip, domain.clone(), Some(path.clone()))),
             )
-            .collect::<Vec<_>>();
+            .collect()
+    }
 
-        configure_and_build_resolver(broken_ns_group)
+    // A resolver with its own state, so it won't mess with the shared one used by other tests.
+    fn broken_resolver() -> HickoryDnsResolver {
+        let resolver = HickoryDnsResolver::thread_resolver();
+        resolver.set_name_servers(broken_name_servers());
+        resolver
     }
 
     #[tokio::test]
     async fn dns_lookup_failures() -> Result<(), ResolveError> {
         let time_start = std::time::Instant::now();
 
-        let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
-            .expect("broken resolver init error");
-
-        // create a new resolver that won't mess with the shared resolver used by other tests
-        let resolver = HickoryDnsResolver {
-            inner: Arc::new(Inner {
-                state: ArcSwap::from_pointee(r),
-                ..Default::default()
-            }),
-            overall_dns_timeout: Duration::from_secs(5),
-        };
-        build_broken_resolver()?;
+        let resolver = broken_resolver();
         let domain = "ifconfig.me";
         let result = resolver.resolve_str(domain).await;
         assert!(result.is_err_and(|e| e.is_timeout()));
 
         let duration = time_start.elapsed();
-        assert!(duration < resolver.overall_dns_timeout + Duration::from_secs(1));
+        assert!(duration < DEFAULT_OVERALL_LOOKUP_TIMEOUT + Duration::from_secs(1));
 
         Ok(())
     }
 
     #[tokio::test]
     async fn fallback_to_static() -> Result<(), ResolveError> {
-        let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
-            .expect("broken resolver init error");
-
-        // create a new resolver that won't mess with the shared resolver used by other tests
-        let resolver = HickoryDnsResolver {
-            inner: Arc::new(Inner {
-                state: ArcSwap::from_pointee(r),
-                ..Default::default()
-            }),
-            overall_dns_timeout: Duration::from_secs(5),
-        };
-        build_broken_resolver()?;
+        let resolver = broken_resolver();
 
         // successful lookup using fallback to static resolver
         let domain = "nymvpn.com";
@@ -358,13 +323,8 @@ mod failure_test {
         resolver.clear_preresolve();
 
         // ... other instances have their pre-resolve entries cleared.
-        let prereslve_lookup = resolver1
-            .inner
-            .static_base
-            .get()
-            .unwrap()
-            .pre_resolve(&example_domains[0]);
-        assert!(prereslve_lookup.is_none());
+        let preresolved = resolver1.get_static_preresolve().unwrap_or_default();
+        assert!(!preresolved.contains_key(&example_domains[0]));
 
         Ok(())
     }
@@ -378,11 +338,11 @@ mod failure_test {
     // default resolvers. Otherwise the default resolvers will succeed without using the static
     // fallback, making the test pointless
     async fn dns_lookup_failure_on_shared() -> Result<(), ResolveError> {
-        let resolver1 = HickoryDnsResolver::shared();
+        let resolver1 = HickoryDnsResolver::new();
 
         let time_start = std::time::Instant::now();
         // create a new resolver that uses the shared resolver
-        let resolver = HickoryDnsResolver::shared();
+        let resolver = HickoryDnsResolver::new();
 
         // successful lookup using fallback to static resolver
         let domain = "rpc.nymtech.net";
@@ -393,7 +353,7 @@ mod failure_test {
 
         let lookup_dur = Instant::now() - time_start;
         assert!(
-            lookup_dur > resolver.overall_dns_timeout,
+            lookup_dur > DEFAULT_OVERALL_LOOKUP_TIMEOUT,
             "expected lookup timeout - took {}ms",
             (lookup_dur).as_millis()
         );

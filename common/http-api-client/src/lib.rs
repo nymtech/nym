@@ -1032,9 +1032,20 @@ impl Client {
         }
     }
 
+    /// Whether the pool the request was sent through has another address to move to.
+    fn has_other_address(&self, target: &Target<'_>) -> bool {
+        match target.front {
+            #[cfg(feature = "tunneling")]
+            Some(_) => self.fronted_len() > 1,
+            _ => self.base_urls.len() > 1,
+        }
+    }
+
     /// Moves the pool the request was sent through to its next address, unless the pool already
-    /// moved since the request was sent.
-    fn shift(&self, target: &Target<'_>) {
+    /// moved since the request was sent. `switch_pool` also hands the next request to the other
+    /// pool, which is for failures that look like interference, not for server errors.
+    #[cfg_attr(not(feature = "tunneling"), allow(unused_variables))]
+    fn shift(&self, target: &Target<'_>, switch_pool: bool) {
         let pool = match target.front {
             Some(_) => &self.fronted_generation,
             None => &self.plain_generation,
@@ -1051,10 +1062,12 @@ impl Client {
             return;
         }
         #[cfg(feature = "tunneling")]
-        if target.front.is_some() {
-            self.front.retry_disable();
-        } else {
-            self.front.retry_enable();
+        if switch_pool {
+            if target.front.is_some() {
+                self.front.retry_disable();
+            } else {
+                self.front.retry_enable();
+            }
         }
         debug!("http client shifting to the next address after a failure");
     }
@@ -1077,7 +1090,7 @@ impl Client {
         {
             return;
         }
-        self.shift(&target);
+        self.shift(&target, true);
     }
 
     /// Make modifications to the request to apply the current state of this client i.e. the
@@ -1282,22 +1295,24 @@ impl ApiClientCore for Client {
                     // Rate limits and gateway errors mean this address cannot serve us right now
                     if is_http_rate_limit_err(&resp) || is_gateway_error(status) {
                         warn!("host unavailable ({status}) for {}", url.as_str());
-                        self.shift(&target);
-                        // only requests that are safe to send twice are resent
-                        if idempotent && self.base_urls.len() > 1 && attempts < self.retry_limit {
-                            attempts += 1;
-                            continue;
+                        if self.has_other_address(&target) {
+                            self.shift(&target, false);
+                            // only requests that are safe to send twice are resent
+                            if idempotent && attempts < self.retry_limit {
+                                attempts += 1;
+                                continue;
+                            }
                         }
-                    } else if status == StatusCode::INTERNAL_SERVER_ERROR
-                        && self.base_urls.len() > 1
-                    {
+                    } else if status == StatusCode::INTERNAL_SERVER_ERROR {
                         // a plain 500 gets the retries on this address first, then the next call
                         // uses the next one
                         if idempotent && attempts < self.retry_limit {
                             attempts += 1;
                             continue;
                         }
-                        self.shift(&target);
+                        if self.has_other_address(&target) {
+                            self.shift(&target, false);
+                        }
                     }
 
                     return Ok(resp);
@@ -1315,7 +1330,7 @@ impl ApiClientCore for Client {
 
                     if is_network_err & !network_reconfigured {
                         // if we have multiple urls, update to the next
-                        self.shift(&target);
+                        self.shift(&target, true);
                     }
 
                     if attempts < self.retry_limit {

@@ -907,7 +907,27 @@ fn failure_of_a_request_sent_before_a_full_lap_is_ignored() {
 
     client.update_host(None);
     client.update_host(None);
-    client.shift(&stale);
+    client.shift(&stale, true);
 
     assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
+}
+
+// A server error moves the pool on, but only interference-like failures hand over to the other pool.
+#[test]
+#[cfg(feature = "tunneling")]
+fn server_error_shifts_within_the_pool_without_switching_to_the_fronted_pool() {
+    let client = ClientBuilder::new_with_urls(vec![
+        Url::new("https://a.test/api/", Some(vec!["https://f1.test"])).unwrap(),
+        Url::new("https://b.test/api/", Some(vec!["https://f2.test"])).unwrap(),
+    ])
+    .unwrap()
+    .with_fronting(Some(crate::fronted::FrontPolicy::OnRetry))
+    .build()
+    .unwrap();
+
+    client.shift(&client.target(), false);
+    assert_eq!(client.current_url_str(), "https://b.test/api/");
+
+    client.shift(&client.target(), true);
+    assert_eq!(client.current_url_str(), "https://f1.test/");
 }

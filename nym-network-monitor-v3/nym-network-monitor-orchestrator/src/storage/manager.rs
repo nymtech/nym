@@ -4810,7 +4810,7 @@ mod tests {
             let first_batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..1, 0);
             let first = five_hop_mixnet_session(run, &first_batch, true);
             assert_eq!(
-                submit(&db, run, T0 + minutes(1), &[first.clone()]).await,
+                submit(&db, run, T0 + minutes(1), std::slice::from_ref(&first)).await,
                 FiveHopMixnetRunSubmission::Stored
             );
 

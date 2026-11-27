@@ -56,15 +56,10 @@ async fn dns_lookup() -> Result<(), ResolveError> {
 #[tokio::test]
 async fn static_resolver_as_fallback() -> Result<(), ResolveError> {
     let example_domain = "non-existent.nymvpn.com";
-    let mut resolver: HickoryDnsResolver = HickoryDnsResolver {
-        use_shared: false,
-        ..Default::default()
-    };
+    let resolver: HickoryDnsResolver = HickoryDnsResolver::thread_resolver();
 
     let result = resolver.resolve_str(example_domain).await;
     assert!(result.is_err()); // should be NXDomain
-
-    resolver.static_base = Default::default();
 
     let mut addr_map = HashMap::new();
     let example_ip4: IpAddr = "10.10.10.10".parse().unwrap();
@@ -85,9 +80,8 @@ async fn static_resolver_as_fallback() -> Result<(), ResolveError> {
 #[tokio::test]
 async fn set_name_servers_rebuilds_independent_resolver() -> Result<(), ResolveError> {
     let resolver: HickoryDnsResolver = HickoryDnsResolver {
-        use_shared: false,
         overall_dns_timeout: Duration::from_secs(5),
-        ..Default::default()
+        ..HickoryDnsResolver::thread_resolver()
     };
 
     // sanity: the default nameservers can resolve a real domain, and get_name_servers()
@@ -144,7 +138,7 @@ async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
 
     let warm_sibling: HickoryDnsResolver = HickoryDnsResolver {
         overall_dns_timeout: Duration::from_secs(5),
-        ..Default::default()
+        ..HickoryDnsResolver::shared()
     };
     // warm this sibling's view of the shared resolver *before* the reset below. It never calls
     // `set_name_servers` itself, so the only way it can observe the later reset is by consulting
@@ -159,7 +153,7 @@ async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
 
     let resolver1: HickoryDnsResolver = HickoryDnsResolver {
         overall_dns_timeout: Duration::from_secs(5),
-        ..Default::default()
+        ..HickoryDnsResolver::shared()
     };
     let broken_domain = Arc::<str>::from("cloudflare-dns.com");
     let broken_ns = GUARANTEED_BROKEN_IPS_1
@@ -172,7 +166,7 @@ async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
     // the change, since it lazily builds off of the shared (now-broken) nameserver group.
     let resolver2: HickoryDnsResolver = HickoryDnsResolver {
         overall_dns_timeout: Duration::from_secs(5),
-        ..Default::default()
+        ..HickoryDnsResolver::shared()
     };
     let result2 = resolver2.resolve_str("non-existent.nymtech.net").await;
 
@@ -263,10 +257,11 @@ mod failure_test {
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let resolver = HickoryDnsResolver {
-            use_shared: false,
-            state: Arc::new(ArcSwap::from_pointee(r)),
+            inner: Arc::new(Inner {
+                state: ArcSwap::from_pointee(r),
+                ..Default::default()
+            }),
             overall_dns_timeout: Duration::from_secs(5),
-            ..Default::default()
         };
         build_broken_resolver()?;
         let domain = "ifconfig.me";
@@ -287,11 +282,11 @@ mod failure_test {
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let resolver = HickoryDnsResolver {
-            use_shared: false,
-            state: Arc::new(ArcSwap::from_pointee(r)),
-            static_base: Default::default(),
+            inner: Arc::new(Inner {
+                state: ArcSwap::from_pointee(r),
+                ..Default::default()
+            }),
             overall_dns_timeout: Duration::from_secs(5),
-            ..Default::default()
         };
         build_broken_resolver()?;
 
@@ -364,6 +359,7 @@ mod failure_test {
 
         // ... other instances have their pre-resolve entries cleared.
         let prereslve_lookup = resolver1
+            .inner
             .static_base
             .get()
             .unwrap()

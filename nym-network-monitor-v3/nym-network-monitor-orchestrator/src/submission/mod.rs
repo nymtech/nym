@@ -72,9 +72,19 @@ where
 
         let config_scores = self.storage.get_mixnet_epoch_config_scores(epoch).await?;
         let aggregates = self.storage.get_mixnet_epoch_aggregates(epoch).await?;
+        let five_hop_liveness = self
+            .storage
+            .get_mixnet_epoch_five_hop_liveness(epoch)
+            .await?;
         let roles = self.storage.get_described_node_roles().await?;
 
-        let plan = EpochPlan::build(&config_scores, aggregates, &roles, self.coverage_threshold);
+        let plan = EpochPlan::build(
+            &config_scores,
+            aggregates,
+            &five_hop_liveness,
+            &roles,
+            self.coverage_threshold,
+        );
         let coverage = plan.coverage;
         for kind in TestKind::iter() {
             PROMETHEUS_METRICS.set_for_kind(

@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::aggregation::materialiser::five_hop_liveness::FiveHopLivenessMaterialiserConfig;
+use crate::http::state::work::FiveHopMixnetRunConfig;
 use crate::orchestrator::chain_capability_refresher::ChainCapabilityConfig;
 use crate::orchestrator::scheduling_telemetry::TelemetryConfig;
 use crate::orchestrator::stale_results_eviction::EvictionConfig;
@@ -49,6 +51,38 @@ pub(crate) struct LivenessConfig {
     /// costs a full client session where a mixnode target costs a Noise connection. v1 ran a
     /// 50-client window over its whole gateway population per cycle.
     pub(crate) gateway_wave_size: usize,
+}
+
+/// Five-hop liveness: the five-hop mixnet runs' cadence, the gateway bar, the session discard margin
+/// and how fast a carried value fades.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct FiveHopLivenessConfig {
+    /// Whether five-hop mixnet runs are handed out and five-hop liveness is materialised and applied.
+    pub(crate) enabled: bool,
+
+    /// Minimum time between the starts of two submitted five-hop mixnet runs.
+    pub(crate) interval: Duration,
+
+    /// Maximum number of gateways a five-hop mixnet run carries.
+    pub(crate) gateways_per_run: usize,
+
+    /// How long a five-hop mixnet run stays in flight without a submission.
+    pub(crate) run_timeout: Duration,
+
+    /// Bar for a gateway's latest gateway liveness score while enough candidates reach it.
+    pub(crate) min_gateway_score: f64,
+
+    /// Share of candidate gateways, in `[0, 1]`, that must reach the minimum for it to be the bar.
+    pub(crate) min_gateway_share: f64,
+
+    /// Bar for a gateway's latest gateway liveness score when too few candidates reach the minimum.
+    pub(crate) fallback_min_gateway_score: f64,
+
+    /// Margin, in `[0, 1]`, by which a session's loss rate may exceed its run's other session's.
+    pub(crate) session_loss_margin: f64,
+
+    /// Rate per epoch at which a carried five-hop liveness fades towards full liveness.
+    pub(crate) decay_per_epoch: f64,
 }
 
 /// How far back each kind's aggregate reaches from the start of the epoch it is filed under.
@@ -103,6 +137,9 @@ pub(crate) struct Config {
     /// Scheduling knobs of the liveness kind, whose cadence and lease are its own.
     pub(crate) liveness: LivenessConfig,
 
+    /// Five-hop mixnet runs and five-hop liveness.
+    pub(crate) five_hop_liveness: FiveHopLivenessConfig,
+
     /// How far back each kind's aggregate reaches.
     pub(crate) aggregation_windows: AggregationWindows,
 
@@ -126,13 +163,13 @@ pub(crate) struct Config {
     /// If not provided, the default value from the environment will be retrieved (if available).
     pub(crate) network_monitors_contract_address: Option<AccountId>,
 
-    /// Maximum age of a completed test run row before it is evicted from the local database.
-    /// Rows older than this are assumed to have already been submitted to the nym-api
-    /// (e.g. `7d`, `24h`).
+    /// Maximum age of a completed test run row, or of a five-hop mixnet run with its sessions,
+    /// before it is evicted from the local database. Rows older than this are assumed to have
+    /// already been submitted to the nym-api (e.g. `7d`, `24h`).
     pub(crate) testrun_eviction_age: Duration,
 
-    /// Maximum age of a materialised epoch aggregate or config score before it is evicted
-    /// (e.g. `30d`).
+    /// Maximum age of a materialised epoch aggregate, config score or five-hop liveness value before
+    /// it is evicted (e.g. `30d`).
     pub(crate) aggregate_retention: Duration,
 
     /// Maximum number of nodes queried concurrently during a node refresh cycle.
@@ -286,6 +323,32 @@ impl Config {
         Ok(client_config)
     }
 
+    /// How five-hop mixnet runs are handed out, or `None` while five-hop liveness is switched off.
+    pub(crate) fn five_hop_mixnet_run_config(&self) -> Option<FiveHopMixnetRunConfig> {
+        let five_hop = &self.five_hop_liveness;
+        five_hop.enabled.then_some(FiveHopMixnetRunConfig {
+            interval: five_hop.interval,
+            run_timeout: five_hop.run_timeout,
+            gateways_per_run: five_hop.gateways_per_run,
+            min_gateway_score: five_hop.min_gateway_score,
+            min_gateway_share: five_hop.min_gateway_share,
+            fallback_min_gateway_score: five_hop.fallback_min_gateway_score,
+            session_loss_margin: five_hop.session_loss_margin,
+        })
+    }
+
+    /// How five-hop liveness is materialised, or `None` while it is switched off.
+    pub(crate) fn five_hop_liveness_materialiser_config(
+        &self,
+    ) -> Option<FiveHopLivenessMaterialiserConfig> {
+        let five_hop = &self.five_hop_liveness;
+        five_hop
+            .enabled
+            .then_some(FiveHopLivenessMaterialiserConfig {
+                decay_per_epoch: five_hop.decay_per_epoch,
+            })
+    }
+
     pub(crate) fn telemetry_config(&self) -> TelemetryConfig {
         TelemetryConfig {
             refresh_interval: self.metrics_refresh_interval,
@@ -330,7 +393,9 @@ impl Config {
     /// from part of the evidence. The excess of retention over the window is how far back a restart
     /// can still backfill epochs, and its sizing is left to the operator.
     ///
-    /// Also rejects a chain interactions penalty or a coverage threshold that is not a fraction.
+    /// Also rejects a chain interactions penalty, a coverage threshold or a five-hop liveness score,
+    /// share or margin that is not a fraction, a five-hop liveness decay that is zero, negative or
+    /// not finite, and five-hop liveness enabled while liveness is disabled.
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let longest_window = self.aggregation_windows.longest();
         if self.testrun_eviction_age <= longest_window {
@@ -367,6 +432,53 @@ impl Config {
                 self.performance_submission_coverage_threshold
             );
         }
+
+        let five_hop = &self.five_hop_liveness;
+        // a run's gateways are drawn among those with a gateway liveness run, and five-hop liveness
+        // only multiplies a one-hop liveness, so without liveness it would silently do nothing
+        if five_hop.enabled && !self.liveness.enabled {
+            bail!(
+                "five-hop liveness cannot be enabled while liveness is disabled; \
+                 set --five-hop-liveness-enabled false or leave --liveness-enabled on"
+            );
+        }
+
+        if !(0.0..=1.0).contains(&five_hop.min_gateway_score) {
+            bail!(
+                "five-hop liveness minimum gateway score ({}) must be within [0, 1]",
+                five_hop.min_gateway_score
+            );
+        }
+
+        if !(0.0..=1.0).contains(&five_hop.min_gateway_share) {
+            bail!(
+                "five-hop liveness minimum gateway share ({}) must be within [0, 1]",
+                five_hop.min_gateway_share
+            );
+        }
+
+        if !(0.0..=1.0).contains(&five_hop.fallback_min_gateway_score) {
+            bail!(
+                "five-hop liveness fallback minimum gateway score ({}) must be within [0, 1]",
+                five_hop.fallback_min_gateway_score
+            );
+        }
+
+        if !(0.0..=1.0).contains(&five_hop.session_loss_margin) {
+            bail!(
+                "five-hop liveness session loss margin ({}) must be within [0, 1]",
+                five_hop.session_loss_margin
+            );
+        }
+
+        // a negative rate would push a carried value below what was measured, towards zero, and at
+        // zero a value would never fade, so it would be carried forever
+        if !(five_hop.decay_per_epoch.is_finite() && five_hop.decay_per_epoch > 0.0) {
+            bail!(
+                "five-hop liveness decay per epoch ({}) must be finite and above zero",
+                five_hop.decay_per_epoch
+            );
+        }
         Ok(())
     }
 }
@@ -387,6 +499,17 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
             test_timeout: Duration::from_secs(60),
             mixnode_wave_size: 100,
             gateway_wave_size: 50,
+        },
+        five_hop_liveness: FiveHopLivenessConfig {
+            enabled: true,
+            interval: Duration::from_secs(5 * 60),
+            gateways_per_run: 2,
+            run_timeout: Duration::from_secs(3 * 60),
+            min_gateway_score: 1.0,
+            min_gateway_share: 0.4,
+            fallback_min_gateway_score: 0.98,
+            session_loss_margin: 0.05,
+            decay_per_epoch: 0.1,
         },
         aggregation_windows: AggregationWindows {
             stress: Duration::from_secs(24 * 60 * 60),
@@ -416,5 +539,17 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         performance_submission_enabled: false,
         performance_submission_batch_size: NonZeroUsize::new(200).unwrap(),
         performance_submission_coverage_threshold: 0.5,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // the two configs differ in the liveness switch alone, and both have five-hop liveness on
+    #[test]
+    fn five_hop_liveness_without_liveness_is_rejected() {
+        assert!(test_config(true).validate().is_ok());
+        assert!(test_config(false).validate().is_err());
     }
 }

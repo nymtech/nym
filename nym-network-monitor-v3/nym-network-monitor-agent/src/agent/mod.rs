@@ -1,18 +1,21 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::config::NodeTesterConfig;
+use crate::agent::config::{FiveHopMixnetRunConfig, NodeTesterConfig};
+use crate::agent::five_hop_mixnet::five_hop_mixnet_result;
 use crate::agent::gateway::wave::GatewayLivenessWave;
-use crate::agent::helpers::derive_client_identity;
+use crate::agent::helpers::{bandwidth_controller_without_tickets, derive_client_identity};
 use crate::agent::tested_node::{TestedGatewayDetails, TestedNodeDetails};
 use crate::agent::wave::{MixnetWave, ProbeReport};
 use anyhow::{Context, bail};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, AgentMixAddresses, GatewayProbeTarget, MixnetProbeTarget, TestKind,
-    TestRunAssignment, TestRunAssignmentRequest, TestRunResultSubmissionRequest,
+    AgentAnnounceRequest, AgentMixAddresses, FiveHopMixnetAssignment, GatewayProbeTarget,
+    MixnetProbeTarget, OneHopMixnetAssignment, OneHopMixnetResult, TestKind, WorkAssignment,
+    WorkAssignmentRequest, WorkResultSubmissionRequest,
 };
+use nym_network_monitor_route_client::session::{SessionGateway, run_sessions};
 use nym_noise::LATEST_NOISE_VERSION;
 use nym_sphinx_types::DestinationAddressBytes;
 use nym_task::ShutdownToken;
@@ -20,6 +23,7 @@ use std::sync::Arc;
 use tracing::info;
 
 pub(crate) mod config;
+pub(crate) mod five_hop_mixnet;
 pub(crate) mod gateway;
 pub(crate) mod helpers;
 pub(crate) mod result;
@@ -32,6 +36,9 @@ pub(crate) mod wave;
 pub(crate) struct NetworkMonitorAgent {
     /// Tester configuration controlling rates, timeouts, and addressing.
     tester_config: NodeTesterConfig,
+
+    /// What a five-hop mixnet run runs with.
+    five_hop_mixnet_run_config: FiveHopMixnetRunConfig,
 
     /// Client used to communicate with the orchestrator API (port requests, announcements,
     /// work assignments, result submissions).
@@ -61,6 +68,7 @@ impl NetworkMonitorAgent {
     /// and orchestrator client.
     pub(crate) fn new(
         tester_config: NodeTesterConfig,
+        five_hop_mixnet_run_config: FiveHopMixnetRunConfig,
         noise_key: Arc<x25519::KeyPair>,
         orchestrator_client: OrchestratorClient,
         shutdown: ShutdownToken,
@@ -69,6 +77,7 @@ impl NetworkMonitorAgent {
 
         Ok(NetworkMonitorAgent {
             tester_config,
+            five_hop_mixnet_run_config,
             orchestrator_client,
             noise_key,
             client_identity,
@@ -164,6 +173,36 @@ impl NetworkMonitorAgent {
         .await
     }
 
+    /// Runs one session through each gateway of a five-hop mixnet run and submits them together once the run ends.
+    async fn run_five_hop_mixnet(&self, assignment: FiveHopMixnetAssignment) -> anyhow::Result<()> {
+        let gateways = assignment
+            .gateways
+            .iter()
+            .map(|gateway| SessionGateway {
+                node_id: gateway.node_id,
+                identity_key: gateway.identity_key,
+            })
+            .collect();
+
+        let config = &self.five_hop_mixnet_run_config;
+        let outcomes = run_sessions(
+            &config.session,
+            gateways,
+            &bandwidth_controller_without_tickets(),
+            &self.shutdown.child_token(),
+            config.timeout,
+        )
+        .await;
+
+        self.orchestrator_client
+            .submit_work_result(&WorkResultSubmissionRequest::FiveHopMixnet(
+                five_hop_mixnet_result(&assignment, outcomes),
+            ))
+            .await
+            .context("failed to submit the five-hop mixnet run")?;
+        Ok(())
+    }
+
     /// Submits one target's result.
     ///
     /// A node-level failure is submitted even when zeroed: submission is what advances that pairing's
@@ -183,11 +222,13 @@ impl NetworkMonitorAgent {
         };
 
         self.orchestrator_client
-            .submit_test_run_result(&TestRunResultSubmissionRequest {
-                node_id,
-                tested_address,
-                result: result.into(),
-            })
+            .submit_work_result(&WorkResultSubmissionRequest::OneHopMixnet(Box::new(
+                OneHopMixnetResult {
+                    node_id,
+                    tested_address,
+                    result: result.into(),
+                },
+            )))
             .await
             .context("failed to submit test run result")?;
         Ok(())
@@ -196,7 +237,7 @@ impl NetworkMonitorAgent {
     /// Requests a work assignment from the orchestrator and, if one is available,
     /// performs appropriate test against the assigned node and submits the results.
     pub(crate) async fn perform_work_assignment(&self) -> anyhow::Result<()> {
-        let request = TestRunAssignmentRequest {
+        let request = WorkAssignmentRequest {
             mix_addresses: self.mix_addresses(),
             x25519_noise_key: *self.noise_key.public_key(),
         };
@@ -217,19 +258,20 @@ impl NetworkMonitorAgent {
 
         // 3. run the assignment. each kind submits its own results as its targets finish, rather than
         // the results being collected and submitted here: a wave's targets have to release their
-        // in-flight locks independently of one another
+        // in-flight locks independently of one another. a five-hop mixnet run submits once, when it ends
         match work_assignment {
-            TestRunAssignment::MixnodeStress(target) => {
+            WorkAssignment::OneHopMixnet(OneHopMixnetAssignment::MixnodeStress(target)) => {
                 self.run_mixnet_wave(TestKind::MixnodeStress, vec![*target])
                     .await
             }
-            TestRunAssignment::MixnodeLiveness(targets) => {
+            WorkAssignment::OneHopMixnet(OneHopMixnetAssignment::MixnodeLiveness(targets)) => {
                 self.run_mixnet_wave(TestKind::MixnodeLiveness, targets)
                     .await
             }
-            TestRunAssignment::GatewayLiveness(targets) => {
+            WorkAssignment::OneHopMixnet(OneHopMixnetAssignment::GatewayLiveness(targets)) => {
                 self.run_gateway_liveness_wave(targets).await
             }
+            WorkAssignment::FiveHopMixnet(assignment) => self.run_five_hop_mixnet(assignment).await,
         }
     }
 }

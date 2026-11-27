@@ -188,6 +188,8 @@ members = [
     "nym-network-monitor-v3/nym-network-monitor-orchestrator",
     "nym-network-monitor-v3/nym-network-monitor-agent",
     "nym-network-monitor-v3/nym-network-monitor-orchestrator-requests",
+    "nym-network-monitor-v3/nym-network-monitor-route-client",
+    "nym-network-monitor-v3/nym-network-monitor-route-records",
     "common/cosmwasm-smart-contracts/geolocation-contract",
     "nym-geolocator",
     "nym-geolocator/nym-geolocator-requests",

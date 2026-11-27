@@ -3,6 +3,7 @@
 
 use crate::mixnet::client_session::GatewaySessionConfig;
 use nym_network_monitor_orchestrator_requests::models::{AgentMixAddresses, TestKind};
+use nym_network_monitor_route_client::config::RouteSessionConfig;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::time::Duration;
@@ -194,6 +195,16 @@ impl NodeTesterConfig {
             v6: self.external_mixnet_address_v6,
         }
     }
+}
+
+/// What a five-hop mixnet run runs with.
+#[derive(Debug, Clone)]
+pub(crate) struct FiveHopMixnetRunConfig {
+    /// What each session of the run runs with.
+    pub(crate) session: RouteSessionConfig,
+
+    /// Deadline for the whole run, inside the orchestrator's five-hop mixnet run timeout.
+    pub(crate) timeout: Duration,
 }
 
 #[cfg(test)]

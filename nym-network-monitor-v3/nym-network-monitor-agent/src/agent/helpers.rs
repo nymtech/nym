@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::{Context, anyhow, bail};
+use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::hkdf;
 use nym_pemstore::load_key;
@@ -46,6 +47,12 @@ pub(crate) fn derive_client_identity(
     let private_key = ed25519::PrivateKey::from_bytes(&seed)
         .context("the derived ed25519 client identity seed was not a valid private key")?;
     Ok(private_key.into())
+}
+
+/// A bandwidth controller sender with no controller behind it, safe only because five-hop mixnet sessions run with tickets not required.
+pub(crate) fn bandwidth_controller_without_tickets() -> BandwidthControllerRequestSender {
+    let (sender, _) = tokio::sync::mpsc::unbounded_channel();
+    BandwidthControllerRequestSender::new(sender)
 }
 
 #[cfg(test)]

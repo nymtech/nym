@@ -1,19 +1,22 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::Context;
+use anyhow::{Context, bail};
 use nym_api_requests::models::v3 as nym_api_requests;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
     self as api, InterfaceMeasurement, LatencyDistribution, RunMeasurements, TestRunData,
     TestRunInProgressData, TestRunResult,
 };
+use nym_network_monitor_route_records::batch::Batch;
+use nym_network_monitor_route_records::test_message::SessionTestMessages;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use strum::{Display, EnumIter, IntoStaticStr};
 use time::OffsetDateTime;
+use tracing::warn;
 
 pub(crate) fn duration_to_us(d: Duration) -> i64 {
     d.as_micros() as i64
@@ -498,6 +501,9 @@ pub(crate) struct NodeDescription {
     /// session on. Present exactly when `gateway_enabled` is set.
     pub(crate) clients_ws_port: Option<i64>,
 
+    /// Whether the gateway enforces zk-nyms; `None` for a non-gateway or a description predating it.
+    pub(crate) enforces_zk_nyms: Option<bool>,
+
     /// Self-reported binary version, as a raw semver string parsed at score time.
     pub(crate) reported_version: String,
 
@@ -912,6 +918,207 @@ impl From<MixnetEpochConfigScore> for api::ConfigScore {
     }
 }
 
+/// A five-hop mixnet run hand-out, every duration resolved against one `now`.
+#[derive(Debug, Clone)]
+pub(crate) struct FiveHopMixnetRunRequest {
+    /// Stamped as the run's `started_at`.
+    pub(crate) now: OffsetDateTime,
+
+    /// Due only if no submitted run started after this.
+    pub(crate) last_started_by: OffsetDateTime,
+
+    /// Stamped as the run's `expires_at`.
+    pub(crate) expires_at: OffsetDateTime,
+}
+
+/// A gateway a five-hop mixnet run may be drawn from: it reports the role, does not enforce zk-nyms and has a gateway liveness run.
+#[derive(Debug, Clone)]
+pub(crate) struct FiveHopMixnetGatewayCandidate {
+    pub(crate) node_id: i64,
+    pub(crate) identity_key: String,
+
+    /// Whether a test of any kind is in flight against the gateway.
+    pub(crate) in_flight: bool,
+
+    pub(crate) latest_gateway_liveness: CompletedTestRun,
+
+    /// The gateway's latest gateway stress run; `None` while gateway stress is not read.
+    // unread until gateway stress lands: storage has no gateway stress run to fill it with
+    #[allow(dead_code)]
+    pub(crate) latest_gateway_stress: Option<CompletedTestRun>,
+}
+
+impl FiveHopMixnetGatewayCandidate {
+    /// The gateway as a five-hop mixnet run carries it. The orchestrator stored the key itself, so a
+    /// failure means corruption.
+    pub(crate) fn five_hop_mixnet_gateway(&self) -> anyhow::Result<api::FiveHopMixnetGateway> {
+        Ok(api::FiveHopMixnetGateway {
+            node_id: self.node_id as u32,
+            identity_key: ed25519::PublicKey::from_base58_string(&self.identity_key)
+                .context("invalid identity_key")?,
+        })
+    }
+}
+
+/// A candidate's own columns, before its latest gateway liveness run is paired with it.
+#[derive(Debug, Clone)]
+pub(crate) struct FiveHopMixnetGatewayCandidateRow {
+    pub(crate) node_id: i64,
+    pub(crate) identity_key: String,
+    pub(crate) in_flight: bool,
+}
+
+impl FiveHopMixnetGatewayCandidateRow {
+    pub(crate) fn with_latest_run(
+        self,
+        latest_gateway_liveness: CompletedTestRun,
+    ) -> FiveHopMixnetGatewayCandidate {
+        FiveHopMixnetGatewayCandidate {
+            node_id: self.node_id,
+            identity_key: self.identity_key,
+            in_flight: self.in_flight,
+            latest_gateway_liveness,
+            latest_gateway_stress: None,
+        }
+    }
+}
+
+/// A submitted session read whole, before the discard rule is applied against its run.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct SubmittedFiveHopMixnetSession {
+    pub(crate) gateway_node_id: i64,
+    pub(crate) mixnet_epoch: i64,
+    pub(crate) batch: Vec<u8>,
+    pub(crate) test_messages: SessionTestMessages,
+}
+
+impl SubmittedFiveHopMixnetSession {
+    /// Reads a submitted batch whole; it must name the gateway of its entry.
+    pub(crate) fn read(gateway_node_id: NodeId, batch: Vec<u8>) -> anyhow::Result<Self> {
+        let decoded = Batch::decode(&batch)
+            .with_context(|| format!("the batch of gateway {gateway_node_id} is unreadable"))?;
+        if decoded.header.gateway_node_id != gateway_node_id {
+            bail!(
+                "the batch of gateway {gateway_node_id} names gateway {} in its header",
+                decoded.header.gateway_node_id
+            );
+        }
+
+        Ok(SubmittedFiveHopMixnetSession {
+            gateway_node_id: gateway_node_id as i64,
+            mixnet_epoch: decoded.header.mixnet_epoch as i64,
+            test_messages: SessionTestMessages::from_batch(&decoded),
+            batch,
+        })
+    }
+
+    /// The session as stored under `run_id`, kept unless the discard rule, against its run's loss rates, discards it.
+    pub(crate) fn apply_discard_rule(
+        self,
+        run_id: i64,
+        run_loss_rates: &[f64],
+        session_loss_margin: f64,
+    ) -> FiveHopMixnetSession {
+        FiveHopMixnetSession {
+            run_id,
+            gateway_node_id: self.gateway_node_id,
+            mixnet_epoch: self.mixnet_epoch,
+            kept: !self
+                .test_messages
+                .is_discarded(run_loss_rates, session_loss_margin),
+            batch: self.batch,
+        }
+    }
+}
+
+/// A stored session of a submitted run.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct FiveHopMixnetSession {
+    pub(crate) run_id: i64,
+    pub(crate) gateway_node_id: i64,
+    pub(crate) mixnet_epoch: i64,
+    pub(crate) batch: Vec<u8>,
+
+    /// Whether the discard rule kept it for scoring, judged against its run when submitted.
+    pub(crate) kept: bool,
+}
+
+impl FiveHopMixnetSession {
+    /// The test messages of its batch; a batch that no longer reads is logged and gives none.
+    pub(crate) fn test_messages(&self) -> Option<SessionTestMessages> {
+        match Batch::decode(&self.batch) {
+            Ok(batch) => Some(SessionTestMessages::from_batch(&batch)),
+            // read whole when it was submitted, so only damage or a format change gets here
+            Err(err) => {
+                warn!(
+                    "the stored batch of five-hop mixnet run {} through gateway {} no longer reads: {err:#}",
+                    self.run_id, self.gateway_node_id
+                );
+                None
+            }
+        }
+    }
+}
+
+/// What became of a five-hop mixnet run's submission, judged against the run in flight.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FiveHopMixnetRunSubmission {
+    /// Every session stored, and the run marked submitted.
+    Stored,
+
+    /// The run is unknown, already submitted or past its expiry. Nothing is stored.
+    NotInFlight,
+}
+
+/// A row of `mixnet_epoch_five_hop_liveness`: the five-hop liveness of one mixnode in one epoch,
+/// measured or carried forward.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct MixnetEpochFiveHopLiveness {
+    /// Absolute id of the epoch the value is filed under, the one after the epoch measured.
+    pub(crate) mixnet_epoch: i64,
+
+    /// When that epoch began.
+    pub(crate) epoch_start: OffsetDateTime,
+
+    pub(crate) node_id: i64,
+
+    /// The node's five-hop liveness in this epoch.
+    pub(crate) score: f64,
+
+    /// Whether the score was measured in this epoch rather than carried forward.
+    pub(crate) measured: bool,
+}
+
+impl MixnetEpochFiveHopLiveness {
+    /// From here a five-hop liveness times a liveness of 1.0 rounds to 100% in the contract, so a
+    /// carried value that reaches it is no longer filed.
+    const ROUNDS_TO_FULL_LIVENESS: f64 = 0.995;
+
+    /// The score if it was measured in this epoch, `None` if it was carried forward.
+    pub(crate) fn measured_score(&self) -> Option<f64> {
+        self.measured.then_some(self.score)
+    }
+
+    /// The value carried forward into the next epoch, which starts at `epoch_start`; none once it
+    /// rounds to full liveness.
+    pub(crate) fn carried_forward(
+        &self,
+        epoch_start: OffsetDateTime,
+        decay_per_epoch: f64,
+    ) -> Option<Self> {
+        // 1 - e^(-rate) (1 - score): one epoch's fade towards 1
+        let score = 1.0 - (-decay_per_epoch).exp() * (1.0 - self.score);
+
+        (score < Self::ROUNDS_TO_FULL_LIVENESS).then_some(MixnetEpochFiveHopLiveness {
+            mixnet_epoch: self.mixnet_epoch + 1,
+            epoch_start,
+            node_id: self.node_id,
+            score,
+            measured: false,
+        })
+    }
+}
+
 /// The refresh time every fixture node's bond carries, so seeding fixtures through
 /// `store_refresh` at this time never strips another fixture's description.
 #[cfg(test)]
@@ -963,6 +1170,7 @@ pub(crate) fn described_node(
             mixnode_enabled,
             gateway_enabled,
             clients_ws_port: gateway_enabled.then_some(9000),
+            enforces_zk_nyms: gateway_enabled.then_some(false),
             reported_version: "1.1.0".to_string(),
             binary_name: "nym-node".to_string(),
             accepted_terms_and_conditions: true,
@@ -1025,6 +1233,21 @@ pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
     }
 }
 
+/// A gateway liveness run's measurements, each interface delivering `delivered` of 100 packets, so
+/// the run scores `delivered / 100`.
+#[cfg(test)]
+pub(crate) fn gateway_liveness_measurements(delivered: usize) -> RunMeasurements {
+    let measurement = InterfaceMeasurement {
+        packets_sent: 100,
+        packets_received: delivered,
+        ..minimal_measurement()
+    };
+    RunMeasurements::GatewayLiveness {
+        client_ingest: measurement.clone(),
+        client_delivery: measurement,
+    }
+}
+
 /// The epoch [`config_score`] and [`aggregate`] file their rows under.
 #[cfg(test)]
 pub(crate) const FIXTURE_EPOCH: nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId = 7;
@@ -1058,6 +1281,78 @@ pub(crate) fn aggregate(node_id: i64, test_kind: TestKind, score: f64) -> Mixnet
         test_kind,
         score,
         samples: 1,
+    }
+}
+
+/// `node_id`'s five-hop liveness measured for [`FIXTURE_EPOCH`].
+#[cfg(test)]
+pub(crate) fn measured_five_hop_liveness(node_id: i64, score: f64) -> MixnetEpochFiveHopLiveness {
+    MixnetEpochFiveHopLiveness {
+        mixnet_epoch: i64::from(FIXTURE_EPOCH),
+        epoch_start: FIXTURE_EPOCH_START,
+        node_id,
+        score,
+        measured: true,
+    }
+}
+
+/// `node_id`'s five-hop liveness carried forward into [`FIXTURE_EPOCH`].
+#[cfg(test)]
+pub(crate) fn carried_five_hop_liveness(node_id: i64, score: f64) -> MixnetEpochFiveHopLiveness {
+    MixnetEpochFiveHopLiveness {
+        measured: false,
+        ..measured_five_hop_liveness(node_id, score)
+    }
+}
+
+/// A five-hop mixnet session's batch through `gateway_node_id` naming `mixnet_epoch`, one record
+/// per send time through mixnodes 1, 2, 3 with its ack through 4, 5, 6: the first `lost` lost with
+/// their acks, the rest back with theirs.
+#[cfg(test)]
+pub(crate) fn five_hop_mixnet_batch(
+    gateway_node_id: u32,
+    mixnet_epoch: u32,
+    sent_at_ms: std::ops::Range<u64>,
+    lost: usize,
+) -> Batch {
+    use nym_network_monitor_route_records::batch::{BatchHeader, Record};
+
+    let records = sent_at_ms
+        .enumerate()
+        .map(|(position, sent_at_ms)| {
+            let back = position >= lost;
+            Record {
+                sent_at_ms,
+                packet_route: [1, 2, 3],
+                ack_route: [4, 5, 6],
+                payload_back: back,
+                ack_back: back,
+            }
+        })
+        .collect();
+
+    Batch {
+        header: BatchHeader {
+            gateway_node_id,
+            mixnet_epoch,
+        },
+        records,
+    }
+}
+
+/// A session of run `run_id` holding `batch` as stored, with the discard rule's verdict `kept`.
+#[cfg(test)]
+pub(crate) fn five_hop_mixnet_session(
+    run_id: i64,
+    batch: &Batch,
+    kept: bool,
+) -> FiveHopMixnetSession {
+    FiveHopMixnetSession {
+        run_id,
+        gateway_node_id: i64::from(batch.header.gateway_node_id),
+        mixnet_epoch: i64::from(batch.header.mixnet_epoch),
+        batch: batch.encode(),
+        kept,
     }
 }
 
@@ -1249,6 +1544,59 @@ mod tests {
             // zeroing is scoped to the interface that replayed, not to the whole run: the healthy
             // delivery phase still contributes its 1.0
             assert_eq!(result.test_performance, 0.5);
+        }
+    }
+
+    mod five_hop_mixnet_session_submission {
+        use super::*;
+        use nym_network_monitor_route_records::batch::{BatchHeader, Record};
+
+        /// A batch through `gateway_node_id` in `mixnet_epoch`, holding `records` identical records.
+        fn encoded_batch(gateway_node_id: u32, mixnet_epoch: u32, records: usize) -> Vec<u8> {
+            let record = Record {
+                sent_at_ms: 1,
+                packet_route: [1, 2, 3],
+                ack_route: [4, 5, 6],
+                payload_back: true,
+                ack_back: false,
+            };
+            Batch {
+                header: BatchHeader {
+                    gateway_node_id,
+                    mixnet_epoch,
+                },
+                records: vec![record; records],
+            }
+            .encode()
+        }
+
+        // a batch is kept exactly as it arrived, beside the epoch and test messages read from it
+        #[test]
+        fn a_batch_is_kept_as_sent_beside_what_was_read_from_it() {
+            let bytes = encoded_batch(5, 42, 3);
+
+            let session = SubmittedFiveHopMixnetSession::read(5, bytes.clone()).unwrap();
+            assert_eq!(
+                session,
+                SubmittedFiveHopMixnetSession {
+                    gateway_node_id: 5,
+                    mixnet_epoch: 42,
+                    test_messages: SessionTestMessages::from_batch(&Batch::decode(&bytes).unwrap()),
+                    batch: bytes,
+                }
+            );
+        }
+
+        // the whole batch is read, so a record cut short is caught and not only a bad header; and a
+        // batch whose header contradicts its entry is not stored under either gateway
+        #[test]
+        fn an_unreadable_batch_or_one_naming_another_gateway_is_refused() {
+            let mut cut_short = encoded_batch(5, 42, 2);
+            cut_short.pop();
+            assert!(SubmittedFiveHopMixnetSession::read(5, cut_short).is_err());
+
+            let another_gateway = encoded_batch(6, 42, 2);
+            assert!(SubmittedFiveHopMixnetSession::read(5, another_gateway).is_err());
         }
     }
 }

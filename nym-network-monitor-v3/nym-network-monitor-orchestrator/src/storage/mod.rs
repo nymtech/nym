@@ -5,9 +5,10 @@ use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
     AssignedTestrun, AssignmentRequest, CompletedTestRun, ConfigScoreCandidate, DescribedNodeRoles,
-    KindHead, KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore, NewTestRun,
-    NodeAwaitingCapabilityRefresh, NodeChainCapability, NymNode, TestKind, TestRunInProgress,
-    TestRunSubmission, TestRunWindow,
+    FiveHopMixnetGatewayCandidate, FiveHopMixnetRunRequest, FiveHopMixnetRunSubmission,
+    FiveHopMixnetSession, KindHead, KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore,
+    MixnetEpochFiveHopLiveness, NewTestRun, NodeAwaitingCapabilityRefresh, NodeChainCapability,
+    NymNode, TestKind, TestRunInProgress, TestRunSubmission, TestRunWindow,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::{Pagination, RunMeasurements};
@@ -614,6 +615,162 @@ impl NetworkMonitorStorage {
         self.storage_manager
             .evict_old_mixnet_epoch_config_scores(cutoff)
             .await
+    }
+
+    /// Whether a five-hop mixnet run is due: none in flight, and no submitted run started within `interval`.
+    pub(crate) async fn is_five_hop_mixnet_run_due(
+        &self,
+        interval: Duration,
+    ) -> anyhow::Result<bool> {
+        let now = OffsetDateTime::now_utc();
+        self.storage_manager
+            .is_five_hop_mixnet_run_due(now, now - interval)
+            .await
+    }
+
+    /// Every gateway a five-hop mixnet run may be drawn from, with its latest gateway liveness run.
+    pub(crate) async fn get_five_hop_mixnet_gateway_candidates(
+        &self,
+    ) -> anyhow::Result<Vec<FiveHopMixnetGatewayCandidate>> {
+        self.storage_manager
+            .get_five_hop_mixnet_gateway_candidates()
+            .await
+    }
+
+    /// Starts a run lasting `run_timeout` if one is still due; `None` if another won.
+    pub(crate) async fn start_five_hop_mixnet_run(
+        &self,
+        interval: Duration,
+        run_timeout: Duration,
+    ) -> anyhow::Result<Option<i64>> {
+        let now = OffsetDateTime::now_utc();
+        let request = FiveHopMixnetRunRequest {
+            now,
+            last_started_by: now - interval,
+            expires_at: now + run_timeout,
+        };
+
+        self.storage_manager
+            .start_five_hop_mixnet_run(&request)
+            .await
+    }
+
+    /// Stores the sessions of a run in flight and marks it submitted, all or nothing.
+    pub(crate) async fn submit_five_hop_mixnet_run(
+        &self,
+        run_id: i64,
+        sessions: &[FiveHopMixnetSession],
+    ) -> anyhow::Result<FiveHopMixnetRunSubmission> {
+        self.storage_manager
+            .submit_five_hop_mixnet_run(run_id, OffsetDateTime::now_utc(), sessions)
+            .await
+    }
+
+    /// Every stored session naming `mixnet_epoch`, by run then gateway.
+    pub(crate) async fn get_five_hop_mixnet_sessions_of_epoch(
+        &self,
+        mixnet_epoch: EpochId,
+    ) -> anyhow::Result<Vec<FiveHopMixnetSession>> {
+        self.storage_manager
+            .get_five_hop_mixnet_sessions_of_epoch(mixnet_epoch as i64)
+            .await
+    }
+
+    /// Deletes every five-hop mixnet run, with its sessions, started longer than `eviction_age` ago.
+    pub(crate) async fn evict_old_five_hop_mixnet_runs(
+        &self,
+        eviction_age: Duration,
+    ) -> anyhow::Result<u64> {
+        let cutoff = OffsetDateTime::now_utc() - eviction_age;
+        self.storage_manager
+            .evict_old_five_hop_mixnet_runs(cutoff)
+            .await
+    }
+
+    /// Stores five-hop liveness values not already stored, leaving any that are as they were.
+    pub(crate) async fn batch_insert_mixnet_epoch_five_hop_liveness(
+        &self,
+        values: &[MixnetEpochFiveHopLiveness],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_insert_mixnet_epoch_five_hop_liveness(values)
+            .await
+    }
+
+    /// Every five-hop liveness value filed under `mixnet_epoch`, measured or carried, ordered by node.
+    pub(crate) async fn get_mixnet_epoch_five_hop_liveness(
+        &self,
+        mixnet_epoch: EpochId,
+    ) -> anyhow::Result<Vec<MixnetEpochFiveHopLiveness>> {
+        self.storage_manager
+            .get_mixnet_epoch_five_hop_liveness(mixnet_epoch as i64)
+            .await
+    }
+
+    /// One node's five-hop liveness filed under `mixnet_epoch`, or `None` if none was.
+    pub(crate) async fn get_mixnet_epoch_five_hop_liveness_for_node(
+        &self,
+        mixnet_epoch: EpochId,
+        node_id: NodeId,
+    ) -> anyhow::Result<Option<MixnetEpochFiveHopLiveness>> {
+        self.storage_manager
+            .get_mixnet_epoch_five_hop_liveness_for_node(mixnet_epoch as i64, node_id as i64)
+            .await
+    }
+
+    /// Deletes every five-hop liveness value of an epoch that began longer than `retention` ago.
+    pub(crate) async fn evict_old_mixnet_epoch_five_hop_liveness(
+        &self,
+        retention: Duration,
+    ) -> anyhow::Result<u64> {
+        let cutoff = OffsetDateTime::now_utc() - retention;
+        self.storage_manager
+            .evict_old_mixnet_epoch_five_hop_liveness(cutoff)
+            .await
+    }
+
+    /// Every node's most recent `mixnode_liveness` run.
+    pub(crate) async fn get_latest_mixnode_liveness_testruns(
+        &self,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        self.storage_manager
+            .get_latest_mixnode_liveness_testruns()
+            .await
+    }
+}
+
+#[cfg(test)]
+use nym_network_monitor_route_records::batch::Batch;
+
+#[cfg(test)]
+impl NetworkMonitorStorage {
+    /// Starts a five-hop mixnet run and stores a session per batch as its submission, those of
+    /// `kept` first and as kept, those of `discarded` as discarded. Returns the run's id.
+    pub(crate) async fn store_submitted_five_hop_mixnet_run(
+        &self,
+        kept: &[&Batch],
+        discarded: &[&Batch],
+    ) -> i64 {
+        let run_id = self
+            .start_five_hop_mixnet_run(Duration::ZERO, Duration::from_secs(60))
+            .await
+            .unwrap()
+            .unwrap();
+
+        let kept = kept
+            .iter()
+            .map(|batch| models::five_hop_mixnet_session(run_id, batch, true));
+        let discarded = discarded
+            .iter()
+            .map(|batch| models::five_hop_mixnet_session(run_id, batch, false));
+        let sessions: Vec<FiveHopMixnetSession> = kept.chain(discarded).collect();
+
+        let submission = self
+            .submit_five_hop_mixnet_run(run_id, &sessions)
+            .await
+            .unwrap();
+        assert_eq!(submission, FiveHopMixnetRunSubmission::Stored);
+        run_id
     }
 }
 

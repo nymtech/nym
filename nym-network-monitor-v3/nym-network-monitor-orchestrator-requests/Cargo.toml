@@ -23,6 +23,7 @@ zeroize = { workspace = true, optional = true }
 
 nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
 nym-http-api-client = { workspace = true, optional = true }
+nym-serde-helpers = { workspace = true, features = ["base64"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }

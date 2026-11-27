@@ -8434,11 +8434,15 @@ dependencies = [
  "futures",
  "hkdf 0.12.4",
  "humantime",
+ "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-http-api-client",
  "nym-network-defaults",
  "nym-network-monitor-orchestrator-requests",
+ "nym-network-monitor-route-client",
+ "nym-network-monitor-route-records",
  "nym-node-requests",
  "nym-noise",
  "nym-pemstore",
@@ -8449,7 +8453,9 @@ dependencies = [
  "nym-sphinx-types",
  "nym-task",
  "nym-test-utils",
+ "nym-validator-client",
  "rand 0.10.2",
+ "serde",
  "sha2 0.10.9",
  "time",
  "tokio",
@@ -8481,6 +8487,7 @@ dependencies = [
  "nym-metrics",
  "nym-network-defaults",
  "nym-network-monitor-orchestrator-requests",
+ "nym-network-monitor-route-records",
  "nym-node-requests",
  "nym-task",
  "nym-test-utils",
@@ -8509,6 +8516,7 @@ dependencies = [
  "humantime-serde",
  "nym-crypto",
  "nym-http-api-client",
+ "nym-serde-helpers",
  "nym-test-utils",
  "serde",
  "serde_json",
@@ -8517,6 +8525,38 @@ dependencies = [
  "tracing",
  "utoipa",
  "zeroize",
+]
+
+[[package]]
+name = "nym-network-monitor-route-client"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "nym-bandwidth-controller",
+ "nym-client-core",
+ "nym-client-core-config-types",
+ "nym-crypto",
+ "nym-gateway-client",
+ "nym-gateway-requests",
+ "nym-http-api-client",
+ "nym-network-monitor-route-records",
+ "nym-sphinx",
+ "nym-statistics-common",
+ "nym-task",
+ "nym-topology",
+ "rand 0.10.2",
+ "time",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "nym-network-monitor-route-records"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
 ]
 
 [[package]]

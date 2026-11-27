@@ -5,7 +5,8 @@
 
 use crate::aggregation::{NodeEpochFigures, epoch_figures};
 use crate::storage::models::{
-    DescribedNodeRoles, MixnetEpochAggregate, MixnetEpochConfigScore, TestKind,
+    DescribedNodeRoles, MixnetEpochAggregate, MixnetEpochConfigScore, MixnetEpochFiveHopLiveness,
+    TestKind,
 };
 use anyhow::bail;
 use nym_contracts_common::{NaiveFloat, Percent};
@@ -110,17 +111,19 @@ impl EpochPlan {
     /// Builds the plan from the epoch's stored rows and the described nodes' roles.
     ///
     /// The rows of every test kind the guard omits are dropped before the fold, so a dual-role
-    /// node's liveness then comes from its other liveness test kind alone.
+    /// node's liveness then comes from its other liveness test kind alone. The guard measures the
+    /// one-hop aggregates, before any five-hop liveness is applied.
     pub(crate) fn build(
         config_scores: &[MixnetEpochConfigScore],
         mut aggregates: Vec<MixnetEpochAggregate>,
+        five_hop_liveness: &[MixnetEpochFiveHopLiveness],
         roles: &[DescribedNodeRoles],
         coverage_threshold: f64,
     ) -> Self {
         let coverage = Coverage::measure(&aggregates, roles, coverage_threshold);
         aggregates.retain(|row| !coverage.for_kind(row.test_kind).omitted);
 
-        let nodes = epoch_figures(config_scores, &aggregates)
+        let nodes = epoch_figures(config_scores, &aggregates, five_hop_liveness)
             .into_iter()
             .filter_map(node_submission)
             .collect();
@@ -135,12 +138,21 @@ impl EpochPlan {
 /// The contract uses a node's bundle at the epoch whenever one exists, even one it cannot score,
 /// so an unscoreable bundle would block the fallback to the node's last scored epoch. This assumes
 /// no kind is weighted zero, under which a node with only that kind would be unscoreable too.
+///
+/// The liveness is multiplied by the node's five-hop liveness when it has one, which never gives a
+/// node a liveness of its own.
 fn node_submission(figures: NodeEpochFigures) -> Option<NodeSubmission> {
     let config = percent(figures.config_score?.score)?;
+    let five_hop_liveness = figures.five_hop_liveness.map(|value| value.score);
     let liveness = figures
         .aggregates
-        .liveness
-        .and_then(|liveness| percent(liveness.score));
+        .one_hop_liveness
+        .and_then(|one_hop_liveness| {
+            let score = five_hop_liveness.map_or(one_hop_liveness.score, |five_hop_liveness| {
+                one_hop_liveness.score * five_hop_liveness
+            });
+            percent(score)
+        });
     let stress = figures
         .aggregates
         .stress
@@ -194,7 +206,10 @@ pub(crate) fn unsent(
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
-    use crate::storage::models::{FIXTURE_EPOCH, aggregate, config_score};
+    use crate::storage::models::{
+        FIXTURE_EPOCH, aggregate, carried_five_hop_liveness, config_score,
+        measured_five_hop_liveness,
+    };
     use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
 
     pub(crate) const THRESHOLD: f64 = 0.5;
@@ -228,7 +243,7 @@ pub(super) mod tests {
         aggregates: Vec<MixnetEpochAggregate>,
         roles: &[DescribedNodeRoles],
     ) -> EpochPlan {
-        EpochPlan::build(config_scores, aggregates, roles, THRESHOLD)
+        EpochPlan::build(config_scores, aggregates, &[], roles, THRESHOLD)
     }
 
     fn node_ids(plan: &EpochPlan) -> Vec<NodeId> {
@@ -459,6 +474,48 @@ pub(super) mod tests {
             &[config_score(1, above_one)],
             vec![aggregate(1, TestKind::MixnodeStress, above_one)],
             &[mixnode(1)],
+        );
+
+        assert_eq!(
+            measurements(&plan, 1),
+            Measurements::default()
+                .with_config(pct(1.0))
+                .with_stress(pct(1.0))
+        );
+    }
+
+    // the five-hop liveness stored for the epoch multiplies the liveness, measured or carried forward,
+    // whatever role the node now holds: node 2 was measured as a mixnode and now serves as a gateway
+    #[test]
+    fn a_nodes_liveness_carries_its_five_hop_liveness() {
+        let plan = EpochPlan::build(
+            &[config_score(1, 1.0), config_score(2, 1.0)],
+            vec![
+                aggregate(1, TestKind::MixnodeLiveness, 1.0),
+                aggregate(2, TestKind::GatewayLiveness, 1.0),
+            ],
+            &[
+                measured_five_hop_liveness(1, 0.9),
+                carried_five_hop_liveness(2, 0.7),
+            ],
+            &[mixnode(1), gateway(2)],
+            THRESHOLD,
+        );
+
+        assert_eq!(measurements(&plan, 1).liveness, Some(pct(0.9)));
+        assert_eq!(measurements(&plan, 2).liveness, Some(pct(0.7)));
+    }
+
+    // it only scales a liveness the node already has, so a node without one is submitted exactly as
+    // it would be without five-hop mixnet runs
+    #[test]
+    fn five_hop_liveness_is_not_submitted_on_its_own() {
+        let plan = EpochPlan::build(
+            &[config_score(1, 1.0)],
+            vec![aggregate(1, TestKind::MixnodeStress, 1.0)],
+            &[measured_five_hop_liveness(1, 0.9)],
+            &[mixnode(1)],
+            THRESHOLD,
         );
 
         assert_eq!(

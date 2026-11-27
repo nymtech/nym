@@ -6,6 +6,7 @@ use crate::orchestrator::config::AggregationWindows;
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{MixnetEpochAggregate, TestKind, TestRunWindow};
 use nym_validator_client::nyxd::nym_mixnet_contract_common::{EpochId, Interval};
+use std::ops::RangeInclusive;
 use std::time::Duration;
 use strum::IntoEnumIterator;
 use time::OffsetDateTime;
@@ -43,7 +44,7 @@ impl AggregateMaterialiser {
     ///
     /// Driven by the stored runs rather than by the registry: an aggregate is only ever written
     /// where runs exist, so the nodes worth considering are exactly the ones a window turned up.
-    async fn materialise(
+    pub(super) async fn materialise(
         &self,
         mixnet_epoch: EpochId,
         epoch_start: OffsetDateTime,
@@ -103,10 +104,10 @@ impl AggregateMaterialiser {
         Ok(())
     }
 
-    /// Materialises every epoch from the one after the last stored through to the one in progress
-    /// in `interval`.
+    /// The epochs yet to be materialised: from the one after the last stored through to the one in
+    /// progress in `interval`.
     ///
-    /// Deliberately ONE path for what would otherwise be three. In the steady state the range holds
+    /// Deliberately ONE range for what would otherwise be three paths. In the steady state it holds
     /// a single epoch, the one that has just begun. After a restart that spanned transitions it
     /// holds the epochs missed, which is the backfill: a hole is permanent once its runs age out,
     /// while recomputing is cheap and the data is usually still there. And on a first deployment
@@ -121,20 +122,17 @@ impl AggregateMaterialiser {
     ///
     /// A backfilled value can differ from the one that would have been written at the time, because
     /// results have arrived since. That is accepted: evidence that is more complete is not worse.
-    pub(crate) async fn materialise_pending(&self, interval: &Interval) -> anyhow::Result<()> {
+    pub(super) async fn pending_epochs(
+        &self,
+        interval: &Interval,
+    ) -> anyhow::Result<RangeInclusive<EpochId>> {
         let current = interval.current_epoch_absolute_id();
         let last_materialised = self.storage.get_last_materialised_mixnet_epoch().await?;
 
         // `last + 1` in the steady state; the epoch in progress when there is no last one. a range
         // that starts past `current` is empty, which covers the chain not having advanced yet
         let first = last_materialised.map_or(current, |last| last + 1);
-
-        // every epoch in the range has begun, so its start follows from the reading and cannot move
-        for mixnet_epoch in first..=current {
-            self.materialise(mixnet_epoch, interval.epoch_start(mixnet_epoch))
-                .await?;
-        }
-        Ok(())
+        Ok(first..=current)
     }
 }
 
@@ -181,10 +179,13 @@ pub(super) mod tests {
             stress: WINDOW,
             liveness: WINDOW,
         };
-        AggregateMaterialiser::new(windows, RETENTION, storage.clone())
-            .materialise_pending(&interval)
-            .await
-            .unwrap()
+        let materialiser = AggregateMaterialiser::new(windows, RETENTION, storage.clone());
+        for mixnet_epoch in materialiser.pending_epochs(&interval).await.unwrap() {
+            materialiser
+                .materialise(mixnet_epoch, interval.epoch_start(mixnet_epoch))
+                .await
+                .unwrap();
+        }
     }
 
     pub(crate) async fn storage_with_node() -> NetworkMonitorStorage {

@@ -10,9 +10,11 @@ mod build_info;
 mod common;
 mod discover;
 mod env;
+mod five_hop_mixnet;
 mod keygen;
 mod manual;
 mod run_agent;
+mod test_five_hop_liveness;
 mod test_gateway_liveness;
 mod test_mixnode;
 
@@ -42,7 +44,8 @@ impl Cli {
                 test_mixnode::execute(args, TestKind::MixnodeLiveness).await?
             }
             Command::TestGatewayLiveness(args) => test_gateway_liveness::execute(args).await?,
-            Command::RunAgent(args) => run_agent::execute(args).await?,
+            Command::TestFiveHopLiveness(args) => test_five_hop_liveness::execute(args).await?,
+            Command::RunAgent(args) => run_agent::execute(*args).await?,
             Command::Keygen(args) => keygen::execute(args)?,
         }
         Ok(())
@@ -50,9 +53,9 @@ impl Cli {
 }
 
 /// The manual `test-*` commands are named for the (kind, role) pair they exercise, matching the
-/// [`TestRunAssignment`](nym_network_monitor_orchestrator_requests::models::TestRunAssignment)
+/// [`OneHopMixnetAssignment`](nym_network_monitor_orchestrator_requests::models::OneHopMixnetAssignment)
 /// variants an orchestrator would hand out. There are exactly three, since a gateway is probed only
-/// for liveness.
+/// for liveness. `test-five-hop-liveness` instead runs what a five-hop mixnet run does.
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     /// Show build information of this binary
@@ -68,8 +71,11 @@ pub(crate) enum Command {
     /// client delivery, without interacting with the orchestrator
     TestGatewayLiveness(test_gateway_liveness::Args),
 
+    /// One-shot manual FIVE-HOP liveness test of the mixnodes, through named or randomly drawn gateways, without interacting with the orchestrator
+    TestFiveHopLiveness(test_five_hop_liveness::Args),
+
     /// Test a node by contacting the orchestrator for the work assignment
-    RunAgent(run_agent::Args),
+    RunAgent(Box<run_agent::Args>),
 
     /// Generate all required keys for the agent to work
     Keygen(keygen::Args),

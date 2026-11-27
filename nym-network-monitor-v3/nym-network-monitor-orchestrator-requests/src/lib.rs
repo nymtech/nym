@@ -40,15 +40,19 @@ pub mod routes {
             use super::*;
 
             pub const ANNOUNCE: &str = "/announce";
-            pub const REQUEST_TESTRUN: &str = "/request-testrun";
-            pub const SUBMIT_TESTRUN_RESULT: &str = "/submit-testrun-result";
+            pub const REQUEST_WORK_ASSIGNMENT: &str = "/request-work-assignment";
+            pub const SUBMIT_WORK_RESULT: &str = "/submit-work-result";
 
             absolute_route!(announce_absolute, agent_absolute(), ANNOUNCE);
-            absolute_route!(request_testrun_absolute, agent_absolute(), REQUEST_TESTRUN);
             absolute_route!(
-                submit_testrun_absolute,
+                request_work_assignment_absolute,
                 agent_absolute(),
-                SUBMIT_TESTRUN_RESULT
+                REQUEST_WORK_ASSIGNMENT
+            );
+            absolute_route!(
+                submit_work_result_absolute,
+                agent_absolute(),
+                SUBMIT_WORK_RESULT
             );
         }
 
@@ -70,6 +74,8 @@ pub mod routes {
             pub const TESTRUNS_IN_PROGRESS: &str = "/testruns-in-progress";
             pub const TESTRUNS: &str = "/testruns/{kind}";
             pub const NYM_NODES: &str = "/nym-nodes";
+            pub const FIVE_HOP_MIXNET_SESSIONS_EPOCH: &str =
+                "/five-hop-mixnet-sessions/epoch/{mixnet_epoch}";
 
             absolute_route!(testrun_by_id_absolute, results_absolute(), TESTRUN_BY_ID);
             absolute_route!(
@@ -89,6 +95,11 @@ pub mod routes {
             );
             absolute_route!(testruns_absolute, results_absolute(), TESTRUNS);
             absolute_route!(nym_nodes_absolute, results_absolute(), NYM_NODES);
+            absolute_route!(
+                five_hop_mixnet_sessions_epoch_absolute,
+                results_absolute(),
+                FIVE_HOP_MIXNET_SESSIONS_EPOCH
+            );
         }
 
         pub mod aggregates {

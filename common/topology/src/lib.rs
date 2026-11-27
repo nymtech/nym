@@ -629,6 +629,13 @@ impl NymTopology {
             .filter(|n| n.supported_roles.mixnet_entry)
     }
 
+    /// Every known node that declares the mixnode role, whatever its role this epoch.
+    pub fn mixnode_capable_nodes(&self) -> impl Iterator<Item = &RoutingNode> {
+        self.node_details
+            .values()
+            .filter(|n| n.supported_roles.mixnode)
+    }
+
     pub fn mixnodes(&self) -> impl Iterator<Item = &RoutingNode> {
         self.node_details
             .values()

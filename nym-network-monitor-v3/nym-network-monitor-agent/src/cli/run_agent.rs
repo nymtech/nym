@@ -5,7 +5,9 @@ use super::env::vars::*;
 use crate::agent::NetworkMonitorAgent;
 use crate::agent::helpers::load_noise_key;
 use crate::cli::common::CommonArgs;
+use crate::cli::five_hop_mixnet::FiveHopMixnetArgs;
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
+use nym_network_monitor_route_client::config::RouteNodeSelection;
 use nym_task::{ShutdownManager, ShutdownToken};
 use std::net::{IpAddr, SocketAddr};
 use tracing::info;
@@ -15,6 +17,9 @@ use url::Url;
 pub(crate) struct Args {
     #[clap(flatten)]
     common_args: CommonArgs,
+
+    #[clap(flatten)]
+    five_hop_mixnet_args: FiveHopMixnetArgs,
 
     /// Address of the orchestrator for requesting work assignments
     #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_ORCHESTRATOR_ADDRESS_ARG)]
@@ -70,6 +75,9 @@ async fn build_and_run_agent(args: Args, shutdown: ShutdownToken) -> anyhow::Res
     let agent = NetworkMonitorAgent::new(
         args.common_args
             .build_config(external_address_v4, external_address_v6)?,
+        // a five-hop mixnet run handed out by the orchestrator always uses the active set
+        args.five_hop_mixnet_args
+            .build_config(RouteNodeSelection::ActiveSet)?,
         noise_key,
         orchestrator_client,
         shutdown,
@@ -83,7 +91,7 @@ async fn build_and_run_agent(args: Args, shutdown: ShutdownToken) -> anyhow::Res
 
     // 3. query the orchestrator for work assignment and attempt to perform the stress test
     // of the target node
-    info!("attempting to request test run assignment");
+    info!("attempting to request a work assignment");
     agent.perform_work_assignment().await?;
 
     Ok(())

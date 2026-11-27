@@ -1,0 +1,18 @@
+[package]
+name = "nym-network-monitor-route-records"
+description = "Records, test messages and scoring of the Nym network monitor's five-hop liveness"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+
+[lints]
+workspace = true

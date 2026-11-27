@@ -3,8 +3,10 @@
 
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    ConfigScoreCandidate, DescribedNodeRoles, GatewayLivenessTestRunRow, MixnetEpochAggregate,
-    MixnetEpochConfigScore, MixnodeTestRunRow, NewTestRun, NodeAwaitingCapabilityRefresh,
+    ConfigScoreCandidate, DescribedNodeRoles, FiveHopMixnetGatewayCandidate,
+    FiveHopMixnetGatewayCandidateRow, FiveHopMixnetRunRequest, FiveHopMixnetRunSubmission,
+    FiveHopMixnetSession, GatewayLivenessTestRunRow, MixnetEpochAggregate, MixnetEpochConfigScore,
+    MixnetEpochFiveHopLiveness, MixnodeTestRunRow, NewTestRun, NodeAwaitingCapabilityRefresh,
     NodeChainCapability, NodeDescription, NymNode, TestKind, TestRunInProgress, TestRunSubmission,
     TestRunWindow, duration_to_us, next_ip_to_test,
 };
@@ -103,6 +105,31 @@ async fn select_candidates(
     };
 
     Ok(candidates)
+}
+
+/// Whether a five-hop mixnet run is due: none in flight, and no submitted run started after `last_started_by`.
+///
+/// Both the hand-out and its peek run this, so the two cannot judge "due" differently.
+async fn five_hop_mixnet_run_due(
+    conn: &mut SqliteConnection,
+    now: OffsetDateTime,
+    last_started_by: OffsetDateTime,
+) -> anyhow::Result<bool> {
+    // in flight until submitted or past its expiry, the comparison matching the lease sweep's
+    let due = sqlx::query_scalar!(
+        r#"
+        SELECT NOT EXISTS (
+            SELECT 1 FROM five_hop_mixnet_run
+            WHERE (submitted_at IS NULL AND expires_at >= ?)
+               OR (submitted_at IS NOT NULL AND started_at > ?)
+        ) AS "due!: bool"
+        "#,
+        now,
+        last_started_by,
+    )
+    .fetch_one(conn)
+    .await?;
+    Ok(due)
 }
 
 /// Writes one `mixnode_liveness` run into its results table, returning the id it was stored under.
@@ -833,6 +860,7 @@ async fn get_node_description(
             mixnode_enabled,
             gateway_enabled,
             clients_ws_port,
+            enforces_zk_nyms,
             reported_version,
             binary_name,
             accepted_terms_and_conditions,
@@ -899,11 +927,12 @@ impl StorageManager {
                     mixnode_enabled,
                     gateway_enabled,
                     clients_ws_port,
+                    enforces_zk_nyms,
                     reported_version,
                     binary_name,
                     accepted_terms_and_conditions,
                     declared_chain_address
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (node_id) DO UPDATE SET
                     mix_port                      = excluded.mix_port,
                     announced_ips                 = excluded.announced_ips,
@@ -913,6 +942,7 @@ impl StorageManager {
                     mixnode_enabled               = excluded.mixnode_enabled,
                     gateway_enabled               = excluded.gateway_enabled,
                     clients_ws_port               = excluded.clients_ws_port,
+                    enforces_zk_nyms              = excluded.enforces_zk_nyms,
                     reported_version              = excluded.reported_version,
                     binary_name                   = excluded.binary_name,
                     accepted_terms_and_conditions = excluded.accepted_terms_and_conditions,
@@ -927,6 +957,7 @@ impl StorageManager {
                 description.mixnode_enabled,
                 description.gateway_enabled,
                 description.clients_ws_port,
+                description.enforces_zk_nyms,
                 description.reported_version,
                 description.binary_name,
                 description.accepted_terms_and_conditions,
@@ -2143,6 +2174,320 @@ impl StorageManager {
         .rows_affected();
         Ok(evicted)
     }
+
+    /// Whether a five-hop mixnet run is due as of `now`; see [`five_hop_mixnet_run_due`].
+    pub(crate) async fn is_five_hop_mixnet_run_due(
+        &self,
+        now: OffsetDateTime,
+        last_started_by: OffsetDateTime,
+    ) -> anyhow::Result<bool> {
+        let mut conn = self.connection_pool.acquire().await?;
+        five_hop_mixnet_run_due(&mut conn, now, last_started_by).await
+    }
+
+    /// Every gateway a five-hop mixnet run may be drawn from, with its latest gateway liveness run.
+    ///
+    /// Two reads in one transaction, paired by node id: the candidates, then their latest runs. A
+    /// gateway with no gateway liveness run has no row in the second, so it is not a candidate.
+    pub(crate) async fn get_five_hop_mixnet_gateway_candidates(
+        &self,
+    ) -> anyhow::Result<Vec<FiveHopMixnetGatewayCandidate>> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        // `IS FALSE` also leaves out a gateway whose flag has not been read yet (NULL)
+        let candidates = sqlx::query_as!(
+            FiveHopMixnetGatewayCandidateRow,
+            r#"
+            SELECT
+                d.node_id AS "node_id!",
+                b.identity_key,
+                EXISTS (
+                    SELECT 1 FROM testrun_in_progress tip WHERE tip.node_id = d.node_id
+                ) AS "in_flight!: bool"
+            FROM nym_node_description d
+            JOIN nym_node_bond b ON b.node_id = d.node_id
+            WHERE d.gateway_enabled
+              AND d.enforces_zk_nyms IS FALSE
+            ORDER BY d.node_id
+            "#
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let latest_runs = sqlx::query_as!(
+            GatewayLivenessTestRunRow,
+            r#"
+            SELECT *
+            FROM gateway_liveness_testrun
+            WHERE id IN (
+                SELECT (
+                    SELECT r.id FROM gateway_liveness_testrun r
+                    WHERE r.node_id = d.node_id
+                    ORDER BY r.test_timestamp DESC
+                    LIMIT 1
+                )
+                FROM nym_node_description d
+                WHERE d.gateway_enabled
+                  AND d.enforces_zk_nyms IS FALSE
+            )
+            "#
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        let mut latest_runs: HashMap<i64, CompletedTestRun> = latest_runs
+            .into_iter()
+            .map(|row| (row.node_id, row.into_gateway_liveness()))
+            .collect();
+        Ok(candidates
+            .into_iter()
+            .filter_map(|candidate| {
+                let latest = latest_runs.remove(&candidate.node_id)?;
+                Some(candidate.with_latest_run(latest))
+            })
+            .collect())
+    }
+
+    /// Starts a run if one is still due; `None` if another request won.
+    ///
+    /// `BEGIN IMMEDIATE`, so the "due" it re-checks is the state its insert lands on.
+    pub(crate) async fn start_five_hop_mixnet_run(
+        &self,
+        request: &FiveHopMixnetRunRequest,
+    ) -> anyhow::Result<Option<i64>> {
+        let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
+
+        if !five_hop_mixnet_run_due(&mut tx, request.now, request.last_started_by).await? {
+            return Ok(None);
+        }
+
+        let run_id = sqlx::query!(
+            "INSERT INTO five_hop_mixnet_run (started_at, expires_at) VALUES (?, ?)",
+            request.now,
+            request.expires_at,
+        )
+        .execute(&mut *tx)
+        .await?
+        .last_insert_rowid();
+
+        tx.commit().await?;
+        Ok(Some(run_id))
+    }
+
+    /// Stores the sessions of a run in flight and marks it submitted, all or nothing, in one transaction.
+    ///
+    /// Nothing is stored when the run is not in flight. `BEGIN IMMEDIATE` because the transaction
+    /// reads before it writes.
+    pub(crate) async fn submit_five_hop_mixnet_run(
+        &self,
+        run_id: i64,
+        now: OffsetDateTime,
+        sessions: &[FiveHopMixnetSession],
+    ) -> anyhow::Result<FiveHopMixnetRunSubmission> {
+        let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
+
+        let in_flight = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM five_hop_mixnet_run
+                WHERE id = ? AND submitted_at IS NULL AND expires_at >= ?
+            ) AS "in_flight!: bool"
+            "#,
+            run_id,
+            now,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        if !in_flight {
+            return Ok(FiveHopMixnetRunSubmission::NotInFlight);
+        }
+
+        for session in sessions {
+            sqlx::query!(
+                r#"
+                INSERT INTO five_hop_mixnet_session (run_id, gateway_node_id, mixnet_epoch, batch, kept)
+                VALUES (?, ?, ?, ?, ?)
+                "#,
+                session.run_id,
+                session.gateway_node_id,
+                session.mixnet_epoch,
+                session.batch,
+                session.kept,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        sqlx::query!(
+            "UPDATE five_hop_mixnet_run SET submitted_at = ? WHERE id = ?",
+            now,
+            run_id,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(FiveHopMixnetRunSubmission::Stored)
+    }
+
+    /// Every stored session naming `mixnet_epoch`, by run then gateway.
+    pub(crate) async fn get_five_hop_mixnet_sessions_of_epoch(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<FiveHopMixnetSession>> {
+        let sessions = sqlx::query_as!(
+            FiveHopMixnetSession,
+            r#"
+            SELECT run_id, gateway_node_id, mixnet_epoch, batch, kept
+            FROM five_hop_mixnet_session
+            WHERE mixnet_epoch = ?
+            ORDER BY run_id, gateway_node_id
+            "#,
+            mixnet_epoch
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(sessions)
+    }
+
+    /// Deletes every five-hop mixnet run started before `cutoff`, with its sessions, returning how many runs went.
+    ///
+    /// One transaction, sessions first as the foreign key requires.
+    pub(crate) async fn evict_old_five_hop_mixnet_runs(
+        &self,
+        cutoff: OffsetDateTime,
+    ) -> anyhow::Result<u64> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        sqlx::query!(
+            r#"
+            DELETE FROM five_hop_mixnet_session
+            WHERE run_id IN (SELECT id FROM five_hop_mixnet_run WHERE started_at < ?)
+            "#,
+            cutoff
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        let evicted = sqlx::query!(
+            "DELETE FROM five_hop_mixnet_run WHERE started_at < ?",
+            cutoff
+        )
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+
+        tx.commit().await?;
+        Ok(evicted)
+    }
+
+    /// Stores five-hop liveness values not already stored, leaving any that are as they were, in one transaction.
+    ///
+    /// As with the aggregates, materialising an epoch again is a no-op.
+    pub(crate) async fn batch_insert_mixnet_epoch_five_hop_liveness(
+        &self,
+        values: &[MixnetEpochFiveHopLiveness],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for value in values {
+            sqlx::query!(
+                r#"
+                INSERT INTO mixnet_epoch_five_hop_liveness (mixnet_epoch, epoch_start, node_id, score, measured)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (mixnet_epoch, node_id) DO NOTHING
+                "#,
+                value.mixnet_epoch,
+                value.epoch_start,
+                value.node_id,
+                value.score,
+                value.measured,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Every five-hop liveness value filed under `mixnet_epoch`, ordered by node.
+    pub(crate) async fn get_mixnet_epoch_five_hop_liveness(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochFiveHopLiveness>> {
+        let values = sqlx::query_as!(
+            MixnetEpochFiveHopLiveness,
+            "SELECT * FROM mixnet_epoch_five_hop_liveness WHERE mixnet_epoch = ? ORDER BY node_id",
+            mixnet_epoch
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(values)
+    }
+
+    /// One node's five-hop liveness filed under `mixnet_epoch`, or `None` if none was.
+    pub(crate) async fn get_mixnet_epoch_five_hop_liveness_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: i64,
+    ) -> anyhow::Result<Option<MixnetEpochFiveHopLiveness>> {
+        let value = sqlx::query_as!(
+            MixnetEpochFiveHopLiveness,
+            "SELECT * FROM mixnet_epoch_five_hop_liveness WHERE mixnet_epoch = ? AND node_id = ?",
+            mixnet_epoch,
+            node_id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+        Ok(value)
+    }
+
+    /// Deletes every five-hop liveness value of an epoch that began before `cutoff`, returning how many went.
+    pub(crate) async fn evict_old_mixnet_epoch_five_hop_liveness(
+        &self,
+        cutoff: OffsetDateTime,
+    ) -> anyhow::Result<u64> {
+        let evicted = sqlx::query!(
+            "DELETE FROM mixnet_epoch_five_hop_liveness WHERE epoch_start < ?",
+            cutoff
+        )
+        .execute(&self.connection_pool)
+        .await?
+        .rows_affected();
+        Ok(evicted)
+    }
+
+    /// Every node's most recent `mixnode_liveness` run.
+    pub(crate) async fn get_latest_mixnode_liveness_testruns(
+        &self,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        let rows = sqlx::query_as!(
+            MixnodeTestRunRow,
+            r#"
+            SELECT *
+            FROM mixnode_liveness_testrun
+            WHERE id IN (
+                SELECT (
+                    SELECT r.id FROM mixnode_liveness_testrun r
+                    WHERE r.node_id = b.node_id
+                    ORDER BY r.test_timestamp DESC
+                    LIMIT 1
+                )
+                FROM nym_node_bond b
+            )
+            "#
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(MixnodeTestRunRow::into_mixnode_liveness)
+            .collect())
+    }
 }
 
 #[cfg(test)]
@@ -2376,8 +2721,12 @@ mod tests {
             let db = setup().await;
             seed_node(&db, 1).await;
 
-            // the same node, now announcing another address and taking on the gateway role
-            let updated = described_node(1, "9.9.9.9", true, true);
+            // the same node, now announcing another address and taking on the gateway role, one that
+            // enforces zk-nyms
+            let mut updated = described_node(1, "9.9.9.9", true, true);
+            if let Some(description) = updated.description.as_mut() {
+                description.enforces_zk_nyms = Some(true);
+            }
             seed_nodes(&db, &[updated, mixnode(2)]).await;
 
             let description = db
@@ -2391,6 +2740,7 @@ mod tests {
             assert!(description.mixnode_enabled);
             assert!(description.gateway_enabled);
             assert_eq!(description.clients_ws_port, Some(9000));
+            assert_eq!(description.enforces_zk_nyms, Some(true));
 
             assert_eq!(bond_count(&db).await, 2);
         }
@@ -4260,6 +4610,323 @@ mod tests {
                 db.get_mixnet_epoch_config_scores(MIXNET_EPOCH + 1)
                     .await
                     .unwrap(),
+                vec![at_cutoff]
+            );
+        }
+    }
+
+    mod get_five_hop_mixnet_gateway_candidates {
+        use super::*;
+
+        const T0: OffsetDateTime = datetime!(2026-01-01 00:00:00 UTC);
+
+        /// `gateway(node_id)` with its zk-nym enforcement flag set to `enforces_zk_nyms`.
+        fn gateway_with_flag(node_id: i64, enforces_zk_nyms: Option<bool>) -> NymNode {
+            let mut node = gateway(node_id);
+            if let Some(description) = node.description.as_mut() {
+                description.enforces_zk_nyms = enforces_zk_nyms;
+            }
+            node
+        }
+
+        /// Stores a gateway liveness run against `node_id` taken at `test_timestamp`, returning its id.
+        async fn gateway_liveness_run(
+            db: &StorageManager,
+            node_id: i64,
+            test_timestamp: OffsetDateTime,
+        ) -> i64 {
+            let run = NewTestRun {
+                test_timestamp,
+                ..minimal_test_run(node_id)
+            };
+            insert_run_of(db, TestKind::GatewayLiveness, &run).await
+        }
+
+        #[tokio::test]
+        async fn a_candidate_reports_the_gateway_role_does_not_enforce_and_has_a_liveness_run() {
+            let db = setup().await;
+            seed_nodes(
+                &db,
+                &[
+                    gateway(1),
+                    gateway_with_flag(2, Some(true)),
+                    // a flag not read yet must not pass for "does not enforce"
+                    gateway_with_flag(3, None),
+                    gateway(4),
+                    mixnode(5),
+                ],
+            )
+            .await;
+            // every node but 4 has a gateway liveness run
+            for node_id in [1, 2, 3, 5] {
+                gateway_liveness_run(&db, node_id, T0).await;
+            }
+
+            let candidates: Vec<i64> = db
+                .get_five_hop_mixnet_gateway_candidates()
+                .await
+                .unwrap()
+                .iter()
+                .map(|candidate| candidate.node_id)
+                .collect();
+
+            assert_eq!(candidates, vec![1]);
+        }
+
+        #[tokio::test]
+        async fn a_candidate_carries_its_newest_run_and_whether_it_is_under_test() {
+            let db = setup().await;
+            seed_nodes(&db, &[gateway(1), gateway(2)]).await;
+            // the newer run is stored first, so the newest by time is not the newest by id
+            let newest = gateway_liveness_run(&db, 1, T0 + time::Duration::hours(1)).await;
+            gateway_liveness_run(&db, 1, T0).await;
+            gateway_liveness_run(&db, 2, T0).await;
+            mark_in_progress(&db, 2, T0).await;
+
+            let candidates = db.get_five_hop_mixnet_gateway_candidates().await.unwrap();
+
+            assert_eq!(candidates.len(), 2);
+            assert_eq!(candidates[0].latest_gateway_liveness.id, newest);
+            assert!(!candidates[0].in_flight);
+            assert!(candidates[1].in_flight);
+        }
+    }
+
+    mod five_hop_mixnet_run {
+        use super::*;
+        use crate::storage::models::{five_hop_mixnet_batch, five_hop_mixnet_session};
+
+        const T0: OffsetDateTime = datetime!(2026-01-01 00:00:00 UTC);
+        const INTERVAL: time::Duration = time::Duration::minutes(5);
+        const RUN_TIMEOUT: time::Duration = time::Duration::minutes(3);
+        const MIXNET_EPOCH: u32 = 7;
+
+        fn minutes(minutes: i64) -> time::Duration {
+            time::Duration::minutes(minutes)
+        }
+
+        /// Starts a run at `now` under the default interval and timeout.
+        async fn start_run(db: &StorageManager, now: OffsetDateTime) -> Option<i64> {
+            let request = FiveHopMixnetRunRequest {
+                now,
+                last_started_by: now - INTERVAL,
+                expires_at: now + RUN_TIMEOUT,
+            };
+            db.start_five_hop_mixnet_run(&request).await.unwrap()
+        }
+
+        async fn submit(
+            db: &StorageManager,
+            run_id: i64,
+            now: OffsetDateTime,
+            sessions: &[FiveHopMixnetSession],
+        ) -> FiveHopMixnetRunSubmission {
+            db.submit_five_hop_mixnet_run(run_id, now, sessions)
+                .await
+                .unwrap()
+        }
+
+        async fn sessions_of_epoch(
+            db: &StorageManager,
+            mixnet_epoch: u32,
+        ) -> Vec<FiveHopMixnetSession> {
+            db.get_five_hop_mixnet_sessions_of_epoch(i64::from(mixnet_epoch))
+                .await
+                .unwrap()
+        }
+
+        async fn stored_session_count(db: &StorageManager) -> i64 {
+            sqlx::query_scalar!("SELECT COUNT(*) FROM five_hop_mixnet_session")
+                .fetch_one(&db.connection_pool)
+                .await
+                .unwrap()
+        }
+
+        #[tokio::test]
+        async fn no_second_run_starts_while_one_is_in_flight() {
+            let db = setup().await;
+
+            assert!(start_run(&db, T0).await.is_some());
+            assert_eq!(start_run(&db, T0 + minutes(1)).await, None);
+        }
+
+        #[tokio::test]
+        async fn an_abandoned_run_is_due_again_once_it_expires() {
+            let db = setup().await;
+            let abandoned = start_run(&db, T0).await.unwrap();
+
+            // past its 3 minute expiry, never submitted, and well inside the 5 minute interval
+            let next = start_run(&db, T0 + minutes(4)).await;
+
+            assert!(next.is_some_and(|run_id| run_id != abandoned));
+        }
+
+        #[tokio::test]
+        async fn the_next_run_is_due_an_interval_after_the_last_submitted_one_started() {
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            // a run whose sessions all failed is submitted with none to store
+            assert_eq!(
+                submit(&db, run, T0 + minutes(1), &[]).await,
+                FiveHopMixnetRunSubmission::Stored
+            );
+
+            assert_eq!(start_run(&db, T0 + minutes(4)).await, None);
+            assert!(start_run(&db, T0 + INTERVAL).await.is_some());
+        }
+
+        #[tokio::test]
+        async fn a_late_submission_stores_nothing() {
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            let batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..1, 0);
+
+            let late = [five_hop_mixnet_session(run, &batch, true)];
+            let submission = submit(&db, run, T0 + minutes(4), &late).await;
+
+            assert_eq!(submission, FiveHopMixnetRunSubmission::NotInFlight);
+            assert_eq!(stored_session_count(&db).await, 0);
+        }
+
+        // Another run is in flight, so only the run's own id can tell the two apart.
+        #[tokio::test]
+        async fn a_submission_for_an_unknown_run_stores_nothing() {
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            let unknown = run + 1;
+            let batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..1, 0);
+
+            let sessions = [five_hop_mixnet_session(unknown, &batch, true)];
+            let submission = submit(&db, unknown, T0 + minutes(1), &sessions).await;
+
+            assert_eq!(submission, FiveHopMixnetRunSubmission::NotInFlight);
+            assert_eq!(stored_session_count(&db).await, 0);
+        }
+
+        #[tokio::test]
+        async fn a_second_submission_leaves_the_first_as_it_was() {
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            let first_batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..1, 0);
+            let first = five_hop_mixnet_session(run, &first_batch, true);
+            assert_eq!(
+                submit(&db, run, T0 + minutes(1), std::slice::from_ref(&first)).await,
+                FiveHopMixnetRunSubmission::Stored
+            );
+
+            let second_batch = five_hop_mixnet_batch(2, MIXNET_EPOCH, 0..1, 0);
+            let second = five_hop_mixnet_session(run, &second_batch, true);
+            let again = submit(&db, run, T0 + minutes(2), &[second]).await;
+
+            assert_eq!(again, FiveHopMixnetRunSubmission::NotInFlight);
+            assert_eq!(sessions_of_epoch(&db, MIXNET_EPOCH).await, vec![first]);
+        }
+
+        // The higher gateway is stored first, so only the read's ordering puts gateway 1 first.
+        #[tokio::test]
+        async fn sessions_naming_an_epoch_read_back_as_stored_by_gateway() {
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            let kept_batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..3, 0);
+            let kept = five_hop_mixnet_session(run, &kept_batch, true);
+            let discarded_batch = five_hop_mixnet_batch(2, MIXNET_EPOCH, 0..3, 3);
+            let discarded = five_hop_mixnet_session(run, &discarded_batch, false);
+            assert_eq!(
+                submit(
+                    &db,
+                    run,
+                    T0 + minutes(1),
+                    &[discarded.clone(), kept.clone()]
+                )
+                .await,
+                FiveHopMixnetRunSubmission::Stored
+            );
+
+            assert_eq!(
+                sessions_of_epoch(&db, MIXNET_EPOCH).await,
+                vec![kept, discarded]
+            );
+            assert!(sessions_of_epoch(&db, MIXNET_EPOCH + 1).await.is_empty());
+        }
+
+        #[tokio::test]
+        async fn an_old_run_is_evicted_with_its_sessions() {
+            let db = setup().await;
+            let old = start_run(&db, T0).await.unwrap();
+            let old_batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..1, 0);
+            assert_eq!(
+                submit(
+                    &db,
+                    old,
+                    T0 + minutes(1),
+                    &[five_hop_mixnet_session(old, &old_batch, true)]
+                )
+                .await,
+                FiveHopMixnetRunSubmission::Stored
+            );
+            let new_start = T0 + time::Duration::hours(1);
+            let new = start_run(&db, new_start).await.unwrap();
+            let new_batch = five_hop_mixnet_batch(1, MIXNET_EPOCH + 1, 0..1, 0);
+            assert_eq!(
+                submit(
+                    &db,
+                    new,
+                    new_start + minutes(1),
+                    &[five_hop_mixnet_session(new, &new_batch, true)]
+                )
+                .await,
+                FiveHopMixnetRunSubmission::Stored
+            );
+
+            let evicted = db
+                .evict_old_five_hop_mixnet_runs(T0 + minutes(30))
+                .await
+                .unwrap();
+
+            assert_eq!(evicted, 1);
+            assert!(sessions_of_epoch(&db, MIXNET_EPOCH).await.is_empty());
+            assert_eq!(sessions_of_epoch(&db, MIXNET_EPOCH + 1).await.len(), 1);
+        }
+    }
+
+    mod mixnet_epoch_five_hop_liveness {
+        use super::*;
+
+        const EPOCH_START: OffsetDateTime = datetime!(2026-01-01 00:00:00 UTC);
+
+        #[tokio::test]
+        async fn evicts_only_epochs_that_began_before_the_cutoff() {
+            let db = setup().await;
+            let old = MixnetEpochFiveHopLiveness {
+                mixnet_epoch: 7,
+                epoch_start: EPOCH_START,
+                node_id: 1,
+                score: 0.9,
+                measured: true,
+            };
+            let at_cutoff = MixnetEpochFiveHopLiveness {
+                mixnet_epoch: 8,
+                epoch_start: EPOCH_START + time::Duration::hours(1),
+                ..old
+            };
+            db.batch_insert_mixnet_epoch_five_hop_liveness(&[old, at_cutoff])
+                .await
+                .unwrap();
+
+            let evicted = db
+                .evict_old_mixnet_epoch_five_hop_liveness(at_cutoff.epoch_start)
+                .await
+                .unwrap();
+
+            assert_eq!(evicted, 1);
+            assert!(
+                db.get_mixnet_epoch_five_hop_liveness(7)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+            assert_eq!(
+                db.get_mixnet_epoch_five_hop_liveness(8).await.unwrap(),
                 vec![at_cutoff]
             );
         }

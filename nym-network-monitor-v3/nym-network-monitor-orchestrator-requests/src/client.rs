@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::models::{
-    AgentAnnounceRequest, AgentAnnounceResponse, TestRunAssignmentRequest,
-    TestRunAssignmentResponse, TestRunResultSubmissionRequest, TestRunSubmissionResponse,
+    AgentAnnounceRequest, AgentAnnounceResponse, WorkAssignmentRequest, WorkAssignmentResponse,
+    WorkResultSubmissionRequest, WorkResultSubmissionResponse,
 };
 use crate::routes::v1::agent::{
-    announce_absolute, request_testrun_absolute, submit_testrun_absolute,
+    announce_absolute, request_work_assignment_absolute, submit_work_result_absolute,
 };
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, HttpClientError, NO_PARAMS, Url, parse_response};
@@ -62,20 +62,22 @@ impl OrchestratorClient {
         self.post_with_auth(&announce_absolute(), body).await
     }
 
-    /// Asks the orchestrator for the next test run to execute. Returns `None`
+    /// Asks the orchestrator for the next work to execute. Returns `None`
     /// inside the assignment if no work is currently available.
     pub async fn request_work_assignment(
         &self,
-        body: &TestRunAssignmentRequest,
-    ) -> Result<TestRunAssignmentResponse, HttpClientError> {
-        self.post_with_auth(&request_testrun_absolute(), body).await
+        body: &WorkAssignmentRequest,
+    ) -> Result<WorkAssignmentResponse, HttpClientError> {
+        self.post_with_auth(&request_work_assignment_absolute(), body)
+            .await
     }
 
-    /// Submits the result of a completed test run back to the orchestrator for storage.
-    pub async fn submit_test_run_result(
+    /// Submits the result of assigned work back to the orchestrator for storage.
+    pub async fn submit_work_result(
         &self,
-        body: &TestRunResultSubmissionRequest,
-    ) -> Result<TestRunSubmissionResponse, HttpClientError> {
-        self.post_with_auth(&submit_testrun_absolute(), body).await
+        body: &WorkResultSubmissionRequest,
+    ) -> Result<WorkResultSubmissionResponse, HttpClientError> {
+        self.post_with_auth(&submit_work_result_absolute(), body)
+            .await
     }
 }

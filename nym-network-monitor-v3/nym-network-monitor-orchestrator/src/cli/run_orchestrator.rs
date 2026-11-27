@@ -3,7 +3,9 @@
 
 use super::env::vars::*;
 use crate::orchestrator::NetworkMonitorOrchestrator;
-use crate::orchestrator::config::{AggregationWindows, Config, LivenessConfig};
+use crate::orchestrator::config::{
+    AggregationWindows, Config, FiveHopLivenessConfig, LivenessConfig,
+};
 use anyhow::{Context, anyhow, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::{Coin, bip39};
@@ -68,6 +70,43 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_GATEWAY_WAVE_SIZE_ARG, default_value = "50")]
     liveness_gateway_wave_size: NonZeroUsize,
 
+    /// Whether five-hop mixnet runs are handed out and five-hop liveness applied (e.g. `false`).
+    /// It needs liveness enabled, so it has to be switched off with it.
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_ENABLED_ARG, action = clap::ArgAction::Set, default_value_t = true)]
+    five_hop_liveness_enabled: bool,
+
+    /// Minimum time between the starts of two submitted five-hop mixnet runs (e.g. `5m`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "5m")]
+    five_hop_liveness_interval: Duration,
+
+    /// Maximum number of gateways a five-hop mixnet run carries.
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_GATEWAYS_PER_RUN_ARG, default_value = "2")]
+    five_hop_liveness_gateways_per_run: NonZeroUsize,
+
+    /// How long a five-hop mixnet run stays in flight without a submission (e.g. `3m`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_RUN_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "3m")]
+    five_hop_liveness_run_timeout: Duration,
+
+    /// Bar for a gateway's latest gateway liveness score while enough candidates reach it.
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_MIN_GATEWAY_SCORE_ARG, default_value_t = 1.0)]
+    five_hop_liveness_min_gateway_score: f64,
+
+    /// Share of candidate gateways, in [0, 1], that must reach the minimum for it to be the bar.
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_MIN_GATEWAY_SHARE_ARG, default_value_t = 0.4)]
+    five_hop_liveness_min_gateway_share: f64,
+
+    /// Bar for a gateway's latest gateway liveness score when too few candidates reach the minimum.
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_FALLBACK_MIN_GATEWAY_SCORE_ARG, default_value_t = 0.98)]
+    five_hop_liveness_fallback_min_gateway_score: f64,
+
+    /// Margin, in [0, 1], by which a session's loss rate may exceed its run's other session's.
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_SESSION_LOSS_MARGIN_ARG, default_value_t = 0.05)]
+    five_hop_liveness_session_loss_margin: f64,
+
+    /// Rate per epoch at which a carried five-hop liveness fades towards full liveness.
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_DECAY_PER_EPOCH_ARG, default_value_t = 0.1)]
+    five_hop_liveness_decay_per_epoch: f64,
+
     /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
     #[clap(long, env = NYM_NETWORK_MONITOR_HTTP_SERVER_BIND_ADDRESS_ARG, default_value = "0.0.0.0:8080")]
     http_server_bind_address: SocketAddr,
@@ -115,8 +154,9 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_MIXNET_CONTRACT_ADDRESS_ARG)]
     mixnet_contract_address: Option<String>,
 
-    /// Maximum age of a completed test run row before it is evicted from the local database.
-    /// Rows older than this are assumed to have already been submitted to the nym-api
+    /// Maximum age of a completed test run row, or of a five-hop mixnet run with its sessions,
+    /// before it is evicted from the local database. Rows older than this are assumed to have
+    /// already been submitted to the nym-api
     /// (e.g. `7d`, `24h`). Must exceed the longest aggregation window, since aggregates are
     /// computed from these rows.
     #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration, default_value = "7d",)]
@@ -183,8 +223,8 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_AGGREGATION_WINDOW_ARG, value_parser = humantime::parse_duration, default_value = "6h")]
     liveness_aggregation_window: Duration,
 
-    /// Maximum age of a materialised epoch aggregate or config score before it is evicted from the
-    /// local database (e.g. `30d`).
+    /// Maximum age of a materialised epoch aggregate, config score or five-hop liveness value before
+    /// it is evicted from the local database (e.g. `30d`).
     #[clap(long, env = NYM_NETWORK_MONITOR_AGGREGATE_RETENTION_ARG, value_parser = humantime::parse_duration, default_value = "30d")]
     aggregate_retention: Duration,
 
@@ -251,6 +291,17 @@ impl Args {
                 test_timeout: self.liveness_test_timeout,
                 mixnode_wave_size: self.liveness_mixnode_wave_size.get(),
                 gateway_wave_size: self.liveness_gateway_wave_size.get(),
+            },
+            five_hop_liveness: FiveHopLivenessConfig {
+                enabled: self.five_hop_liveness_enabled,
+                interval: self.five_hop_liveness_interval,
+                gateways_per_run: self.five_hop_liveness_gateways_per_run.get(),
+                run_timeout: self.five_hop_liveness_run_timeout,
+                min_gateway_score: self.five_hop_liveness_min_gateway_score,
+                min_gateway_share: self.five_hop_liveness_min_gateway_share,
+                fallback_min_gateway_score: self.five_hop_liveness_fallback_min_gateway_score,
+                session_loss_margin: self.five_hop_liveness_session_loss_margin,
+                decay_per_epoch: self.five_hop_liveness_decay_per_epoch,
             },
             database_path: self.database_path.clone(),
             node_refresh_rate: self.node_refresh_rate,
@@ -433,6 +484,9 @@ mod tests {
         let liveness = parse(&[
             "--liveness-enabled",
             "false",
+            // five-hop liveness needs liveness, so it is switched off with it
+            "--five-hop-liveness-enabled",
+            "false",
             "--liveness-test-interval",
             "3m",
             "--liveness-test-timeout",
@@ -470,10 +524,13 @@ mod tests {
             "the error should name both values, got: {message}"
         );
 
-        // with liveness switched off, the stress lease is the one that binds
+        // with liveness switched off, and five-hop liveness with it, the stress lease is the one
+        // that binds
         assert!(
             try_build_config(&[
                 "--liveness-enabled",
+                "false",
+                "--five-hop-liveness-enabled",
                 "false",
                 "--lease-release-interval",
                 "5m"

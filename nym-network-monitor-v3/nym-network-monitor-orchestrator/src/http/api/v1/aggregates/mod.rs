@@ -43,7 +43,8 @@ async fn get_epoch_aggregates(
     state.get_epoch_aggregates(mixnet_epoch).await.map(Json)
 }
 
-/// One node's figures for one mixnet epoch: a config score, a liveness and a stress entry.
+/// One node's figures for one mixnet epoch: a config score, a liveness and a stress entry, and the
+/// five-hop liveness measured for the epoch.
 ///
 /// An entry with no value is absent from the record rather than reported as zero. A node with
 /// nothing at all returns a record with every entry absent rather than a 404: the per-epoch tables

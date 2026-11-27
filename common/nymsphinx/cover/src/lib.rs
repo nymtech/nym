@@ -13,7 +13,7 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketType, SphinxKeyRotation,
 };
-use nym_sphinx_types::NymPacket;
+use nym_sphinx_types::{Node, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::CryptoRng;
 
@@ -71,16 +71,46 @@ pub fn generate_loop_cover_packet<R>(
 where
     R: CryptoRng,
 {
-    // we don't care about total ack delay - we will not be retransmitting it anyway
-    let (_, ack_bytes) = generate_loop_cover_surb_ack(
+    let surb_ack = generate_loop_cover_surb_ack(
         rng,
         topology,
         ack_key,
         full_address,
         average_ack_delay,
         packet_type,
-    )?
-    .prepare_for_sending()?;
+    )?;
+    let route = topology.random_route_to_egress(rng, full_address.gateway())?;
+    let key_rotation = SphinxKeyRotation::from(topology.current_key_rotation());
+
+    generate_loop_packet_on_route(
+        rng,
+        &route,
+        surb_ack,
+        LOOP_COVER_MESSAGE_PAYLOAD,
+        full_address,
+        average_packet_delay,
+        packet_size,
+        key_rotation,
+    )
+}
+
+/// Builds a loop packet carrying `content` on a route that ends at the sender's own gateway.
+#[allow(clippy::too_many_arguments)]
+pub fn generate_loop_packet_on_route<R>(
+    rng: &mut R,
+    route: &[Node],
+    surb_ack: SurbAck,
+    content: &[u8],
+    full_address: &Recipient,
+    average_packet_delay: time::Duration,
+    packet_size: PacketSize,
+    key_rotation: SphinxKeyRotation,
+) -> Result<MixPacket, CoverMessageError>
+where
+    R: CryptoRng,
+{
+    // we don't care about total ack delay - we will not be retransmitting it anyway
+    let (_, ack_bytes) = surb_ack.prepare_for_sending()?;
 
     // cover message can't be distinguishable from a normal traffic so we have to go through
     // all the effort of key generation, encryption, etc. Note here we are generating shared key
@@ -95,7 +125,12 @@ where
 
     let cover_size = packet_size.plaintext_size() - public_key_bytes.len() - ack_bytes.len();
 
-    let mut cover_content: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
+    // one byte is the padding delimiter
+    debug_assert!(
+        content.len() < cover_size,
+        "the content of a loop packet does not fit in it"
+    );
+    let mut cover_content: Vec<_> = content
         .iter()
         .cloned()
         .chain(std::iter::once(1))
@@ -119,38 +154,26 @@ where
         .chain(cover_content)
         .collect();
 
-    let route = topology.random_route_to_egress(rng, full_address.gateway())?;
     let delays = nym_sphinx_routing::generate_hop_delays(average_packet_delay, route.len());
     let destination = full_address.as_sphinx_destination();
-
-    let rotation_id = topology.current_key_rotation();
-    let sphinx_key_rotation = SphinxKeyRotation::from(rotation_id);
 
     let first_hop_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
     // once merged, that's an easy rng injection point for sphinx packets : )
-    #[allow(deprecated)]
-    let packet = match packet_type {
-        PacketType::Mix => NymPacket::sphinx_build_legacy(
-            packet_size.payload_size(),
-            packet_payload,
-            &route,
-            &destination,
-            &delays,
-        )?,
-        PacketType::Outfox => {
-            return Err(CoverMessageError::InvalidTopologyError(
-                NymTopologyError::PacketTypeNotSupported,
-            ));
-        }
-    };
+    let packet = NymPacket::sphinx_build_legacy(
+        packet_size.payload_size(),
+        packet_payload,
+        route,
+        &destination,
+        &delays,
+    )?;
 
     Ok(MixPacket::new(
         first_hop_address,
         packet,
-        packet_type,
-        sphinx_key_rotation,
+        PacketType::Mix,
+        key_rotation,
     ))
 }
 

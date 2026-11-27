@@ -13,8 +13,10 @@ use nym_api_requests::models::v3::{
 use nym_crypto::asymmetric::ed25519;
 use nym_node_requests::api::Client;
 use nym_task::ShutdownToken;
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::signable::SignableMessageBody;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -215,19 +217,51 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
 
     /// Signs and posts one chunk of liveness runs to the liveness endpoint, which is separate from
     /// the stress one so that the two streams do not share a replay high-water mark.
+    ///
+    /// Each run's score is multiplied by its node's five-hop liveness for the newest materialised
+    /// epoch, when it has one there, so that nym-api's liveness figure includes it.
     async fn post_liveness_batch(
         &self,
         timestamp: OffsetDateTime,
         chunk: &[CompletedTestRun],
     ) -> anyhow::Result<BatchSubmissionResponse> {
+        let five_hop_liveness = self.newest_five_hop_liveness().await?;
+        let results = chunk
+            .iter()
+            .map(|run| {
+                let mut result = LivenessTestResult::from(run);
+                if let Some(five_hop_liveness) = five_hop_liveness.get(&result.node_id) {
+                    result.test_performance *= five_hop_liveness;
+                }
+                result
+            })
+            .collect();
+
         let body = LivenessTestBatchSubmissionContent {
             signer: *self.identity_keys.public_key(),
             timestamp,
-            results: chunk.iter().map(LivenessTestResult::from).collect(),
+            results,
         };
         let signed = body.sign(self.identity_keys.private_key());
 
         self.client.submit_liveness(&signed).await
+    }
+
+    /// Each node's five-hop liveness for the newest materialised epoch, empty before any epoch is.
+    async fn newest_five_hop_liveness(&self) -> anyhow::Result<BTreeMap<NodeId, f64>> {
+        let Some(mixnet_epoch) = self.storage.get_last_materialised_mixnet_epoch().await? else {
+            return Ok(BTreeMap::new());
+        };
+
+        let values = self
+            .storage
+            .get_mixnet_epoch_five_hop_liveness(mixnet_epoch)
+            .await?;
+        Ok(values
+            .into_iter()
+            // stored from a `NodeId`, so it fits
+            .map(|value| (value.node_id as NodeId, value.score))
+            .collect())
     }
 
     /// Records what nym-api did with a submitted batch: how many results it stored, how many it
@@ -315,7 +349,11 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
 mod tests {
     use super::*;
     use crate::storage::models::{
-        FIXTURE_SEEN_AT, described_node, minimal_measurements, minimal_test_run,
+        FIXTURE_SEEN_AT, aggregate, described_node, measured_five_hop_liveness,
+        minimal_measurement, minimal_measurements, minimal_test_run,
+    };
+    use nym_network_monitor_orchestrator_requests::models::{
+        InterfaceMeasurement, RunMeasurements,
     };
     use nym_test_utils::helpers::seeded_rng;
     use std::sync::Mutex;
@@ -327,11 +365,17 @@ mod tests {
         Liveness,
     }
 
+    /// One result as it was posted.
+    struct PostedResult {
+        node_id: u32,
+        performance: f64,
+    }
+
     /// One batch an endpoint accepted.
     struct ReceivedBatch {
         endpoint: Endpoint,
         timestamp: OffsetDateTime,
-        node_ids: Vec<u32>,
+        results: Vec<PostedResult>,
     }
 
     /// Stands in for the nym-api: records what each endpoint accepted, can be told that one of them
@@ -363,7 +407,19 @@ mod tests {
                 .expect("poisoned")
                 .iter()
                 .filter(|batch| batch.endpoint == endpoint)
-                .flat_map(|batch| batch.node_ids.clone())
+                .flat_map(|batch| batch.results.iter().map(|result| result.node_id))
+                .collect()
+        }
+
+        /// The performances this endpoint accepted, in the order they arrived.
+        #[allow(clippy::expect_used)]
+        fn performances(&self, endpoint: Endpoint) -> Vec<f64> {
+            self.received
+                .lock()
+                .expect("poisoned")
+                .iter()
+                .filter(|batch| batch.endpoint == endpoint)
+                .flat_map(|batch| batch.results.iter().map(|result| result.performance))
                 .collect()
         }
 
@@ -384,7 +440,7 @@ mod tests {
             &self,
             endpoint: Endpoint,
             timestamp: OffsetDateTime,
-            node_ids: Vec<u32>,
+            results: Vec<PostedResult>,
         ) -> anyhow::Result<()> {
             if self.failing == Some(endpoint) {
                 anyhow::bail!("nym-api is refusing {endpoint:?} batches");
@@ -401,7 +457,7 @@ mod tests {
             received.push(ReceivedBatch {
                 endpoint,
                 timestamp,
-                node_ids,
+                results,
             });
             Ok(())
         }
@@ -423,7 +479,10 @@ mod tests {
                     .body
                     .results
                     .iter()
-                    .map(|result| result.node_id)
+                    .map(|result| PostedResult {
+                        node_id: result.node_id,
+                        performance: result.test_performance,
+                    })
                     .collect(),
             )?;
             Ok(BatchSubmissionResponse::default())
@@ -444,7 +503,10 @@ mod tests {
                     .body
                     .results
                     .iter()
-                    .map(|result| result.node_id)
+                    .map(|result| PostedResult {
+                        node_id: result.node_id,
+                        performance: result.test_performance,
+                    })
                     .collect(),
             )?;
             Ok(BatchSubmissionResponse::default())
@@ -663,5 +725,52 @@ mod tests {
             watermark(&storage, TestKind::GatewayLiveness).await,
             Some(2)
         );
+    }
+
+    /// nym-api's own liveness figure includes five-hop liveness: a posted liveness run is scaled by
+    /// its node's value stored for the newest materialised epoch, while a stress run is posted as
+    /// the run measured it.
+    #[tokio::test]
+    async fn a_posted_liveness_run_is_scaled_and_a_posted_stress_run_is_not() {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage
+            .store_refresh(&[described_node(1, "1.2.3.4", true, true)], FIXTURE_SEEN_AT)
+            .await
+            .unwrap();
+        let every_packet_back = InterfaceMeasurement {
+            packets_sent: 10,
+            packets_received: 10,
+            ..minimal_measurement()
+        };
+        for measurements in [
+            RunMeasurements::MixnodeLiveness {
+                mix_forwarding: every_packet_back.clone(),
+            },
+            RunMeasurements::MixnodeStress {
+                mix_forwarding: every_packet_back,
+            },
+        ] {
+            storage
+                .storage_manager
+                .insert_test_run(&minimal_test_run(1), &measurements)
+                .await
+                .unwrap();
+        }
+        // the aggregate makes FIXTURE_EPOCH the newest materialised epoch
+        storage
+            .batch_insert_mixnet_epoch_aggregates(&[aggregate(1, TestKind::MixnodeStress, 1.0)])
+            .await
+            .unwrap();
+        storage
+            .batch_insert_mixnet_epoch_five_hop_liveness(&[measured_five_hop_liveness(1, 0.9)])
+            .await
+            .unwrap();
+        let keys = identity_keys();
+        let submitter = submitter(storage, FakeNymApi::new(*keys.public_key(), None), keys);
+
+        submitter.submit_pending_results().await;
+
+        assert_eq!(submitter.client.performances(Endpoint::Liveness), vec![0.9]);
+        assert_eq!(submitter.client.performances(Endpoint::Stress), vec![1.0]);
     }
 }

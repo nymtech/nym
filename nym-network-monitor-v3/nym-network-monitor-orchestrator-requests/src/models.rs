@@ -76,11 +76,11 @@ pub struct AgentAnnounceRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentAnnounceResponse {}
 
-/// Request sent by an agent to ask the orchestrator for a node to test.
+/// Request sent by an agent to ask the orchestrator for work.
 /// Identifies the agent so the orchestrator can verify it has been announced.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TestRunAssignmentRequest {
+pub struct WorkAssignmentRequest {
     /// Egress addresses of the agent node
     pub mix_addresses: AgentMixAddresses,
 
@@ -112,14 +112,43 @@ pub enum TestKind {
 }
 
 /// Response from the orchestrator when an agent requests work.
-/// `assignment` is `None` when no nodes are due for testing.
+/// `assignment` is `None` when there is neither a five-hop mixnet run to hand out nor a node due for testing.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TestRunAssignmentResponse {
-    pub assignment: Option<TestRunAssignment>,
+pub struct WorkAssignmentResponse {
+    pub assignment: Option<WorkAssignment>,
 }
 
-/// Work handed to an agent, one variant per [`TestKind`].
+/// Work handed to an agent: one-hop test runs of one kind, or a five-hop five-hop mixnet run.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkAssignment {
+    OneHopMixnet(OneHopMixnetAssignment),
+    FiveHopMixnet(FiveHopMixnetAssignment),
+}
+
+/// A five-hop mixnet run: one five-hop liveness session through each of its gateways.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiveHopMixnetAssignment {
+    pub id: i64,
+
+    pub gateways: Vec<FiveHopMixnetGateway>,
+}
+
+/// A gateway a five-hop mixnet run's session goes through; the session finds the rest in the topology.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiveHopMixnetGateway {
+    pub node_id: u32,
+
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub identity_key: ed25519::PublicKey,
+}
+
+/// One-hop mixnet test runs handed to an agent, one variant per [`TestKind`].
 ///
 /// `MixnodeStress` and `MixnodeLiveness` carry the same payload because they are the same probe,
 /// differing only in the profile the agent applies, which the agent holds in its own config and
@@ -132,24 +161,24 @@ pub struct TestRunAssignmentResponse {
 /// assigned each of its liveness kinds separately.
 ///
 /// An assignment with no targets is NOT a valid assignment. "No work" is expressed by an absent
-/// assignment on [`TestRunAssignmentResponse`], so the orchestrator must not emit an empty wave.
+/// assignment on [`WorkAssignmentResponse`], so the orchestrator must not emit an empty wave.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TestRunAssignment {
+pub enum OneHopMixnetAssignment {
     MixnodeStress(Box<MixnetProbeTarget>),
     MixnodeLiveness(Vec<MixnetProbeTarget>),
     GatewayLiveness(Vec<GatewayProbeTarget>),
 }
 
-impl TestRunAssignment {
+impl OneHopMixnetAssignment {
     /// What this assignment measures. Determines the profile the agent applies, and the kind
     /// recorded against the resulting run.
     pub fn kind(&self) -> TestKind {
         match self {
-            TestRunAssignment::MixnodeLiveness(_) => TestKind::MixnodeLiveness,
-            TestRunAssignment::GatewayLiveness(_) => TestKind::GatewayLiveness,
-            TestRunAssignment::MixnodeStress(_) => TestKind::MixnodeStress,
+            OneHopMixnetAssignment::MixnodeLiveness(_) => TestKind::MixnodeLiveness,
+            OneHopMixnetAssignment::GatewayLiveness(_) => TestKind::GatewayLiveness,
+            OneHopMixnetAssignment::MixnodeStress(_) => TestKind::MixnodeStress,
         }
     }
 }
@@ -237,10 +266,19 @@ pub struct LatencyDistribution {
     pub standard_deviation: Duration,
 }
 
-/// Request sent by an agent to submit test results for a previously assigned node.
+/// Request sent by an agent to submit the result of the work it was assigned.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TestRunResultSubmissionRequest {
+#[serde(rename_all = "snake_case")]
+pub enum WorkResultSubmissionRequest {
+    OneHopMixnet(Box<OneHopMixnetResult>),
+    FiveHopMixnet(FiveHopMixnetResult),
+}
+
+/// One target's result of a one-hop assignment, submitted as soon as that target finishes.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OneHopMixnetResult {
     pub node_id: u32,
 
     /// The address that was actually tested. A node may announce several addresses and only some
@@ -390,12 +428,43 @@ impl TestRunResult {
     }
 }
 
+/// A five-hop mixnet run's sessions, submitted together once the run ends.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiveHopMixnetResult {
+    pub run_id: i64,
+
+    /// One entry per gateway of the run.
+    pub sessions: Vec<FiveHopMixnetSessionSubmission>,
+}
+
+/// What became of the five-hop mixnet session through one gateway of a run.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiveHopMixnetSessionSubmission {
+    pub gateway_node_id: u32,
+
+    pub outcome: FiveHopMixnetSessionOutcome,
+}
+
+/// A five-hop mixnet session's batch, or why it has none.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FiveHopMixnetSessionOutcome {
+    /// The session's records, packed by the route records crate.
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    Batch(#[serde(with = "nym_serde_helpers::base64")] Vec<u8>),
+
+    Error(String),
+}
+
 /// Confirmation returned to an agent after a successful result submission.
 /// Currently empty — exists to give the response an explicit type rather than
 /// relying on `Json(())`.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TestRunSubmissionResponse {}
+pub struct WorkResultSubmissionResponse {}
 
 // ------------------------------------------------------------------------
 // Response shapes for the read-only results API (`/v1/results/*`). These are
@@ -632,14 +701,14 @@ pub struct ConfigScore {
     pub is_feegrant_grantee: bool,
 }
 
-/// One node's materialised figures for one mixnet epoch: its config score and a separate liveness
-/// and stress entry.
+/// One node's materialised figures for one mixnet epoch: its config score and separate one-hop
+/// liveness, stress and five-hop liveness entries.
 ///
 /// An entry with no value is `None` rather than a zero, so an unmeasured node stays
 /// distinguishable from one measured at zero. Entries are named fields rather than a map because
-/// they do not share one value type: config score carries its own decomposition rather than the
-/// score-and-count pair the probe kinds use. A new sibling is a new optional field, which is
-/// additive.
+/// they do not share one value type: config score carries its own decomposition and five-hop
+/// liveness is a bare value, rather than the score-and-count pair the probe kinds use. A new
+/// sibling is a new optional field, which is additive.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NodeEpochAggregates {
@@ -652,12 +721,17 @@ pub struct NodeEpochAggregates {
     /// backfilled.
     pub config_score: Option<ConfigScore>,
 
-    /// The liveness aggregate over the node's mixnode and gateway liveness runs together, or `None`
-    /// if neither kind has a run for this node in the window.
-    pub liveness: Option<KindAggregate>,
+    /// The one-hop liveness aggregate over the node's mixnode and gateway liveness runs together, not
+    /// scaled by five-hop liveness, or `None` if neither kind has a run for this node in the window.
+    pub one_hop_liveness: Option<KindAggregate>,
 
     /// The stress aggregate, or `None` if no stress run exists for this node in the window.
     pub stress: Option<KindAggregate>,
+
+    /// The five-hop liveness in `[0.0, 1.0]` measured and filed under this epoch, scored from the
+    /// five-hop mixnet sessions of the epoch before, never a carried-forward value, or `None` if
+    /// none was.
+    pub five_hop_liveness: Option<f64>,
 }
 
 impl NodeEpochAggregates {
@@ -667,17 +741,48 @@ impl NodeEpochAggregates {
         node_id: u32,
         mixnet_epoch: u32,
         config_score: Option<ConfigScore>,
-        liveness: Option<KindAggregate>,
+        one_hop_liveness: Option<KindAggregate>,
         stress: Option<KindAggregate>,
+        five_hop_liveness: Option<f64>,
     ) -> Self {
         NodeEpochAggregates {
             node_id,
             mixnet_epoch,
             config_score,
-            liveness,
+            one_hop_liveness,
             stress,
+            five_hop_liveness,
         }
     }
+}
+
+/// One five-hop mixnet session of an epoch, as the results API exports it.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiveHopMixnetSessionData {
+    /// The five-hop mixnet run it belonged to.
+    pub run_id: i64,
+
+    pub gateway_node_id: u32,
+
+    /// Whether the discard rule kept it for scoring, judged against its run when submitted.
+    pub kept: bool,
+
+    /// Its test messages in the order sent.
+    pub test_messages: Vec<TestMessageData>,
+}
+
+/// One packet's or ack's trip through three mixnodes.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct TestMessageData {
+    /// Unix time in milliseconds at which its test packet was sent; an ack's is its packet's.
+    pub sent_at_ms: u64,
+
+    /// Node ids of the three mixnodes on its path, in path order.
+    pub path: [u32; 3],
+
+    pub came_back: bool,
 }
 
 #[cfg(test)]
@@ -721,15 +826,16 @@ mod tests {
 
     #[test]
     fn a_stress_assignment_round_trips_as_a_single_target() {
-        let json =
-            serde_json::to_string(&TestRunAssignment::MixnodeStress(Box::new(mixnet_target())))
-                .unwrap();
+        let json = serde_json::to_string(&OneHopMixnetAssignment::MixnodeStress(Box::new(
+            mixnet_target(),
+        )))
+        .unwrap();
         assert!(json.contains(r#"{"mixnode_stress":{"#), "{json}");
 
-        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        let parsed: OneHopMixnetAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::MixnodeStress);
 
-        let TestRunAssignment::MixnodeStress(target) = parsed else {
+        let OneHopMixnetAssignment::MixnodeStress(target) = parsed else {
             panic!("round-tripped into the wrong variant: {json}");
         };
         assert_eq!(target.node_id, 42);
@@ -743,13 +849,13 @@ mod tests {
     #[test]
     fn a_liveness_assignment_round_trips_as_a_wave() {
         let wave = vec![mixnet_target(), mixnet_target()];
-        let json = serde_json::to_string(&TestRunAssignment::MixnodeLiveness(wave)).unwrap();
+        let json = serde_json::to_string(&OneHopMixnetAssignment::MixnodeLiveness(wave)).unwrap();
         assert!(json.contains(r#"{"mixnode_liveness":[{"#), "{json}");
 
-        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        let parsed: OneHopMixnetAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::MixnodeLiveness);
 
-        let TestRunAssignment::MixnodeLiveness(wave) = parsed else {
+        let OneHopMixnetAssignment::MixnodeLiveness(wave) = parsed else {
             panic!("round-tripped into the wrong variant: {json}");
         };
         assert_eq!(wave.len(), 2);
@@ -761,13 +867,13 @@ mod tests {
             mixnet: mixnet_target(),
             clients_ws_port: 9000,
         }];
-        let json = serde_json::to_string(&TestRunAssignment::GatewayLiveness(wave)).unwrap();
+        let json = serde_json::to_string(&OneHopMixnetAssignment::GatewayLiveness(wave)).unwrap();
         assert!(json.contains(r#"{"gateway_liveness":[{"#), "{json}");
 
-        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        let parsed: OneHopMixnetAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::GatewayLiveness);
 
-        let TestRunAssignment::GatewayLiveness(wave) = parsed else {
+        let OneHopMixnetAssignment::GatewayLiveness(wave) = parsed else {
             panic!("round-tripped into the wrong variant: {json}");
         };
         assert_eq!(wave[0].clients_ws_port, 9000);
@@ -782,12 +888,14 @@ mod tests {
     fn the_tag_is_what_distinguishes_the_two_mixnode_probes() {
         let target_json = serde_json::to_string(&mixnet_target()).unwrap();
 
-        let stress =
-            serde_json::to_string(&TestRunAssignment::MixnodeStress(Box::new(mixnet_target())))
-                .unwrap();
-        let liveness =
-            serde_json::to_string(&TestRunAssignment::MixnodeLiveness(vec![mixnet_target()]))
-                .unwrap();
+        let stress = serde_json::to_string(&OneHopMixnetAssignment::MixnodeStress(Box::new(
+            mixnet_target(),
+        )))
+        .unwrap();
+        let liveness = serde_json::to_string(&OneHopMixnetAssignment::MixnodeLiveness(vec![
+            mixnet_target(),
+        ]))
+        .unwrap();
 
         assert!(stress.contains(&target_json), "{stress}");
         assert!(liveness.contains(&target_json), "{liveness}");

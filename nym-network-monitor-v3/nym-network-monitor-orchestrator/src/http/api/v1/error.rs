@@ -43,6 +43,16 @@ pub(crate) enum ApiError {
         "no test run is in progress for this node - its lease expired and the node was freed for reassignment before the result arrived"
     )]
     TestRunLeaseExpired,
+
+    #[error(
+        "the five-hop mixnet run is not in flight - it is unknown, already submitted or past its timeout, its epoch has already been scored, or five-hop liveness is off"
+    )]
+    FiveHopMixnetRunNotInFlight,
+
+    #[error(
+        "the five-hop mixnet run submission is invalid - a gateway is repeated, or a batch is unreadable or names another gateway"
+    )]
+    InvalidFiveHopMixnetRunSubmission,
 }
 
 impl ApiError {
@@ -50,12 +60,14 @@ impl ApiError {
         use ApiError::*;
 
         match self {
-            AgentNotFound | AgentNotAnnounced | MalformedAgentAddresses | UnexpectedResultShape => {
-                StatusCode::BAD_REQUEST
-            }
+            AgentNotFound
+            | AgentNotAnnounced
+            | MalformedAgentAddresses
+            | UnexpectedResultShape
+            | InvalidFiveHopMixnetRunSubmission => StatusCode::BAD_REQUEST,
             // the request was well-formed and would have been accepted earlier, so this is a
             // conflict with current state rather than a client error
-            TestRunLeaseExpired => StatusCode::CONFLICT,
+            TestRunLeaseExpired | FiveHopMixnetRunNotInFlight => StatusCode::CONFLICT,
             TestRunNotFound | NymNodeNotFound => StatusCode::NOT_FOUND,
             ContractFailure | StorageFailure | MalformedStoredData => {
                 StatusCode::INTERNAL_SERVER_ERROR

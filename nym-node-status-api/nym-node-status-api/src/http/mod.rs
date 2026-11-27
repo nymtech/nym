@@ -20,7 +20,7 @@ impl<T: Clone + ToSchema> PagedResult<T> {
         let total = res.len();
         let (size, mut page) = pagination.into_inner_values();
 
-        if page * size > total {
+        if page.saturating_mul(size) > total {
             page = total / size;
         }
 
@@ -62,7 +62,7 @@ impl Pagination {
 
     pub(crate) fn into_inner_values(self) -> (usize, usize) {
         (
-            self.size.unwrap_or(SIZE_DEFAULT).min(SIZE_MAX),
+            self.size.unwrap_or(SIZE_DEFAULT).clamp(1, SIZE_MAX),
             self.page.unwrap_or(PAGE_DEFAULT),
         )
     }
@@ -97,6 +97,34 @@ mod tests {
         let (size, page) = pagination.into_inner_values();
         assert_eq!(size, SIZE_MAX);
         assert_eq!(page, 0);
+    }
+
+    #[test]
+    fn test_pagination_zero_size_clamped() {
+        let pagination = Pagination::new(Some(0), Some(0));
+        let (size, page) = pagination.into_inner_values();
+        assert_eq!(size, 1);
+        assert_eq!(page, 0);
+    }
+
+    #[test]
+    fn test_paged_result_zero_size_does_not_panic() {
+        let items: Vec<TestItem> = (0..5).map(|i| format!("Item {i}")).collect();
+        let result = PagedResult::paginate(Pagination::new(Some(0), Some(0)), items);
+
+        assert_eq!(result.size, 1);
+        assert_eq!(result.total, 5);
+        assert_eq!(result.items, vec!["Item 0".to_string()]);
+    }
+
+    #[test]
+    fn test_paged_result_huge_page_does_not_overflow() {
+        let items: Vec<TestItem> = (0..5).map(|i| format!("Item {i}")).collect();
+        let result = PagedResult::paginate(Pagination::new(Some(2), Some(usize::MAX)), items);
+
+        assert_eq!(result.size, 2);
+        assert_eq!(result.page, 2);
+        assert_eq!(result.items, vec!["Item 4".to_string()]);
     }
 
     #[test]

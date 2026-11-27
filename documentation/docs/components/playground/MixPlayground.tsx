@@ -39,6 +39,9 @@ import {
   sub,
   type Status,
 } from './ui';
+import { SpeedTestSection } from './speed-test-section';
+import * as speedStorage from '../../lib/speed-test/storage';
+import type { TunnelConfig } from '../../lib/speed-test/storage';
 
 const VERIFY_TEXT_URL = 'https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-demo.txt';
 
@@ -71,6 +74,12 @@ export function MixPlayground() {
   const [dataSurbs, setDataSurbs] = useState(2); // matches SurbsConfig::default (ipr.rs)
   const [dohEndpoints, setDohEndpoints] = useState('');
   const [debug, setDebug] = useState(true);
+  // The options setupMixTunnel received. The checkboxes stay editable after
+  // connect, so the speed test labels its runs from this, not from them.
+  const [activeConfig, setActiveConfig] = useState<TunnelConfig | null>(null);
+  // Set while a speed test runs or drains: all sections share one send queue.
+  const [speedTestBusy, setSpeedTestBusy] = useState(false);
+  const [pendingBanner, setPendingBanner] = useState<TunnelConfig | null>(null);
 
   // Section inputs.
   const [dnsHost, setDnsHost] = useState('example.com');
@@ -118,6 +127,17 @@ export function MixPlayground() {
   // hydration in agreement; see randomClientId in ./lib.
   useEffect(() => {
     setClientId((c) => c || randomClientId());
+  }, []);
+
+  // Apply options that the speed test stored before its reload, once. Read in an
+  // effect, never at render: this component also renders on the server.
+  useEffect(() => {
+    const stored = speedStorage.load();
+    if (!stored?.pending) return;
+    setDisablePoisson(stored.pending.disablePoissonTraffic);
+    setDisableCover(stored.pending.disableCoverTraffic);
+    setPendingBanner(stored.pending);
+    speedStorage.save({ ...stored, pending: null });
   }, []);
 
   // Revoke the previous object URL when the download changes or on unmount.
@@ -198,6 +218,8 @@ export function MixPlayground() {
         : '';
       log('master', `tunnel state: ${final.state}${detail}`);
       setConnected(true);
+      setActiveConfig({ disablePoissonTraffic: disablePoisson, disableCoverTraffic: disableCover });
+      setPendingBanner(null);
       setTunnelStatus({ text: 'Connected', colour: 'green' });
     } catch (e) {
       const msg = String(e);
@@ -588,7 +610,7 @@ export function MixPlayground() {
           <Button onClick={setup} disabled={busy || connected}>
             {busy ? 'Working...' : 'setupMixTunnel'}
           </Button>
-          <Button onClick={disconnect} disabled={busy || !connected}>
+          <Button onClick={disconnect} disabled={busy || !connected || speedTestBusy}>
             disconnectMixTunnel
           </Button>
           <label
@@ -599,6 +621,11 @@ export function MixPlayground() {
           </label>
           <StatusText status={tunnelStatus} />
         </div>
+        {pendingBanner && (
+          <div style={{ ...sub, opacity: 1, color: '#d97706', margin: '0.5rem 0' }}>
+            Speed-test comparison: the options are set to {speedStorage.describeConfig(pendingBanner)}. Click setupMixTunnel, then run the test again.
+          </div>
+        )}
         <LogPanel lines={lines('master')} placeholder="Press setupMixTunnel to bring up the tunnel." />
         <div style={{ ...sub, marginTop: '0.5rem' }}>
           One-shot per page: after <code>disconnectMixTunnel</code> you must reload to reconnect, and each load uses a fresh client identity.
@@ -613,7 +640,7 @@ export function MixPlayground() {
         <div style={legend}>DNS resolve: tunnel vs clearnet</div>
         <div style={row}>
           <input style={input} value={dnsHost} onChange={(e) => setDnsHost(e.target.value)} placeholder="example.com" />
-          <Button onClick={dnsTunnel} disabled={!connected}>via tunnel (IPR)</Button>
+          <Button onClick={dnsTunnel} disabled={!connected || speedTestBusy}>via tunnel (IPR)</Button>
           <Button onClick={dnsClearnet}>via DoH (clearnet)</Button>
         </div>
         <div style={sub}>The clearnet DoH query appears in DevTools Network; the tunnel resolution does not.</div>
@@ -626,7 +653,7 @@ export function MixPlayground() {
         <div style={legend}>GET: tunnel vs clearnet</div>
         <div style={row}>
           <input style={input} value={getUrl} onChange={(e) => setGetUrl(e.target.value)} placeholder="https://..." />
-          <Button onClick={getTunnel} disabled={!connected}>via tunnel</Button>
+          <Button onClick={getTunnel} disabled={!connected || speedTestBusy}>via tunnel</Button>
           <Button onClick={getClearnet}>via window.fetch</Button>
         </div>
         <div style={sub}>Both buttons request the same URL, but the clearnet one reaches the server from your own IP and the tunnel one from the IPR's exit gateway.</div>
@@ -640,13 +667,13 @@ export function MixPlayground() {
         <div style={legend}>WebSocket</div>
         <div style={row}>
           <input style={input} value={wsUrl} onChange={(e) => setWsUrl(e.target.value)} placeholder="wss://..." />
-          <Button onClick={wsConnect} disabled={!connected || wsConnected}>Connect</Button>
-          <Button onClick={wsClose} disabled={!wsConnected}>Close</Button>
+          <Button onClick={wsConnect} disabled={!connected || wsConnected || speedTestBusy}>Connect</Button>
+          <Button onClick={wsClose} disabled={!wsConnected || speedTestBusy}>Close</Button>
           <StatusText status={wsStatus} />
         </div>
         <div style={row}>
           <input style={input} value={wsMessage} onChange={(e) => setWsMessage(e.target.value)} />
-          <Button onClick={wsSend} disabled={!wsConnected || burstBusy}>Send</Button>
+          <Button onClick={wsSend} disabled={!wsConnected || burstBusy || speedTestBusy}>Send</Button>
         </div>
         <div style={row}>
           <label style={sub}>Echo burst</label>
@@ -656,7 +683,7 @@ export function MixPlayground() {
           <span style={sub}>–</span>
           <input style={num} type="number" min={1} value={burstMax} onChange={(e) => setBurstMax(+e.target.value)} />
           <span style={sub}>bytes</span>
-          <Button onClick={wsBurst} disabled={!wsConnected || burstBusy}>{burstBusy ? 'Bursting...' : 'Send burst'}</Button>
+          <Button onClick={wsBurst} disabled={!wsConnected || burstBusy || speedTestBusy}>{burstBusy ? 'Bursting...' : 'Send burst'}</Button>
         </div>
         <div style={sub}>Connecting runs a TCP handshake (plus a TLS handshake for wss://) inside the worker, visible in the browser console with debug logging on.</div>
         <LogPanel lines={lines('ws')} />
@@ -674,7 +701,7 @@ export function MixPlayground() {
             <option value="mixed">Mixed sizes</option>
             <option value="drip">Slow drip</option>
           </select>
-          <Button onClick={runStress} disabled={!connected || stressBusy}>{stressBusy ? 'Running...' : 'Run stress test'}</Button>
+          <Button onClick={runStress} disabled={!connected || stressBusy || speedTestBusy}>{stressBusy ? 'Running...' : 'Run stress test'}</Button>
           <StatusText status={stressStatus} />
         </div>
         {stressMode === 'uniform' && (
@@ -699,7 +726,7 @@ export function MixPlayground() {
       <div style={box}>
         <div style={legend}>File download</div>
         <div style={row}>
-          <Button onClick={verifyText} disabled={!connected || textBusy}>Fetch UTF-8 text</Button>
+          <Button onClick={verifyText} disabled={!connected || textBusy || speedTestBusy}>Fetch UTF-8 text</Button>
           {textBusy ? <Spinner label="downloading... see the browser console for progress" /> : <StatusText status={textStatus} />}
         </div>
         {textOutput != null && (
@@ -720,10 +747,10 @@ export function MixPlayground() {
         )}
         <div style={row}>
           <input style={input} value={downloadUrl} onChange={(e) => setDownloadUrl(e.target.value)} />
-          <Button onClick={fetchFile} disabled={!connected || pdfBusy}>Fetch file</Button>
+          <Button onClick={fetchFile} disabled={!connected || pdfBusy || speedTestBusy}>Fetch file</Button>
           <Button onClick={savePdf} disabled={!pdfInfo}>Save</Button>
           <Button onClick={() => filePreview && window.open(filePreview.url, '_blank')} disabled={!filePreview}>Open in new tab</Button>
-          <Button onClick={runBoth} disabled={!connected}>Run both</Button>
+          <Button onClick={runBoth} disabled={!connected || speedTestBusy}>Run both</Button>
           {pdfBusy ? <Spinner label="downloading... see the browser console for progress" /> : <StatusText status={bothStatus} />}
         </div>
         {pdfInfo && (
@@ -748,6 +775,15 @@ export function MixPlayground() {
         <div style={sub}>Fetches a real file over the tunnel and reports its size and SHA-256. Fetch it twice and the second download reuses the pooled HTTPS connection, skipping the handshake.</div>
         <LogPanel lines={lines('download')} />
       </div>
+
+      <SpeedTestSection
+        mods={connected ? mods : null}
+        activeConfig={connected ? activeConfig : null}
+        otherBusy={busy || burstBusy || stressBusy || textBusy || pdfBusy}
+        setSpeedTestBusy={setSpeedTestBusy}
+        log={log}
+        lines={lines}
+      />
     </div>
   );
 }

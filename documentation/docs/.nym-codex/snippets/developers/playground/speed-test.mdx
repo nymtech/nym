@@ -1,0 +1,13 @@
+## Speed test [#speed-test]
+
+Three properties of a Nym client set how fast traffic moves through the mixnet:
+
+- **The send budget.** The client sends on average one main-stream packet every 20 ms, so about 50 packets per second. Traffic above that budget waits in a queue. See [the default sending rate](snippet:nym/developers/limitations/the-default-sending-rate).
+- **The Poisson process.** The gaps between packets are random with an exponential distribution. With nothing real to send, the client sends cover packets at the same rate, so an observer at the gateway sees the same stream when you are idle and when you are busy. See [the always-on stream](snippet:nym/developers/what-is-a-nym-client/the-always-on-stream).
+- **The narrow tunnel.** Each Sphinx packet carries about 2 KB of payload. Headers, reply SURBs and protocol framing take part of it, and all your connections share the one send queue. See [latency is the mechanism](snippet:nym/developers/limitations/latency-is-the-mechanism).
+
+The simulator models the client send loop. It needs no mixnet connection. Pick a traffic preset, then turn Poisson pacing and the loop cover stream on and off. Turn on the observer view to see the packets as the entry gateway sees them, in one colour.
+
+<Demo name="TrafficShapeSimulator" />
+
+The [mix-tunnel playground](snippet:nym/developers/playground/https--dns--websockets) has the live version of these tests in its **Speed test** section. The throughput ramp sends echo messages at increasing rates and finds the rate where the round-trip time starts to climb. The RTT histogram sends echo messages one at a time and compares the spread of the round-trip times with a model of the mixing delays. The tunnel is one-shot, so to compare a run with Poisson pacing off, the section reloads the page and keeps the first result.

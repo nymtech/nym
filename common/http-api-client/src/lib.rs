@@ -877,11 +877,9 @@ impl ClientBuilder {
 #[derive(Debug, Clone)]
 pub struct Client {
     base_urls: Vec<Url>,
-    /// Counts the shifts of the pool of plain addresses (`base_urls`), shared across clones. The
-    /// position in the pool is the count modulo the length of the pool.
+    /// Shifts of the plain pool (`base_urls`); the position is this modulo the pool length.
     plain_generation: Arc<AtomicUsize>,
-    /// Counts the shifts of the pool of fronted addresses (every front of every base url), shared
-    /// across clones.
+    /// Shifts of the fronted pool (every front of every base url).
     fronted_generation: Arc<AtomicUsize>,
     reqwest_client: Option<reqwest::Client>,
     custom_user_agent: Option<HeaderValue>,
@@ -1005,11 +1003,9 @@ impl Client {
         })
     }
 
+    #[cfg(feature = "tunneling")]
     fn fronted_len(&self) -> usize {
-        #[cfg(feature = "tunneling")]
-        return self.fronted_pool().count();
-        #[cfg(not(feature = "tunneling"))]
-        0
+        self.fronted_pool().count()
     }
 
     /// The address the next request goes to: the fronted pool when fronting is on and has an
@@ -1036,9 +1032,8 @@ impl Client {
         }
     }
 
-    /// Moves the pool the request was sent through to its next address, unless an earlier failed
-    /// request already did. The generation the request was sent with tells them apart, even if the
-    /// pool has since made a full lap.
+    /// Moves the pool the request was sent through to its next address, unless the pool already
+    /// moved since the request was sent.
     fn shift(&self, target: &Target<'_>) {
         let pool = match target.front {
             Some(_) => &self.fronted_generation,

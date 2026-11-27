@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::aggregation::materialiser::five_hop_liveness::FiveHopLivenessMaterialiserConfig;
 use crate::http::state::work::FiveHopMixnetRunConfig;
 use crate::orchestrator::chain_capability_refresher::ChainCapabilityConfig;
 use crate::orchestrator::scheduling_telemetry::TelemetryConfig;
@@ -52,7 +53,8 @@ pub(crate) struct LivenessConfig {
     pub(crate) gateway_wave_size: usize,
 }
 
-/// Five-hop liveness: the route runs' cadence, the gateway bar and the session discard margin.
+/// Five-hop liveness: the route runs' cadence, the gateway bar, the session discard margin and how
+/// a measured value is carried forward.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct FiveHopLivenessConfig {
     /// Whether route runs are handed out and five-hop liveness is materialised and applied.
@@ -78,6 +80,12 @@ pub(crate) struct FiveHopLivenessConfig {
 
     /// Margin, in `[0, 1]`, by which a session's loss rate may exceed its run's other session's.
     pub(crate) session_loss_margin: f64,
+
+    /// Epochs a measured five-hop liveness is carried forward for after it was filed.
+    pub(crate) max_carried_epochs: u32,
+
+    /// Rate per epoch at which a carried five-hop liveness fades towards full liveness.
+    pub(crate) decay_per_epoch: f64,
 }
 
 /// How far back each kind's aggregate reaches from the start of the epoch it is filed under.
@@ -332,6 +340,19 @@ impl Config {
         })
     }
 
+    /// How five-hop liveness is materialised, or `None` while it is switched off.
+    pub(crate) fn five_hop_liveness_materialiser_config(
+        &self,
+    ) -> Option<FiveHopLivenessMaterialiserConfig> {
+        let five_hop = &self.five_hop_liveness;
+        five_hop
+            .enabled
+            .then_some(FiveHopLivenessMaterialiserConfig {
+                max_carried_epochs: five_hop.max_carried_epochs,
+                decay_per_epoch: five_hop.decay_per_epoch,
+            })
+    }
+
     pub(crate) fn telemetry_config(&self) -> TelemetryConfig {
         TelemetryConfig {
             refresh_interval: self.metrics_refresh_interval,
@@ -377,7 +398,8 @@ impl Config {
     /// can still backfill epochs, and its sizing is left to the operator.
     ///
     /// Also rejects a chain interactions penalty, a coverage threshold or a five-hop liveness score,
-    /// share or margin that is not a fraction.
+    /// share or margin that is not a fraction, and a five-hop liveness decay that is negative or not
+    /// finite.
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let longest_window = self.aggregation_windows.longest();
         if self.testrun_eviction_age <= longest_window {
@@ -443,6 +465,14 @@ impl Config {
                 five_hop.session_loss_margin
             );
         }
+
+        // a negative rate would push a carried value below what was measured, towards zero
+        if !(five_hop.decay_per_epoch.is_finite() && five_hop.decay_per_epoch >= 0.0) {
+            bail!(
+                "five-hop liveness decay per epoch ({}) must be finite and not negative",
+                five_hop.decay_per_epoch
+            );
+        }
         Ok(())
     }
 }
@@ -473,6 +503,8 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
             min_gateway_share: 0.4,
             fallback_min_gateway_score: 0.98,
             session_loss_margin: 0.05,
+            max_carried_epochs: 48,
+            decay_per_epoch: 0.1,
         },
         aggregation_windows: AggregationWindows {
             stress: Duration::from_secs(24 * 60 * 60),

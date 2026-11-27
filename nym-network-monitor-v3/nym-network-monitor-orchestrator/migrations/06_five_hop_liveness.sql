@@ -102,14 +102,14 @@ CREATE TABLE five_hop_mixnet_session
 CREATE INDEX idx_five_hop_mixnet_session_mixnet_epoch ON five_hop_mixnet_session (mixnet_epoch);
 
 -- ---------------------------------------------------------------------------
--- mixnet_epoch_five_hop_liveness: what the route test measured of a mixnode over one epoch
+-- mixnet_epoch_five_hop_liveness: the five-hop liveness of a mixnode in one epoch
 -- ---------------------------------------------------------------------------
 
--- Computed once, as an epoch begins, from the sessions naming the epoch that just ended, and never
--- recomputed. Kept apart from the aggregates because it is not a mean over runs. A row exists only
--- for a mixnode the scoring strategy could score, so an absent row is an unmeasured epoch and never a
--- zero. Only the strategy's result is kept: whatever it counted on the way is its own. The value
--- carried into an unmeasured epoch is computed from these rows when needed, not stored.
+-- Computed once, as an epoch begins, and never recomputed. Kept apart from the aggregates because it
+-- is not a mean over runs. A row is either measured, from the sessions naming the epoch that just
+-- ended, for a mixnode the scoring strategy could score, or carried forward, for a mixnode with a
+-- measured value in recent epochs but none in this one. A mixnode with neither has no row, never a
+-- zero. Only the strategy's result is kept: whatever it counted on the way is its own.
 CREATE TABLE mixnet_epoch_five_hop_liveness
 (
     -- Absolute id of the mixnet epoch this value is filed under, the one after the epoch measured.
@@ -123,8 +123,13 @@ CREATE TABLE mixnet_epoch_five_hop_liveness
     -- value is kept, and applies once a refresh records the bond.
     node_id      INTEGER                                      NOT NULL,
 
-    -- The node's five-hop liveness, as the scoring strategy gave it.
+    -- The node's five-hop liveness in this epoch: as the scoring strategy gave it when measured, else
+    -- its newest measured value decayed by the epochs since.
     score        REAL CHECK ( score >= 0.0 AND score <= 1.0 ) NOT NULL,
+
+    -- Whether the score was measured in this epoch rather than carried forward. Only a measured score
+    -- is carried forward.
+    measured     BOOLEAN                                      NOT NULL,
 
     PRIMARY KEY (mixnet_epoch, node_id)
 );

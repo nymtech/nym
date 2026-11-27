@@ -2458,14 +2458,15 @@ impl StorageManager {
         for value in values {
             sqlx::query!(
                 r#"
-                INSERT INTO mixnet_epoch_five_hop_liveness (mixnet_epoch, epoch_start, node_id, score)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO mixnet_epoch_five_hop_liveness (mixnet_epoch, epoch_start, node_id, score, measured)
+                VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT (mixnet_epoch, node_id) DO NOTHING
                 "#,
                 value.mixnet_epoch,
                 value.epoch_start,
                 value.node_id,
                 value.score,
+                value.measured,
             )
             .execute(&mut *tx)
             .await?;
@@ -2507,29 +2508,31 @@ impl StorageManager {
         Ok(value)
     }
 
-    /// Each node's newest five-hop liveness filed from `oldest_epoch` to `mixnet_epoch` inclusive, ordered by node.
-    pub(crate) async fn get_newest_mixnet_epoch_five_hop_liveness(
+    /// Each node's newest measured five-hop liveness filed from `oldest_epoch` to `newest_epoch` inclusive, ordered by node.
+    pub(crate) async fn get_newest_measured_mixnet_epoch_five_hop_liveness(
         &self,
         oldest_epoch: i64,
-        mixnet_epoch: i64,
+        newest_epoch: i64,
     ) -> anyhow::Result<Vec<MixnetEpochFiveHopLiveness>> {
         let values = sqlx::query_as!(
             MixnetEpochFiveHopLiveness,
             r#"
             SELECT f.*
             FROM mixnet_epoch_five_hop_liveness f
-            WHERE f.mixnet_epoch BETWEEN ? AND ?
+            WHERE f.measured
+              AND f.mixnet_epoch BETWEEN ? AND ?
               AND NOT EXISTS (
                   SELECT 1 FROM mixnet_epoch_five_hop_liveness newer
                   WHERE newer.node_id = f.node_id
+                    AND newer.measured
                     AND newer.mixnet_epoch > f.mixnet_epoch
                     AND newer.mixnet_epoch <= ?
               )
             ORDER BY f.node_id
             "#,
             oldest_epoch,
-            mixnet_epoch,
-            mixnet_epoch,
+            newest_epoch,
+            newest_epoch,
         )
         .fetch_all(&self.connection_pool)
         .await?;
@@ -5051,6 +5054,7 @@ mod tests {
                 epoch_start: EPOCH_START,
                 node_id: 1,
                 score: 0.9,
+                measured: true,
             };
             let at_cutoff = MixnetEpochFiveHopLiveness {
                 mixnet_epoch: 8,

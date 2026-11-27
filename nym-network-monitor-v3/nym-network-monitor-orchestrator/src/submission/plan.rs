@@ -5,15 +5,16 @@
 
 use crate::aggregation::{NodeEpochFigures, epoch_figures};
 use crate::storage::models::{
-    DescribedNodeRoles, MixnetEpochAggregate, MixnetEpochConfigScore, TestKind,
+    DescribedNodeRoles, MixnetEpochAggregate, MixnetEpochConfigScore, MixnetEpochFiveHopLiveness,
+    TestKind,
 };
 use anyhow::bail;
 use nym_contracts_common::{NaiveFloat, Percent};
 use nym_validator_client::nyxd::nym_performance_contract_common::{
-    EpochId, Measurements, NetworkMonitorSubmissionMetadata, NodeSubmission,
+    EpochId, Measurements, NetworkMonitorSubmissionMetadata, NodeId, NodeSubmission,
 };
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 /// One test kind's share of its eligible nodes with a reachable aggregate, and whether the guard
 /// omitted the test kind for it.
@@ -110,19 +111,29 @@ impl EpochPlan {
     /// Builds the plan from the epoch's stored rows and the described nodes' roles.
     ///
     /// The rows of every test kind the guard omits are dropped before the fold, so a dual-role
-    /// node's liveness then comes from its other liveness test kind alone.
+    /// node's liveness then comes from its other liveness test kind alone. The guard measures the
+    /// one-hop aggregates, before any five-hop liveness is applied.
     pub(crate) fn build(
         config_scores: &[MixnetEpochConfigScore],
         mut aggregates: Vec<MixnetEpochAggregate>,
+        five_hop_liveness: &[MixnetEpochFiveHopLiveness],
         roles: &[DescribedNodeRoles],
         coverage_threshold: f64,
     ) -> Self {
         let coverage = Coverage::measure(&aggregates, roles, coverage_threshold);
         aggregates.retain(|row| !coverage.for_kind(row.test_kind).omitted);
 
+        let five_hop_liveness: BTreeMap<NodeId, f64> = five_hop_liveness
+            .iter()
+            // stored from a `NodeId`, so it fits
+            .map(|value| (value.node_id as NodeId, value.score))
+            .collect();
         let nodes = epoch_figures(config_scores, &aggregates)
             .into_iter()
-            .filter_map(node_submission)
+            .filter_map(|figures| {
+                let five_hop_liveness = five_hop_liveness.get(&figures.node_id).copied();
+                node_submission(figures, five_hop_liveness)
+            })
             .collect();
 
         EpochPlan { nodes, coverage }
@@ -135,12 +146,20 @@ impl EpochPlan {
 /// The contract uses a node's bundle at the epoch whenever one exists, even one it cannot score,
 /// so an unscoreable bundle would block the fallback to the node's last scored epoch. This assumes
 /// no kind is weighted zero, under which a node with only that kind would be unscoreable too.
-fn node_submission(figures: NodeEpochFigures) -> Option<NodeSubmission> {
+///
+/// The liveness is multiplied by the node's five-hop liveness when it has one, which never gives a
+/// node a liveness of its own.
+fn node_submission(
+    figures: NodeEpochFigures,
+    five_hop_liveness: Option<f64>,
+) -> Option<NodeSubmission> {
     let config = percent(figures.config_score?.score)?;
-    let liveness = figures
-        .aggregates
-        .liveness
-        .and_then(|liveness| percent(liveness.score));
+    let liveness = figures.aggregates.liveness.and_then(|liveness| {
+        let score = five_hop_liveness.map_or(liveness.score, |five_hop_liveness| {
+            liveness.score * five_hop_liveness
+        });
+        percent(score)
+    });
     let stress = figures
         .aggregates
         .stress
@@ -228,7 +247,7 @@ pub(super) mod tests {
         aggregates: Vec<MixnetEpochAggregate>,
         roles: &[DescribedNodeRoles],
     ) -> EpochPlan {
-        EpochPlan::build(config_scores, aggregates, roles, THRESHOLD)
+        EpochPlan::build(config_scores, aggregates, &[], roles, THRESHOLD)
     }
 
     fn node_ids(plan: &EpochPlan) -> Vec<NodeId> {

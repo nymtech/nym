@@ -102,6 +102,14 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_SESSION_LOSS_MARGIN_ARG, default_value_t = 0.05)]
     five_hop_liveness_session_loss_margin: f64,
 
+    /// Epochs a measured five-hop liveness is carried forward for after it was filed.
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_MAX_CARRIED_EPOCHS_ARG, default_value_t = 48)]
+    five_hop_liveness_max_carried_epochs: u32,
+
+    /// Rate per epoch at which a carried five-hop liveness fades towards full liveness.
+    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_DECAY_PER_EPOCH_ARG, default_value_t = 0.1)]
+    five_hop_liveness_decay_per_epoch: f64,
+
     /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
     #[clap(long, env = NYM_NETWORK_MONITOR_HTTP_SERVER_BIND_ADDRESS_ARG, default_value = "0.0.0.0:8080")]
     http_server_bind_address: SocketAddr,
@@ -296,6 +304,8 @@ impl Args {
                 min_gateway_share: self.five_hop_liveness_min_gateway_share,
                 fallback_min_gateway_score: self.five_hop_liveness_fallback_min_gateway_score,
                 session_loss_margin: self.five_hop_liveness_session_loss_margin,
+                max_carried_epochs: self.five_hop_liveness_max_carried_epochs,
+                decay_per_epoch: self.five_hop_liveness_decay_per_epoch,
             },
             database_path: self.database_path.clone(),
             node_refresh_rate: self.node_refresh_rate,

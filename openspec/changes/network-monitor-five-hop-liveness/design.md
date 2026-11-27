@@ -144,7 +144,7 @@ Alternative considered: a plain function with the same signature. It substitutes
 
 ### 11. The five-hop liveness filed under an epoch comes from the epoch before, and no other
 
-In the pass that materialises an epoch's aggregates, a new step takes the stored sessions whose batch names the epoch that just ended and that the discard rule kept, turns them into test messages, orders them by send time, scores them afresh (nothing a strategy keeps, such as a fail sequence, carries over from the epoch before), and stores each mixnode's result in `mixnet_epoch_five_hop_liveness` under the epoch that is beginning. Stored once, never recomputed, as the aggregates are.
+In the pass that materialises an epoch's aggregates, a new step takes the stored sessions whose batch names the epoch that just ended and that the discard rule kept, turns them into test messages, orders them by send time, scores them afresh (nothing a strategy keeps, such as a fail sequence, carries over from the epoch before), and stores each mixnode's result in `mixnet_epoch_five_hop_liveness` under the epoch that is beginning, beside the values carried forward for the mixnodes it did not score (Decision 13). Stored once, never recomputed, as the aggregates are.
 
 Within the epoch the runs are not scored apart. Their test messages form one list, twelve bursts with gaps of about four minutes, and a fail sequence carries from one run into the next. That is the specification's rule over an epoch's dataset, and a mixnode that is down stays the first suspect across the gap. Resetting at each run was considered and left out for that reason.
 
@@ -164,17 +164,19 @@ Alternative considered: a coverage guard over the active set with a minimum samp
 
 ### 13. The last measured value is carried forward with the specification's decay
 
-For an epoch with no measured value for a node, its five-hop liveness is `1 - e^(-0.1 * d) * (1 - value)`, from the node's newest earlier measured value, `d` epochs before. Beyond 48 epochs, where the weight is under one percent, it is 1. A node never measured has 1.
+For an epoch with no measured value for a node, its five-hop liveness is `1 - e^(-0.1 * d) * (1 - value)`, from the node's newest earlier measured value, `d` epochs before. Beyond 48 epochs, where the weight is under one percent, it has none, and its liveness is used as it is. A node never measured has none. The rate and the limit are configurable, with these as defaults.
 
 Without this, a mixnode that looks fine one-hop and routes badly is active for two epochs in every four: its bad five-hop liveness removes it for two epochs, then nothing is on file and it returns at full weight. The decay keeps the last measured value in play for about a day.
 
 The value is the node's, whatever role it holds. A node measured as a mixnode keeps its fading value in an epoch in which it serves as a gateway, and the liveness submitted for it there is multiplied by it: a role change is one way of leaving the active set, and it should not restore full weight any faster than the others.
 
-Nothing new is stored: the lookup reads `mixnet_epoch_five_hop_liveness`, which is retained for 30 days.
+The carried value is computed once, by the materialisation as the epoch begins, and stored in `mixnet_epoch_five_hop_liveness` beside the measured values, flagged as carried forward. The contract submission and the nym-api posts then read one stored value per node and epoch and only multiply, the aggregates API serves only the measured ones, and the rate and the limit are read by the materialisation alone. Only a measured value is carried forward: carrying a carried one would give the same value, since the decay has no memory, but the limit would then never be reached.
+
+Alternatives considered: computing the carried value when it is read, in both the contract submission and the nym-api posts (the decay and its settings in two places, and no new storage); storing the product with one-hop liveness in the liveness aggregates (the aggregates API's one-hop entry and the coverage guard need the unscaled value, and the nym-api posts are per run, not per epoch); storing carried values without a flag (the aggregates API could no longer serve the measured value alone, and the limit would have to become a threshold on the value).
 
 ### 14. One switch, and five-hop liveness multiplies submitted liveness
 
-`--five-hop-liveness-enabled`, an explicit value defaulting to on, governs everything: off, no run is handed out, nothing is materialised, and five-hop liveness is 1 for every node at once, which is the rollback.
+`--five-hop-liveness-enabled`, an explicit value defaulting to on, governs everything: off, no run is handed out and nothing is materialised, so from the next epoch no node's liveness is multiplied, which is the rollback. The epoch in progress keeps the values filed under it when it began, which spares the contract submission and the nym-api posts a flag of their own.
 
 The product is applied in the submission plan, to the liveness as the plan already computes it (both liveness kinds the coverage guard kept, combined), before the conversion to a percent. A node with no one-hop liveness to submit gets none from its five-hop liveness. On the aggregates API the liveness entry is unchanged and a five-hop liveness entry appears beside it, with the measured value, so the two can be read apart.
 
@@ -213,7 +215,7 @@ The session itself is not unit-tested. It needs live gateways and mixnodes, and 
 
 ### 18. Liveness runs posted to nym-api are scaled until that stream goes
 
-The product of Decision 14 is formed once per epoch in the contract submission, which nym-api's own figure never sees: nym-api averages the one-hop run scores the orchestrator posts per run. So each liveness run is posted with its score multiplied by the node's five-hop liveness for the newest materialised epoch (measured, carried forward, or 1, as Decision 13 defines). Stress runs are posted as they are.
+The product of Decision 14 is formed once per epoch in the contract submission, which nym-api's own figure never sees: nym-api averages the one-hop run scores the orchestrator posts per run. So each liveness run is posted with its score multiplied by the node's five-hop liveness stored for the newest materialised epoch (measured or carried forward, as Decision 13 defines; a node with none is posted as it is). Stress runs are posted as they are.
 
 This puts five-hop liveness into nym-api's figure at once, with no change to nym-api, and rewarding moves to the contract alone shortly after. The costs are accepted for that short life: a posted score is no longer what that run measured, nym-api's 24-hour mean spreads one bad epoch over a day, and the code sits in the result submitter that the epoch driver (#7398) deletes.
 
@@ -276,7 +278,7 @@ Alternatives considered: no HTTP surface, copying the SQLite file and decoding t
 2. Route runs start once gateways are fit, which needs a refresh that read their enforcement flag (within 2 hours) and a gateway liveness run each. The first values are filed in the epoch after the first runs.
 3. Liveness stays without weight on mainnet until the decision to give it one is taken. Until then five-hop liveness is visible on the aggregates API and in the submitted liveness without affecting rewards.
 
-Rollback: set `--five-hop-liveness-enabled false`. No run is handed out and five-hop liveness is 1 for every node at once. Rolling the orchestrator binary back past the migration means discarding its database, which is a rebuildable cache.
+Rollback: set `--five-hop-liveness-enabled false`. No run is handed out, and from the next epoch no node's liveness is multiplied by five-hop liveness. Rolling the orchestrator binary back past the migration means discarding its database, which is a rebuildable cache.
 
 ## Open Questions
 

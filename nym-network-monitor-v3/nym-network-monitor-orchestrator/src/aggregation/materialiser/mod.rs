@@ -19,11 +19,11 @@ use tracing::{error, info, warn};
 
 mod aggregate;
 mod config_score;
-mod five_hop_liveness;
+pub(crate) mod five_hop_liveness;
 
 use aggregate::AggregateMaterialiser;
 use config_score::ConfigScoreMaterialiser;
-use five_hop_liveness::FiveHopLivenessMaterialiser;
+use five_hop_liveness::{FiveHopLivenessMaterialiser, FiveHopLivenessMaterialiserConfig};
 
 /// Shortest wait between two looks at the chain, and the wait before retrying a failed pass.
 ///
@@ -49,8 +49,8 @@ pub(crate) struct MaterialiserConfig {
     /// Config-score penalty applied to a node that cannot transact on chain.
     pub(crate) chain_interactions_penalty: f64,
 
-    /// Whether five-hop liveness is materialised.
-    pub(crate) five_hop_liveness_enabled: bool,
+    /// How five-hop liveness is materialised, or `None` while it is switched off.
+    pub(crate) five_hop_liveness: Option<FiveHopLivenessMaterialiserConfig>,
 }
 
 /// Produces every per-`(node, epoch)` figure the orchestrator serves, one epoch at a time as that
@@ -58,12 +58,12 @@ pub(crate) struct MaterialiserConfig {
 ///
 /// Owns the single task and the client it reads the contract's interval with, and drives three
 /// members that each produce a different family of figures: [`FiveHopLivenessMaterialiser`] for
-/// five-hop liveness (scored from the route sessions of the epoch before, backfilled like the
-/// aggregates, absent while five-hop liveness is off), [`AggregateMaterialiser`] for the windowed probe aggregates
-/// (backfilled across epochs missed while down) and [`ConfigScoreMaterialiser`] for the
-/// current-state config-score snapshot (filed only under the epoch in progress, never backfilled).
-/// When submission is on, a [`PerformanceSubmitter`] sends what both produced for the epoch in
-/// progress as the pass's last step.
+/// five-hop liveness (scored from the route sessions of the epoch before or carried forward,
+/// backfilled like the aggregates, absent while five-hop liveness is off), [`AggregateMaterialiser`]
+/// for the windowed probe aggregates (backfilled across epochs missed while down) and
+/// [`ConfigScoreMaterialiser`] for the current-state config-score snapshot (filed only under the
+/// epoch in progress, never backfilled). When submission is on, a [`PerformanceSubmitter`] sends
+/// what they produced for the epoch in progress as the pass's last step.
 ///
 /// Each tick reads the contract's interval once and hands that reading to every step, so they always
 /// agree on which epoch is in progress. Epoch identity and timing therefore always come from a
@@ -106,9 +106,13 @@ where
         shutdown_token: ShutdownToken,
     ) -> Self {
         // the one place the scoring strategy is chosen
-        let five_hop_liveness = config
-            .five_hop_liveness_enabled
-            .then(|| FiveHopLivenessMaterialiser::new(Box::new(FailSequenceRule), storage.clone()));
+        let five_hop_liveness = config.five_hop_liveness.map(|five_hop_liveness| {
+            FiveHopLivenessMaterialiser::new(
+                five_hop_liveness,
+                Box::new(FailSequenceRule),
+                storage.clone(),
+            )
+        });
         let aggregates =
             AggregateMaterialiser::new(config.windows, config.testrun_retention, storage.clone());
         let config_scores = ConfigScoreMaterialiser::new(
@@ -286,7 +290,7 @@ mod tests {
                 testrun_retention: RETENTION,
                 minimum_balance: Coin::new(1_000_000u128, "unym"),
                 chain_interactions_penalty: 0.2,
-                five_hop_liveness_enabled: false,
+                five_hop_liveness: None,
             },
             storage,
             ConfigUnreadableMixnet,

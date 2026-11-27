@@ -1180,7 +1180,8 @@ pub(crate) enum FiveHopMixnetRunSubmission {
     UnexpectedGateway { gateway_node_id: i64 },
 }
 
-/// A row of `mixnet_epoch_five_hop_liveness`: what the route test measured of one mixnode, filed under one epoch.
+/// A row of `mixnet_epoch_five_hop_liveness`: the five-hop liveness of one mixnode in one epoch,
+/// measured or carried forward.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) struct MixnetEpochFiveHopLiveness {
     /// Absolute id of the epoch the value is filed under, the one after the epoch measured.
@@ -1191,8 +1192,18 @@ pub(crate) struct MixnetEpochFiveHopLiveness {
 
     pub(crate) node_id: i64,
 
-    /// The node's five-hop liveness, as the scoring strategy gave it.
+    /// The node's five-hop liveness in this epoch.
     pub(crate) score: f64,
+
+    /// Whether the score was measured in this epoch rather than carried forward.
+    pub(crate) measured: bool,
+}
+
+impl MixnetEpochFiveHopLiveness {
+    /// The score if it was measured in this epoch, `None` if it was carried forward.
+    pub(crate) fn measured_score(&self) -> Option<f64> {
+        self.measured.then_some(self.score)
+    }
 }
 
 /// The refresh time every fixture node's bond carries, so seeding fixtures through

@@ -9,12 +9,25 @@ use nym_network_monitor_route_records::NodeId;
 use nym_network_monitor_route_records::scoring::ScoringStrategy;
 use nym_network_monitor_route_records::test_message::merge_in_send_order;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::{EpochId, Interval};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use time::OffsetDateTime;
 use tracing::info;
 
-/// Scores five-hop liveness as each epoch begins, from the route sessions of the epoch before.
+/// How measured five-hop liveness is carried forward into the epochs that follow.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct FiveHopLivenessMaterialiserConfig {
+    /// Epochs a measured value is carried forward for after it was filed.
+    pub(crate) max_carried_epochs: u32,
+
+    /// Rate per epoch at which a carried value fades towards full liveness.
+    pub(crate) decay_per_epoch: f64,
+}
+
+/// Scores five-hop liveness as each epoch begins, from the route sessions of the epoch before, and
+/// carries recent measured values forward into it.
 pub(crate) struct FiveHopLivenessMaterialiser {
+    config: FiveHopLivenessMaterialiserConfig,
+
     strategy: Box<dyn ScoringStrategy + Send + Sync>,
 
     storage: NetworkMonitorStorage,
@@ -22,10 +35,15 @@ pub(crate) struct FiveHopLivenessMaterialiser {
 
 impl FiveHopLivenessMaterialiser {
     pub(crate) fn new(
+        config: FiveHopLivenessMaterialiserConfig,
         strategy: Box<dyn ScoringStrategy + Send + Sync>,
         storage: NetworkMonitorStorage,
     ) -> Self {
-        FiveHopLivenessMaterialiser { strategy, storage }
+        FiveHopLivenessMaterialiser {
+            config,
+            strategy,
+            storage,
+        }
     }
 
     /// Scores every epoch the aggregates have yet to materialise, through to the one in progress.
@@ -46,7 +64,7 @@ impl FiveHopLivenessMaterialiser {
     }
 
     /// Scores the route sessions of the epoch before `mixnet_epoch` and stores each mixnode's value
-    /// under `mixnet_epoch`.
+    /// under `mixnet_epoch`, beside the values carried forward for the mixnodes it did not score.
     async fn materialise(
         &self,
         mixnet_epoch: EpochId,
@@ -75,16 +93,25 @@ impl FiveHopLivenessMaterialiser {
 
         let test_messages = merge_in_send_order(kept);
         let one_hop_scores = self.one_hop_scores().await?;
-        let values: Vec<MixnetEpochFiveHopLiveness> = self
-            .strategy
-            .score(&test_messages, &one_hop_scores)
+        let measured = self.strategy.score(&test_messages, &one_hop_scores);
+        let carried = self.carried_scores(mixnet_epoch, &measured).await?;
+        let (measured_count, carried_count) = (measured.len(), carried.len());
+
+        let row = |node_id: NodeId, score: f64, measured: bool| MixnetEpochFiveHopLiveness {
+            mixnet_epoch: mixnet_epoch as i64,
+            epoch_start,
+            node_id: i64::from(node_id),
+            score,
+            measured,
+        };
+        let values: Vec<MixnetEpochFiveHopLiveness> = measured
             .into_iter()
-            .map(|(node_id, score)| MixnetEpochFiveHopLiveness {
-                mixnet_epoch: mixnet_epoch as i64,
-                epoch_start,
-                node_id: i64::from(node_id),
-                score,
-            })
+            .map(|(node_id, score)| row(node_id, score, true))
+            .chain(
+                carried
+                    .into_iter()
+                    .map(|(node_id, score)| row(node_id, score, false)),
+            )
             .collect();
         self.storage
             .batch_insert_mixnet_epoch_five_hop_liveness(&values)
@@ -103,10 +130,40 @@ impl FiveHopLivenessMaterialiser {
             measured_epoch,
             kept = kept_sessions,
             discarded,
-            scored = values.len(),
+            scored = measured_count,
+            carried = carried_count,
             "materialised five-hop liveness"
         );
         Ok(())
+    }
+
+    /// Each mixnode not in `measured` whose newest measured value was filed in the
+    /// `max_carried_epochs` before `mixnet_epoch`, with that value decayed by the epochs since.
+    async fn carried_scores(
+        &self,
+        mixnet_epoch: EpochId,
+        measured: &BTreeMap<NodeId, f64>,
+    ) -> anyhow::Result<BTreeMap<NodeId, f64>> {
+        let newest = self
+            .storage
+            .get_newest_measured_mixnet_epoch_five_hop_liveness(
+                mixnet_epoch,
+                self.config.max_carried_epochs,
+            )
+            .await?;
+
+        Ok(newest
+            .into_iter()
+            // stored from a `NodeId`, so it fits
+            .map(|value| (value.node_id as NodeId, value))
+            .filter(|(node_id, _)| !measured.contains_key(node_id))
+            .map(|(node_id, value)| {
+                // 1 - e^(-rate d) (1 - value): fades from the measured value towards 1
+                let age = (mixnet_epoch as i64 - value.mixnet_epoch) as f64;
+                let decay = (-self.config.decay_per_epoch * age).exp();
+                (node_id, 1.0 - decay * (1.0 - value.score))
+            })
+            .collect())
     }
 
     /// Each mixnode's most recent one-hop liveness score, from its latest mixnode liveness run.
@@ -185,12 +242,18 @@ mod tests {
         storage
     }
 
+    /// The shipped defaults.
+    const CONFIG: FiveHopLivenessMaterialiserConfig = FiveHopLivenessMaterialiserConfig {
+        max_carried_epochs: 48,
+        decay_per_epoch: 0.1,
+    };
+
     /// Scores [`FIXTURE_EPOCH`] over `storage` with `strategy`.
     async fn materialise(
         storage: &NetworkMonitorStorage,
         strategy: Box<dyn ScoringStrategy + Send + Sync>,
     ) {
-        FiveHopLivenessMaterialiser::new(strategy, storage.clone())
+        FiveHopLivenessMaterialiser::new(CONFIG, strategy, storage.clone())
             .materialise(FIXTURE_EPOCH, FIXTURE_SEEN_AT)
             .await
             .unwrap();

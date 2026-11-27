@@ -699,7 +699,7 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Every five-hop liveness value filed under `mixnet_epoch`, ordered by node.
+    /// Every five-hop liveness value filed under `mixnet_epoch`, measured or carried, ordered by node.
     pub(crate) async fn get_mixnet_epoch_five_hop_liveness(
         &self,
         mixnet_epoch: EpochId,
@@ -720,15 +720,17 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Each node's newest five-hop liveness filed at `mixnet_epoch` or at most `max_age` epochs before it.
-    pub(crate) async fn get_newest_mixnet_epoch_five_hop_liveness(
+    /// Each node's newest measured five-hop liveness filed in the `max_age` epochs before `mixnet_epoch`.
+    pub(crate) async fn get_newest_measured_mixnet_epoch_five_hop_liveness(
         &self,
         mixnet_epoch: EpochId,
         max_age: u32,
     ) -> anyhow::Result<Vec<MixnetEpochFiveHopLiveness>> {
-        let oldest_epoch = mixnet_epoch.saturating_sub(max_age);
+        // a range reaching below epoch 0 simply matches nothing there
+        let oldest_epoch = mixnet_epoch as i64 - max_age as i64;
+        let newest_epoch = mixnet_epoch as i64 - 1;
         self.storage_manager
-            .get_newest_mixnet_epoch_five_hop_liveness(oldest_epoch as i64, mixnet_epoch as i64)
+            .get_newest_measured_mixnet_epoch_five_hop_liveness(oldest_epoch, newest_epoch)
             .await
     }
 
@@ -1007,7 +1009,7 @@ mod tests {
     }
 
     // The window the carried-forward value is read from: a value filed 48 epochs back still counts,
-    // one filed 49 back does not, and one filed after the epoch is not seen from it.
+    // one filed 49 back does not, and one filed in the epoch itself or after it is not seen from it.
     #[tokio::test]
     async fn the_newest_five_hop_liveness_is_read_within_the_limit() {
         fn value(mixnet_epoch: i64, node_id: i64) -> MixnetEpochFiveHopLiveness {
@@ -1016,6 +1018,7 @@ mod tests {
                 epoch_start: FIXTURE_SEEN_AT,
                 node_id,
                 score: 0.5,
+                measured: true,
             }
         }
 
@@ -1033,13 +1036,13 @@ mod tests {
             .unwrap();
 
         let newest: Vec<(i64, i64)> = storage
-            .get_newest_mixnet_epoch_five_hop_liveness(100, 48)
+            .get_newest_measured_mixnet_epoch_five_hop_liveness(100, 48)
             .await
             .unwrap()
             .iter()
             .map(|value| (value.node_id, value.mixnet_epoch))
             .collect();
 
-        assert_eq!(newest, vec![(1, 52), (3, 100), (4, 90)]);
+        assert_eq!(newest, vec![(1, 52), (4, 90)]);
     }
 }

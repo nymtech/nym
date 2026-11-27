@@ -13,8 +13,10 @@ use nym_api_requests::models::v3::{
 use nym_crypto::asymmetric::ed25519;
 use nym_node_requests::api::Client;
 use nym_task::ShutdownToken;
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::signable::SignableMessageBody;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -215,19 +217,51 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
 
     /// Signs and posts one chunk of liveness runs to the liveness endpoint, which is separate from
     /// the stress one so that the two streams do not share a replay high-water mark.
+    ///
+    /// Each run's score is multiplied by its node's five-hop liveness for the newest materialised
+    /// epoch, when it has one there, so that nym-api's liveness figure includes it.
     async fn post_liveness_batch(
         &self,
         timestamp: OffsetDateTime,
         chunk: &[CompletedTestRun],
     ) -> anyhow::Result<BatchSubmissionResponse> {
+        let five_hop_liveness = self.newest_five_hop_liveness().await?;
+        let results = chunk
+            .iter()
+            .map(|run| {
+                let mut result = LivenessTestResult::from(run);
+                if let Some(five_hop_liveness) = five_hop_liveness.get(&result.node_id) {
+                    result.test_performance *= five_hop_liveness;
+                }
+                result
+            })
+            .collect();
+
         let body = LivenessTestBatchSubmissionContent {
             signer: *self.identity_keys.public_key(),
             timestamp,
-            results: chunk.iter().map(LivenessTestResult::from).collect(),
+            results,
         };
         let signed = body.sign(self.identity_keys.private_key());
 
         self.client.submit_liveness(&signed).await
+    }
+
+    /// Each node's five-hop liveness for the newest materialised epoch, empty before any epoch is.
+    async fn newest_five_hop_liveness(&self) -> anyhow::Result<BTreeMap<NodeId, f64>> {
+        let Some(mixnet_epoch) = self.storage.get_last_materialised_mixnet_epoch().await? else {
+            return Ok(BTreeMap::new());
+        };
+
+        let values = self
+            .storage
+            .get_mixnet_epoch_five_hop_liveness(mixnet_epoch)
+            .await?;
+        Ok(values
+            .into_iter()
+            // stored from a `NodeId`, so it fits
+            .map(|value| (value.node_id as NodeId, value.score))
+            .collect())
     }
 
     /// Records what nym-api did with a submitted batch: how many results it stored, how many it

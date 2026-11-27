@@ -348,7 +348,7 @@ impl NetworkMonitorOrchestrator {
                 testrun_retention: self.config.testrun_eviction_age,
                 minimum_balance: self.config.minimum_on_chain_balance.clone(),
                 chain_interactions_penalty: self.config.chain_interactions_penalty,
-                five_hop_liveness_enabled: self.config.five_hop_liveness.enabled,
+                five_hop_liveness: self.config.five_hop_liveness_materialiser_config(),
             },
             self.storage.clone(),
             materialiser_query_client.clone_query_client(),

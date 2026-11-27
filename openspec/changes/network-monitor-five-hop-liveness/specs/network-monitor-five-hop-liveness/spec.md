@@ -286,7 +286,7 @@ The first strategy is the fail-sequence rule of the performance monitor specific
 
 ### Requirement: Five-hop liveness is materialised as an epoch begins, from the sessions of the epoch that just ended
 
-As an epoch begins, in the pass that materialises its aggregates, the orchestrator SHALL compute the five-hop liveness filed under that epoch from the stored sessions whose batch names the epoch that just ended, and from no others. It MUST first leave out the sessions the discard rule did not keep, then unpack the rest into test messages and order them by the time they were sent (the test messages of one record keeping their order, and equal times ordered by gateway node id). It MUST give the strategy, as each mixnode's most recent one-hop score, the score of that mixnode's most recent mixnode liveness run, and none for a mixnode that has no such run. It MUST store, for every mixnode the strategy gave a five-hop liveness, that value. A mixnode the strategy could not score has none, and nothing is stored for it.
+As an epoch begins, in the pass that materialises its aggregates, the orchestrator SHALL compute the five-hop liveness filed under that epoch from the stored sessions whose batch names the epoch that just ended, and from no others. It MUST first leave out the sessions the discard rule did not keep, then unpack the rest into test messages and order them by the time they were sent (the test messages of one record keeping their order, and equal times ordered by gateway node id). It MUST give the strategy, as each mixnode's most recent one-hop score, the score of that mixnode's most recent mixnode liveness run, and none for a mixnode that has no such run. It MUST store, for every mixnode the strategy gave a five-hop liveness, that value, marked as measured. A mixnode the strategy could not score has no measured value: when its newest earlier measured value is recent enough to be carried forward, as the next requirement defines, the carried value is stored under the epoch, marked as carried forward, and otherwise nothing is stored for it. Only a measured value is carried forward.
 
 Each epoch is scored on its own: whatever a strategy keeps between test messages, such as a fail sequence, starts afresh. Within an epoch the test messages of all its runs form one list, and nothing is reset between runs: a fail sequence a mixnode ended one run with is the one it starts the epoch's next run with. The stored values MUST be written once and never recomputed, and a run submitted after its epoch was scored is rejected, so it is never counted. A stored value is deleted once its epoch began longer ago than the aggregate retention, in the sweep that evicts the aggregates. An epoch being backfilled is computed the same way, from whichever of the preceding epoch's sessions are still stored. A mixnode named by a batch whose bond the registry has not recorded yet is stored like any other, and its value applies once a refresh records the bond.
 
@@ -300,9 +300,9 @@ Taking the epoch from the batch rather than from the clock ties a session to the
 - **WHEN** a session naming epoch E-1 is submitted after the five-hop liveness filed under E was materialised
 - **THEN** the submission is rejected, the values filed under E are unchanged, and the session contributes to no epoch
 
-#### Scenario: An epoch with no sessions has no five-hop liveness
+#### Scenario: An epoch with no sessions has no measured five-hop liveness
 - **WHEN** no stored session names the epoch that just ended
-- **THEN** no five-hop liveness is filed under the epoch that begins
+- **THEN** no measured five-hop liveness is filed under the epoch that begins, only values carried forward
 
 #### Scenario: Fail sequences do not carry across epochs
 - **WHEN** a mixnode ended one epoch on a run of failures
@@ -318,13 +318,13 @@ Taking the epoch from the batch rather than from the clock ties a session to the
 
 ### Requirement: An epoch without usable sessions is unmeasured, and the session counts show it
 
-There SHALL be no guard over an epoch's scored values. An epoch for which no session is stored, or whose sessions were all discarded, simply has no five-hop liveness, and every mixnode's last measured value is carried forward as for any other unmeasured epoch. The orchestrator MUST expose, per epoch, how many sessions it kept and how many it discarded, so that a missing or thin epoch is visible and its cause can be read off.
+There SHALL be no guard over an epoch's scored values. An epoch for which no session is stored, or whose sessions were all discarded, simply has no measured five-hop liveness, and every mixnode's last measured value is carried forward as for any other unmeasured epoch. The orchestrator MUST expose, per epoch, how many sessions it kept and how many it discarded, so that a missing or thin epoch is visible and its cause can be read off.
 
 A guard is not needed because a kept session is never thin: it delivered at least half of its test messages and agrees with the other session of its run, and even the shortest session puts every mixnode on dozens of test messages. A session that fails on the measuring side or at its gateway is discarded before scoring, so it cannot zero the mixnodes it crossed.
 
-#### Scenario: An epoch with every session discarded has no five-hop liveness
+#### Scenario: An epoch with every session discarded has no measured five-hop liveness
 - **WHEN** every session naming an epoch was discarded
-- **THEN** no five-hop liveness is filed for it, and the counts show zero sessions kept
+- **THEN** no measured five-hop liveness is filed for it, and the counts show zero sessions kept
 
 #### Scenario: One failed session among several does not spoil the epoch
 - **WHEN** one session of an epoch returned nothing and the others returned nearly everything
@@ -336,43 +336,43 @@ A guard is not needed because a kept session is never thin: it delivered at leas
 
 ### Requirement: A mixnode's submitted liveness is its one-hop liveness times its five-hop liveness
 
-When five-hop liveness is enabled, the orchestrator SHALL multiply the liveness it is about to submit for a node by that node's five-hop liveness, before converting it to a percent. A node's five-hop liveness for the epoch being submitted is:
+The orchestrator SHALL multiply the liveness it is about to submit for a node by that node's five-hop liveness filed under the epoch being submitted, before converting it to a percent. A node's five-hop liveness filed under an epoch is:
 
-- the value measured for it and filed under that epoch, when there is one;
-- otherwise, when the node's newest earlier measured value was filed at most 48 epochs before, `1 - e^(-0.1 * d) * (1 - value)`, where `d` is the number of epochs between the two;
-- otherwise 1.
+- the value measured for it, when there is one;
+- otherwise, when the node's newest earlier measured value was filed at most the configured number of epochs before, 48 by default, `1 - e^(-r * d) * (1 - value)`, where `d` is the number of epochs between the two and `r` the configured decay rate, 0.1 by default;
+- otherwise none, and its liveness is submitted as it is, as if its five-hop liveness were 1.
 
-The second case carries a mixnode's last measured value forward and lets it fade, about half after 7 epochs and a tenth after 24, so that a mixnode that routes badly while active does not return to full weight the moment it leaves the active set. Nothing is tested outside the active set. A node the route test has never measured, which includes every gateway-only node, has a five-hop liveness of 1.
+The second case carries a mixnode's last measured value forward and lets it fade, with the defaults about half after 7 epochs and a tenth after 24, so that a mixnode that routes badly while active does not return to full weight the moment it leaves the active set. Nothing is tested outside the active set. A node the route test has never measured, which includes every gateway-only node, has none.
 
 The value belongs to the node, not to the role it holds. A node measured as a mixnode keeps its carried-forward value in a later epoch in which it serves as a gateway, and the liveness submitted for it in that epoch is multiplied by it. Leaving the mixnode role is one way of leaving the active set, and it must not restore full weight any faster than the others.
 
 The same value scales the liveness runs the orchestrator posts to nym-api, as `nym-network-monitor` specifies, taken for the newest epoch the orchestrator has materialised, so that nym-api's own liveness figure includes five-hop liveness for as long as that stream exists.
 
-When five-hop liveness is disabled it MUST be 1 for every node, whatever values are stored.
+While five-hop liveness is disabled nothing is filed under the epochs that begin, so from the next epoch no node's liveness is multiplied. The values filed under the epoch in progress when it was disabled apply until that epoch ends.
 
 #### Scenario: A measured mixnode
 - **WHEN** a mixnode has a one-hop liveness of 1.0 and a five-hop liveness of 0.9 measured and filed under the epoch being submitted
 - **THEN** its submitted liveness is 90%
 
 #### Scenario: A mixnode that left the active set
-- **WHEN** a mixnode has no value filed under the epoch being submitted, and its newest measured value, 0.6, was filed 7 epochs before
+- **WHEN** a mixnode has no value measured for the epoch being submitted, and its newest measured value, 0.6, was filed 7 epochs before, with the default limit and rate
 - **THEN** its five-hop liveness is about 0.80
 
 #### Scenario: A carried value follows a node into a gateway role
-- **WHEN** a node's newest measured value, 0.6, was filed 3 epochs before the epoch being submitted, and in that epoch it serves as a gateway with a liveness of 1.0
+- **WHEN** a node's newest measured value, 0.6, was filed 3 epochs before the epoch being submitted, with the default limit and rate, and in that epoch it serves as a gateway with a liveness of 1.0
 - **THEN** its five-hop liveness is about 0.70 and its submitted liveness is 70%
 
 #### Scenario: An old value no longer counts
-- **WHEN** a mixnode's newest measured value was filed 49 epochs before the epoch being submitted
-- **THEN** its five-hop liveness is 1
+- **WHEN** a mixnode's newest measured value was filed 49 epochs before the epoch being submitted, with the default limit
+- **THEN** it has no five-hop liveness and its submitted liveness is its one-hop liveness
 
 #### Scenario: A node never measured
 - **WHEN** a node has no measured five-hop liveness at all
-- **THEN** its five-hop liveness is 1 and its submitted liveness is its one-hop liveness
+- **THEN** it has no five-hop liveness and its submitted liveness is its one-hop liveness
 
-#### Scenario: Disabling removes it at once
-- **WHEN** five-hop liveness is disabled while measured values are stored
-- **THEN** every node's submitted liveness is its one-hop liveness
+#### Scenario: Disabling removes it from the next epoch
+- **WHEN** five-hop liveness is disabled while values are stored
+- **THEN** from the next epoch every node's submitted liveness is its one-hop liveness
 
 ### Requirement: The measured five-hop liveness is served beside the other aggregates
 
@@ -418,7 +418,7 @@ An epoch's test messages and each node's one-hop runs, which the results surface
 
 ### Requirement: Five-hop liveness is governed by configuration with defined defaults
 
-The orchestrator SHALL be configured with: an enable flag for five-hop liveness, expressible as an explicit value and defaulting to on; the interval between route runs, 5 minutes; the number of gateways a run carries, 2; a run's timeout, 3 minutes; the minimum score a gateway's latest gateway liveness run must reach, 1.0; the share of candidate gateways that must reach that minimum for it to be the bar, 40%; and the fallback minimum that is the bar otherwise, 0.98. Nearly every mainnet gateway's liveness is 1.0, so the minimum starts there. The share and the fallback are for when that stops being true, which is expected once gateway stress joins the filter. It SHALL also be configured with the margin by which a session's loss rate may exceed that of the other session of its run before it is discarded, 5 percentage points. The decay rate of 0.1 per epoch and the 48-epoch limit are fixed, not configured.
+The orchestrator SHALL be configured with: an enable flag for five-hop liveness, expressible as an explicit value and defaulting to on; the interval between route runs, 5 minutes; the number of gateways a run carries, 2; a run's timeout, 3 minutes; the minimum score a gateway's latest gateway liveness run must reach, 1.0; the share of candidate gateways that must reach that minimum for it to be the bar, 40%; and the fallback minimum that is the bar otherwise, 0.98. Nearly every mainnet gateway's liveness is 1.0, so the minimum starts there. The share and the fallback are for when that stops being true, which is expected once gateway stress joins the filter. It SHALL also be configured with the margin by which a session's loss rate may exceed that of the other session of its run before it is discarded, 5 percentage points; the number of epochs a measured five-hop liveness is carried forward for after it was filed, 48; and the rate per epoch at which a carried value fades, 0.1. A carried value's weight is under one percent after 48 epochs at that rate. A decay rate that is negative or not a finite number MUST be rejected.
 
 The agent SHALL be configured with: the nym-api url its route sessions read the active set from, which is required; a sending duration for a route session, 40 seconds; a straggler wait, 10 seconds; a timeout for a whole route run, 2 minutes, which has to sit inside the orchestrator's run timeout and, as with the other timeouts, is not validated against it; and, for network experiments, the average delays of a client's main and cover streams, whose combined rate a session sends at, and the average per-hop delays of test packets and of their acks. Each of these four defaults to the client stack's own default, read from its configuration rather than copied, so that unchanged they send a default client's traffic. The packet size is the client stack's default and is not configurable.
 
@@ -426,7 +426,7 @@ Every knob MUST be overridable by CLI flag or environment variable.
 
 #### Scenario: Five-hop liveness can be disabled without a new build
 - **WHEN** the orchestrator's five-hop liveness flag is set to off
-- **THEN** no route run is handed out, no five-hop liveness is materialised, and submitted liveness is the one-hop liveness alone
+- **THEN** no route run is handed out, no five-hop liveness is materialised, and from the next epoch submitted liveness is the one-hop liveness alone
 
 #### Scenario: An agent without a nym-api url does not start
 - **WHEN** the agent is started without a nym-api url

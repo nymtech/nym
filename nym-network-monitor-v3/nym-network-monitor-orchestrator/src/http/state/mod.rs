@@ -7,7 +7,8 @@ use crate::orchestrator::config::Config;
 use crate::signing_client::SigningClient;
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
-    CompletedTestRun, MixnetEpochAggregate, MixnetEpochConfigScore, TestKind,
+    CompletedTestRun, MixnetEpochAggregate, MixnetEpochConfigScore, MixnetEpochFiveHopLiveness,
+    TestKind,
 };
 use axum::extract::FromRef;
 use nym_network_monitor_orchestrator_requests::models::{
@@ -17,6 +18,7 @@ use nym_network_monitor_orchestrator_requests::models::{
 };
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
+use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use tracing::error;
 
@@ -331,7 +333,24 @@ impl AppState {
             Ok(rows) => rows,
         };
 
-        Ok(epoch_records(&config_scores, &aggregates, mixnet_epoch))
+        let five_hop_liveness = match self
+            .storage
+            .get_mixnet_epoch_five_hop_liveness(mixnet_epoch)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_five_hop_liveness storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        Ok(epoch_records(
+            &config_scores,
+            &aggregates,
+            &five_hop_liveness,
+            mixnet_epoch,
+        ))
     }
 
     /// Backs `GET /v1/aggregates/nym-node/{node_id}/epoch/{mixnet_epoch}`. One node's figures for
@@ -367,39 +386,71 @@ impl AppState {
             Ok(row) => row,
         };
 
+        let five_hop_liveness = match self
+            .storage
+            .get_mixnet_epoch_five_hop_liveness_for_node(mixnet_epoch, node_id)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_five_hop_liveness_for_node storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(row) => row,
+        };
+
         let figures = NodeEpochFigures {
             node_id,
             config_score,
             aggregates: ReportedAggregates::from_rows(&aggregates),
         };
-        Ok(node_record(figures, mixnet_epoch))
+        let measured_five_hop_liveness = five_hop_liveness.and_then(|value| value.measured_score());
+        Ok(node_record(
+            figures,
+            measured_five_hop_liveness,
+            mixnet_epoch,
+        ))
     }
 }
 
-/// One node's figures for an epoch, as the wire record.
-fn node_record(figures: NodeEpochFigures, mixnet_epoch: EpochId) -> NodeEpochAggregates {
+/// One node's figures for an epoch, as the wire record, with its measured five-hop liveness.
+fn node_record(
+    figures: NodeEpochFigures,
+    five_hop_liveness: Option<f64>,
+    mixnet_epoch: EpochId,
+) -> NodeEpochAggregates {
     NodeEpochAggregates::new(
         figures.node_id,
         mixnet_epoch,
         figures.config_score.map(Into::into),
         figures.aggregates.liveness.map(Into::into),
         figures.aggregates.stress.map(Into::into),
-        todo!("the five-hop liveness filed under the epoch"),
+        five_hop_liveness,
     )
 }
 
-/// One record per node with a config score or an aggregate for the epoch, ordered by node id.
+/// One record per node with a config score or an aggregate for the epoch, ordered by node id, each
+/// with its five-hop liveness if one was measured for the epoch.
 ///
 /// `mixnet_epoch` is passed in rather than read from a row so the result is well-formed even when
 /// neither table has anything for the epoch.
 fn epoch_records(
     config_scores: &[MixnetEpochConfigScore],
     aggregates: &[MixnetEpochAggregate],
+    five_hop_liveness: &[MixnetEpochFiveHopLiveness],
     mixnet_epoch: EpochId,
 ) -> Vec<NodeEpochAggregates> {
+    let measured_five_hop_liveness: BTreeMap<NodeId, f64> = five_hop_liveness
+        .iter()
+        // stored from a `NodeId`, so it fits
+        .filter_map(|value| Some((value.node_id as NodeId, value.measured_score()?)))
+        .collect();
+
     epoch_figures(config_scores, aggregates)
         .into_iter()
-        .map(|figures| node_record(figures, mixnet_epoch))
+        .map(|figures| {
+            let five_hop_liveness = measured_five_hop_liveness.get(&figures.node_id).copied();
+            node_record(figures, five_hop_liveness, mixnet_epoch)
+        })
         .collect()
 }
 
@@ -448,7 +499,7 @@ mod aggregate_shaping {
         ];
 
         assert_eq!(
-            epoch_records(&[], &rows, 7),
+            epoch_records(&[], &rows, &[], 7),
             vec![
                 NodeEpochAggregates::new(
                     1,
@@ -487,7 +538,7 @@ mod aggregate_shaping {
             row(3, TestKind::MixnodeStress, 1.0, 1),
         ];
 
-        let records = epoch_records(&config_scores, &aggregates, 7);
+        let records = epoch_records(&config_scores, &aggregates, &[], 7);
 
         let stress = |score, samples| Some(KindAggregate { score, samples });
         assert_eq!(

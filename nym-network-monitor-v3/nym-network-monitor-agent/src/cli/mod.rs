@@ -45,7 +45,7 @@ impl Cli {
             }
             Command::TestGatewayLiveness(args) => test_gateway_liveness::execute(args).await?,
             Command::TestFiveHopLiveness(args) => test_five_hop_liveness::execute(args).await?,
-            Command::RunAgent(args) => run_agent::execute(args).await?,
+            Command::RunAgent(args) => run_agent::execute(*args).await?,
             Command::Keygen(args) => keygen::execute(args)?,
         }
         Ok(())
@@ -75,7 +75,7 @@ pub(crate) enum Command {
     TestFiveHopLiveness(test_five_hop_liveness::Args),
 
     /// Test a node by contacting the orchestrator for the work assignment
-    RunAgent(run_agent::Args),
+    RunAgent(Box<run_agent::Args>),
 
     /// Generate all required keys for the agent to work
     Keygen(keygen::Args),

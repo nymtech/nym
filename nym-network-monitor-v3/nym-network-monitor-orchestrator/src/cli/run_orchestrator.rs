@@ -71,6 +71,7 @@ pub(crate) struct Args {
     liveness_gateway_wave_size: NonZeroUsize,
 
     /// Whether five-hop mixnet runs are handed out and five-hop liveness applied (e.g. `false`).
+    /// It needs liveness enabled, so it has to be switched off with it.
     #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_ENABLED_ARG, action = clap::ArgAction::Set, default_value_t = true)]
     five_hop_liveness_enabled: bool,
 
@@ -483,6 +484,9 @@ mod tests {
         let liveness = parse(&[
             "--liveness-enabled",
             "false",
+            // five-hop liveness needs liveness, so it is switched off with it
+            "--five-hop-liveness-enabled",
+            "false",
             "--liveness-test-interval",
             "3m",
             "--liveness-test-timeout",
@@ -520,10 +524,13 @@ mod tests {
             "the error should name both values, got: {message}"
         );
 
-        // with liveness switched off, the stress lease is the one that binds
+        // with liveness switched off, and five-hop liveness with it, the stress lease is the one
+        // that binds
         assert!(
             try_build_config(&[
                 "--liveness-enabled",
+                "false",
+                "--five-hop-liveness-enabled",
                 "false",
                 "--lease-release-interval",
                 "5m"

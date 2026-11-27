@@ -394,8 +394,8 @@ impl Config {
     /// can still backfill epochs, and its sizing is left to the operator.
     ///
     /// Also rejects a chain interactions penalty, a coverage threshold or a five-hop liveness score,
-    /// share or margin that is not a fraction, and a five-hop liveness decay that is zero, negative
-    /// or not finite.
+    /// share or margin that is not a fraction, a five-hop liveness decay that is zero, negative or
+    /// not finite, and five-hop liveness enabled while liveness is disabled.
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let longest_window = self.aggregation_windows.longest();
         if self.testrun_eviction_age <= longest_window {
@@ -434,6 +434,15 @@ impl Config {
         }
 
         let five_hop = &self.five_hop_liveness;
+        // a run's gateways are drawn among those with a gateway liveness run, and five-hop liveness
+        // only multiplies a one-hop liveness, so without liveness it would silently do nothing
+        if five_hop.enabled && !self.liveness.enabled {
+            bail!(
+                "five-hop liveness cannot be enabled while liveness is disabled; \
+                 set --five-hop-liveness-enabled false or leave --liveness-enabled on"
+            );
+        }
+
         if !(0.0..=1.0).contains(&five_hop.min_gateway_score) {
             bail!(
                 "five-hop liveness minimum gateway score ({}) must be within [0, 1]",
@@ -530,5 +539,17 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         performance_submission_enabled: false,
         performance_submission_batch_size: NonZeroUsize::new(200).unwrap(),
         performance_submission_coverage_threshold: 0.5,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // the two configs differ in the liveness switch alone, and both have five-hop liveness on
+    #[test]
+    fn five_hop_liveness_without_liveness_is_rejected() {
+        assert!(test_config(true).validate().is_ok());
+        assert!(test_config(false).validate().is_err());
     }
 }

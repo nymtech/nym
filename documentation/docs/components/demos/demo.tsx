@@ -17,6 +17,7 @@ const DEMOS: Record<string, ComponentType<Record<string, unknown>>> = {
   SurbDirectory: dynamic(() => import("../threat-model/SurbDirectory").then((m) => m.SurbDirectory), { ssr: false }),
   EnsDemo: dynamic(() => import("./ens/EnsDemo").then((m) => m.EnsDemo), { ssr: false }),
   MixPlayground: dynamic(() => import("../playground/MixPlayground").then((m) => m.MixPlayground)),
+  TrafficShapeSimulator: dynamic(() => import("../playground/TrafficShapeSimulator").then((m) => m.TrafficShapeSimulator), { ssr: false }),
   MessagingDemo: dynamic(() => import("../playground/messaging-section").then((m) => m.MessagingDemo)),
   RewardsCalculator: dynamic(() => import("../operators/interactive/calculators/reward-calculator")),
 };

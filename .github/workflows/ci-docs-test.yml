@@ -16,6 +16,9 @@ on:
       - "documentation/mcp-probes/**"
       - "documentation/indexed-sources.mjs"
       - ".github/workflows/ci-docs-test.yml"
+      # The speed-test model reads its constants from these files.
+      - "common/client-core/config-types/src/lib.rs"
+      - "common/ip-packet-requests/src/codec.rs"
 
 jobs:
   test:

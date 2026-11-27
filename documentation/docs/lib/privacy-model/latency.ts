@@ -15,10 +15,13 @@ export const GEO_BANDS = [
 export type GeoBandId = (typeof GEO_BANDS)[number]["id"];
 
 export const DEFAULT_GEO_MS = 120; // continental default
-export const DEFAULT_MIX_DELAY_MS = 50; // mean per-layer mixing delay
+// Mean per-layer mixing delay: DEFAULT_AVERAGE_PACKET_DELAY in
+// common/client-core/config-types/src/lib.rs.
+export const DEFAULT_MIX_DELAY_MS = 15;
 // Bounded mixnet send rate: packets are metered onto the mixnet, so a message
 // fragmented into N Sphinx packets takes (N-1) intervals longer to complete.
-export const SEND_INTERVAL_MS = 50;
+// Mean main-stream gap: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY in the same file.
+export const SEND_INTERVAL_MS = 20;
 
 /** Extra latency to deliver a message fragmented into `packets` Sphinx packets. */
 export function fragmentationMs(

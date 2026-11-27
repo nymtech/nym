@@ -1,30 +1,30 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::aggregation::five_hop_liveness::FiveHopMixnetSessionTestMessages;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::MixnetEpochFiveHopLiveness;
+use crate::storage::models::{FiveHopMixnetSession, MixnetEpochFiveHopLiveness};
 use nym_network_monitor_route_records::NodeId;
 use nym_network_monitor_route_records::scoring::ScoringStrategy;
-use nym_network_monitor_route_records::test_message::merge_in_send_order;
-use nym_validator_client::nyxd::nym_mixnet_contract_common::{EpochId, Interval};
+use nym_network_monitor_route_records::test_message::{SessionTestMessages, merge_in_send_order};
+use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
 use std::collections::{BTreeMap, HashMap};
 use time::OffsetDateTime;
 use tracing::info;
 
-/// How measured five-hop liveness is carried forward into the epochs that follow.
+/// From here a five-hop liveness times a liveness of 1.0 rounds to 100% in the contract, so a
+/// carried value that reaches it is no longer filed.
+const ROUNDS_TO_FULL_LIVENESS: f64 = 0.995;
+
+/// How five-hop liveness is carried forward into the epochs that follow.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct FiveHopLivenessMaterialiserConfig {
-    /// Epochs a measured value is carried forward for after it was filed.
-    pub(crate) max_carried_epochs: u32,
-
     /// Rate per epoch at which a carried value fades towards full liveness.
     pub(crate) decay_per_epoch: f64,
 }
 
-/// Scores five-hop liveness as each epoch begins, from the route sessions of the epoch before, and
-/// carries recent measured values forward into it.
+/// Scores five-hop liveness as each epoch begins, from the five-hop mixnet sessions of the epoch
+/// before, and carries the values of the mixnodes it did not score forward into it.
 pub(crate) struct FiveHopLivenessMaterialiser {
     config: FiveHopLivenessMaterialiserConfig,
 
@@ -46,26 +46,10 @@ impl FiveHopLivenessMaterialiser {
         }
     }
 
-    /// Scores every epoch the aggregates have yet to materialise, through to the one in progress.
-    ///
-    /// Must run before the aggregates step: its insert marks an epoch materialised, after which the
-    /// epoch is no longer pending here.
-    pub(crate) async fn materialise_pending(&self, interval: &Interval) -> anyhow::Result<()> {
-        let current = interval.current_epoch_absolute_id();
-        let last_materialised = self.storage.get_last_materialised_mixnet_epoch().await?;
-
-        // the same range the aggregates step is about to materialise
-        let first = last_materialised.map_or(current, |last| last + 1);
-        for mixnet_epoch in first..=current {
-            self.materialise(mixnet_epoch, interval.epoch_start(mixnet_epoch))
-                .await?;
-        }
-        Ok(())
-    }
-
-    /// Scores the route sessions of the epoch before `mixnet_epoch` and stores each mixnode's value
-    /// under `mixnet_epoch`, beside the values carried forward for the mixnodes it did not score.
-    async fn materialise(
+    /// Scores the five-hop mixnet sessions of the epoch before `mixnet_epoch` and stores each
+    /// mixnode's value under `mixnet_epoch`, beside the values carried forward for the mixnodes it
+    /// did not score.
+    pub(super) async fn materialise(
         &self,
         mixnet_epoch: EpochId,
         epoch_start: OffsetDateTime,
@@ -75,27 +59,15 @@ impl FiveHopLivenessMaterialiser {
             return Ok(());
         };
 
-        let sessions = self
-            .storage
-            .get_five_hop_mixnet_sessions_of_epoch(measured_epoch)
-            .await?;
-
-        let mut kept = Vec::new();
-        let mut discarded = 0;
-        for session in &sessions {
-            match FiveHopMixnetSessionTestMessages::read(session) {
-                FiveHopMixnetSessionTestMessages::Kept(test_messages) => kept.push(test_messages),
-                FiveHopMixnetSessionTestMessages::Discarded(_)
-                | FiveHopMixnetSessionTestMessages::Error(_) => discarded += 1,
-            }
-        }
-        let kept_sessions = kept.len();
-
-        let test_messages = merge_in_send_order(kept);
-        let one_hop_scores = self.one_hop_scores().await?;
-        let measured = self.strategy.score(&test_messages, &one_hop_scores);
-        let carried = self.carried_scores(mixnet_epoch, &measured).await?;
-        let (measured_count, carried_count) = (measured.len(), carried.len());
+        let measured = self.measured_scores(measured_epoch).await?;
+        let carried = self.carried_scores(measured_epoch, &measured).await?;
+        info!(
+            mixnet_epoch,
+            measured_epoch,
+            scored = measured.len(),
+            carried = carried.len(),
+            "materialised five-hop liveness"
+        );
 
         let row = |node_id: NodeId, score: f64, measured: bool| MixnetEpochFiveHopLiveness {
             mixnet_epoch: mixnet_epoch as i64,
@@ -116,53 +88,67 @@ impl FiveHopLivenessMaterialiser {
         self.storage
             .batch_insert_mixnet_epoch_five_hop_liveness(&values)
             .await?;
+        Ok(())
+    }
+
+    /// Scores the kept sessions naming `measured_epoch`, and reports how many were kept and discarded.
+    async fn measured_scores(
+        &self,
+        measured_epoch: EpochId,
+    ) -> anyhow::Result<BTreeMap<NodeId, f64>> {
+        let sessions = self
+            .storage
+            .get_five_hop_mixnet_sessions_of_epoch(measured_epoch)
+            .await?;
+
+        let kept: Vec<SessionTestMessages> = sessions
+            .iter()
+            .filter(|session| session.kept)
+            .filter_map(FiveHopMixnetSession::test_messages)
+            .collect();
+        let discarded = sessions.len() - kept.len();
 
         PROMETHEUS_METRICS.set(
             PrometheusMetric::FiveHopLivenessKeptSessions,
-            kept_sessions as i64,
+            kept.len() as i64,
         );
         PROMETHEUS_METRICS.set(
             PrometheusMetric::FiveHopLivenessDiscardedSessions,
             discarded as i64,
         );
         info!(
-            mixnet_epoch,
             measured_epoch,
-            kept = kept_sessions,
+            kept = kept.len(),
             discarded,
-            scored = measured_count,
-            carried = carried_count,
-            "materialised five-hop liveness"
+            "scoring the epoch's five-hop mixnet sessions"
         );
-        Ok(())
+
+        let one_hop_scores = self.one_hop_scores().await?;
+        Ok(self
+            .strategy
+            .score(&merge_in_send_order(kept), &one_hop_scores))
     }
 
-    /// Each mixnode not in `measured` whose newest measured value was filed in the
-    /// `max_carried_epochs` before `mixnet_epoch`, with that value decayed by the epochs since.
+    /// Each mixnode not in `measured` with a value filed under `previous_epoch`, measured or carried,
+    /// faded by one epoch; none once it rounds to full liveness.
     async fn carried_scores(
         &self,
-        mixnet_epoch: EpochId,
+        previous_epoch: EpochId,
         measured: &BTreeMap<NodeId, f64>,
     ) -> anyhow::Result<BTreeMap<NodeId, f64>> {
-        let newest = self
+        let previous = self
             .storage
-            .get_newest_measured_mixnet_epoch_five_hop_liveness(
-                mixnet_epoch,
-                self.config.max_carried_epochs,
-            )
+            .get_mixnet_epoch_five_hop_liveness(previous_epoch)
             .await?;
 
-        Ok(newest
+        // 1 - e^(-rate) (1 - value): one epoch's fade from the value towards 1
+        let decay = (-self.config.decay_per_epoch).exp();
+        Ok(previous
             .into_iter()
             // stored from a `NodeId`, so it fits
-            .map(|value| (value.node_id as NodeId, value))
+            .map(|value| (value.node_id as NodeId, 1.0 - decay * (1.0 - value.score)))
             .filter(|(node_id, _)| !measured.contains_key(node_id))
-            .map(|(node_id, value)| {
-                // 1 - e^(-rate d) (1 - value): fades from the measured value towards 1
-                let age = (mixnet_epoch as i64 - value.mixnet_epoch) as f64;
-                let decay = (-self.config.decay_per_epoch * age).exp();
-                (node_id, 1.0 - decay * (1.0 - value.score))
-            })
+            .filter(|(_, score)| *score < ROUNDS_TO_FULL_LIVENESS)
             .collect())
     }
 
@@ -181,15 +167,14 @@ impl FiveHopLivenessMaterialiser {
 mod tests {
     use super::*;
     use crate::storage::models::{
-        FIXTURE_EPOCH, FIXTURE_SEEN_AT, NewTestRun, failed_five_hop_mixnet_session,
-        five_hop_mixnet_batch, five_hop_mixnet_session, gateway, minimal_measurement,
+        FIXTURE_EPOCH, FIXTURE_SEEN_AT, NewTestRun, five_hop_mixnet_batch, minimal_measurement,
         minimal_test_run, mixnode,
     };
     use nym_network_monitor_orchestrator_requests::models::{
         InterfaceMeasurement, RunMeasurements,
     };
     use nym_network_monitor_route_records::scoring::FailSequenceRule;
-    use nym_network_monitor_route_records::test_message::{SessionTestMessages, TestMessage};
+    use nym_network_monitor_route_records::test_message::TestMessage;
     use std::collections::BTreeMap;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
@@ -241,19 +226,8 @@ mod tests {
         }
     }
 
-    /// Storage with gateways 100 and 101 bonded, to carry route runs.
-    async fn storage_with_gateways() -> NetworkMonitorStorage {
-        let storage = NetworkMonitorStorage::in_memory().await;
-        storage
-            .store_refresh(&[gateway(100), gateway(101)], FIXTURE_SEEN_AT)
-            .await
-            .unwrap();
-        storage
-    }
-
-    /// The shipped defaults.
+    /// The shipped default.
     const CONFIG: FiveHopLivenessMaterialiserConfig = FiveHopLivenessMaterialiserConfig {
-        max_carried_epochs: 48,
         decay_per_epoch: 0.1,
     };
 
@@ -310,29 +284,23 @@ mod tests {
     // lossless batch can be discarded here.
     #[tokio::test]
     async fn only_the_kept_sessions_of_the_epoch_before_are_scored() {
-        let storage = storage_with_gateways().await;
+        let storage = NetworkMonitorStorage::in_memory().await;
         let first_kept = five_hop_mixnet_batch(100, MEASURED_EPOCH, 1000..1010, 0);
         let second_kept = five_hop_mixnet_batch(100, MEASURED_EPOCH, 3000..3010, 0);
         storage
-            .store_submitted_five_hop_mixnet_run(&[
-                five_hop_mixnet_session(&first_kept, true),
-                five_hop_mixnet_session(
-                    &five_hop_mixnet_batch(101, MEASURED_EPOCH, 2000..2010, 0),
-                    false,
-                ),
-            ])
+            .store_submitted_five_hop_mixnet_run(
+                &[&first_kept],
+                &[&five_hop_mixnet_batch(101, MEASURED_EPOCH, 2000..2010, 0)],
+            )
             .await;
         storage
-            .store_submitted_five_hop_mixnet_run(&[
-                five_hop_mixnet_session(&second_kept, true),
-                failed_five_hop_mixnet_session(101),
-            ])
+            .store_submitted_five_hop_mixnet_run(&[&second_kept], &[])
             .await;
         // kept sessions of the epochs on either side
         for mixnet_epoch in [MEASURED_EPOCH - 1, FIXTURE_EPOCH] {
             let batch = five_hop_mixnet_batch(100, mixnet_epoch, 4000..4010, 0);
             storage
-                .store_submitted_five_hop_mixnet_run(&[five_hop_mixnet_session(&batch, true)])
+                .store_submitted_five_hop_mixnet_run(&[&batch], &[])
                 .await;
         }
 
@@ -367,16 +335,13 @@ mod tests {
         );
     }
 
-    // An epoch whose sessions were all discarded or failed has no five-hop liveness.
+    // An epoch whose sessions were all discarded has no five-hop liveness.
     #[tokio::test]
     async fn an_epoch_without_a_kept_session_stores_nothing() {
-        let storage = storage_with_gateways().await;
+        let storage = NetworkMonitorStorage::in_memory().await;
         let batch = five_hop_mixnet_batch(100, MEASURED_EPOCH, 0..10, 0);
         storage
-            .store_submitted_five_hop_mixnet_run(&[
-                five_hop_mixnet_session(&batch, false),
-                failed_five_hop_mixnet_session(101),
-            ])
+            .store_submitted_five_hop_mixnet_run(&[], &[&batch])
             .await;
 
         materialise(&storage, Box::new(FailSequenceRule)).await;
@@ -388,14 +353,11 @@ mod tests {
     // session is scored, and the losses it would have charged to mixnodes 1, 2 and 3 are not.
     #[tokio::test]
     async fn a_discarded_session_among_several_leaves_the_rest_scored() {
-        let storage = storage_with_gateways().await;
+        let storage = NetworkMonitorStorage::in_memory().await;
         let delivered = five_hop_mixnet_batch(100, MEASURED_EPOCH, 0..10, 0);
         let returned_nothing = five_hop_mixnet_batch(101, MEASURED_EPOCH, 10..20, 10);
         storage
-            .store_submitted_five_hop_mixnet_run(&[
-                five_hop_mixnet_session(&delivered, true),
-                five_hop_mixnet_session(&returned_nothing, false),
-            ])
+            .store_submitted_five_hop_mixnet_run(&[&delivered], &[&returned_nothing])
             .await;
 
         materialise(&storage, Box::new(FailSequenceRule)).await;
@@ -404,35 +366,78 @@ mod tests {
         assert_eq!(stored_values(&storage).await, every_mixnode_at_one);
     }
 
-    // A mixnode the epoch's scoring left out keeps its newest measured value, fading with the epochs
-    // since: 0.6 measured 7 epochs before is about 0.80, while one measured 49 epochs before is past
-    // the limit. A mixnode the scoring gave a value has that value alone, not one carried forward.
+    // A mixnode the epoch's scoring left out has the value filed under the epoch before, faded by
+    // one epoch, whether that value was measured or itself carried: 0.6 becomes about 0.638. Node
+    // 3's fades to just past 0.995, so it is no longer filed, and node 4, which the scoring gave a
+    // value, has that value alone.
     #[tokio::test]
-    async fn an_unscored_mixnode_carries_its_newest_measured_value_within_the_limit() {
-        const EPOCH: EpochId = 100;
-        let measured_before =
-            |epochs: EpochId, node_id: i64, score: f64| MixnetEpochFiveHopLiveness {
-                mixnet_epoch: i64::from(EPOCH - epochs),
-                epoch_start: FIXTURE_SEEN_AT,
-                node_id,
-                score,
-                measured: true,
-            };
+    async fn an_unscored_mixnode_carries_the_value_filed_under_the_epoch_before() {
+        let filed_before = |node_id: i64, score: f64, measured: bool| MixnetEpochFiveHopLiveness {
+            mixnet_epoch: i64::from(MEASURED_EPOCH),
+            epoch_start: FIXTURE_SEEN_AT,
+            node_id,
+            score,
+            measured,
+        };
         let storage = NetworkMonitorStorage::in_memory().await;
         storage
             .batch_insert_mixnet_epoch_five_hop_liveness(&[
-                measured_before(7, 1, 0.6),
-                measured_before(49, 2, 0.6),
-                measured_before(3, 3, 0.5),
+                filed_before(1, 0.6, true),
+                filed_before(2, 0.6, false),
+                filed_before(3, 0.9945, true),
+                filed_before(4, 0.5, true),
             ])
             .await
             .unwrap();
 
-        let strategy = FixedStrategy(BTreeMap::from([(3, 0.9)]));
-        FiveHopLivenessMaterialiser::new(CONFIG, Box::new(strategy), storage.clone())
-            .materialise(EPOCH, FIXTURE_SEEN_AT)
+        let strategy = FixedStrategy(BTreeMap::from([(4, 0.9)]));
+        materialise(&storage, Box::new(strategy)).await;
+
+        let stored: Vec<(i64, f64, bool)> = storage
+            .get_mixnet_epoch_five_hop_liveness(FIXTURE_EPOCH)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|value| {
+                (
+                    value.node_id,
+                    (value.score * 1000.0).round() / 1000.0,
+                    value.measured,
+                )
+            })
+            .collect();
+        assert_eq!(
+            stored,
+            vec![(1, 0.638, false), (2, 0.638, false), (4, 0.9, true)]
+        );
+    }
+
+    // The steps compound into the specification's figure: 0.6 measured 7 epochs before is about
+    // 0.80 once every epoch since has been materialised in turn.
+    #[tokio::test]
+    async fn a_value_carried_epoch_after_epoch_fades_as_the_specification_gives() {
+        const EPOCH: EpochId = 100;
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage
+            .batch_insert_mixnet_epoch_five_hop_liveness(&[MixnetEpochFiveHopLiveness {
+                mixnet_epoch: i64::from(EPOCH - 7),
+                epoch_start: FIXTURE_SEEN_AT,
+                node_id: 1,
+                score: 0.6,
+                measured: true,
+            }])
             .await
             .unwrap();
+
+        let scores_nothing = FixedStrategy(BTreeMap::new());
+        let materialiser =
+            FiveHopLivenessMaterialiser::new(CONFIG, Box::new(scores_nothing), storage.clone());
+        for mixnet_epoch in EPOCH - 6..=EPOCH {
+            materialiser
+                .materialise(mixnet_epoch, FIXTURE_SEEN_AT)
+                .await
+                .unwrap();
+        }
 
         let stored: Vec<(i64, f64, bool)> = storage
             .get_mixnet_epoch_five_hop_liveness(EPOCH)
@@ -448,6 +453,6 @@ mod tests {
                 )
             })
             .collect();
-        assert_eq!(stored, vec![(1, 0.80, false), (3, 0.9, true)]);
+        assert_eq!(stored, vec![(1, 0.80, false)]);
     }
 }

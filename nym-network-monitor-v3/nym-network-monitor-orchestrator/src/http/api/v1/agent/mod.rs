@@ -152,7 +152,14 @@ async fn announce_agent(
     );
 
     // 5. mark the agent as announced so subsequent calls are no-ops
-    state.agents.mark_announced(body.mix_addresses).await;
+    state
+        .agents
+        .mark_announced(
+            body.mix_addresses,
+            body.x25519_noise_key,
+            body.ed25519_identity,
+        )
+        .await;
 
     Ok(Json(AgentAnnounceResponse {}))
 }
@@ -186,7 +193,7 @@ async fn request_work_assignment(
     Json(body): Json<WorkAssignmentRequest>,
 ) -> Result<Json<WorkAssignmentResponse>, ApiError> {
     let pod_ip = addr.ip();
-    info!("received testrun request from pod at {pod_ip}");
+    info!("received work assignment request from pod at {pod_ip}");
     PROMETHEUS_METRICS.inc(PrometheusMetric::AgentTestrunRequests);
 
     // 1. ensure the agent still exists in our announced cache
@@ -211,9 +218,10 @@ async fn request_work_assignment(
         return Err(ApiError::AgentNotAnnounced);
     }
 
-    // 2. hand out a due route run, else the most overdue one-hop kind
+    // 2. hand out a due five-hop mixnet run, else the most overdue one-hop kind
     let assignment = state.assign_work().await?;
-    // a one-hop assignment is counted per kind where it is built, and a route run is not counted
+    // a one-hop assignment is counted per kind where it is built, and a five-hop mixnet run is not
+    // counted
     if assignment.is_none() {
         PROMETHEUS_METRICS.inc_for_request_outcome(
             PrometheusMetric::AgentTestrunRequestOutcomeTotal,
@@ -284,9 +292,9 @@ fn emit_one_hop_mixnet_result_metrics(result: &OneHopMixnetResult) {
         (status = 200, content(
             (WorkResultSubmissionResponse = "application/json"),
         )),
-        (status = 400, description = "a one-hop result shaped for another kind than dispatched, or a route run submission with an unexpected or repeated gateway or a batch that is unreadable or names another gateway"),
-        (status = 409, description = "the one-hop node's lease expired, or the route run is not in flight (unknown, already submitted or past its timeout), its epoch has already been scored, or five-hop liveness is off"),
-        (status = 500, description = "failed to persist the test run result to storage"),
+        (status = 400, description = "a one-hop result shaped for another kind than dispatched, or a five-hop mixnet run submission with a repeated gateway or a batch that is unreadable or names another gateway"),
+        (status = 409, description = "the one-hop node's lease expired, or the five-hop mixnet run is not in flight (unknown, already submitted or past its timeout), its epoch has already been scored, or five-hop liveness is off"),
+        (status = 500, description = "failed to persist the work result to storage"),
     )
 )]
 #[tracing::instrument(
@@ -318,7 +326,7 @@ async fn submit_work_result(
         }
         WorkResultSubmissionRequest::FiveHopMixnet(result) => {
             info!(
-                "received route run {} result with {} sessions from pod at {pod_ip}",
+                "received five-hop mixnet run {} result with {} sessions from pod at {pod_ip}",
                 result.run_id,
                 result.sessions.len()
             );

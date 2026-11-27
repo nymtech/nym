@@ -3,7 +3,7 @@
 
 //! Read-only HTTP endpoints that expose the orchestrator's local database:
 //! the set of nym-nodes it is tracking, the test runs it has recorded, the
-//! runs currently in flight, and an epoch's route sessions.
+//! runs currently in flight, and an epoch's five-hop mixnet sessions.
 //!
 //! All handlers are thin wrappers that extract path/query parameters and
 //! delegate the actual work to [`AppState`]; conversion from storage rows to
@@ -17,7 +17,7 @@ use axum::extract::{Path, Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use nym_network_monitor_orchestrator_requests::models::{
-    NymNodeData, NymNodeWithTestRuns, PagedResult, Pagination, RouteSessionData, TestKind,
+    FiveHopMixnetSessionData, NymNodeData, NymNodeWithTestRuns, PagedResult, Pagination, TestKind,
     TestRunData, TestRunInProgressData,
 };
 use nym_network_monitor_orchestrator_requests::routes;
@@ -222,37 +222,37 @@ async fn get_nym_node_testruns(
         .map(Json)
 }
 
-/// The route sessions of one mixnet epoch as test messages, for trying a scoring strategy on real
-/// data.
+/// The five-hop mixnet sessions of one mixnet epoch as test messages, for trying a scoring strategy
+/// on real data.
 ///
 /// The epoch is the one the sessions ran in, the one before the epoch their five-hop liveness is
-/// filed under. Every session of each route run with a session naming the epoch, in the order the
-/// runs started and a run's sessions by gateway node id. Each is kept or discarded by the verdict
-/// stored when its run was submitted, or carries its error, and its test messages are in the order
-/// sent: the kept ones merged in send order are what the scoring of that epoch was given. Not
-/// paginated: an epoch is about two dozen sessions. An epoch with no stored session, evicted ones
-/// included, is an empty list.
+/// filed under. Every stored session naming the epoch, in the order the runs started and a run's
+/// sessions by gateway node id. A session that failed is not stored, so it is not listed. Each is
+/// kept or discarded by the verdict stored when its run was submitted, and its test messages are in
+/// the order sent: the kept ones merged in send order are what the scoring of that epoch was given.
+/// Not paginated: an epoch is about two dozen sessions. An epoch with no stored session, evicted
+/// ones included, is an empty list.
 #[utoipa::path(
-    operation_id = "v1_results_route_sessions_epoch",
+    operation_id = "v1_results_five_hop_mixnet_sessions_epoch",
     tag = "Network Monitor Results",
     get,
     params(("mixnet_epoch" = u32, Path, description = "Absolute mixnet epoch id the sessions ran in")),
-    path = "/route-sessions/epoch/{mixnet_epoch}",
+    path = "/five-hop-mixnet-sessions/epoch/{mixnet_epoch}",
     context_path = "/v1/results",
     security(("metrics_and_results_token" = [])),
     responses(
         (status = 200, content(
-            (Vec<RouteSessionData> = "application/json"),
+            (Vec<FiveHopMixnetSessionData> = "application/json"),
         )),
-        (status = 500, description = "failed to read the route sessions from storage, or a stored batch holds a send time out of range"),
+        (status = 500, description = "failed to read the five-hop mixnet sessions from storage"),
     )
 )]
-async fn get_route_sessions_of_epoch(
+async fn get_five_hop_mixnet_sessions_of_epoch(
     Path(mixnet_epoch): Path<u32>,
     State(state): State<AppState>,
-) -> Result<Json<Vec<RouteSessionData>>, ApiError> {
+) -> Result<Json<Vec<FiveHopMixnetSessionData>>, ApiError> {
     state
-        .get_route_sessions_of_epoch(mixnet_epoch)
+        .get_five_hop_mixnet_sessions_of_epoch(mixnet_epoch)
         .await
         .map(Json)
 }
@@ -278,7 +278,7 @@ pub(super) fn routes() -> Router<AppState> {
         .route(routes::v1::results::TESTRUNS, get(get_testruns))
         .route(routes::v1::results::NYM_NODES, get(get_nym_nodes))
         .route(
-            routes::v1::results::ROUTE_SESSIONS_EPOCH,
-            get(get_route_sessions_of_epoch),
+            routes::v1::results::FIVE_HOP_MIXNET_SESSIONS_EPOCH,
+            get(get_five_hop_mixnet_sessions_of_epoch),
         )
 }

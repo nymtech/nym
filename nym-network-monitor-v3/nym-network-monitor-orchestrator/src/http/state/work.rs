@@ -5,16 +5,17 @@ use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
-    AssignedTestrun, FiveHopMixnetGatewayCandidate, FiveHopMixnetRunSubmission, KindSchedule,
-    NewFiveHopMixnetSession, NewTestRun, SubmittedFiveHopMixnetSession, TestKind,
+    AssignedTestrun, FiveHopMixnetGatewayCandidate, FiveHopMixnetRunSubmission,
+    FiveHopMixnetSession, KindSchedule, NewTestRun, SubmittedFiveHopMixnetSession, TestKind,
     TestRunSubmission,
 };
 use nym_network_monitor_orchestrator_requests::models::{
-    FiveHopMixnetAssignment, FiveHopMixnetResult, OneHopMixnetAssignment, RouteSessionSubmission,
-    TestRunResult, WorkAssignment,
+    FiveHopMixnetAssignment, FiveHopMixnetResult, FiveHopMixnetSessionOutcome,
+    FiveHopMixnetSessionSubmission, OneHopMixnetAssignment, TestRunResult, WorkAssignment,
 };
 use nym_validator_client::client::NodeId;
 use rand::seq::SliceRandom;
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tracing::{error, info, warn};
@@ -48,75 +49,83 @@ fn malformed_target(err: anyhow::Error) -> ApiError {
     ApiError::MalformedStoredData
 }
 
-/// Reads every session of a submitted route run whole, refusing it on an unreadable batch or a
-/// repeated gateway.
+/// Logged here, where there is a request to answer, since storage reports a plain error.
+pub(super) fn storage_failure(read: &str, err: anyhow::Error) -> ApiError {
+    error!("{read} storage failure: {err:#}");
+    ApiError::StorageFailure
+}
+
+/// Reads every batch of a submitted five-hop mixnet run whole, refusing it on an unreadable batch
+/// or a repeated gateway. A session that failed is logged and left out.
 fn read_five_hop_mixnet_run(
     run_id: i64,
-    entries: Vec<RouteSessionSubmission>,
+    entries: Vec<FiveHopMixnetSessionSubmission>,
 ) -> Result<Vec<SubmittedFiveHopMixnetSession>, ApiError> {
+    let mut gateways: HashSet<NodeId> = HashSet::new();
     let mut sessions: Vec<SubmittedFiveHopMixnetSession> = Vec::new();
     for entry in entries {
-        let session = match SubmittedFiveHopMixnetSession::try_from(entry) {
-            Ok(session) => session,
-            Err(err) => {
-                warn!("route run {run_id} was submitted with an invalid session: {err:#}");
-                return Err(ApiError::InvalidFiveHopMixnetRunSubmission);
-            }
-        };
-
-        // a run has a handful of gateways, so a linear search is fine
-        if sessions
-            .iter()
-            .any(|earlier| earlier.gateway_node_id == session.gateway_node_id)
-        {
+        let gateway_node_id = entry.gateway_node_id;
+        if !gateways.insert(gateway_node_id) {
             warn!(
-                "route run {run_id} was submitted with gateway {} more than once",
-                session.gateway_node_id
+                "five-hop mixnet run {run_id} was submitted with gateway {gateway_node_id} more than once"
             );
             return Err(ApiError::InvalidFiveHopMixnetRunSubmission);
         }
-        sessions.push(session);
+
+        let batch = match entry.outcome {
+            FiveHopMixnetSessionOutcome::Batch(batch) => batch,
+            FiveHopMixnetSessionOutcome::Error(error) => {
+                warn!(
+                    "five-hop mixnet run {run_id}: the session through gateway {gateway_node_id} failed: {error}"
+                );
+                continue;
+            }
+        };
+
+        match SubmittedFiveHopMixnetSession::read(gateway_node_id, batch) {
+            Ok(session) => sessions.push(session),
+            Err(err) => {
+                warn!(
+                    "five-hop mixnet run {run_id} was submitted with an invalid session: {err:#}"
+                );
+                return Err(ApiError::InvalidFiveHopMixnetRunSubmission);
+            }
+        }
     }
     Ok(sessions)
 }
 
-/// Whether the epoch a route run's batches name has already been scored, leaving the run nothing
-/// to count towards.
-async fn is_late(
+/// Whether the epoch a five-hop mixnet run's batches name has already been scored, leaving the run
+/// nothing to count towards.
+async fn five_hop_mixnet_epoch_already_scored(
     storage: &NetworkMonitorStorage,
     sessions: &[SubmittedFiveHopMixnetSession],
 ) -> Result<bool, ApiError> {
     // the sessions of a run name one epoch, and a run whose sessions all failed names none
-    let Some(mixnet_epoch) = sessions
-        .iter()
-        .find_map(SubmittedFiveHopMixnetSession::mixnet_epoch)
-    else {
+    let Some(session) = sessions.first() else {
         return Ok(false);
     };
 
-    let last_materialised = match storage.get_last_materialised_mixnet_epoch().await {
-        Ok(last_materialised) => last_materialised,
-        Err(err) => {
-            error!("last materialised epoch storage failure: {err}");
-            return Err(ApiError::StorageFailure);
-        }
-    };
+    let last_materialised = storage
+        .get_last_materialised_mixnet_epoch()
+        .await
+        .map_err(|err| storage_failure("last materialised epoch", err))?;
 
     // an epoch's sessions are scored as the epoch after it is materialised
-    Ok(last_materialised.is_some_and(|last| i64::from(last) > mixnet_epoch))
+    Ok(last_materialised.is_some_and(|last| i64::from(last) > session.mixnet_epoch))
 }
 
-/// How route runs are handed out and their submissions judged; it exists only while five-hop
-/// liveness is switched on.
+/// How five-hop mixnet runs are handed out and their submissions judged; it exists only while
+/// five-hop liveness is switched on.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct FiveHopMixnetRunConfig {
-    /// Minimum time between the starts of two submitted route runs.
+    /// Minimum time between the starts of two submitted five-hop mixnet runs.
     pub(crate) interval: Duration,
 
-    /// How long a route run stays in flight without a submission.
+    /// How long a five-hop mixnet run stays in flight without a submission.
     pub(crate) run_timeout: Duration,
 
-    /// Maximum number of gateways a route run carries.
+    /// Maximum number of gateways a five-hop mixnet run carries.
     pub(crate) gateways_per_run: usize,
 
     /// The bar while at least `min_gateway_share` of the candidates reach it.
@@ -145,7 +154,7 @@ impl FiveHopMixnetRunConfig {
         }
 
         warn!(
-            "drawing route run gateways at the fallback bar {}: {at_minimum} of {} candidates reached {}, below the {} share",
+            "drawing five-hop mixnet run gateways at the fallback bar {}: {at_minimum} of {} candidates reached {}, below the {} share",
             self.fallback_min_gateway_score,
             candidates.len(),
             self.min_gateway_score,
@@ -177,19 +186,19 @@ impl FiveHopMixnetRunConfig {
     }
 }
 
-/// Hands out work, a due route run ahead of the most overdue one-hop kind, and stores its results.
+/// Hands out work, a due five-hop mixnet run ahead of the most overdue one-hop kind, and stores its results.
 #[derive(Clone)]
 pub(crate) struct WorkManager {
     /// The schedule of every one-hop kind that is switched on, in declaration order, which is the
     /// order equally overdue kinds are served in. A disabled kind is simply absent.
     pub(super) one_hop_mixnet_schedules: Vec<KindSchedule>,
 
-    /// How route runs are handed out; `None` while five-hop liveness is switched off.
+    /// How five-hop mixnet runs are handed out; `None` while five-hop liveness is switched off.
     pub(super) five_hop_mixnet: Option<FiveHopMixnetRunConfig>,
 }
 
 impl WorkManager {
-    /// A route run when one can be handed out, else one assignment of the most overdue one-hop kind.
+    /// A five-hop mixnet run when one can be handed out, else one assignment of the most overdue one-hop kind.
     pub(super) async fn assign_work(
         &self,
         storage: &NetworkMonitorStorage,
@@ -202,8 +211,8 @@ impl WorkManager {
         Ok(assignment.map(WorkAssignment::OneHopMixnet))
     }
 
-    /// A due route run through freshly drawn gateways. `None` when five-hop liveness is off, no run
-    /// is due, no gateway is fit, or a concurrent request claimed the run first.
+    /// A due five-hop mixnet run through freshly drawn gateways. `None` when five-hop liveness is
+    /// off, no run is due, no gateway is fit, or a concurrent request claimed the run first.
     async fn assign_five_hop_mixnet(
         &self,
         storage: &NetworkMonitorStorage,
@@ -212,22 +221,18 @@ impl WorkManager {
             return Ok(None);
         };
 
-        match storage.is_five_hop_mixnet_run_due(config.interval).await {
-            Ok(true) => (),
-            Ok(false) => return Ok(None),
-            Err(err) => {
-                error!("route run due check storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
+        let due = storage
+            .is_five_hop_mixnet_run_due(config.interval)
+            .await
+            .map_err(|err| storage_failure("five-hop mixnet run due check", err))?;
+        if !due {
+            return Ok(None);
         }
 
-        let candidates = match storage.get_five_hop_mixnet_gateway_candidates().await {
-            Ok(candidates) => candidates,
-            Err(err) => {
-                error!("route run gateway candidates storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-        };
+        let candidates = storage
+            .get_five_hop_mixnet_gateway_candidates()
+            .await
+            .map_err(|err| storage_failure("five-hop mixnet run gateway candidates", err))?;
 
         // with no fit gateway the run stays due
         let drawn = config.draw_gateways(candidates);
@@ -244,20 +249,16 @@ impl WorkManager {
             .map_err(malformed_target)?;
         let node_ids: Vec<NodeId> = gateways.iter().map(|gateway| gateway.node_id).collect();
 
-        let run_id = match storage
-            .start_five_hop_mixnet_run(config.interval, config.run_timeout, &node_ids)
+        let started = storage
+            .start_five_hop_mixnet_run(config.interval, config.run_timeout)
             .await
-        {
-            Ok(Some(run_id)) => run_id,
-            // a concurrent request claimed the run since the due check
-            Ok(None) => return Ok(None),
-            Err(err) => {
-                error!("route run start storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
+            .map_err(|err| storage_failure("five-hop mixnet run start", err))?;
+        // a concurrent request claimed the run since the due check
+        let Some(run_id) = started else {
+            return Ok(None);
         };
 
-        info!("handing out route run {run_id} through gateways {node_ids:?}");
+        info!("handing out five-hop mixnet run {run_id} through gateways {node_ids:?}");
         Ok(Some(FiveHopMixnetAssignment {
             id: run_id,
             gateways,
@@ -280,13 +281,12 @@ impl WorkManager {
     ) -> Result<Option<OneHopMixnetAssignment>, ApiError> {
         let mut due = Vec::with_capacity(self.one_hop_mixnet_schedules.len());
         for schedule in &self.one_hop_mixnet_schedules {
-            match storage.peek_kind_head(schedule).await {
-                Ok(Some(head)) => due.push((head, schedule)),
-                Ok(None) => (),
-                Err(err) => {
-                    error!("kind head lookup storage failure: {err}");
-                    return Err(ApiError::StorageFailure);
-                }
+            let head = storage
+                .peek_kind_head(schedule)
+                .await
+                .map_err(|err| storage_failure("kind head lookup", err))?;
+            if let Some(head) = head {
+                due.push((head, schedule));
             }
         }
 
@@ -308,13 +308,10 @@ impl WorkManager {
         storage: &NetworkMonitorStorage,
         schedule: &KindSchedule,
     ) -> Result<Option<OneHopMixnetAssignment>, ApiError> {
-        let targets = match storage.assign_next_testruns(schedule).await {
-            Ok(targets) => targets,
-            Err(err) => {
-                error!("testrun assignment storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-        };
+        let targets = storage
+            .assign_next_testruns(schedule)
+            .await
+            .map_err(|err| storage_failure("testrun assignment", err))?;
 
         let assignment = self.build_one_hop_mixnet_assignment(schedule.kind, &targets)?;
 
@@ -375,13 +372,10 @@ impl WorkManager {
     ) -> Result<(), ApiError> {
         let run = NewTestRun::from_result(node_id, tested_address, &result);
 
-        let submission = match storage.submit_testrun(&run, &result.measurements).await {
-            Ok(submission) => submission,
-            Err(err) => {
-                error!("testrun result storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-        };
+        let submission = storage
+            .submit_testrun(&run, &result.measurements)
+            .await
+            .map_err(|err| storage_failure("testrun result", err))?;
 
         match submission {
             TestRunSubmission::Stored => Ok(()),
@@ -406,8 +400,8 @@ impl WorkManager {
         }
     }
 
-    /// Stores a route run's sessions as received, each with whether the discard rule keeps it, and
-    /// marks the run submitted; or rejects the submission whole, storing nothing.
+    /// Stores a five-hop mixnet run's sessions as received, each with whether the discard rule keeps
+    /// it, and marks the run submitted; or rejects the submission whole, storing nothing.
     pub(super) async fn submit_five_hop_mixnet_result(
         &self,
         storage: &NetworkMonitorStorage,
@@ -415,52 +409,45 @@ impl WorkManager {
     ) -> Result<(), ApiError> {
         let run_id = result.run_id;
         let Some(config) = &self.five_hop_mixnet else {
-            warn!("route run {run_id} was submitted while five-hop liveness is off");
+            warn!("five-hop mixnet run {run_id} was submitted while five-hop liveness is off");
             return Err(ApiError::FiveHopMixnetRunNotInFlight);
         };
 
         let submitted = read_five_hop_mixnet_run(run_id, result.sessions)?;
-        if is_late(storage, &submitted).await? {
-            warn!("route run {run_id} was submitted after its epoch was scored");
+        if five_hop_mixnet_epoch_already_scored(storage, &submitted).await? {
+            warn!("five-hop mixnet run {run_id} was submitted after its epoch was scored");
             return Err(ApiError::FiveHopMixnetRunNotInFlight);
         }
 
         let loss_rates: Vec<f64> = submitted
             .iter()
-            .filter_map(SubmittedFiveHopMixnetSession::loss_rate)
+            .filter_map(|session| session.test_messages.loss_rate())
             .collect();
-        let sessions: Vec<NewFiveHopMixnetSession> = submitted
+        let sessions: Vec<FiveHopMixnetSession> = submitted
             .into_iter()
-            .map(|session| session.apply_discard_rule(&loss_rates, config.session_loss_margin))
+            .map(|session| {
+                session.apply_discard_rule(run_id, &loss_rates, config.session_loss_margin)
+            })
             .collect();
 
-        let submission = match storage.submit_five_hop_mixnet_run(run_id, &sessions).await {
-            Ok(submission) => submission,
-            Err(err) => {
-                error!("route run submission storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-        };
+        let submission = storage
+            .submit_five_hop_mixnet_run(run_id, &sessions)
+            .await
+            .map_err(|err| storage_failure("five-hop mixnet run submission", err))?;
 
         match submission {
             FiveHopMixnetRunSubmission::Stored => {
                 info!(
-                    "stored the {} sessions of route run {run_id}",
+                    "stored the {} sessions of five-hop mixnet run {run_id}",
                     sessions.len()
                 );
                 Ok(())
             }
             FiveHopMixnetRunSubmission::NotInFlight => {
                 warn!(
-                    "route run {run_id} was submitted while not in flight - it is unknown, already submitted or past its timeout"
+                    "five-hop mixnet run {run_id} was submitted while not in flight - it is unknown, already submitted or past its timeout"
                 );
                 Err(ApiError::FiveHopMixnetRunNotInFlight)
-            }
-            FiveHopMixnetRunSubmission::UnexpectedGateway { gateway_node_id } => {
-                warn!(
-                    "route run {run_id} was submitted with gateway {gateway_node_id}, which it was not given"
-                );
-                Err(ApiError::InvalidFiveHopMixnetRunSubmission)
             }
         }
     }
@@ -471,12 +458,8 @@ mod assignment_tests {
     use super::*;
     use crate::orchestrator::config::test_config;
     use crate::storage::models::{
-        FIXTURE_EPOCH, FIXTURE_SEEN_AT, FiveHopMixnetSessionOutcome, NymNode, aggregate,
-        five_hop_mixnet_batch, gateway, gateway_liveness_measurements, minimal_measurements,
-        minimal_test_run, mixnode,
-    };
-    use nym_network_monitor_orchestrator_requests::models::{
-        RouteSessionOutcome, RouteSessionSubmission,
+        FIXTURE_EPOCH, FIXTURE_SEEN_AT, NymNode, aggregate, five_hop_mixnet_batch, gateway,
+        gateway_liveness_measurements, minimal_measurements, minimal_test_run, mixnode,
     };
     use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
     use std::time::Duration;
@@ -536,7 +519,7 @@ mod assignment_tests {
         Duration::from_secs(minutes * 60)
     }
 
-    /// The shipped schedules with route runs on at their shipped settings.
+    /// The shipped schedules with five-hop mixnet runs on at their shipped settings.
     fn manager_with_five_hop_mixnet_runs() -> WorkManager {
         let config = test_config(true);
         WorkManager {
@@ -571,17 +554,19 @@ mod assignment_tests {
         manager.assign_work(storage).await.unwrap()
     }
 
+    /// An entry for a session through `gateway_node_id` that failed.
+    fn failed_entry(gateway_node_id: u32) -> FiveHopMixnetSessionSubmission {
+        FiveHopMixnetSessionSubmission {
+            gateway_node_id,
+            outcome: FiveHopMixnetSessionOutcome::Error("unreachable".to_string()),
+        }
+    }
+
     /// A submission of run `run_id` with a failed session through each of `gateways`.
     fn failed_sessions(run_id: i64, gateways: &[u32]) -> FiveHopMixnetResult {
         FiveHopMixnetResult {
             run_id,
-            sessions: gateways
-                .iter()
-                .map(|&gateway_node_id| RouteSessionSubmission {
-                    gateway_node_id,
-                    outcome: RouteSessionOutcome::Error("unreachable".to_string()),
-                })
-                .collect(),
+            sessions: gateways.iter().copied().map(failed_entry).collect(),
         }
     }
 
@@ -591,32 +576,25 @@ mod assignment_tests {
         gateway_node_id: u32,
         mixnet_epoch: EpochId,
         lost: usize,
-    ) -> RouteSessionSubmission {
+    ) -> FiveHopMixnetSessionSubmission {
         let batch = five_hop_mixnet_batch(gateway_node_id, mixnet_epoch, 0..100, lost);
-        RouteSessionSubmission {
+        FiveHopMixnetSessionSubmission {
             gateway_node_id,
-            outcome: RouteSessionOutcome::Batch(batch.encode()),
+            outcome: FiveHopMixnetSessionOutcome::Batch(batch.encode()),
         }
     }
 
-    /// Each stored session of `mixnet_epoch`'s runs: its gateway, and whether the discard rule kept
-    /// it, `None` for a failed one.
+    /// Each stored session naming `mixnet_epoch`: its gateway, and whether the discard rule kept it.
     async fn stored_verdicts(
         storage: &NetworkMonitorStorage,
         mixnet_epoch: EpochId,
-    ) -> Vec<(i64, Option<bool>)> {
+    ) -> Vec<(i64, bool)> {
         storage
             .get_five_hop_mixnet_sessions_of_epoch(mixnet_epoch)
             .await
             .unwrap()
             .into_iter()
-            .map(|session| {
-                let kept = match session.outcome {
-                    FiveHopMixnetSessionOutcome::Batch { kept, .. } => Some(kept),
-                    FiveHopMixnetSessionOutcome::Error(_) => None,
-                };
-                (session.gateway_node_id, kept)
-            })
+            .map(|session| (session.gateway_node_id, session.kept))
             .collect()
     }
 
@@ -807,8 +785,8 @@ mod assignment_tests {
         assert_eq!(stored.len(), 1);
     }
 
-    // A route run is tied to the clock, so it goes ahead of a kind with overdue work; a second
-    // request while it is in flight gets that kind instead. Mixnode 2 has never been tested.
+    // A five-hop mixnet run is tied to the clock, so it goes ahead of a kind with overdue work; a
+    // second request while it is in flight gets that kind instead. Mixnode 2 has never been tested.
     #[tokio::test]
     async fn a_due_five_hop_mixnet_run_goes_before_an_overdue_kind() {
         let manager = manager_with_five_hop_mixnet_runs();
@@ -817,7 +795,7 @@ mod assignment_tests {
 
         let assignment = work(&manager, &storage).await;
         let Some(WorkAssignment::FiveHopMixnet(run)) = assignment else {
-            panic!("a due route run was not handed out first: {assignment:?}");
+            panic!("a due five-hop mixnet run was not handed out first: {assignment:?}");
         };
         let gateways: Vec<u32> = run.gateways.iter().map(|gateway| gateway.node_id).collect();
         assert_eq!(gateways, vec![1]);
@@ -867,7 +845,7 @@ mod assignment_tests {
         gateway_liveness_scored(&storage, 2, 100, Duration::ZERO).await;
         let assignment = work(&manager, &storage).await;
         let Some(WorkAssignment::FiveHopMixnet(run)) = assignment else {
-            panic!("no route run was handed out: {assignment:?}");
+            panic!("no five-hop mixnet run was handed out: {assignment:?}");
         };
 
         let repeated = manager
@@ -875,14 +853,6 @@ mod assignment_tests {
             .await;
         assert!(matches!(
             repeated,
-            Err(ApiError::InvalidFiveHopMixnetRunSubmission)
-        ));
-
-        let unexpected = manager
-            .submit_five_hop_mixnet_result(&storage, failed_sessions(run.id, &[1, 3]))
-            .await;
-        assert!(matches!(
-            unexpected,
             Err(ApiError::InvalidFiveHopMixnetRunSubmission)
         ));
 
@@ -897,9 +867,40 @@ mod assignment_tests {
         assert!(matches!(again, Err(ApiError::FiveHopMixnetRunNotInFlight)));
     }
 
+    // A session that failed is logged, not stored: its entry leaves no row, and its run is
+    // submitted all the same, so a second submission finds none in flight.
+    #[tokio::test]
+    async fn a_failed_session_is_not_stored_and_its_run_is_still_submitted() {
+        let manager = manager_with_five_hop_mixnet_runs();
+        let storage = storage_with(&[gateway(1), gateway(2)]).await;
+        gateway_liveness_scored(&storage, 1, 100, Duration::ZERO).await;
+        gateway_liveness_scored(&storage, 2, 100, Duration::ZERO).await;
+        let Some(WorkAssignment::FiveHopMixnet(run)) = work(&manager, &storage).await else {
+            panic!("no five-hop mixnet run was handed out");
+        };
+
+        let submission = FiveHopMixnetResult {
+            run_id: run.id,
+            sessions: vec![batch_entry(1, FIXTURE_EPOCH, 0), failed_entry(2)],
+        };
+        manager
+            .submit_five_hop_mixnet_result(&storage, submission)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            stored_verdicts(&storage, FIXTURE_EPOCH).await,
+            vec![(1, true)]
+        );
+        let again = manager
+            .submit_five_hop_mixnet_result(&storage, failed_sessions(run.id, &[1, 2]))
+            .await;
+        assert!(matches!(again, Err(ApiError::FiveHopMixnetRunNotInFlight)));
+    }
+
     // The discard rule is applied as a run is submitted, each session judged against the others of
     // its run: losses of 0.5% and 11% are further apart than the 5-point margin, so the worse is
-    // discarded, and a failed session carries no verdict.
+    // discarded, and a failed session takes no part.
     #[tokio::test]
     async fn the_sessions_of_a_run_are_judged_against_each_other_as_it_is_submitted() {
         let mut config = test_config(true);
@@ -913,7 +914,7 @@ mod assignment_tests {
             gateway_liveness_scored(&storage, node_id, 100, Duration::ZERO).await;
         }
         let Some(WorkAssignment::FiveHopMixnet(run)) = work(&manager, &storage).await else {
-            panic!("no route run was handed out");
+            panic!("no five-hop mixnet run was handed out");
         };
 
         let submission = FiveHopMixnetResult {
@@ -921,10 +922,7 @@ mod assignment_tests {
             sessions: vec![
                 batch_entry(1, FIXTURE_EPOCH, 1),
                 batch_entry(2, FIXTURE_EPOCH, 20),
-                RouteSessionSubmission {
-                    gateway_node_id: 3,
-                    outcome: RouteSessionOutcome::Error("unreachable".to_string()),
-                },
+                failed_entry(3),
             ],
         };
         manager
@@ -934,7 +932,7 @@ mod assignment_tests {
 
         assert_eq!(
             stored_verdicts(&storage, FIXTURE_EPOCH).await,
-            vec![(1, Some(true)), (2, Some(false)), (3, None)]
+            vec![(1, true), (2, false)]
         );
     }
 
@@ -952,7 +950,7 @@ mod assignment_tests {
             .await
             .unwrap();
         let Some(WorkAssignment::FiveHopMixnet(run)) = work(&manager, &storage).await else {
-            panic!("no route run was handed out");
+            panic!("no five-hop mixnet run was handed out");
         };
         let naming = |mixnet_epoch| FiveHopMixnetResult {
             run_id: run.id,
@@ -985,7 +983,7 @@ mod five_hop_mixnet_draw {
         CompletedTestRun, gateway_liveness_measurements, minimal_test_run,
     };
 
-    /// The shipped route run settings.
+    /// The shipped five-hop mixnet run settings.
     fn shipped() -> FiveHopMixnetRunConfig {
         test_config(true).five_hop_mixnet_run_config().unwrap()
     }

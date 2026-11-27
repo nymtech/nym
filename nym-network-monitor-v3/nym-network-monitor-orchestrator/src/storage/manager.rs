@@ -5,11 +5,10 @@ use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
     ConfigScoreCandidate, DescribedNodeRoles, FiveHopMixnetGatewayCandidate,
     FiveHopMixnetGatewayCandidateRow, FiveHopMixnetRunRequest, FiveHopMixnetRunSubmission,
-    FiveHopMixnetSession, FiveHopMixnetSessionOutcome, FiveHopMixnetSessionRow,
-    GatewayLivenessTestRunRow, MixnetEpochAggregate, MixnetEpochConfigScore,
-    MixnetEpochFiveHopLiveness, MixnodeTestRunRow, NewFiveHopMixnetSession, NewTestRun,
-    NodeAwaitingCapabilityRefresh, NodeChainCapability, NodeDescription, NymNode, TestKind,
-    TestRunInProgress, TestRunSubmission, TestRunWindow, duration_to_us, next_ip_to_test,
+    FiveHopMixnetSession, GatewayLivenessTestRunRow, MixnetEpochAggregate, MixnetEpochConfigScore,
+    MixnetEpochFiveHopLiveness, MixnodeTestRunRow, NewTestRun, NodeAwaitingCapabilityRefresh,
+    NodeChainCapability, NodeDescription, NymNode, TestKind, TestRunInProgress, TestRunSubmission,
+    TestRunWindow, duration_to_us, next_ip_to_test,
 };
 use nym_network_monitor_orchestrator_requests::models::{InterfaceMeasurement, RunMeasurements};
 use sqlx::SqliteConnection;
@@ -108,7 +107,7 @@ async fn select_candidates(
     Ok(candidates)
 }
 
-/// Whether a route run is due: none in flight, and no submitted run started after `last_started_by`.
+/// Whether a five-hop mixnet run is due: none in flight, and no submitted run started after `last_started_by`.
 ///
 /// Both the hand-out and its peek run this, so the two cannot judge "due" differently.
 async fn five_hop_mixnet_run_due(
@@ -2176,7 +2175,7 @@ impl StorageManager {
         Ok(evicted)
     }
 
-    /// Whether a route run is due as of `now`; see [`five_hop_mixnet_run_due`].
+    /// Whether a five-hop mixnet run is due as of `now`; see [`five_hop_mixnet_run_due`].
     pub(crate) async fn is_five_hop_mixnet_run_due(
         &self,
         now: OffsetDateTime,
@@ -2186,7 +2185,7 @@ impl StorageManager {
         five_hop_mixnet_run_due(&mut conn, now, last_started_by).await
     }
 
-    /// Every gateway a route run may be drawn from, with its latest gateway liveness run.
+    /// Every gateway a five-hop mixnet run may be drawn from, with its latest gateway liveness run.
     ///
     /// Two reads in one transaction, paired by node id: the candidates, then their latest runs. A
     /// gateway with no gateway liveness run has no row in the second, so it is not a candidate.
@@ -2251,7 +2250,7 @@ impl StorageManager {
             .collect())
     }
 
-    /// Starts a run through the request's gateways if one is still due; `None` if another request won.
+    /// Starts a run if one is still due; `None` if another request won.
     ///
     /// `BEGIN IMMEDIATE`, so the "due" it re-checks is the state its insert lands on.
     pub(crate) async fn start_five_hop_mixnet_run(
@@ -2273,29 +2272,19 @@ impl StorageManager {
         .await?
         .last_insert_rowid();
 
-        for node_id in &request.gateway_node_ids {
-            sqlx::query!(
-                "INSERT INTO five_hop_mixnet_run_gateway (run_id, node_id) VALUES (?, ?)",
-                run_id,
-                node_id,
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
-
         tx.commit().await?;
         Ok(Some(run_id))
     }
 
     /// Stores the sessions of a run in flight and marks it submitted, all or nothing, in one transaction.
     ///
-    /// Nothing is stored when the run is not in flight or a session names a gateway the run was not
-    /// given. `BEGIN IMMEDIATE` because the transaction reads before it writes.
+    /// Nothing is stored when the run is not in flight. `BEGIN IMMEDIATE` because the transaction
+    /// reads before it writes.
     pub(crate) async fn submit_five_hop_mixnet_run(
         &self,
         run_id: i64,
         now: OffsetDateTime,
-        sessions: &[NewFiveHopMixnetSession],
+        sessions: &[FiveHopMixnetSession],
     ) -> anyhow::Result<FiveHopMixnetRunSubmission> {
         let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
 
@@ -2315,58 +2304,20 @@ impl StorageManager {
             return Ok(FiveHopMixnetRunSubmission::NotInFlight);
         }
 
-        let given = sqlx::query_scalar!(
-            "SELECT node_id FROM five_hop_mixnet_run_gateway WHERE run_id = ?",
-            run_id
-        )
-        .fetch_all(&mut *tx)
-        .await?;
-        if let Some(unexpected) = sessions
-            .iter()
-            .find(|session| !given.contains(&session.gateway_node_id))
-        {
-            return Ok(FiveHopMixnetRunSubmission::UnexpectedGateway {
-                gateway_node_id: unexpected.gateway_node_id,
-            });
-        }
-
         for session in sessions {
-            match &session.outcome {
-                FiveHopMixnetSessionOutcome::Batch {
-                    mixnet_epoch,
-                    record_count,
-                    batch,
-                    kept,
-                } => {
-                    sqlx::query!(
-                        r#"
-                        INSERT INTO five_hop_mixnet_session (run_id, gateway_node_id, mixnet_epoch, record_count, batch, kept)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        "#,
-                        run_id,
-                        session.gateway_node_id,
-                        mixnet_epoch,
-                        record_count,
-                        batch,
-                        kept,
-                    )
-                    .execute(&mut *tx)
-                    .await?;
-                }
-                FiveHopMixnetSessionOutcome::Error(error) => {
-                    sqlx::query!(
-                        r#"
-                        INSERT INTO five_hop_mixnet_session (run_id, gateway_node_id, error)
-                        VALUES (?, ?, ?)
-                        "#,
-                        run_id,
-                        session.gateway_node_id,
-                        error,
-                    )
-                    .execute(&mut *tx)
-                    .await?;
-                }
-            }
+            sqlx::query!(
+                r#"
+                INSERT INTO five_hop_mixnet_session (run_id, gateway_node_id, mixnet_epoch, batch, kept)
+                VALUES (?, ?, ?, ?, ?)
+                "#,
+                session.run_id,
+                session.gateway_node_id,
+                session.mixnet_epoch,
+                session.batch,
+                session.kept,
+            )
+            .execute(&mut *tx)
+            .await?;
         }
 
         sqlx::query!(
@@ -2381,33 +2332,29 @@ impl StorageManager {
         Ok(FiveHopMixnetRunSubmission::Stored)
     }
 
-    /// Every session of each run with a session naming `mixnet_epoch`, by run start then gateway.
-    ///
-    /// A failed session names no epoch, so it is read through its run.
+    /// Every stored session naming `mixnet_epoch`, by run then gateway.
     pub(crate) async fn get_five_hop_mixnet_sessions_of_epoch(
         &self,
         mixnet_epoch: i64,
     ) -> anyhow::Result<Vec<FiveHopMixnetSession>> {
-        let rows = sqlx::query_as!(
-            FiveHopMixnetSessionRow,
+        let sessions = sqlx::query_as!(
+            FiveHopMixnetSession,
             r#"
-            SELECT s.run_id, s.gateway_node_id, s.mixnet_epoch, s.record_count, s.error, s.batch, s.kept
-            FROM five_hop_mixnet_session s
-            JOIN five_hop_mixnet_run r ON r.id = s.run_id
-            WHERE s.run_id IN (SELECT run_id FROM five_hop_mixnet_session WHERE mixnet_epoch = ?)
-            ORDER BY r.started_at, s.gateway_node_id
+            SELECT run_id, gateway_node_id, mixnet_epoch, batch, kept
+            FROM five_hop_mixnet_session
+            WHERE mixnet_epoch = ?
+            ORDER BY run_id, gateway_node_id
             "#,
             mixnet_epoch
         )
         .fetch_all(&self.connection_pool)
         .await?;
-
-        rows.into_iter().map(TryInto::try_into).collect()
+        Ok(sessions)
     }
 
-    /// Deletes every route run started before `cutoff`, with its gateways and sessions, returning how many runs went.
+    /// Deletes every five-hop mixnet run started before `cutoff`, with its sessions, returning how many runs went.
     ///
-    /// One transaction, children first as the foreign keys require.
+    /// One transaction, sessions first as the foreign key requires.
     pub(crate) async fn evict_old_five_hop_mixnet_runs(
         &self,
         cutoff: OffsetDateTime,
@@ -2417,16 +2364,6 @@ impl StorageManager {
         sqlx::query!(
             r#"
             DELETE FROM five_hop_mixnet_session
-            WHERE run_id IN (SELECT id FROM five_hop_mixnet_run WHERE started_at < ?)
-            "#,
-            cutoff
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        sqlx::query!(
-            r#"
-            DELETE FROM five_hop_mixnet_run_gateway
             WHERE run_id IN (SELECT id FROM five_hop_mixnet_run WHERE started_at < ?)
             "#,
             cutoff
@@ -2506,37 +2443,6 @@ impl StorageManager {
         .fetch_optional(&self.connection_pool)
         .await?;
         Ok(value)
-    }
-
-    /// Each node's newest measured five-hop liveness filed from `oldest_epoch` to `newest_epoch` inclusive, ordered by node.
-    pub(crate) async fn get_newest_measured_mixnet_epoch_five_hop_liveness(
-        &self,
-        oldest_epoch: i64,
-        newest_epoch: i64,
-    ) -> anyhow::Result<Vec<MixnetEpochFiveHopLiveness>> {
-        let values = sqlx::query_as!(
-            MixnetEpochFiveHopLiveness,
-            r#"
-            SELECT f.*
-            FROM mixnet_epoch_five_hop_liveness f
-            WHERE f.measured
-              AND f.mixnet_epoch BETWEEN ? AND ?
-              AND NOT EXISTS (
-                  SELECT 1 FROM mixnet_epoch_five_hop_liveness newer
-                  WHERE newer.node_id = f.node_id
-                    AND newer.measured
-                    AND newer.mixnet_epoch > f.mixnet_epoch
-                    AND newer.mixnet_epoch <= ?
-              )
-            ORDER BY f.node_id
-            "#,
-            oldest_epoch,
-            newest_epoch,
-            newest_epoch,
-        )
-        .fetch_all(&self.connection_pool)
-        .await?;
-        Ok(values)
     }
 
     /// Deletes every five-hop liveness value of an epoch that began before `cutoff`, returning how many went.
@@ -4788,34 +4694,23 @@ mod tests {
 
     mod five_hop_mixnet_run {
         use super::*;
+        use crate::storage::models::{five_hop_mixnet_batch, five_hop_mixnet_session};
 
         const T0: OffsetDateTime = datetime!(2026-01-01 00:00:00 UTC);
         const INTERVAL: time::Duration = time::Duration::minutes(5);
         const RUN_TIMEOUT: time::Duration = time::Duration::minutes(3);
-        const MIXNET_EPOCH: i64 = 7;
+        const MIXNET_EPOCH: u32 = 7;
 
         fn minutes(minutes: i64) -> time::Duration {
             time::Duration::minutes(minutes)
         }
 
-        /// A store holding gateways 1 and 2, which runs can be given.
-        async fn setup_with_gateways() -> StorageManager {
-            let db = setup().await;
-            seed_nodes(&db, &[gateway(1), gateway(2)]).await;
-            db
-        }
-
-        /// Starts a run at `now` through `gateways` under the default interval and timeout.
-        async fn start_run(
-            db: &StorageManager,
-            now: OffsetDateTime,
-            gateways: &[i64],
-        ) -> Option<i64> {
+        /// Starts a run at `now` under the default interval and timeout.
+        async fn start_run(db: &StorageManager, now: OffsetDateTime) -> Option<i64> {
             let request = FiveHopMixnetRunRequest {
                 now,
                 last_started_by: now - INTERVAL,
                 expires_at: now + RUN_TIMEOUT,
-                gateway_node_ids: gateways.to_vec(),
             };
             db.start_five_hop_mixnet_run(&request).await.unwrap()
         }
@@ -4824,39 +4719,18 @@ mod tests {
             db: &StorageManager,
             run_id: i64,
             now: OffsetDateTime,
-            sessions: &[NewFiveHopMixnetSession],
+            sessions: &[FiveHopMixnetSession],
         ) -> FiveHopMixnetRunSubmission {
             db.submit_five_hop_mixnet_run(run_id, now, sessions)
                 .await
                 .unwrap()
         }
 
-        fn batch(gateway_node_id: i64, mixnet_epoch: i64) -> NewFiveHopMixnetSession {
-            NewFiveHopMixnetSession {
-                gateway_node_id,
-                outcome: FiveHopMixnetSessionOutcome::Batch {
-                    mixnet_epoch,
-                    record_count: 1,
-                    batch: vec![1, 2, 3],
-                    kept: true,
-                },
-            }
-        }
-
-        fn failed(gateway_node_id: i64) -> NewFiveHopMixnetSession {
-            NewFiveHopMixnetSession {
-                gateway_node_id,
-                outcome: FiveHopMixnetSessionOutcome::Error(
-                    "the gateway refused the bandwidth claim".to_string(),
-                ),
-            }
-        }
-
         async fn sessions_of_epoch(
             db: &StorageManager,
-            mixnet_epoch: i64,
+            mixnet_epoch: u32,
         ) -> Vec<FiveHopMixnetSession> {
-            db.get_five_hop_mixnet_sessions_of_epoch(mixnet_epoch)
+            db.get_five_hop_mixnet_sessions_of_epoch(i64::from(mixnet_epoch))
                 .await
                 .unwrap()
         }
@@ -4868,51 +4742,47 @@ mod tests {
                 .unwrap()
         }
 
-        async fn run_gateway_count(db: &StorageManager) -> i64 {
-            sqlx::query_scalar!("SELECT COUNT(*) FROM five_hop_mixnet_run_gateway")
-                .fetch_one(&db.connection_pool)
-                .await
-                .unwrap()
-        }
-
         #[tokio::test]
         async fn no_second_run_starts_while_one_is_in_flight() {
-            let db = setup_with_gateways().await;
+            let db = setup().await;
 
-            assert!(start_run(&db, T0, &[1]).await.is_some());
-            assert_eq!(start_run(&db, T0 + minutes(1), &[2]).await, None);
+            assert!(start_run(&db, T0).await.is_some());
+            assert_eq!(start_run(&db, T0 + minutes(1)).await, None);
         }
 
         #[tokio::test]
         async fn an_abandoned_run_is_due_again_once_it_expires() {
-            let db = setup_with_gateways().await;
-            let abandoned = start_run(&db, T0, &[1]).await.unwrap();
+            let db = setup().await;
+            let abandoned = start_run(&db, T0).await.unwrap();
 
             // past its 3 minute expiry, never submitted, and well inside the 5 minute interval
-            let next = start_run(&db, T0 + minutes(4), &[1]).await;
+            let next = start_run(&db, T0 + minutes(4)).await;
 
             assert!(next.is_some_and(|run_id| run_id != abandoned));
         }
 
         #[tokio::test]
         async fn the_next_run_is_due_an_interval_after_the_last_submitted_one_started() {
-            let db = setup_with_gateways().await;
-            let run = start_run(&db, T0, &[1]).await.unwrap();
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            // a run whose sessions all failed is submitted with none to store
             assert_eq!(
-                submit(&db, run, T0 + minutes(1), &[failed(1)]).await,
+                submit(&db, run, T0 + minutes(1), &[]).await,
                 FiveHopMixnetRunSubmission::Stored
             );
 
-            assert_eq!(start_run(&db, T0 + minutes(4), &[1]).await, None);
-            assert!(start_run(&db, T0 + INTERVAL, &[1]).await.is_some());
+            assert_eq!(start_run(&db, T0 + minutes(4)).await, None);
+            assert!(start_run(&db, T0 + INTERVAL).await.is_some());
         }
 
         #[tokio::test]
         async fn a_late_submission_stores_nothing() {
-            let db = setup_with_gateways().await;
-            let run = start_run(&db, T0, &[1]).await.unwrap();
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            let batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..1, 0);
 
-            let submission = submit(&db, run, T0 + minutes(4), &[batch(1, MIXNET_EPOCH)]).await;
+            let late = [five_hop_mixnet_session(run, &batch, true)];
+            let submission = submit(&db, run, T0 + minutes(4), &late).await;
 
             assert_eq!(submission, FiveHopMixnetRunSubmission::NotInFlight);
             assert_eq!(stored_session_count(&db).await, 0);
@@ -4921,10 +4791,13 @@ mod tests {
         // Another run is in flight, so only the run's own id can tell the two apart.
         #[tokio::test]
         async fn a_submission_for_an_unknown_run_stores_nothing() {
-            let db = setup_with_gateways().await;
-            let run = start_run(&db, T0, &[1]).await.unwrap();
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            let unknown = run + 1;
+            let batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..1, 0);
 
-            let submission = submit(&db, run + 1, T0 + minutes(1), &[batch(1, MIXNET_EPOCH)]).await;
+            let sessions = [five_hop_mixnet_session(unknown, &batch, true)];
+            let submission = submit(&db, unknown, T0 + minutes(1), &sessions).await;
 
             assert_eq!(submission, FiveHopMixnetRunSubmission::NotInFlight);
             assert_eq!(stored_session_count(&db).await, 0);
@@ -4932,53 +4805,38 @@ mod tests {
 
         #[tokio::test]
         async fn a_second_submission_leaves_the_first_as_it_was() {
-            let db = setup_with_gateways().await;
-            let run = start_run(&db, T0, &[1]).await.unwrap();
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            let first_batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..1, 0);
+            let first = five_hop_mixnet_session(run, &first_batch, true);
             assert_eq!(
-                submit(&db, run, T0 + minutes(1), &[batch(1, MIXNET_EPOCH)]).await,
+                submit(&db, run, T0 + minutes(1), &[first.clone()]).await,
                 FiveHopMixnetRunSubmission::Stored
             );
 
-            let again = submit(&db, run, T0 + minutes(2), &[failed(1)]).await;
+            let second_batch = five_hop_mixnet_batch(2, MIXNET_EPOCH, 0..1, 0);
+            let second = five_hop_mixnet_session(run, &second_batch, true);
+            let again = submit(&db, run, T0 + minutes(2), &[second]).await;
 
             assert_eq!(again, FiveHopMixnetRunSubmission::NotInFlight);
-            let sessions = sessions_of_epoch(&db, MIXNET_EPOCH).await;
-            assert_eq!(sessions.len(), 1);
-            assert_eq!(sessions[0].outcome, batch(1, MIXNET_EPOCH).outcome);
+            assert_eq!(sessions_of_epoch(&db, MIXNET_EPOCH).await, vec![first]);
         }
 
+        // The higher gateway is stored first, so only the read's ordering puts gateway 1 first.
         #[tokio::test]
-        async fn a_session_through_a_gateway_the_run_was_not_given_stores_nothing() {
-            let db = setup_with_gateways().await;
-            let run = start_run(&db, T0, &[1]).await.unwrap();
-
-            let submission = submit(
-                &db,
-                run,
-                T0 + minutes(1),
-                &[batch(1, MIXNET_EPOCH), batch(2, MIXNET_EPOCH)],
-            )
-            .await;
-
-            assert_eq!(
-                submission,
-                FiveHopMixnetRunSubmission::UnexpectedGateway { gateway_node_id: 2 }
-            );
-            assert_eq!(stored_session_count(&db).await, 0);
-            // a refused run stays in flight until it expires
-            assert_eq!(start_run(&db, T0 + minutes(2), &[1]).await, None);
-        }
-
-        #[tokio::test]
-        async fn sessions_read_back_as_stored_a_failed_one_through_its_run() {
-            let db = setup_with_gateways().await;
-            let run = start_run(&db, T0, &[1, 2]).await.unwrap();
+        async fn sessions_naming_an_epoch_read_back_as_stored_by_gateway() {
+            let db = setup().await;
+            let run = start_run(&db, T0).await.unwrap();
+            let kept_batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..3, 0);
+            let kept = five_hop_mixnet_session(run, &kept_batch, true);
+            let discarded_batch = five_hop_mixnet_batch(2, MIXNET_EPOCH, 0..3, 3);
+            let discarded = five_hop_mixnet_session(run, &discarded_batch, false);
             assert_eq!(
                 submit(
                     &db,
                     run,
                     T0 + minutes(1),
-                    &[batch(2, MIXNET_EPOCH), failed(1)]
+                    &[discarded.clone(), kept.clone()]
                 )
                 .await,
                 FiveHopMixnetRunSubmission::Stored
@@ -4986,44 +4844,35 @@ mod tests {
 
             assert_eq!(
                 sessions_of_epoch(&db, MIXNET_EPOCH).await,
-                vec![
-                    FiveHopMixnetSession {
-                        run_id: run,
-                        gateway_node_id: 1,
-                        outcome: failed(1).outcome,
-                    },
-                    FiveHopMixnetSession {
-                        run_id: run,
-                        gateway_node_id: 2,
-                        outcome: batch(2, MIXNET_EPOCH).outcome,
-                    },
-                ]
+                vec![kept, discarded]
             );
             assert!(sessions_of_epoch(&db, MIXNET_EPOCH + 1).await.is_empty());
         }
 
         #[tokio::test]
-        async fn an_old_run_is_evicted_with_its_gateways_and_sessions() {
-            let db = setup_with_gateways().await;
-            let old = start_run(&db, T0, &[1, 2]).await.unwrap();
+        async fn an_old_run_is_evicted_with_its_sessions() {
+            let db = setup().await;
+            let old = start_run(&db, T0).await.unwrap();
+            let old_batch = five_hop_mixnet_batch(1, MIXNET_EPOCH, 0..1, 0);
             assert_eq!(
                 submit(
                     &db,
                     old,
                     T0 + minutes(1),
-                    &[batch(1, MIXNET_EPOCH), failed(2)]
+                    &[five_hop_mixnet_session(old, &old_batch, true)]
                 )
                 .await,
                 FiveHopMixnetRunSubmission::Stored
             );
             let new_start = T0 + time::Duration::hours(1);
-            let new = start_run(&db, new_start, &[1]).await.unwrap();
+            let new = start_run(&db, new_start).await.unwrap();
+            let new_batch = five_hop_mixnet_batch(1, MIXNET_EPOCH + 1, 0..1, 0);
             assert_eq!(
                 submit(
                     &db,
                     new,
                     new_start + minutes(1),
-                    &[batch(1, MIXNET_EPOCH + 1)]
+                    &[five_hop_mixnet_session(new, &new_batch, true)]
                 )
                 .await,
                 FiveHopMixnetRunSubmission::Stored
@@ -5037,7 +4886,6 @@ mod tests {
             assert_eq!(evicted, 1);
             assert!(sessions_of_epoch(&db, MIXNET_EPOCH).await.is_empty());
             assert_eq!(sessions_of_epoch(&db, MIXNET_EPOCH + 1).await.len(), 1);
-            assert_eq!(run_gateway_count(&db).await, 1);
         }
     }
 

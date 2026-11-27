@@ -49,7 +49,7 @@ pub(crate) fn derive_client_identity(
     Ok(private_key.into())
 }
 
-/// A bandwidth controller sender with no controller behind it, safe only because route sessions run with tickets not required.
+/// A bandwidth controller sender with no controller behind it, safe only because five-hop mixnet sessions run with tickets not required.
 pub(crate) fn bandwidth_controller_without_tickets() -> BandwidthControllerRequestSender {
     let (sender, _) = tokio::sync::mpsc::unbounded_channel();
     BandwidthControllerRequestSender::new(sender)

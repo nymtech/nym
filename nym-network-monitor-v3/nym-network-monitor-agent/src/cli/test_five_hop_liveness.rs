@@ -121,7 +121,7 @@ impl Args {
 /// Which mixnodes a manual run routes through.
 #[derive(clap::ValueEnum, Debug, Clone, Copy)]
 enum NodeSelection {
-    /// The mixnodes of the active set, as a route run handed out by the orchestrator.
+    /// The mixnodes of the active set, as a five-hop mixnet run handed out by the orchestrator.
     ActiveSet,
 
     /// The active set and the standby nodes of the rewarded set.
@@ -203,14 +203,14 @@ impl FiveHopMixnetRunReport {
                     mixnet_epoch = Some(batch.header.mixnet_epoch);
                     let test_messages = SessionTestMessages::from_batch(&batch);
                     let summary = FiveHopMixnetSessionSummary::new(&batch, &test_messages);
-                    if test_messages.is_suspected(&run_loss_rates, session_loss_margin) {
-                        FiveHopMixnetSessionOutcome::Discarded(summary)
+                    if test_messages.is_discarded(&run_loss_rates, session_loss_margin) {
+                        FiveHopMixnetSessionVerdict::Discarded(summary)
                     } else {
                         kept.push(test_messages);
-                        FiveHopMixnetSessionOutcome::Kept(summary)
+                        FiveHopMixnetSessionVerdict::Kept(summary)
                     }
                 }
-                Err(err) => FiveHopMixnetSessionOutcome::Error(format!("{err:#}")),
+                Err(err) => FiveHopMixnetSessionVerdict::Error(format!("{err:#}")),
             };
             sessions.push(FiveHopMixnetSessionReport {
                 gateway_node_id,
@@ -255,26 +255,26 @@ impl Display for FiveHopMixnetRunReport {
 struct FiveHopMixnetSessionReport {
     gateway_node_id: NodeId,
 
-    outcome: FiveHopMixnetSessionOutcome,
+    outcome: FiveHopMixnetSessionVerdict,
 }
 
 impl Display for FiveHopMixnetSessionReport {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let gateway_node_id = self.gateway_node_id;
         match &self.outcome {
-            FiveHopMixnetSessionOutcome::Kept(summary) => {
+            FiveHopMixnetSessionVerdict::Kept(summary) => {
                 write!(
                     f,
                     "session through gateway {gateway_node_id}: kept, {summary}"
                 )
             }
-            FiveHopMixnetSessionOutcome::Discarded(summary) => {
+            FiveHopMixnetSessionVerdict::Discarded(summary) => {
                 write!(
                     f,
                     "session through gateway {gateway_node_id}: discarded, {summary}"
                 )
             }
-            FiveHopMixnetSessionOutcome::Error(error) => {
+            FiveHopMixnetSessionVerdict::Error(error) => {
                 write!(
                     f,
                     "session through gateway {gateway_node_id}: failed: {error}"
@@ -287,7 +287,7 @@ impl Display for FiveHopMixnetSessionReport {
 /// A session's verdict with what its records hold, or its error.
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
-enum FiveHopMixnetSessionOutcome {
+enum FiveHopMixnetSessionVerdict {
     Kept(FiveHopMixnetSessionSummary),
 
     Discarded(FiveHopMixnetSessionSummary),

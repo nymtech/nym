@@ -7,14 +7,14 @@
 //! keeps the rows, or in the HTTP layer, which only hands them out.
 
 use crate::storage::models::{
-    CompletedTestRun, MixnetEpochAggregate, MixnetEpochConfigScore, TestKind,
+    CompletedTestRun, MixnetEpochAggregate, MixnetEpochConfigScore, MixnetEpochFiveHopLiveness,
+    TestKind,
 };
 use nym_network_monitor_orchestrator_requests::models::KindAggregate;
 use nym_validator_client::client::NodeId;
 use std::collections::BTreeMap;
 
 // \/ HERE BE DRAGONS
-pub(crate) mod five_hop_liveness;
 pub(crate) mod materialiser;
 
 /// What a set of runs amounts to: the mean of their scores and how many runs it was taken over.
@@ -102,7 +102,7 @@ pub(crate) fn aggregate_runs(runs: Vec<CompletedTestRun>) -> BTreeMap<i64, Windo
 /// guarantees.
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub(crate) struct ReportedAggregates {
-    pub(crate) liveness: Option<WindowAggregate>,
+    pub(crate) one_hop_liveness: Option<WindowAggregate>,
     pub(crate) stress: Option<WindowAggregate>,
 }
 
@@ -121,7 +121,7 @@ impl ReportedAggregates {
         let aggregate = WindowAggregate::from(row);
         match row.test_kind {
             TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {
-                self.liveness = Some(match self.liveness {
+                self.one_hop_liveness = Some(match self.one_hop_liveness {
                     Some(liveness) => liveness.combine(aggregate),
                     None => aggregate,
                 });
@@ -137,6 +137,9 @@ pub(crate) struct NodeEpochFigures {
     pub(crate) node_id: NodeId,
     pub(crate) config_score: Option<MixnetEpochConfigScore>,
     pub(crate) aggregates: ReportedAggregates,
+
+    /// The node's five-hop liveness filed under the epoch, measured or carried forward.
+    pub(crate) five_hop_liveness: Option<MixnetEpochFiveHopLiveness>,
 }
 
 impl NodeEpochFigures {
@@ -146,18 +149,21 @@ impl NodeEpochFigures {
             node_id: node_id as NodeId,
             config_score: None,
             aggregates: ReportedAggregates::default(),
+            five_hop_liveness: None,
         }
     }
 }
 
-/// Merges an epoch's config scores and aggregates, each spanning many nodes, into one entry per node
-/// that has either, ordered by node id.
+/// Merges an epoch's config scores, aggregates and five-hop liveness, each spanning many nodes,
+/// into one entry per node that has a config score or an aggregate, ordered by node id.
 ///
 /// A node can have one without the other: a backfilled epoch has aggregates but no config scores,
-/// and a described node nothing measured in the window has a config score alone.
+/// and a described node nothing measured in the window has a config score alone. A five-hop
+/// liveness alone makes no entry.
 pub(crate) fn epoch_figures(
     config_scores: &[MixnetEpochConfigScore],
     aggregates: &[MixnetEpochAggregate],
+    five_hop_liveness: &[MixnetEpochFiveHopLiveness],
 ) -> Vec<NodeEpochFigures> {
     let mut figures: BTreeMap<i64, NodeEpochFigures> = BTreeMap::new();
     for score in config_scores {
@@ -172,6 +178,11 @@ pub(crate) fn epoch_figures(
             .or_insert_with(|| NodeEpochFigures::empty(row.node_id))
             .aggregates
             .add_row(row);
+    }
+    for value in five_hop_liveness {
+        if let Some(node) = figures.get_mut(&value.node_id) {
+            node.five_hop_liveness = Some(*value);
+        }
     }
     figures.into_values().collect()
 }
@@ -267,7 +278,7 @@ mod tests {
         ]);
 
         assert_eq!(
-            reported.liveness,
+            reported.one_hop_liveness,
             Some(WindowAggregate {
                 score: 0.75,
                 samples: 4
@@ -281,7 +292,7 @@ mod tests {
     fn a_kind_with_no_row_is_absent() {
         let reported = ReportedAggregates::from_rows(&[row(TestKind::MixnodeStress, 0.5, 3)]);
 
-        assert_eq!(reported.liveness, None);
+        assert_eq!(reported.one_hop_liveness, None);
         assert_eq!(
             reported.stress,
             Some(WindowAggregate {

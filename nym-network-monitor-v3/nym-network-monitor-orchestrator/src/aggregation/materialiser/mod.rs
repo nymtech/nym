@@ -58,12 +58,13 @@ pub(crate) struct MaterialiserConfig {
 ///
 /// Owns the single task and the client it reads the contract's interval with, and drives three
 /// members that each produce a different family of figures: [`FiveHopLivenessMaterialiser`] for
-/// five-hop liveness (scored from the route sessions of the epoch before or carried forward,
-/// backfilled like the aggregates, absent while five-hop liveness is off), [`AggregateMaterialiser`]
-/// for the windowed probe aggregates (backfilled across epochs missed while down) and
-/// [`ConfigScoreMaterialiser`] for the current-state config-score snapshot (filed only under the
-/// epoch in progress, never backfilled). When submission is on, a [`PerformanceSubmitter`] sends
-/// what they produced for the epoch in progress as the pass's last step.
+/// five-hop liveness (scored from the five-hop mixnet sessions of the epoch before or carried
+/// forward, backfilled like the aggregates, absent while five-hop liveness is off),
+/// [`AggregateMaterialiser`] for the windowed probe aggregates (backfilled across epochs missed
+/// while down) and [`ConfigScoreMaterialiser`] for the current-state config-score snapshot (filed
+/// only under the epoch in progress, never backfilled). When submission is on, a
+/// [`PerformanceSubmitter`] sends what they produced for the epoch in progress as the pass's last
+/// step.
 ///
 /// Each tick reads the contract's interval once and hands that reading to every step, so they always
 /// agree on which epoch is in progress. Epoch identity and timing therefore always come from a
@@ -172,18 +173,22 @@ where
     /// The submission runs only while the epoch is in progress: an epoch in transition is skipped
     /// without failing, since the contract would reject it anyway.
     async fn materialise_and_submit(&self, interval: &Interval) -> anyhow::Result<()> {
-        // before the aggregates, whose insert marks an epoch materialised and so no longer pending
-        if let Some(five_hop_liveness) = &self.five_hop_liveness {
-            five_hop_liveness
-                .materialise_pending(interval)
-                .await
-                .context("failed to materialise pending five-hop liveness")?;
-        }
+        for mixnet_epoch in self.aggregates.pending_epochs(interval).await? {
+            // the epoch has begun, so its start follows from the reading and cannot move
+            let epoch_start = interval.epoch_start(mixnet_epoch);
+            if let Some(five_hop_liveness) = &self.five_hop_liveness {
+                five_hop_liveness
+                    .materialise(mixnet_epoch, epoch_start)
+                    .await
+                    .context("failed to materialise five-hop liveness")?;
+            }
 
-        self.aggregates
-            .materialise_pending(interval)
-            .await
-            .context("failed to materialise pending aggregates")?;
+            // last: its insert is what marks the epoch materialised
+            self.aggregates
+                .materialise(mixnet_epoch, epoch_start)
+                .await
+                .context("failed to materialise aggregates")?;
+        }
 
         // config score is filed only under the epoch in progress and never backfilled
         self.config_scores

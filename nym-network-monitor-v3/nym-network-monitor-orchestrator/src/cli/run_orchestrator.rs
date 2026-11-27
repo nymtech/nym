@@ -70,19 +70,19 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_GATEWAY_WAVE_SIZE_ARG, default_value = "50")]
     liveness_gateway_wave_size: NonZeroUsize,
 
-    /// Whether route runs are handed out and five-hop liveness applied (e.g. `false`).
+    /// Whether five-hop mixnet runs are handed out and five-hop liveness applied (e.g. `false`).
     #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_ENABLED_ARG, action = clap::ArgAction::Set, default_value_t = true)]
     five_hop_liveness_enabled: bool,
 
-    /// Minimum time between the starts of two submitted route runs (e.g. `5m`).
+    /// Minimum time between the starts of two submitted five-hop mixnet runs (e.g. `5m`).
     #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "5m")]
     five_hop_liveness_interval: Duration,
 
-    /// Maximum number of gateways a route run carries.
+    /// Maximum number of gateways a five-hop mixnet run carries.
     #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_GATEWAYS_PER_RUN_ARG, default_value = "2")]
     five_hop_liveness_gateways_per_run: NonZeroUsize,
 
-    /// How long a route run stays in flight without a submission (e.g. `3m`).
+    /// How long a five-hop mixnet run stays in flight without a submission (e.g. `3m`).
     #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_RUN_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "3m")]
     five_hop_liveness_run_timeout: Duration,
 
@@ -101,10 +101,6 @@ pub(crate) struct Args {
     /// Margin, in [0, 1], by which a session's loss rate may exceed its run's other session's.
     #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_SESSION_LOSS_MARGIN_ARG, default_value_t = 0.05)]
     five_hop_liveness_session_loss_margin: f64,
-
-    /// Epochs a measured five-hop liveness is carried forward for after it was filed.
-    #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_MAX_CARRIED_EPOCHS_ARG, default_value_t = 48)]
-    five_hop_liveness_max_carried_epochs: u32,
 
     /// Rate per epoch at which a carried five-hop liveness fades towards full liveness.
     #[clap(long, env = NYM_NETWORK_MONITOR_FIVE_HOP_LIVENESS_DECAY_PER_EPOCH_ARG, default_value_t = 0.1)]
@@ -157,9 +153,9 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_MIXNET_CONTRACT_ADDRESS_ARG)]
     mixnet_contract_address: Option<String>,
 
-    /// Maximum age of a completed test run row, or of a route run with its sessions, before it is
-    /// evicted from the local database. Rows older than this are assumed to have already been
-    /// submitted to the nym-api
+    /// Maximum age of a completed test run row, or of a five-hop mixnet run with its sessions,
+    /// before it is evicted from the local database. Rows older than this are assumed to have
+    /// already been submitted to the nym-api
     /// (e.g. `7d`, `24h`). Must exceed the longest aggregation window, since aggregates are
     /// computed from these rows.
     #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration, default_value = "7d",)]
@@ -304,7 +300,6 @@ impl Args {
                 min_gateway_share: self.five_hop_liveness_min_gateway_share,
                 fallback_min_gateway_score: self.five_hop_liveness_fallback_min_gateway_score,
                 session_loss_margin: self.five_hop_liveness_session_loss_margin,
-                max_carried_epochs: self.five_hop_liveness_max_carried_epochs,
                 decay_per_epoch: self.five_hop_liveness_decay_per_epoch,
             },
             database_path: self.database_path.clone(),

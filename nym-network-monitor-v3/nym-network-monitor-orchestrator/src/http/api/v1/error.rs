@@ -45,12 +45,12 @@ pub(crate) enum ApiError {
     TestRunLeaseExpired,
 
     #[error(
-        "the route run is not in flight - it is unknown, already submitted or past its timeout, its epoch has already been scored, or five-hop liveness is off"
+        "the five-hop mixnet run is not in flight - it is unknown, already submitted or past its timeout, its epoch has already been scored, or five-hop liveness is off"
     )]
     FiveHopMixnetRunNotInFlight,
 
     #[error(
-        "the route run submission is invalid - a gateway is unexpected or repeated, or a batch is unreadable or names another gateway"
+        "the five-hop mixnet run submission is invalid - a gateway is repeated, or a batch is unreadable or names another gateway"
     )]
     InvalidFiveHopMixnetRunSubmission,
 }

@@ -112,14 +112,14 @@ pub enum TestKind {
 }
 
 /// Response from the orchestrator when an agent requests work.
-/// `assignment` is `None` when there is neither a route run to hand out nor a node due for testing.
+/// `assignment` is `None` when there is neither a five-hop mixnet run to hand out nor a node due for testing.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkAssignmentResponse {
     pub assignment: Option<WorkAssignment>,
 }
 
-/// Work handed to an agent: one-hop test runs of one kind, or a five-hop route run.
+/// Work handed to an agent: one-hop test runs of one kind, or a five-hop five-hop mixnet run.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -128,7 +128,7 @@ pub enum WorkAssignment {
     FiveHopMixnet(FiveHopMixnetAssignment),
 }
 
-/// A route run: one five-hop liveness session through each of its gateways.
+/// A five-hop mixnet run: one five-hop liveness session through each of its gateways.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FiveHopMixnetAssignment {
@@ -137,7 +137,7 @@ pub struct FiveHopMixnetAssignment {
     pub gateways: Vec<FiveHopMixnetGateway>,
 }
 
-/// A gateway a route run's session goes through; the session finds the rest in the topology.
+/// A gateway a five-hop mixnet run's session goes through; the session finds the rest in the topology.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FiveHopMixnetGateway {
@@ -428,30 +428,30 @@ impl TestRunResult {
     }
 }
 
-/// A route run's sessions, submitted together once the run ends.
+/// A five-hop mixnet run's sessions, submitted together once the run ends.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FiveHopMixnetResult {
     pub run_id: i64,
 
     /// One entry per gateway of the run.
-    pub sessions: Vec<RouteSessionSubmission>,
+    pub sessions: Vec<FiveHopMixnetSessionSubmission>,
 }
 
-/// What became of the route session through one gateway of a run.
+/// What became of the five-hop mixnet session through one gateway of a run.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RouteSessionSubmission {
+pub struct FiveHopMixnetSessionSubmission {
     pub gateway_node_id: u32,
 
-    pub outcome: RouteSessionOutcome,
+    pub outcome: FiveHopMixnetSessionOutcome,
 }
 
-/// A route session's batch, or why it has none.
+/// A five-hop mixnet session's batch, or why it has none.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RouteSessionOutcome {
+pub enum FiveHopMixnetSessionOutcome {
     /// The session's records, packed by the route records crate.
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     Batch(#[serde(with = "nym_serde_helpers::base64")] Vec<u8>),
@@ -729,7 +729,8 @@ pub struct NodeEpochAggregates {
     pub stress: Option<KindAggregate>,
 
     /// The five-hop liveness in `[0.0, 1.0]` measured and filed under this epoch, scored from the
-    /// route sessions of the epoch before, never a carried-forward value, or `None` if none was.
+    /// five-hop mixnet sessions of the epoch before, never a carried-forward value, or `None` if
+    /// none was.
     pub five_hop_liveness: Option<f64>,
 }
 
@@ -755,41 +756,28 @@ impl NodeEpochAggregates {
     }
 }
 
-/// One route session of an epoch, as the results API exports it.
+/// One five-hop mixnet session of an epoch, as the results API exports it.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RouteSessionData {
-    /// The route run it belonged to.
-    pub route_run_id: i64,
+pub struct FiveHopMixnetSessionData {
+    /// The five-hop mixnet run it belonged to.
+    pub run_id: i64,
 
     pub gateway_node_id: u32,
 
-    pub outcome: RouteSessionOutcomeData,
-}
+    /// Whether the discard rule kept it for scoring, judged against its run when submitted.
+    pub kept: bool,
 
-/// What a route session left for scoring.
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RouteSessionOutcomeData {
-    /// The session failed and has no test messages.
-    Error(String),
-
-    /// Its test messages in the order sent, which the scoring is given.
-    Kept(Vec<TestMessageData>),
-
-    /// Its test messages in the order sent, which the scoring discards with the session.
-    Discarded(Vec<TestMessageData>),
+    /// Its test messages in the order sent.
+    pub test_messages: Vec<TestMessageData>,
 }
 
 /// One packet's or ack's trip through three mixnodes.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct TestMessageData {
-    /// When its test packet was sent; an ack's is its packet's.
-    #[serde(with = "time::serde::rfc3339")]
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub sent_at: OffsetDateTime,
+    /// Unix time in milliseconds at which its test packet was sent; an ack's is its packet's.
+    pub sent_at_ms: u64,
 
     /// Node ids of the three mixnodes on its path, in path order.
     pub path: [u32; 3],

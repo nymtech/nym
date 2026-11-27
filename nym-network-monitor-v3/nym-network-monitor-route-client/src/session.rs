@@ -55,7 +55,7 @@ impl SessionGateway {
             .context("the gateway is missing from the topology")
     }
 
-    /// The gateway's listeners as a default client derives them from the topology (design Decision 16).
+    /// The gateway's listeners as a default client derives them from the topology.
     fn listeners(&self, topology: &NymRouteProvider) -> anyhow::Result<GatewayListeners> {
         let node = self.routing_node(topology)?;
 

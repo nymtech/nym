@@ -12,13 +12,12 @@ use crate::storage::models::{
 };
 use axum::extract::FromRef;
 use nym_network_monitor_orchestrator_requests::models::{
-    FiveHopMixnetResult, NodeEpochAggregates, NymNodeData, NymNodeWithTestRuns, PagedResult,
-    Pagination, RouteSessionData, TestRunData, TestRunInProgressData, TestRunResult,
-    WorkAssignment,
+    FiveHopMixnetResult, FiveHopMixnetSessionData, NodeEpochAggregates, NymNodeData,
+    NymNodeWithTestRuns, PagedResult, Pagination, TestRunData, TestRunInProgressData,
+    TestRunResult, WorkAssignment,
 };
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
-use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use tracing::error;
 
@@ -27,7 +26,7 @@ mod five_hop_mixnet_session_export;
 pub(crate) mod work;
 
 use agents::KnownAgents;
-use work::WorkManager;
+use work::{WorkManager, storage_failure};
 
 /// Lifts a stored run into its public shape. A value that will not decode is corruption, for the
 /// same reason as [`work::malformed_target`].
@@ -68,8 +67,8 @@ impl AppState {
         }
     }
 
-    /// Hands the requesting agent a due route run, else one assignment of whichever enabled one-hop
-    /// kind is most overdue. `None` when nothing is due.
+    /// Hands the requesting agent a due five-hop mixnet run, else one assignment of whichever
+    /// enabled one-hop kind is most overdue. `None` when nothing is due.
     pub(crate) async fn assign_work(&self) -> Result<Option<WorkAssignment>, ApiError> {
         self.work_manager.assign_work(&self.storage).await
     }
@@ -87,7 +86,7 @@ impl AppState {
             .await
     }
 
-    /// Stores a route run's sessions, or rejects the submission whole.
+    /// Stores a five-hop mixnet run's sessions, or rejects the submission whole.
     pub(crate) async fn submit_five_hop_mixnet_result(
         &self,
         result: FiveHopMixnetResult,
@@ -105,16 +104,13 @@ impl AppState {
         kind: TestKind,
         id: i64,
     ) -> Result<Option<TestRunData>, ApiError> {
-        let result = match self.storage.get_testrun_by_id(kind, id).await {
-            Err(err) => {
-                error!("get_testrun_by_id storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(None) => return Ok(None),
-            Ok(Some(testrun)) => testrun,
-        };
+        let testrun = self
+            .storage
+            .get_testrun_by_id(kind, id)
+            .await
+            .map_err(|err| storage_failure("get_testrun_by_id", err))?;
 
-        Ok(Some(testrun_data(result)?))
+        testrun.map(testrun_data).transpose()
     }
 
     /// Backs `GET /v1/results/nym-node/{node_id}`. If the node is known, its
@@ -128,13 +124,13 @@ impl AppState {
         &self,
         node_id: NodeId,
     ) -> Result<Option<NymNodeWithTestRuns>, ApiError> {
-        let nym_node = match self.storage.get_nym_node_by_id(node_id).await {
-            Err(err) => {
-                error!("get_nym_node_by_id storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(None) => return Ok(None),
-            Ok(Some(nym_node)) => nym_node,
+        let nym_node = self
+            .storage
+            .get_nym_node_by_id(node_id)
+            .await
+            .map_err(|err| storage_failure("get_nym_node_by_id", err))?;
+        let Some(nym_node) = nym_node else {
+            return Ok(None);
         };
 
         Ok(Some(NymNodeWithTestRuns {
@@ -160,17 +156,13 @@ impl AppState {
         kind: TestKind,
         node_id: NodeId,
     ) -> Result<Option<TestRunData>, ApiError> {
-        match self
+        let latest = self
             .storage
             .get_latest_testrun_for_node(kind, node_id)
             .await
-        {
-            Err(err) => {
-                error!("get_latest_testrun_for_node storage failure: {err}");
-                Err(ApiError::StorageFailure)
-            }
-            Ok(latest) => latest.map(testrun_data).transpose(),
-        }
+            .map_err(|err| storage_failure("get_latest_testrun_for_node", err))?;
+
+        latest.map(testrun_data).transpose()
     }
 
     /// Backs `GET /v1/results/testruns-in-progress`. Returns a page of rows
@@ -180,17 +172,11 @@ impl AppState {
         &self,
         pagination: Pagination,
     ) -> Result<PagedResult<TestRunInProgressData>, ApiError> {
-        let (in_progress, total) = match self
+        let (in_progress, total) = self
             .storage
             .get_testruns_in_progress_paginated(pagination)
             .await
-        {
-            Err(err) => {
-                error!("get_testruns_in_progress_paginated storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(result) => result,
-        };
+            .map_err(|err| storage_failure("get_testruns_in_progress_paginated", err))?;
 
         Ok(PagedResult {
             page: pagination.page(),
@@ -209,13 +195,11 @@ impl AppState {
         kind: TestKind,
         pagination: Pagination,
     ) -> Result<PagedResult<TestRunData>, ApiError> {
-        let (testruns, total) = match self.storage.get_testruns_paginated(kind, pagination).await {
-            Err(err) => {
-                error!("get_testruns_paginated storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(testruns) => testruns,
-        };
+        let (testruns, total) = self
+            .storage
+            .get_testruns_paginated(kind, pagination)
+            .await
+            .map_err(|err| storage_failure("get_testruns_paginated", err))?;
 
         Ok(PagedResult {
             page: pagination.page(),
@@ -236,13 +220,11 @@ impl AppState {
         &self,
         pagination: Pagination,
     ) -> Result<PagedResult<NymNodeData>, ApiError> {
-        let (nym_nodes, total) = match self.storage.get_nym_nodes_paginated(pagination).await {
-            Err(err) => {
-                error!("get_nym_nodes_paginated storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok((nym_nodes, total)) => (nym_nodes, total),
-        };
+        let (nym_nodes, total) = self
+            .storage
+            .get_nym_nodes_paginated(pagination)
+            .await
+            .map_err(|err| storage_failure("get_nym_nodes_paginated", err))?;
 
         let mut items = Vec::with_capacity(nym_nodes.len());
         for node in nym_nodes {
@@ -270,17 +252,11 @@ impl AppState {
         node_id: NodeId,
         pagination: Pagination,
     ) -> Result<PagedResult<TestRunData>, ApiError> {
-        let (testruns, total) = match self
+        let (testruns, total) = self
             .storage
             .get_testruns_for_node_paginated(kind, node_id, pagination)
             .await
-        {
-            Err(err) => {
-                error!("get_testruns_for_node_paginated storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok((testruns, total)) => (testruns, total),
-        };
+            .map_err(|err| storage_failure("get_testruns_for_node_paginated", err))?;
 
         Ok(PagedResult {
             page: pagination.page(),
@@ -293,12 +269,12 @@ impl AppState {
         })
     }
 
-    /// Backs `GET /v1/results/route-sessions/epoch/{mixnet_epoch}`: the epoch's route sessions as
-    /// test messages, each with the verdict stored when its run was submitted.
-    pub(crate) async fn get_route_sessions_of_epoch(
+    /// Backs `GET /v1/results/five-hop-mixnet-sessions/epoch/{mixnet_epoch}`: the epoch's five-hop
+    /// mixnet sessions as test messages, each with the verdict stored when its run was submitted.
+    pub(crate) async fn get_five_hop_mixnet_sessions_of_epoch(
         &self,
         mixnet_epoch: EpochId,
-    ) -> Result<Vec<RouteSessionData>, ApiError> {
+    ) -> Result<Vec<FiveHopMixnetSessionData>, ApiError> {
         five_hop_mixnet_session_export::five_hop_mixnet_sessions_of_epoch(
             &self.storage,
             mixnet_epoch,
@@ -313,37 +289,23 @@ impl AppState {
         &self,
         mixnet_epoch: EpochId,
     ) -> Result<Vec<NodeEpochAggregates>, ApiError> {
-        let aggregates = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
-            Err(err) => {
-                error!("get_mixnet_epoch_aggregates storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(rows) => rows,
-        };
+        let aggregates = self
+            .storage
+            .get_mixnet_epoch_aggregates(mixnet_epoch)
+            .await
+            .map_err(|err| storage_failure("get_mixnet_epoch_aggregates", err))?;
 
-        let config_scores = match self
+        let config_scores = self
             .storage
             .get_mixnet_epoch_config_scores(mixnet_epoch)
             .await
-        {
-            Err(err) => {
-                error!("get_mixnet_epoch_config_scores storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(rows) => rows,
-        };
+            .map_err(|err| storage_failure("get_mixnet_epoch_config_scores", err))?;
 
-        let five_hop_liveness = match self
+        let five_hop_liveness = self
             .storage
             .get_mixnet_epoch_five_hop_liveness(mixnet_epoch)
             .await
-        {
-            Err(err) => {
-                error!("get_mixnet_epoch_five_hop_liveness storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(rows) => rows,
-        };
+            .map_err(|err| storage_failure("get_mixnet_epoch_five_hop_liveness", err))?;
 
         Ok(epoch_records(
             &config_scores,
@@ -362,69 +324,45 @@ impl AppState {
         mixnet_epoch: EpochId,
         node_id: NodeId,
     ) -> Result<NodeEpochAggregates, ApiError> {
-        let aggregates = match self
+        let aggregates = self
             .storage
             .get_mixnet_epoch_aggregates_for_node(mixnet_epoch, node_id)
             .await
-        {
-            Err(err) => {
-                error!("get_mixnet_epoch_aggregates_for_node storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(rows) => rows,
-        };
+            .map_err(|err| storage_failure("get_mixnet_epoch_aggregates_for_node", err))?;
 
-        let config_score = match self
+        let config_score = self
             .storage
             .get_mixnet_epoch_config_score_for_node(mixnet_epoch, node_id)
             .await
-        {
-            Err(err) => {
-                error!("get_mixnet_epoch_config_score_for_node storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(row) => row,
-        };
+            .map_err(|err| storage_failure("get_mixnet_epoch_config_score_for_node", err))?;
 
-        let five_hop_liveness = match self
+        let five_hop_liveness = self
             .storage
             .get_mixnet_epoch_five_hop_liveness_for_node(mixnet_epoch, node_id)
             .await
-        {
-            Err(err) => {
-                error!("get_mixnet_epoch_five_hop_liveness_for_node storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(row) => row,
-        };
+            .map_err(|err| storage_failure("get_mixnet_epoch_five_hop_liveness_for_node", err))?;
 
         let figures = NodeEpochFigures {
             node_id,
             config_score,
             aggregates: ReportedAggregates::from_rows(&aggregates),
+            five_hop_liveness,
         };
-        let measured_five_hop_liveness = five_hop_liveness.and_then(|value| value.measured_score());
-        Ok(node_record(
-            figures,
-            measured_five_hop_liveness,
-            mixnet_epoch,
-        ))
+        Ok(node_record(figures, mixnet_epoch))
     }
 }
 
-/// One node's figures for an epoch, as the wire record, with its measured five-hop liveness.
-fn node_record(
-    figures: NodeEpochFigures,
-    five_hop_liveness: Option<f64>,
-    mixnet_epoch: EpochId,
-) -> NodeEpochAggregates {
+/// One node's figures for an epoch, as the wire record, its five-hop liveness only if measured.
+fn node_record(figures: NodeEpochFigures, mixnet_epoch: EpochId) -> NodeEpochAggregates {
     NodeEpochAggregates::new(
         figures.node_id,
         mixnet_epoch,
         figures.config_score.map(Into::into),
-        figures.aggregates.liveness.map(Into::into),
+        figures.aggregates.one_hop_liveness.map(Into::into),
         figures.aggregates.stress.map(Into::into),
-        five_hop_liveness,
+        figures
+            .five_hop_liveness
+            .and_then(|value| value.measured_score()),
     )
 }
 
@@ -439,18 +377,9 @@ fn epoch_records(
     five_hop_liveness: &[MixnetEpochFiveHopLiveness],
     mixnet_epoch: EpochId,
 ) -> Vec<NodeEpochAggregates> {
-    let measured_five_hop_liveness: BTreeMap<NodeId, f64> = five_hop_liveness
-        .iter()
-        // stored from a `NodeId`, so it fits
-        .filter_map(|value| Some((value.node_id as NodeId, value.measured_score()?)))
-        .collect();
-
-    epoch_figures(config_scores, aggregates)
+    epoch_figures(config_scores, aggregates, five_hop_liveness)
         .into_iter()
-        .map(|figures| {
-            let five_hop_liveness = measured_five_hop_liveness.get(&figures.node_id).copied();
-            node_record(figures, five_hop_liveness, mixnet_epoch)
-        })
+        .map(|figures| node_record(figures, mixnet_epoch))
         .collect()
 }
 

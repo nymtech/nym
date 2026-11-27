@@ -203,7 +203,7 @@ pub(crate) struct FiveHopMixnetRunConfig {
     /// What each session of the run runs with.
     pub(crate) session: RouteSessionConfig,
 
-    /// Deadline for the whole run, inside the orchestrator's route run timeout.
+    /// Deadline for the whole run, inside the orchestrator's five-hop mixnet run timeout.
     pub(crate) timeout: Duration,
 }
 

@@ -7,8 +7,8 @@ use crate::storage::models::{
     AssignedTestrun, AssignmentRequest, CompletedTestRun, ConfigScoreCandidate, DescribedNodeRoles,
     FiveHopMixnetGatewayCandidate, FiveHopMixnetRunRequest, FiveHopMixnetRunSubmission,
     FiveHopMixnetSession, KindHead, KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore,
-    MixnetEpochFiveHopLiveness, NewFiveHopMixnetSession, NewTestRun, NodeAwaitingCapabilityRefresh,
-    NodeChainCapability, NymNode, TestKind, TestRunInProgress, TestRunSubmission, TestRunWindow,
+    MixnetEpochFiveHopLiveness, NewTestRun, NodeAwaitingCapabilityRefresh, NodeChainCapability,
+    NymNode, TestKind, TestRunInProgress, TestRunSubmission, TestRunWindow,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::{Pagination, RunMeasurements};
@@ -617,7 +617,7 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Whether a route run is due: none in flight, and no submitted run started within `interval`.
+    /// Whether a five-hop mixnet run is due: none in flight, and no submitted run started within `interval`.
     pub(crate) async fn is_five_hop_mixnet_run_due(
         &self,
         interval: Duration,
@@ -628,7 +628,7 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Every gateway a route run may be drawn from, with its latest gateway liveness run.
+    /// Every gateway a five-hop mixnet run may be drawn from, with its latest gateway liveness run.
     pub(crate) async fn get_five_hop_mixnet_gateway_candidates(
         &self,
     ) -> anyhow::Result<Vec<FiveHopMixnetGatewayCandidate>> {
@@ -637,19 +637,17 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Starts a run through `gateways` lasting `run_timeout` if one is still due; `None` if another won.
+    /// Starts a run lasting `run_timeout` if one is still due; `None` if another won.
     pub(crate) async fn start_five_hop_mixnet_run(
         &self,
         interval: Duration,
         run_timeout: Duration,
-        gateways: &[NodeId],
     ) -> anyhow::Result<Option<i64>> {
         let now = OffsetDateTime::now_utc();
         let request = FiveHopMixnetRunRequest {
             now,
             last_started_by: now - interval,
             expires_at: now + run_timeout,
-            gateway_node_ids: gateways.iter().map(|&node_id| node_id as i64).collect(),
         };
 
         self.storage_manager
@@ -661,14 +659,14 @@ impl NetworkMonitorStorage {
     pub(crate) async fn submit_five_hop_mixnet_run(
         &self,
         run_id: i64,
-        sessions: &[NewFiveHopMixnetSession],
+        sessions: &[FiveHopMixnetSession],
     ) -> anyhow::Result<FiveHopMixnetRunSubmission> {
         self.storage_manager
             .submit_five_hop_mixnet_run(run_id, OffsetDateTime::now_utc(), sessions)
             .await
     }
 
-    /// Every session of each run with a session naming `mixnet_epoch`, by run start then gateway.
+    /// Every stored session naming `mixnet_epoch`, by run then gateway.
     pub(crate) async fn get_five_hop_mixnet_sessions_of_epoch(
         &self,
         mixnet_epoch: EpochId,
@@ -678,7 +676,7 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Deletes every route run, with its gateways and sessions, started longer than `eviction_age` ago.
+    /// Deletes every five-hop mixnet run, with its sessions, started longer than `eviction_age` ago.
     pub(crate) async fn evict_old_five_hop_mixnet_runs(
         &self,
         eviction_age: Duration,
@@ -720,20 +718,6 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Each node's newest measured five-hop liveness filed in the `max_age` epochs before `mixnet_epoch`.
-    pub(crate) async fn get_newest_measured_mixnet_epoch_five_hop_liveness(
-        &self,
-        mixnet_epoch: EpochId,
-        max_age: u32,
-    ) -> anyhow::Result<Vec<MixnetEpochFiveHopLiveness>> {
-        // a range reaching below epoch 0 simply matches nothing there
-        let oldest_epoch = mixnet_epoch as i64 - max_age as i64;
-        let newest_epoch = mixnet_epoch as i64 - 1;
-        self.storage_manager
-            .get_newest_measured_mixnet_epoch_five_hop_liveness(oldest_epoch, newest_epoch)
-            .await
-    }
-
     /// Deletes every five-hop liveness value of an epoch that began longer than `retention` ago.
     pub(crate) async fn evict_old_mixnet_epoch_five_hop_liveness(
         &self,
@@ -756,25 +740,33 @@ impl NetworkMonitorStorage {
 }
 
 #[cfg(test)]
+use nym_network_monitor_route_records::batch::Batch;
+
+#[cfg(test)]
 impl NetworkMonitorStorage {
-    /// Starts a route run through the gateways of `sessions`, which must be bonded, and stores them
-    /// as its submission. Returns the run's id.
+    /// Starts a five-hop mixnet run and stores a session per batch as its submission, those of
+    /// `kept` first and as kept, those of `discarded` as discarded. Returns the run's id.
     pub(crate) async fn store_submitted_five_hop_mixnet_run(
         &self,
-        sessions: &[NewFiveHopMixnetSession],
+        kept: &[&Batch],
+        discarded: &[&Batch],
     ) -> i64 {
-        let gateways: Vec<NodeId> = sessions
-            .iter()
-            .map(|session| session.gateway_node_id as NodeId)
-            .collect();
         let run_id = self
-            .start_five_hop_mixnet_run(Duration::ZERO, Duration::from_secs(60), &gateways)
+            .start_five_hop_mixnet_run(Duration::ZERO, Duration::from_secs(60))
             .await
             .unwrap()
             .unwrap();
 
+        let kept = kept
+            .iter()
+            .map(|batch| models::five_hop_mixnet_session(run_id, batch, true));
+        let discarded = discarded
+            .iter()
+            .map(|batch| models::five_hop_mixnet_session(run_id, batch, false));
+        let sessions: Vec<FiveHopMixnetSession> = kept.chain(discarded).collect();
+
         let submission = self
-            .submit_five_hop_mixnet_run(run_id, sessions)
+            .submit_five_hop_mixnet_run(run_id, &sessions)
             .await
             .unwrap();
         assert_eq!(submission, FiveHopMixnetRunSubmission::Stored);
@@ -1006,47 +998,5 @@ mod tests {
                 "{lateness:?}"
             );
         }
-    }
-
-    // The window the carried-forward value is read from: a value filed 48 epochs back still counts,
-    // one filed 49 back does not, and one filed in the epoch itself or after it is not seen from it.
-    // Only measured values are read: a carried one newer than the measured one is passed over, and
-    // a node with carried values alone has none, so the limit counts from the last measurement.
-    #[tokio::test]
-    async fn the_newest_five_hop_liveness_is_read_within_the_limit() {
-        fn value(mixnet_epoch: i64, node_id: i64, measured: bool) -> MixnetEpochFiveHopLiveness {
-            MixnetEpochFiveHopLiveness {
-                mixnet_epoch,
-                epoch_start: FIXTURE_SEEN_AT,
-                node_id,
-                score: 0.5,
-                measured,
-            }
-        }
-
-        let storage = NetworkMonitorStorage::in_memory().await;
-        storage
-            .batch_insert_mixnet_epoch_five_hop_liveness(&[
-                value(52, 1, true),
-                value(51, 2, true),
-                value(100, 3, true),
-                value(101, 3, true),
-                value(60, 4, true),
-                value(90, 4, true),
-                value(95, 4, false),
-                value(80, 5, false),
-            ])
-            .await
-            .unwrap();
-
-        let newest: Vec<(i64, i64)> = storage
-            .get_newest_measured_mixnet_epoch_five_hop_liveness(100, 48)
-            .await
-            .unwrap()
-            .iter()
-            .map(|value| (value.node_id, value.mixnet_epoch))
-            .collect();
-
-        assert_eq!(newest, vec![(1, 52), (4, 90)]);
     }
 }

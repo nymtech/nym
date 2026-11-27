@@ -300,17 +300,17 @@ pub enum PrometheusMetric {
     LivenessWaveSize,
 
     #[strum(props(
-        help = "The gateways fit to carry a route run at the latest draw: candidates whose latest gateway liveness run reached the bar, with no test in flight"
+        help = "The gateways fit to carry a five-hop mixnet run at the latest draw: candidates whose latest gateway liveness run reached the bar, with no test in flight"
     ))]
     FiveHopLivenessFitGateways,
 
     #[strum(props(
-        help = "The route sessions kept for scoring in the epoch whose five-hop liveness was materialised last"
+        help = "The five-hop mixnet sessions kept for scoring in the epoch whose five-hop liveness was materialised last"
     ))]
     FiveHopLivenessKeptSessions,
 
     #[strum(props(
-        help = "The route sessions discarded in the epoch whose five-hop liveness was materialised last: a suspected gateway, a failed session, or a batch that no longer reads"
+        help = "The five-hop mixnet sessions discarded in the epoch whose five-hop liveness was materialised last: a suspected gateway, or a batch that no longer reads"
     ))]
     FiveHopLivenessDiscardedSessions,
 

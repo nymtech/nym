@@ -125,6 +125,11 @@ where
 
     let cover_size = packet_size.plaintext_size() - public_key_bytes.len() - ack_bytes.len();
 
+    // one byte is the padding delimiter
+    debug_assert!(
+        content.len() < cover_size,
+        "the content of a loop packet does not fit in it"
+    );
     let mut cover_content: Vec<_> = content
         .iter()
         .cloned()

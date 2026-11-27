@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_network_monitor_orchestrator_requests::models::{
-    FiveHopMixnetAssignment, FiveHopMixnetResult, RouteSessionOutcome, RouteSessionSubmission,
+    FiveHopMixnetAssignment, FiveHopMixnetResult, FiveHopMixnetSessionOutcome,
+    FiveHopMixnetSessionSubmission,
 };
 use nym_network_monitor_route_client::session::SessionOutcome;
 use tracing::{info, warn};
@@ -19,9 +20,9 @@ pub(crate) fn five_hop_mixnet_result(
             assignment
                 .gateways
                 .iter()
-                .map(|gateway| RouteSessionSubmission {
+                .map(|gateway| FiveHopMixnetSessionSubmission {
                     gateway_node_id: gateway.node_id,
-                    outcome: RouteSessionOutcome::Error(format!("{err:#}")),
+                    outcome: FiveHopMixnetSessionOutcome::Error(format!("{err:#}")),
                 })
                 .collect()
         }
@@ -34,7 +35,7 @@ pub(crate) fn five_hop_mixnet_result(
 }
 
 /// One session's entry: its encoded batch, or its error.
-fn session_submission(outcome: SessionOutcome) -> RouteSessionSubmission {
+fn session_submission(outcome: SessionOutcome) -> FiveHopMixnetSessionSubmission {
     let gateway_node_id = outcome.gateway.node_id;
     let outcome = match outcome.batch {
         Ok(batch) => {
@@ -43,15 +44,15 @@ fn session_submission(outcome: SessionOutcome) -> RouteSessionSubmission {
                 records = batch.records.len(),
                 "five-hop mixnet session finished"
             );
-            RouteSessionOutcome::Batch(batch.encode())
+            FiveHopMixnetSessionOutcome::Batch(batch.encode())
         }
         Err(err) => {
             warn!(gateway_node_id, "five-hop mixnet session failed: {err:#}");
-            RouteSessionOutcome::Error(format!("{err:#}"))
+            FiveHopMixnetSessionOutcome::Error(format!("{err:#}"))
         }
     };
 
-    RouteSessionSubmission {
+    FiveHopMixnetSessionSubmission {
         gateway_node_id,
         outcome,
     }
@@ -90,7 +91,7 @@ mod tests {
             assert!(
                 matches!(
                     &session.outcome,
-                    RouteSessionOutcome::Error(error)
+                    FiveHopMixnetSessionOutcome::Error(error)
                         if error == "could not read the network from nym-api: connection refused"
                 ),
                 "{session:?}"

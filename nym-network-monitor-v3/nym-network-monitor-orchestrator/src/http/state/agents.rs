@@ -138,12 +138,19 @@ impl KnownAgents {
         false
     }
 
-    /// Marks the agent at `addresses` as announced. Should be called once every contract
-    /// transaction for that agent has succeeded.
-    pub(crate) async fn mark_announced(&self, addresses: AgentMixAddresses) {
+    /// Marks the agent at `addresses` as announced, unless a later announcement has since replaced
+    /// its keys. Should be called once every contract transaction for that agent has succeeded.
+    pub(crate) async fn mark_announced(
+        &self,
+        addresses: AgentMixAddresses,
+        noise_key: x25519::PublicKey,
+        ed25519_identity: ed25519::PublicKey,
+    ) {
         let mut guard = self.inner.lock().await;
         if let Some(agent) = guard.agents.get_mut(&addresses.v4)
             && agent.mix_v6 == addresses.v6
+            && agent.noise_key == noise_key
+            && agent.ed25519_identity == ed25519_identity
         {
             agent.announced = true;
         }
@@ -323,7 +330,7 @@ mod tests {
                 .announced
         );
 
-        agents.mark_announced(addresses).await;
+        agents.mark_announced(addresses, key, identity(1)).await;
         assert!(
             agents
                 .resolve_requesting_agent(addresses)
@@ -348,7 +355,9 @@ mod tests {
         agents
             .try_announce_agent(first, noise_key(1), identity(1))
             .await;
-        agents.mark_announced(first).await;
+        agents
+            .mark_announced(first, noise_key(1), identity(1))
+            .await;
         agents
             .try_announce_agent(second, noise_key(2), identity(2))
             .await;
@@ -424,7 +433,9 @@ mod tests {
         let key = noise_key(1);
 
         agents.try_announce_agent(announced, key, identity(1)).await;
-        agents.mark_announced(announced).await;
+        agents
+            .mark_announced(announced, noise_key(1), identity(1))
+            .await;
 
         let other_v6 = AgentMixAddresses {
             v6: "[bbbb::1]:1789".parse().unwrap(),
@@ -447,7 +458,9 @@ mod tests {
             agents
                 .try_announce_agent(announced, noise_key(1), identity(1))
                 .await;
-            agents.mark_announced(announced).await;
+            agents
+                .mark_announced(announced, noise_key(1), identity(1))
+                .await;
 
             // either the v6 address or the noise key differs from what we have cached
             let key = if changed.v6 == announced.v6 {
@@ -475,7 +488,9 @@ mod tests {
         agents
             .try_announce_agent(announced, noise_key(1), identity(1))
             .await;
-        agents.mark_announced(announced).await;
+        agents
+            .mark_announced(announced, noise_key(1), identity(1))
+            .await;
 
         assert!(
             !agents
@@ -486,6 +501,28 @@ mod tests {
         let agent = agents.resolve_requesting_agent(announced).await.unwrap();
         assert!(!agent.announced);
         assert_eq!(agent.ed25519_identity, identity(2));
+    }
+
+    // The contract transaction of an earlier announcement can finish after a later one replaced
+    // the agent's keys. It carried the old keys, so it must not mark the new ones as announced.
+    #[tokio::test]
+    async fn a_superseded_announcement_does_not_mark_the_new_keys_announced() {
+        let agents = KnownAgents::default();
+        let addresses = addresses(1789);
+
+        agents
+            .try_announce_agent(addresses, noise_key(1), identity(1))
+            .await;
+        agents
+            .try_announce_agent(addresses, noise_key(2), identity(2))
+            .await;
+        agents
+            .mark_announced(addresses, noise_key(1), identity(1))
+            .await;
+
+        let agent = agents.resolve_requesting_agent(addresses).await.unwrap();
+        assert!(!agent.announced);
+        assert_eq!(agent.noise_key, noise_key(2));
     }
 
     #[tokio::test]

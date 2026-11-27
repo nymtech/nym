@@ -11,10 +11,10 @@ use crate::storage::models::{
 use anyhow::bail;
 use nym_contracts_common::{NaiveFloat, Percent};
 use nym_validator_client::nyxd::nym_performance_contract_common::{
-    EpochId, Measurements, NetworkMonitorSubmissionMetadata, NodeId, NodeSubmission,
+    EpochId, Measurements, NetworkMonitorSubmissionMetadata, NodeSubmission,
 };
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 
 /// One test kind's share of its eligible nodes with a reachable aggregate, and whether the guard
 /// omitted the test kind for it.
@@ -123,17 +123,9 @@ impl EpochPlan {
         let coverage = Coverage::measure(&aggregates, roles, coverage_threshold);
         aggregates.retain(|row| !coverage.for_kind(row.test_kind).omitted);
 
-        let five_hop_liveness: BTreeMap<NodeId, f64> = five_hop_liveness
-            .iter()
-            // stored from a `NodeId`, so it fits
-            .map(|value| (value.node_id as NodeId, value.score))
-            .collect();
-        let nodes = epoch_figures(config_scores, &aggregates)
+        let nodes = epoch_figures(config_scores, &aggregates, five_hop_liveness)
             .into_iter()
-            .filter_map(|figures| {
-                let five_hop_liveness = five_hop_liveness.get(&figures.node_id).copied();
-                node_submission(figures, five_hop_liveness)
-            })
+            .filter_map(node_submission)
             .collect();
 
         EpochPlan { nodes, coverage }
@@ -149,17 +141,18 @@ impl EpochPlan {
 ///
 /// The liveness is multiplied by the node's five-hop liveness when it has one, which never gives a
 /// node a liveness of its own.
-fn node_submission(
-    figures: NodeEpochFigures,
-    five_hop_liveness: Option<f64>,
-) -> Option<NodeSubmission> {
+fn node_submission(figures: NodeEpochFigures) -> Option<NodeSubmission> {
     let config = percent(figures.config_score?.score)?;
-    let liveness = figures.aggregates.liveness.and_then(|liveness| {
-        let score = five_hop_liveness.map_or(liveness.score, |five_hop_liveness| {
-            liveness.score * five_hop_liveness
+    let five_hop_liveness = figures.five_hop_liveness.map(|value| value.score);
+    let liveness = figures
+        .aggregates
+        .one_hop_liveness
+        .and_then(|one_hop_liveness| {
+            let score = five_hop_liveness.map_or(one_hop_liveness.score, |five_hop_liveness| {
+                one_hop_liveness.score * five_hop_liveness
+            });
+            percent(score)
         });
-        percent(score)
-    });
     let stress = figures
         .aggregates
         .stress
@@ -514,7 +507,7 @@ pub(super) mod tests {
     }
 
     // it only scales a liveness the node already has, so a node without one is submitted exactly as
-    // it would be without the route test
+    // it would be without five-hop mixnet runs
     #[test]
     fn five_hop_liveness_is_not_submitted_on_its_own() {
         let plan = EpochPlan::build(

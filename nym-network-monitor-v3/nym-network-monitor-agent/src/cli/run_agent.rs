@@ -75,7 +75,7 @@ async fn build_and_run_agent(args: Args, shutdown: ShutdownToken) -> anyhow::Res
     let agent = NetworkMonitorAgent::new(
         args.common_args
             .build_config(external_address_v4, external_address_v6)?,
-        // a route run handed out by the orchestrator always uses the active set
+        // a five-hop mixnet run handed out by the orchestrator always uses the active set
         args.five_hop_mixnet_args
             .build_config(RouteNodeSelection::ActiveSet)?,
         noise_key,
@@ -91,7 +91,7 @@ async fn build_and_run_agent(args: Args, shutdown: ShutdownToken) -> anyhow::Res
 
     // 3. query the orchestrator for work assignment and attempt to perform the stress test
     // of the target node
-    info!("attempting to request test run assignment");
+    info!("attempting to request a work assignment");
     agent.perform_work_assignment().await?;
 
     Ok(())

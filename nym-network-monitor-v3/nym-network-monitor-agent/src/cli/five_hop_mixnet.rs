@@ -13,19 +13,19 @@ use url::Url;
 /// The settings of a five-hop mixnet run and its sessions.
 #[derive(clap::Args, Debug)]
 pub(crate) struct FiveHopMixnetArgs {
-    /// The nym-api route sessions read the active set from.
+    /// The nym-api five-hop mixnet sessions read the active set from.
     #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_NYM_API_URL_ARG)]
     nym_api_url: Url,
 
-    /// The sending time a route session draws its own around, between two thirds and four thirds of it.
+    /// The sending time a five-hop mixnet session draws its own around, between two thirds and four thirds of it.
     #[arg(long, value_parser = humantime::parse_duration, default_value = "40s", env = NYM_NETWORK_MONITOR_AGENT_FIVE_HOP_LIVENESS_SENDING_DURATION_ARG)]
     five_hop_liveness_sending_duration: Duration,
 
-    /// The longest a route session waits for packets and acks still in flight once sending has finished.
+    /// The longest a five-hop mixnet session waits for packets and acks still in flight once sending has finished.
     #[arg(long, value_parser = humantime::parse_duration, default_value = "10s", env = NYM_NETWORK_MONITOR_AGENT_FIVE_HOP_LIVENESS_WAITING_DURATION_ARG)]
     five_hop_liveness_waiting_duration: Duration,
 
-    /// Deadline for a whole route run; it must sit inside the orchestrator's route run timeout.
+    /// Deadline for a whole five-hop mixnet run; it must sit inside the orchestrator's five-hop mixnet run timeout.
     #[arg(long, value_parser = humantime::parse_duration, default_value = "2m", env = NYM_NETWORK_MONITOR_AGENT_FIVE_HOP_LIVENESS_RUN_TIMEOUT_ARG)]
     five_hop_liveness_run_timeout: Duration,
 

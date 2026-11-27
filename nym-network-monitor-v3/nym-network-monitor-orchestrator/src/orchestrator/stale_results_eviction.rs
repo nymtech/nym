@@ -11,7 +11,7 @@ use tracing::{debug, error, info};
 /// The value configuration the eviction task needs, grouped so construction takes one bundle
 /// rather than a long argument list.
 pub(crate) struct EvictionConfig {
-    /// Age past which a finalised test run, or a route run with its sessions, is considered stale and removed.
+    /// Age past which a finalised test run, or a five-hop mixnet run with its sessions, is considered stale and removed.
     pub(crate) testrun_eviction_age: Duration,
 
     /// Age past which an epoch aggregate, config score or five-hop liveness value is removed.
@@ -29,7 +29,7 @@ pub(crate) struct EvictionConfig {
 /// Three distinct kinds of staleness are handled:
 /// - in-progress test runs whose lease has expired (freed so they can be
 ///   reassigned),
-/// - finalised test runs, and route runs with their sessions, older than
+/// - finalised test runs, and five-hop mixnet runs with their sessions, older than
 ///   `testrun_eviction_age` (dropped to keep the results tables bounded),
 /// - epoch aggregates, config scores and five-hop liveness values older than
 ///   `aggregate_retention` (dropped to keep the per-epoch tables bounded).
@@ -80,14 +80,17 @@ impl StaleResultsEviction {
         Ok(released)
     }
 
-    /// Deletes finalised runs and route runs past `testrun_eviction_age`, and aggregates, config
-    /// scores and five-hop liveness values past `aggregate_retention`. Logs how many rows were
-    /// affected so ops can confirm the task is doing real work (and spot unexpected spikes).
+    /// Deletes finalised runs and five-hop mixnet runs past `testrun_eviction_age`, and aggregates,
+    /// config scores and five-hop liveness values past `aggregate_retention`. Logs how many rows
+    /// were affected so ops can confirm the task is doing real work (and spot unexpected spikes).
     async fn prune_past_retention(&self) -> anyhow::Result<()> {
         let evicted_old = self
             .storage
             .evict_old_testruns(self.config.testrun_eviction_age)
             .await?;
+        // counted at once, so a later eviction that fails cannot lose rows already deleted
+        PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
+
         let evicted_five_hop_mixnet_runs = self
             .storage
             .evict_old_five_hop_mixnet_runs(self.config.testrun_eviction_age)
@@ -111,8 +114,6 @@ impl StaleResultsEviction {
             || evicted_config_scores > 0
             || evicted_five_hop_liveness > 0
         {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
-
             info!(
                 evicted_old,
                 evicted_five_hop_mixnet_runs,

@@ -141,9 +141,9 @@ impl NodeRefresher {
         // asked of gateway-capable nodes only, their root details carry two things a pure mixnode
         // does not have: the port of the plain client websocket, which the gateway liveness probe
         // opens its session on and which is not one of the announced ports, and whether the gateway
-        // enforces zk-nyms, which keeps it out of route runs. a gateway that will not answer, or
-        // announces no client websocket, fails the whole describe rather than yielding a node
-        // described everywhere except here. the wss port is deliberately not read: the probe
+        // enforces zk-nyms, which keeps it out of five-hop mixnet runs. a gateway that will not
+        // answer, or announces no client websocket, fails the whole describe rather than yielding a
+        // node described everywhere except here. the wss port is deliberately not read: the probe
         // targets `ws://<ip>` by construction and nothing else consumes it
         let (clients_ws_port, enforces_zk_nyms) = if roles.gateway_enabled {
             let gateway = api_client

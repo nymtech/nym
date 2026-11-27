@@ -1328,10 +1328,23 @@ impl ApiClientCore for Client {
 
             match response {
                 Ok(resp) => {
-                    // Check if the response indicates that we are being rate limited
-                    if is_http_rate_limit_err(&resp) {
-                        warn!("encountered rate limit error for {}", url.as_str());
-                        // if we have multiple urls, update to the next
+                    // Rate limits and gateway errors mean this host cannot serve us right now
+                    if is_http_rate_limit_err(&resp) || is_gateway_error(resp.status()) {
+                        warn!("host unavailable ({}) for {}", resp.status(), url.as_str());
+                        // if we have multiple urls, update to the next and retry there
+                        self.maybe_rotate_hosts(Some(url.clone()));
+                        if self.base_urls.len() > 1 && attempts < self.retry_limit {
+                            attempts += 1;
+                            continue;
+                        }
+                    } else if resp.status() == StatusCode::INTERNAL_SERVER_ERROR
+                        && self.base_urls.len() > 1
+                    {
+                        // a plain 500 gets the retries on this host first, then the next call uses the next one
+                        if attempts < self.retry_limit {
+                            attempts += 1;
+                            continue;
+                        }
                         self.maybe_rotate_hosts(Some(url.clone()));
                     } else {
                         // If fronting is enabled and we rotate through a non-fronted SNI that
@@ -1416,6 +1429,13 @@ impl ApiClientCore for Client {
             tracing::debug!("Domain fronting activated after failure: {context:?}",);
         }
     }
+}
+
+fn is_gateway_error(status: StatusCode) -> bool {
+    matches!(
+        status,
+        StatusCode::BAD_GATEWAY | StatusCode::SERVICE_UNAVAILABLE | StatusCode::GATEWAY_TIMEOUT
+    )
 }
 
 /// Check for a rate limit response: a plain HTTP 429, a 503 with a `Retry-After` header, or a

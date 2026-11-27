@@ -822,3 +822,131 @@ fn host_rotation_is_still_applied_across_repeated_calls_without_override() {
         Some("nym-api.test")
     );
 }
+
+// A host that answers 429, 502, 503 or 504 is skipped for the next one; a 404 is returned.
+#[tokio::test]
+#[serial]
+async fn unavailable_host_is_skipped_but_other_errors_are_returned() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let cases = [
+        ("429 Too Many Requests", true),
+        ("502 Bad Gateway", true),
+        ("503 Service Unavailable", true),
+        ("504 Gateway Timeout", true),
+        ("404 Not Found", false),
+    ];
+    for (first_answer, skipped) in cases {
+        // rotation swaps only the host, so both hosts share one port
+        let first = tokio::net::TcpListener::bind("[::1]:0").await.unwrap();
+        let port = first.local_addr().unwrap().port();
+        let second = tokio::net::TcpListener::bind(("127.0.0.1", port))
+            .await
+            .unwrap();
+        for (listener, answer) in [(first, first_answer), (second, "200 OK")] {
+            tokio::spawn(async move {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let _ = socket.read(&mut [0u8; 1024]).await;
+                let reply =
+                    format!("HTTP/1.1 {answer}\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+                let _ = socket.write_all(reply.as_bytes()).await;
+            });
+        }
+        let client = ClientBuilder::new_with_urls(vec![
+            Url::new(format!("http://[::1]:{port}"), None).unwrap(),
+            Url::new(format!("http://127.0.0.1:{port}"), None).unwrap(),
+        ])
+        .unwrap()
+        .with_retries(1)
+        .build()
+        .unwrap();
+
+        let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+        let status = client.send(req).await.unwrap().status();
+
+        assert_eq!(status.is_success(), skipped, "{first_answer}");
+    }
+}
+
+// With one host there is nowhere to rotate to, so an unavailable answer is returned as is.
+#[tokio::test]
+#[serial]
+async fn single_unavailable_host_is_not_retried() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let _ = socket.read(&mut [0u8; 1024]).await;
+        let _ = socket
+            .write_all(
+                b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+            )
+            .await;
+    });
+    let client = ClientBuilder::new_with_urls(vec![
+        Url::new(format!("http://127.0.0.1:{port}"), None).unwrap(),
+    ])
+    .unwrap()
+    .with_retries(1)
+    .build()
+    .unwrap();
+
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+
+    assert_eq!(
+        client.send(req).await.unwrap().status(),
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+}
+
+// A plain 500 is retried on the same host, then the next call goes to the next host.
+#[tokio::test]
+#[serial]
+async fn failing_host_gets_the_retries_then_the_next_call_rotates() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let first = tokio::net::TcpListener::bind("[::1]:0").await.unwrap();
+    let port = first.local_addr().unwrap().port();
+    let second = tokio::net::TcpListener::bind(("127.0.0.1", port))
+        .await
+        .unwrap();
+    let hits = Arc::new(AtomicUsize::new(0));
+    for (listener, answer) in [(first, "500 Internal Server Error"), (second, "200 OK")] {
+        let hits = hits.clone();
+        tokio::spawn(async move {
+            loop {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                if answer.starts_with("500") {
+                    hits.fetch_add(1, Ordering::SeqCst);
+                }
+                let _ = socket.read(&mut [0u8; 1024]).await;
+                let reply =
+                    format!("HTTP/1.1 {answer}\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+                let _ = socket.write_all(reply.as_bytes()).await;
+            }
+        });
+    }
+    let client = ClientBuilder::new_with_urls(vec![
+        Url::new(format!("http://[::1]:{port}"), None).unwrap(),
+        Url::new(format!("http://127.0.0.1:{port}"), None).unwrap(),
+    ])
+    .unwrap()
+    .with_retries(2)
+    .build()
+    .unwrap();
+
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+    let first_call = client.send(req).await.unwrap().status();
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+    let second_call = client.send(req).await.unwrap().status();
+
+    assert_eq!(first_call, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(hits.load(Ordering::SeqCst), 3);
+    assert!(second_call.is_success());
+}

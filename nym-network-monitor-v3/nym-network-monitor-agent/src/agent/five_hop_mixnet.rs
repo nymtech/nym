@@ -56,3 +56,45 @@ fn session_submission(outcome: SessionOutcome) -> RouteSessionSubmission {
         outcome,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::anyhow;
+    use nym_crypto::asymmetric::ed25519;
+    use nym_network_monitor_orchestrator_requests::models::FiveHopMixnetGateway;
+    use nym_test_utils::helpers::deterministic_rng;
+
+    // no session starts, yet the orchestrator must hear of every gateway it gave the run
+    #[test]
+    fn a_run_whose_network_read_failed_is_submitted_with_an_error_for_each_gateway() {
+        let mut rng = deterministic_rng();
+        let assignment = FiveHopMixnetAssignment {
+            id: 7,
+            gateways: [12, 34]
+                .map(|node_id| FiveHopMixnetGateway {
+                    node_id,
+                    identity_key: *ed25519::KeyPair::new(&mut rng).public_key(),
+                })
+                .to_vec(),
+        };
+        let read_failure =
+            Err(anyhow!("connection refused").context("could not read the network from nym-api"));
+
+        let result = five_hop_mixnet_result(&assignment, read_failure);
+
+        assert_eq!(result.run_id, 7);
+        assert_eq!(result.sessions.len(), 2, "{result:?}");
+        for (session, gateway) in result.sessions.iter().zip(&assignment.gateways) {
+            assert_eq!(session.gateway_node_id, gateway.node_id);
+            assert!(
+                matches!(
+                    &session.outcome,
+                    RouteSessionOutcome::Error(error)
+                        if error == "could not read the network from nym-api: connection refused"
+                ),
+                "{session:?}"
+            );
+        }
+    }
+}

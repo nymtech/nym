@@ -47,8 +47,11 @@ pub(crate) struct FiveHopMixnetArgs {
 }
 
 impl FiveHopMixnetArgs {
-    /// Builds the config of a five-hop mixnet run over the active set, with unset traffic knobs at a default client's values.
-    pub(crate) fn build_config(&self) -> anyhow::Result<FiveHopMixnetRunConfig> {
+    /// Builds the config of a five-hop mixnet run through the selected mixnodes, with unset traffic knobs at a default client's values.
+    pub(crate) fn build_config(
+        &self,
+        node_selection: RouteNodeSelection,
+    ) -> anyhow::Result<FiveHopMixnetRunConfig> {
         let defaults = RouteTrafficConfig::default();
         let traffic = RouteTrafficConfig {
             message_sending_average_delay: self
@@ -88,8 +91,7 @@ impl FiveHopMixnetArgs {
                 sending_duration: self.five_hop_liveness_sending_duration,
                 waiting_duration: self.five_hop_liveness_waiting_duration,
                 traffic,
-                // a route run handed out by the orchestrator always uses the active set
-                node_selection: RouteNodeSelection::ActiveSet,
+                node_selection,
             },
             timeout: self.five_hop_liveness_run_timeout,
         })

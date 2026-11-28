@@ -19,7 +19,7 @@ serde = { workspace = true, features = ["derive"] }
 zeroize = { workspace = true }
 
 nym-bin-common = { workspace = true }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 reqwest = { workspace = true, features = ["form"] }
 tracing = { workspace = true }
 

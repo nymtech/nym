@@ -41,7 +41,7 @@ nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-coconut-dkg-common = { workspace = true }
 nyxd-scraper-sqlite = { path = "../common/nyxd-scraper-sqlite" }
 nym-ticketbooks-merkle = { workspace = true }

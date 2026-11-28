@@ -36,7 +36,7 @@ nym-task = { workspace = true }
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-node-requests = { workspace = true, features = ["client"] }
-nym-validator-client = { workspace = true, features = ["http-client"] }
+nym-validator-client = { workspace = true, features = ["http-client", "tls-ring"] }
 nym-network-defaults = { workspace = true, features = ["env"] }
 nym-geolocation-contract-common = { workspace = true, features = ["payload", "utoipa"] }
 nym-geolocator-requests = { workspace = true }

@@ -43,6 +43,12 @@ nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
 
 [features]
-default = []
+default = ["dkg-http-client", "tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-client-core/tls-ring"]
+# `NymClient::start`, `run_forever` and `run_and_listen`, which build the credentials DKG client
+# on the tendermint-rpc HTTP client (reqwest 0.11 and rustls 0.21 with ring). nym-sdk turns
+# default features off and uses only `start_socks5_listener`.
+dkg-http-client = ["nym-client-core/dkg-http-client"]
 
 [lints]

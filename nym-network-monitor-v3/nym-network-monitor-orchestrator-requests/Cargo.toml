@@ -22,7 +22,7 @@ utoipa = { workspace = true, optional = true }
 zeroize = { workspace = true, optional = true }
 
 nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
-nym-http-api-client = { workspace = true, optional = true }
+nym-http-api-client = { workspace = true, optional = true, features = ["tls-ring"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }

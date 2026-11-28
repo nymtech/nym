@@ -40,7 +40,9 @@ workspace = true
 features = ["tokio"]
 
 [features]
-default = ["query-types"]
+default = ["query-types", "tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-http-api-client/tls-ring"]
 query-types = ["nym-http-api-common", "nym-http-api-common/output"]
 openapi = ["utoipa", "nym-http-api-common/utoipa", "nym-upgrade-mode-check/openapi"]
 tsify = ["dep:tsify", "wasm-bindgen"]

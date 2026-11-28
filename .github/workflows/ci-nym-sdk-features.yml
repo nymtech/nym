@@ -1,7 +1,8 @@
 name: ci-nym-sdk-features
 
-# Verifies the nym-sdk feature gating: every feature combination compiles, and an
-# ephemeral (default-features = false) client does not pull in the sqlx storage stack.
+# Verifies the nym-sdk feature gating: every feature combination compiles, an
+# ephemeral (default-features = false) client does not pull in the sqlx storage stack,
+# and a `tls-aws-lc-rs` build without `credentials` does not pull in ring.
 on:
   pull_request:
     paths:
@@ -9,6 +10,7 @@ on:
       - 'common/credential-storage/**'
       - 'common/bandwidth-fetcher/**'
       - 'common/client-core/surb-storage/**'
+      - 'common/http-api-client/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/ci-nym-sdk-features.yml'
@@ -52,9 +54,10 @@ jobs:
 
       # The nym-sdk gate itself: every feature combination up to pairs, across all
       # targets so the feature-gated examples are compiled under the combos that
-      # enable them.
+      # enable them. nym-sdk does not compile without a TLS provider feature, so each
+      # combination includes one.
       - name: nym-sdk feature powerset
-        run: cargo hack check -p nym-sdk --feature-powerset --depth 2 --all-targets
+        run: cargo hack check -p nym-sdk --feature-powerset --depth 2 --all-targets --at-least-one-of tls-ring,tls-aws-lc-rs
 
       # The upstream crates whose sqlx dependency is now optional.
       - name: nym-credential-storage feature powerset
@@ -98,3 +101,15 @@ jobs:
             exit 1
           fi
           echo "ok: sqlx is not in the ephemeral nym-sdk dependency tree"
+
+      # `tls-aws-lc-rs` without `credentials` must not link ring. `credentials` is left out
+      # because its tendermint-rpc HTTP client brings ring through reqwest 0.11 and rustls 0.21.
+      - name: Assert ring is absent from a tls-aws-lc-rs nym-sdk
+        run: |
+          features=fs-storage,socks5,ipr,stream,tcp-proxy,client-pool,cli,tls-aws-lc-rs
+          if cargo tree -p nym-sdk --no-default-features --features "$features" -e normal,build --target all -i ring 2>/dev/null | grep -q '^ring'; then
+            echo "::error::ring is linked into nym-sdk with tls-aws-lc-rs and without credentials"
+            cargo tree -p nym-sdk --no-default-features --features "$features" -e normal,build --target all -i ring
+            exit 1
+          fi
+          echo "ok: ring is not in the tls-aws-lc-rs nym-sdk dependency tree"

@@ -109,6 +109,16 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+// A silent fallback would change the TLS provider, and with it the ClientHello, of every
+// `default-features = false` build, so the provider is an explicit choice.
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(any(feature = "tls-ring", feature = "tls-aws-lc-rs"))
+))]
+compile_error!(
+    "nym-sdk needs a rustls crypto provider: enable the `tls-ring` or `tls-aws-lc-rs` feature"
+);
+
 mod error;
 
 #[cfg(any(feature = "socks5", feature = "ipr"))]

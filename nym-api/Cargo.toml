@@ -96,7 +96,7 @@ nym-task = { workspace = true }
 nym-topology = { workspace = true }
 nym-api-requests = { workspace = true }
 nym-validator-client = { workspace = true }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 nym-bin-common = { workspace = true, features = ["output_format", "openapi", "basic_tracing"] }
 nym-node-tester-utils = { workspace = true }
 nym-node-requests = { workspace = true, features = ["client"] }

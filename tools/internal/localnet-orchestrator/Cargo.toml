@@ -42,7 +42,7 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand", "serde"] }
 nym-config = { workspace = true }
-nym-validator-client = { workspace = true, features = ["http-client"] }
+nym-validator-client = { workspace = true, features = ["http-client", "tls-ring"] }
 nym-compact-ecash = { workspace = true }
 nym-pemstore = { workspace = true }
 

@@ -34,6 +34,7 @@ nym-client-core = { workspace = true, features = [
     "fs-surb-storage",
     "fs-gateways-storage",
     "cli",
+    "tls-ring",
 ] }
 nym-config = { workspace = true }
 nym-credential-storage = { workspace = true }
@@ -44,7 +45,7 @@ nym-id = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-ordered-buffer = { workspace = true }
 nym-pemstore = { workspace = true }
-nym-socks5-client-core = { workspace = true }
+nym-socks5-client-core = { workspace = true, features = ["dkg-http-client"] }
 nym-sphinx = { workspace = true }
 nym-topology = { workspace = true }
 nym-validator-client = { workspace = true, features = [

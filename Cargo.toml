@@ -500,7 +500,9 @@ nym-gateway-requests = { version = "3.0.1", path = "common/gateway-requests" }
 nym-gateway-storage = { version = "3.0.1", path = "common/gateway-storage" }
 nym-gateway-stats-storage = { version = "3.0.1", path = "common/gateway-stats-storage" }
 nym-group-contract-common = { version = "3.0.1", path = "common/cosmwasm-smart-contracts/group-contract" }
-nym-http-api-client = { version = "3.0.1", path = "common/http-api-client" }
+# aws-lc-rs is the base provider (reqwest compiles it anyway); members that want ring add `tls-ring`.
+# Never add `tls-ring` here: nym-sdk's `tls-aws-lc-rs` builds must stay free of ring.
+nym-http-api-client = { version = "3.0.1", path = "common/http-api-client", default-features = false, features = ["tunneling", "tls-aws-lc-rs"] }
 nym-http-api-client-macro = { version = "3.0.1", path = "common/http-api-client-macro" }
 nym-http-api-common = { version = "3.0.1", path = "common/http-api-common", default-features = false }
 nym-id = { version = "3.0.1", path = "common/nym-id" }
@@ -539,7 +541,7 @@ nym-sdk = { version = "3.0.1", path = "sdk/rust/nym-sdk" }
 nym-serde-helpers = { version = "3.0.1", path = "common/serde-helpers" }
 nym-service-providers-common = { version = "3.0.1", path = "service-providers/common" }
 nym-service-provider-requests-common = { version = "3.0.1", path = "common/service-provider-requests-common" }
-nym-socks5-client-core = { version = "3.0.1", path = "common/socks5-client-core" }
+nym-socks5-client-core = { version = "3.0.1", path = "common/socks5-client-core", default-features = false }
 nym-socks5-proxy-helpers = { version = "3.0.1", path = "common/socks5/proxy-helpers" }
 nym-socks5-requests = { version = "3.0.1", path = "common/socks5/requests" }
 nym-sphinx = { version = "3.0.1", path = "common/nymsphinx" }
@@ -562,7 +564,7 @@ nym-test-utils = { version = "3.0.1", path = "common/test-utils" }
 nym-ticketbooks-merkle = { version = "3.0.1", path = "common/ticketbooks-merkle" }
 nym-topology = { version = "3.0.1", path = "common/topology" }
 nym-types = { version = "3.0.1", path = "common/types" }
-nym-upgrade-mode-check = { version = "3.0.1", path = "common/upgrade-mode-check" }
+nym-upgrade-mode-check = { version = "3.0.1", path = "common/upgrade-mode-check", default-features = false }
 nym-validator-client = { version = "3.0.1", path = "common/client-libs/validator-client", default-features = false }
 nym-vesting-contract-common = { version = "3.0.1", path = "common/cosmwasm-smart-contracts/vesting-contract" }
 nym-network-monitors-contract-common = { version = "3.0.1", path = "common/cosmwasm-smart-contracts/network-monitors-contract" }

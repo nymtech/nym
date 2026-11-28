@@ -62,5 +62,10 @@ nym-compact-ecash = { workspace = true }
 nym-coconut-dkg-common = { workspace = true }
 cosmwasm-std = { workspace = true }
 
+[features]
+default = ["tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-http-api-client/tls-ring"]
+
 [lints]
 workspace = true

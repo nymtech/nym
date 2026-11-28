@@ -1,6 +1,8 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "dkg-http-client")]
+use crate::config::Config;
 use crate::{
     client::base_client::storage::helpers::{
         get_all_registered_identities, remove_gateway_details,
@@ -8,12 +10,12 @@ use crate::{
     client::key_manager::persistence::{KeySecret, KeyStore, OnDiskKeys, OnDiskKeysError},
     client::replies::reply_storage::{CombinedReplyStorage, ReplyStorageBackend, fs_backend},
     config,
-    config::Config,
     config::disk_persistence::CommonClientPaths,
     error::ClientCoreError,
     init::generate_new_client_keys,
 };
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
+#[cfg(feature = "dkg-http-client")]
 use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd};
 use std::{
     io,
@@ -21,6 +23,7 @@ use std::{
 };
 use time::OffsetDateTime;
 use tracing::{error, info, trace};
+#[cfg(feature = "dkg-http-client")]
 use url::Url;
 
 /// Maximum rename attempts when the database file is temporarily locked.
@@ -245,6 +248,7 @@ pub fn sqlite_database_paths<P: AsRef<Path>>(db_file: P) -> Vec<PathBuf> {
         .collect()
 }
 
+#[cfg(feature = "dkg-http-client")]
 pub fn default_query_dkg_client_from_config(
     config: &Config,
 ) -> Result<QueryHttpRpcNyxdClient, ClientCoreError> {
@@ -256,6 +260,7 @@ pub fn default_query_dkg_client_from_config(
     default_query_dkg_client(nyxd_url)
 }
 
+#[cfg(feature = "dkg-http-client")]
 pub fn default_query_dkg_client(nyxd_url: Url) -> Result<QueryHttpRpcNyxdClient, ClientCoreError> {
     let details = nym_network_defaults::NymNetworkDetails::new_from_env();
     let client_config = nyxd::Config::try_from_nym_network_details(&details)

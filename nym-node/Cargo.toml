@@ -97,7 +97,7 @@ nym-verloc = { workspace = true }
 nym-metrics = { workspace = true }
 nym-gateway-stats-storage = { workspace = true }
 nym-topology = { workspace = true }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["tls-ring"] }
 
 # http server
 # useful for `#[axum_macros::debug_handler]`

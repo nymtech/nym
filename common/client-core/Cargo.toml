@@ -144,7 +144,7 @@ hex = { workspace = true }
 semver = { workspace = true }
 
 [features]
-default = []
+default = ["dkg-http-client", "tls-ring"]
 cli = ["clap", "comfy-table", "dep:nym-sqlcipher"]
 fs-credentials-storage = ["nym-credential-storage/persistent-storage"]
 fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage", "dep:nym-sqlcipher"]
@@ -154,8 +154,7 @@ metrics-server = []
 # `non_wasm_helpers::default_query_dkg_client*`, built on the tendermint-rpc HTTP client
 # (reqwest 0.11 and rustls 0.21 with ring).
 dkg-http-client = ["nym-validator-client/http-client"]
-# For binaries that reach nym-http-api-client only through this crate. Never enable it from
-# nym-sdk's dependency on this crate, or nym-sdk's `tls-aws-lc-rs` builds pull ring.
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
 tls-ring = ["nym-http-api-client/tls-ring"]
 
 [lints]

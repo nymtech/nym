@@ -323,6 +323,9 @@ where
     }
 
     /// Enable paid ecash bandwidth credentials mode.
+    ///
+    /// Needs the `credentials` feature: without it, building the client returns
+    /// [`Error::Unsupported`].
     #[must_use]
     pub fn enable_credentials_mode(mut self) -> Self {
         self.config.enabled_credentials_mode = true;
@@ -330,6 +333,9 @@ where
     }
 
     /// Enable paid ecash bandwidth credentials mode.
+    ///
+    /// Needs the `credentials` feature when `credentials_mode` is `true`: without it, building
+    /// the client returns [`Error::Unsupported`].
     #[must_use]
     pub fn credentials_mode(mut self, credentials_mode: bool) -> Self {
         self.config.enabled_credentials_mode = credentials_mode;
@@ -502,7 +508,7 @@ where
 
     /// In the case of enabled credentials, a client instance responsible for querying the state of the
     /// dkg and coconut contracts
-    dkg_query_client: Option<DkgQueryClient>,
+    dkg_query_client: Option<DkgClient>,
 
     /// Alternative provider of network topology used for constructing sphinx packets.
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -1154,24 +1160,24 @@ impl IncludedSurbs {
 
 /// Queries the DKG and ecash contracts for the bandwidth controller in credentials mode.
 #[cfg(feature = "credentials")]
-type DkgQueryClient = nym_validator_client::QueryHttpRpcNyxdClient;
+type DkgClient = nym_validator_client::QueryHttpRpcNyxdClient;
 
 // Never constructed: without `credentials` the client is always `None`, so any type that
 // implements the client-core trait without the tendermint-rpc HTTP client will do.
 #[cfg(not(feature = "credentials"))]
-type DkgQueryClient = nym_validator_client::QueryReqwestRpcNyxdClient;
+type DkgClient = nym_validator_client::QueryReqwestRpcNyxdClient;
 
 #[cfg(feature = "credentials")]
-fn connect_dkg_query_client(config: &Config) -> Result<DkgQueryClient> {
+fn connect_dkg_query_client(config: &Config) -> Result<DkgClient> {
     let client_config = nyxd::Config::try_from_nym_network_details(&config.network_details)?;
-    Ok(DkgQueryClient::connect(
+    Ok(DkgClient::connect(
         client_config,
         config.network_details.endpoints[0].nyxd_url.as_str(),
     )?)
 }
 
 #[cfg(not(feature = "credentials"))]
-fn connect_dkg_query_client(_config: &Config) -> Result<DkgQueryClient> {
+fn connect_dkg_query_client(_config: &Config) -> Result<DkgClient> {
     Err(Error::Unsupported {
         details: "credentials mode needs the nym-sdk `credentials` feature".to_string(),
     })

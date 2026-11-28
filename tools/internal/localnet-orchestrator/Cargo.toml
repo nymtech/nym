@@ -42,9 +42,7 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand", "serde"] }
 nym-config = { workspace = true }
-nym-validator-client = { workspace = true, features = ["http-client"] }
-# not used directly: selects ring as the rustls provider for nym-validator-client's HTTP clients
-nym-http-api-client = { workspace = true, features = ["tls-ring"] }
+nym-validator-client = { workspace = true, features = ["http-client", "tls-ring"] }
 nym-compact-ecash = { workspace = true }
 nym-pemstore = { workspace = true }
 

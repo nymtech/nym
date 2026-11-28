@@ -99,7 +99,9 @@ name = "offline_signing"
 required-features = ["http-client"]
 
 [features]
-default = ["http-client"]
+default = ["http-client", "tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-http-api-client/tls-ring"]
 http-client = ["cosmrs/rpc"]
 mocks = []
 generate-ts = []

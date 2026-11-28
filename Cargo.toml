@@ -541,7 +541,7 @@ nym-sdk = { version = "3.0.1", path = "sdk/rust/nym-sdk" }
 nym-serde-helpers = { version = "3.0.1", path = "common/serde-helpers" }
 nym-service-providers-common = { version = "3.0.1", path = "service-providers/common" }
 nym-service-provider-requests-common = { version = "3.0.1", path = "common/service-provider-requests-common" }
-nym-socks5-client-core = { version = "3.0.1", path = "common/socks5-client-core" }
+nym-socks5-client-core = { version = "3.0.1", path = "common/socks5-client-core", default-features = false }
 nym-socks5-proxy-helpers = { version = "3.0.1", path = "common/socks5/proxy-helpers" }
 nym-socks5-requests = { version = "3.0.1", path = "common/socks5/requests" }
 nym-sphinx = { version = "3.0.1", path = "common/nymsphinx" }
@@ -564,7 +564,7 @@ nym-test-utils = { version = "3.0.1", path = "common/test-utils" }
 nym-ticketbooks-merkle = { version = "3.0.1", path = "common/ticketbooks-merkle" }
 nym-topology = { version = "3.0.1", path = "common/topology" }
 nym-types = { version = "3.0.1", path = "common/types" }
-nym-upgrade-mode-check = { version = "3.0.1", path = "common/upgrade-mode-check" }
+nym-upgrade-mode-check = { version = "3.0.1", path = "common/upgrade-mode-check", default-features = false }
 nym-validator-client = { version = "3.0.1", path = "common/client-libs/validator-client", default-features = false }
 nym-vesting-contract-common = { version = "3.0.1", path = "common/cosmwasm-smart-contracts/vesting-contract" }
 nym-network-monitors-contract-common = { version = "3.0.1", path = "common/cosmwasm-smart-contracts/network-monitors-contract" }

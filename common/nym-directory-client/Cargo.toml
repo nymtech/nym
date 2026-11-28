@@ -34,7 +34,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 nym-contract-attestation = { workspace = true, features = ["mock"] }
 # not optional here (unlike the anchor crate): `test_support`'s nym-api mock uses
 # `ApiClientCore` unconditionally
-nym-http-api-client = { workspace = true, features = ["tls-ring"] }
+nym-http-api-client = { workspace = true }
 
 # pure forwards - both features gate code that now lives in nym-contract-anchor
 [features]

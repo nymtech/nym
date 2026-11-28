@@ -18,7 +18,7 @@ futures = { workspace = true }
 nym-credential-verification = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
-nym-http-api-client = { workspace = true, features = ["tls-ring"] }
+nym-http-api-client = { workspace = true }
 nym-http-api-common = { workspace = true, features = [
     "middleware",
     "utoipa",
@@ -44,5 +44,10 @@ nym-wireguard-private-metadata-shared = { workspace = true, features = [
     "testing",
 ] }
 nym-wireguard-private-metadata-server = { workspace = true }
+
+[features]
+default = ["tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-http-api-client/tls-ring"]
 
 [lints]

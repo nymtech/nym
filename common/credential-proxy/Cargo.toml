@@ -24,7 +24,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 strum_macros = { workspace = true }
-nym-http-api-client = { workspace = true, features = ["tls-ring"] }
+nym-http-api-client = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"] }
 time = { workspace = true }
 thiserror = { workspace = true }
@@ -55,6 +55,11 @@ tokio = { workspace = true, features = ["macros", "rt"] }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "migrate"] }
+
+[features]
+default = ["tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-http-api-client/tls-ring"]
 
 [lints]
 workspace = true

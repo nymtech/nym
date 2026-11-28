@@ -45,7 +45,7 @@ cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 
 nym-validator-client = { workspace = true, features = ["http-client"] }
-nym-http-api-client = { workspace = true, features = ["tls-ring"] }
+nym-http-api-client = { workspace = true }
 nym-bin-common = { workspace = true, features = ["output_format"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }
@@ -70,5 +70,10 @@ nym-credential-proxy-requests = { workspace = true }
 
 nym-pemstore = { workspace = true }
 nym-types = { workspace = true }
+
+[features]
+default = ["tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-http-api-client/tls-ring"]
 
 [lints]

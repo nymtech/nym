@@ -58,7 +58,9 @@ nym-crypto = { workspace = true, features = ["rand"] }
 
 
 [features]
-default = ["client"]
+default = ["client", "tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-http-api-client?/tls-ring"]
 client = ["nym-http-api-client", "async-trait", "nym-network-defaults"]
 openapi = ["utoipa", "nym-bin-common/openapi", "nym-exit-policy/openapi"]
 

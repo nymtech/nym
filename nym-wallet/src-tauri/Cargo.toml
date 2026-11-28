@@ -57,8 +57,6 @@ cosmrs = { version = "0.22.0" }
 
 nym-node-requests = { path = "../../nym-node/nym-node-requests" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
-# not used directly: selects ring as the rustls provider for nym-validator-client's HTTP clients
-nym-http-api-client = { path = "../../common/http-api-client", features = ["tls-ring"] }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }

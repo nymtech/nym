@@ -24,7 +24,6 @@ dependencies = [
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",
- "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-node-families-contract-common",
  "nym-node-requests",

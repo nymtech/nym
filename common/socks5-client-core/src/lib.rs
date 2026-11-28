@@ -50,22 +50,26 @@ pub struct StartedSocks5Client {
     pub address: Recipient,
 }
 
-// Without `dkg-http-client` only `start_socks5_listener` is available, which reads no fields.
-#[cfg_attr(not(feature = "dkg-http-client"), allow(dead_code))]
 pub struct NymClient<S> {
     /// Client configuration options, including, among other things, packet sending rates,
     /// key filepaths, etc.
     config: Config,
 
+    // the fields below are read only by `start`, which needs `dkg-http-client`
+    #[cfg_attr(not(feature = "dkg-http-client"), allow(dead_code))]
     storage: S,
 
+    #[cfg_attr(not(feature = "dkg-http-client"), allow(dead_code))]
     setup_method: GatewaySetup,
 
+    #[cfg_attr(not(feature = "dkg-http-client"), allow(dead_code))]
     user_agent: UserAgent,
 
     /// Optional path to a .json file containing standalone network details.
+    #[cfg_attr(not(feature = "dkg-http-client"), allow(dead_code))]
     custom_mixnet: Option<PathBuf>,
 
+    #[cfg_attr(not(feature = "dkg-http-client"), allow(dead_code))]
     shutdown_manager: ShutdownManager,
 }
 

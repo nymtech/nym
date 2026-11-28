@@ -41,7 +41,7 @@ pin-project = { workspace = true }
 # Bandwidth top-up (task 4.9): the gateway `metadata` endpoint client. The
 # BandwidthCredential is supplied by the caller, keeping the datapath decoupled
 # from the provisioning facade.
-nym-http-api-client = { workspace = true, features = ["tls-ring"] }
+nym-http-api-client = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-wireguard-private-metadata-client = { workspace = true }
 nym-wireguard-private-metadata-shared = { workspace = true }
@@ -114,5 +114,10 @@ path = "examples/smoldvpn-config.rs"
 [[example]]
 name = "smoldvpn-topup"
 path = "examples/smoldvpn-topup.rs"
+
+[features]
+default = ["tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-http-api-client/tls-ring"]
 
 [lints]

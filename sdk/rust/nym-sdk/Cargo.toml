@@ -246,10 +246,9 @@ default = [
 ]
 
 # rustls crypto provider for every TLS connection the SDK makes (nym-api and other HTTP APIs,
-# DoT/DoH lookups, gateway websockets). ring wins when both are enabled. With
-# `default-features = false` and neither enabled, aws-lc-rs is used: reqwest compiles it in
-# either way. Only `tls-aws-lc-rs` without `tls-ring` (and without `credentials`) builds
-# without ring.
+# DoT/DoH lookups, gateway websockets). Enable at least one: the crate does not compile with
+# neither. ring wins when both are enabled. Only `tls-aws-lc-rs` without `tls-ring` (and
+# without `credentials`) builds without ring.
 tls-ring = ["nym-http-api-client/tls-ring"]
 tls-aws-lc-rs = ["nym-http-api-client/tls-aws-lc-rs"]
 

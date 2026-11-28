@@ -34,7 +34,6 @@ nym-client-core = { workspace = true, features = [
     "fs-surb-storage",
     "fs-gateways-storage",
     "cli",
-    "dkg-http-client",
     "tls-ring",
 ] }
 nym-config = { workspace = true }

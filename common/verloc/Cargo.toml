@@ -26,8 +26,13 @@ url = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
-nym-http-api-client = { workspace = true, features = ["tls-ring"] }
+nym-http-api-client = { workspace = true }
 nym-api-requests = { workspace = true }
+
+[features]
+default = ["tls-ring"]
+# ring as the rustls crypto provider; turn default features off to use aws-lc-rs
+tls-ring = ["nym-http-api-client/tls-ring"]
 
 [lints]
 workspace = true

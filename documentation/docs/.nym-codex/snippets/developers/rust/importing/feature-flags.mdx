@@ -1,12 +1,12 @@
 ## Feature flags [#feature-flags]
 
-Every feature is on by default, so the dependency line above gives you the full SDK.
+Every feature except `tls-aws-lc-rs` is on by default, so the dependency line above gives you the full SDK.
 To compile only the parts you use, turn the defaults off and list the features you
-need:
+need. The list must include one TLS crypto provider, `tls-ring` or `tls-aws-lc-rs`:
 
 ```toml
 [dependencies]
-nym-sdk = { version = "3.0.1", default-features = false, features = ["stream"] }
+nym-sdk = { version = "3.0.1", default-features = false, features = ["stream", "tls-ring"] }
 ```
 
 The core mixnet client (connecting, sending and receiving messages, `Recipient`) is
@@ -17,11 +17,13 @@ always available and needs no feature.
 | `fs-storage` | On-disk persistent storage for keys, credentials, reply SURBs, and gateways. Pulls in the SQLite (`sqlx`) stack. |
 | `socks5` | SOCKS5 client mode and network-requester country discovery. |
 | `ipr` | IP packet router client and IP-over-mixnet stream. Implies `stream`. |
-| `credentials` | Paid ecash bandwidth credentials. |
+| `credentials` | Paid ecash bandwidth credentials, and the credentials mode that `enable_credentials_mode()` turns on. |
 | `stream` | Bidirectional byte streams (`AsyncRead` + `AsyncWrite`) over the mixnet. |
 | `tcp-proxy` | TCP tunnelling over the mixnet. Implies `fs-storage` and `client-pool`. |
 | `client-pool` | Pre-warmed pool of ephemeral clients. |
 | `cli` | The `nym-proxy-server` and `nym-proxy-client` binaries. Implies `tcp-proxy`. |
+| `tls-ring` | ring as the rustls crypto provider for all TLS connections the SDK makes. See [TLS crypto provider](#tls-provider). |
+| `tls-aws-lc-rs` | aws-lc-rs as the rustls crypto provider. Off by default. If `tls-ring` is also on, the SDK uses ring. |
 
 <Callout>
 The SQLite (`sqlx`) dependency tree comes only from on-disk storage. An ephemeral

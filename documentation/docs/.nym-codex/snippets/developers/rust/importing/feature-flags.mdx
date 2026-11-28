@@ -2,11 +2,11 @@
 
 Every feature except `tls-aws-lc-rs` is on by default, so the dependency line above gives you the full SDK.
 To compile only the parts you use, turn the defaults off and list the features you
-need:
+need. The list must include one TLS crypto provider, `tls-ring` or `tls-aws-lc-rs`:
 
 ```toml
 [dependencies]
-nym-sdk = { version = "3.0.1", default-features = false, features = ["stream"] }
+nym-sdk = { version = "3.0.1", default-features = false, features = ["stream", "tls-ring"] }
 ```
 
 The core mixnet client (connecting, sending and receiving messages, `Recipient`) is
@@ -29,23 +29,4 @@ always available and needs no feature.
 The SQLite (`sqlx`) dependency tree comes only from on-disk storage. An ephemeral
 client that leaves `fs-storage`, `tcp-proxy`, and `credentials` disabled links none of
 it. This is the main reason to set `default-features = false`.
-</Callout>
-
-### TLS crypto provider [#tls-provider]
-
-The SDK uses rustls for TLS: requests to the Nym APIs, DNS-over-TLS and DNS-over-HTTPS lookups, and gateway websocket connections. The `tls-ring` and `tls-aws-lc-rs` features select the crypto provider for all of them. ring is the default.
-
-To build without ring, turn the defaults off and select aws-lc-rs:
-
-```toml
-[dependencies]
-nym-sdk = { version = "3.0.1", default-features = false, features = ["stream", "fs-storage", "tls-aws-lc-rs"] }
-```
-
-With `default-features = false` and neither TLS feature, the SDK uses aws-lc-rs.
-
-The SDK installs the selected provider as the process-wide rustls default only if your application has not installed one first. To use a different provider for the whole process, install it before your first call into the SDK.
-
-<Callout>
-`credentials` brings in ring whichever TLS feature you select. Its chain client is built on `tendermint-rpc`, which depends on reqwest 0.11 and rustls 0.21 with ring. A build without ring must leave `credentials` off. Without `credentials`, a client with credentials mode turned on fails to build with `Error::Unsupported`.
 </Callout>
